@@ -1,0 +1,48 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "kingdoms:bandit",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": ["kingdoms_bandit", "mob", "monster"]
+      },
+      "minecraft:collision_box": { "width": 0.6, "height": 1.8 },
+      "minecraft:health": { "value": 16, "max": 16 },
+      "minecraft:attack": { "damage": 3 },
+      "minecraft:movement": { "value": 0.32 },
+      "minecraft:navigation.walk": {
+        "can_path_over_water": false,
+        "avoid_water": true,
+        "avoid_damage_blocks": true,
+        "can_breach": false
+      },
+      "minecraft:movement.basic": {},
+      "minecraft:jump.static": {},
+      "minecraft:physics": {},
+      "minecraft:pushable": { "is_pushable": true, "is_pushable_by_piston": true },
+      "minecraft:nameable": {},
+      "minecraft:despawn": { "despawn_from_distance": {} },
+      "minecraft:loot": { "table": "loot_tables/entities/bandit.json" },
+      "minecraft:behavior.float": { "priority": 0 },
+      "minecraft:behavior.melee_attack": { "priority": 2, "speed_multiplier": 1.0 },
+      "minecraft:behavior.nearest_attackable_target": {
+        "priority": 1,
+        "must_see": true,
+        "reselect_targets": true,
+        "within_radius": 20.0,
+        "entity_types": [
+          { "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_merchant" }, "max_dist": 20 },
+          { "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_cart" }, "max_dist": 20 },
+          { "filters": { "test": "is_family", "subject": "other", "value": "player" }, "max_dist": 16 }
+        ]
+      },
+      "minecraft:behavior.random_stroll": { "priority": 8, "speed_multiplier": 0.9, "xz_dist": 30, "y_dist": 5 },
+      "minecraft:behavior.look_at_player": { "priority": 9, "look_distance": 6.0 }
+    }
+  }
+}

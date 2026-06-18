@@ -1,0 +1,12 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": { "identifier": "kingdoms:guard_pole_watchtower_item", "menu_category": { "category": "construction" } },
+    "components": {
+      "minecraft:display_name": { "value": "Watchtower Pole" },
+      "minecraft:icon": { "texture": "guard_pole_watchtower" },
+      "minecraft:block_placer": { "block": "kingdoms:guard_pole_watchtower" },
+      "minecraft:max_stack_size": 64
+    }
+  }
+}

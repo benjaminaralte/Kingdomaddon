@@ -1,0 +1,19 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:town_hall_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": { "value": "Town Hall" },
+      "minecraft:icon": { "texture": "town_hall" },
+      "minecraft:block_placer": {
+        "block": "kingdoms:town_hall"
+      },
+      "minecraft:max_stack_size": 1
+    }
+  }
+}
