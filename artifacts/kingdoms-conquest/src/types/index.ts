@@ -29,6 +29,7 @@ export interface GuardPoleData {
   location: Vec3;
   type: GuardPoleType;
   assignedGuards: number;
+  requestedGuards: number;
   troopType: TroopType;
   entityIds: string[];
 }
@@ -98,6 +99,7 @@ export interface VillageData {
   blacksmith: BlacksmithData;
   activeMerchants: MerchantData[];
   activeCarts: TradeCartData[];
+  builtHousingUnits: number;
 }
 
 export interface KingdomData {

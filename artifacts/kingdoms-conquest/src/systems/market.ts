@@ -1,4 +1,4 @@
-import { world } from "@minecraft/server";
+import { world, Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
 import type { VillageData, MerchantData } from "../types/index.js";
 import { MERCHANT_SPAWN_RADIUS } from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
@@ -22,6 +22,46 @@ const MERCHANT_STOCK_TEMPLATES: Record<string, Record<string, number>> = {
     "minecraft:apple": 48,
   },
 };
+
+export interface SeedShopEntry {
+  itemId: string;
+  label: string;
+  quantityPerPurchase: number;
+  emeraldCost: number;
+}
+
+export const SEED_SHOP: SeedShopEntry[] = [
+  { itemId: "minecraft:wheat_seeds",   label: "Wheat Seeds",    quantityPerPurchase: 8,  emeraldCost: 1 },
+  { itemId: "minecraft:carrot",        label: "Carrots (seed)", quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "minecraft:potato",        label: "Potatoes (seed)",quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "minecraft:beetroot_seeds",label: "Beetroot Seeds", quantityPerPurchase: 8,  emeraldCost: 1 },
+  { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds",  quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "minecraft:melon_seeds",   label: "Melon Seeds",    quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "minecraft:nether_wart",   label: "Nether Wart",    quantityPerPurchase: 4,  emeraldCost: 3 },
+];
+
+export interface FoodSellEntry {
+  itemId: string;
+  label: string;
+  itemsPerEmerald: number;
+  minBatch: number;
+}
+
+export const FOOD_SELL_RATES: FoodSellEntry[] = [
+  { itemId: "minecraft:wheat",           label: "Wheat",         itemsPerEmerald: 8,  minBatch: 16 },
+  { itemId: "minecraft:carrot",          label: "Carrot",        itemsPerEmerald: 6,  minBatch: 16 },
+  { itemId: "minecraft:potato",          label: "Potato",        itemsPerEmerald: 8,  minBatch: 16 },
+  { itemId: "minecraft:baked_potato",    label: "Baked Potato",  itemsPerEmerald: 5,  minBatch: 16 },
+  { itemId: "minecraft:bread",           label: "Bread",         itemsPerEmerald: 3,  minBatch: 8  },
+  { itemId: "minecraft:beetroot",        label: "Beetroot",      itemsPerEmerald: 10, minBatch: 16 },
+  { itemId: "minecraft:apple",           label: "Apple",         itemsPerEmerald: 6,  minBatch: 16 },
+  { itemId: "minecraft:cooked_beef",     label: "Cooked Beef",   itemsPerEmerald: 2,  minBatch: 8  },
+  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork",   itemsPerEmerald: 2,  minBatch: 8  },
+  { itemId: "minecraft:cooked_chicken",  label: "Cooked Chicken",itemsPerEmerald: 3,  minBatch: 8  },
+  { itemId: "minecraft:cooked_mutton",   label: "Cooked Mutton", itemsPerEmerald: 3,  minBatch: 8  },
+  { itemId: "minecraft:cooked_salmon",   label: "Cooked Salmon", itemsPerEmerald: 3,  minBatch: 8  },
+  { itemId: "minecraft:melon_slice",     label: "Melon Slice",   itemsPerEmerald: 10, minBatch: 16 },
+];
 
 export function getMaxMerchants(village: VillageData): number {
   return Math.floor(village.marketLevel * 1.5 + village.population / 20);
@@ -176,6 +216,159 @@ export function upgradeMarket(village: VillageData): boolean {
   village.marketLevel++;
   saveVillage(village);
   notifyPlayer(village.owner, `§aMarket upgraded to level §b${village.marketLevel}§a in §b${village.name}§a!`);
+  return true;
+}
+
+export function buySeedsFromMarket(
+  player: Player,
+  village: VillageData,
+  entry: SeedShopEntry
+): boolean {
+  if (village.marketLevel < 1) {
+    notifyPlayer(player.name, "§cBuild and upgrade the market first.");
+    return false;
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return false;
+  const container = inv.container;
+
+  let emeraldsHeld = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === "minecraft:emerald") emeraldsHeld += slot.amount;
+  }
+
+  if (emeraldsHeld < entry.emeraldCost) {
+    notifyPlayer(player.name, `§cNeed §6${entry.emeraldCost} emeralds§c (you have ${emeraldsHeld}) to buy ${entry.quantityPerPurchase}x ${entry.label}.`);
+    return false;
+  }
+
+  let emeraldsToRemove = entry.emeraldCost;
+  for (let i = 0; i < container.size && emeraldsToRemove > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== "minecraft:emerald") continue;
+    const take = Math.min(slot.amount, emeraldsToRemove);
+    emeraldsToRemove -= take;
+    if (take >= slot.amount) {
+      container.setItem(i, undefined);
+    } else {
+      slot.amount -= take;
+      container.setItem(i, slot);
+    }
+  }
+
+  let remaining = entry.quantityPerPurchase;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const give = Math.min(remaining, 64);
+      container.setItem(i, new ItemStack(entry.itemId, give));
+      remaining -= give;
+    } else if (slot.typeId === entry.itemId && slot.amount < 64) {
+      const give = Math.min(remaining, 64 - slot.amount);
+      slot.amount += give;
+      container.setItem(i, slot);
+      remaining -= give;
+    }
+  }
+
+  if (remaining > 0) {
+    notifyPlayer(player.name, "§cInventory full — some seeds couldn't be delivered.");
+  }
+
+  notifyPlayer(player.name, `§aBought §b${entry.quantityPerPurchase - remaining}x ${entry.label}§a for §6${entry.emeraldCost}💎§a.`);
+  return true;
+}
+
+export function sellFoodBulk(
+  player: Player,
+  village: VillageData,
+  entry: FoodSellEntry,
+  batches: number
+): boolean {
+  const totalItems = entry.itemsPerEmerald * batches;
+  const emeraldsEarned = batches;
+
+  if (batches < 1) {
+    notifyPlayer(player.name, "§cMinimum 1 batch.");
+    return false;
+  }
+
+  const granaryHas = village.granaryItems[entry.itemId] ?? 0;
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  const container = inv?.container;
+
+  let inventoryHas = 0;
+  if (container) {
+    for (let i = 0; i < container.size; i++) {
+      const slot = container.getItem(i);
+      if (slot?.typeId === entry.itemId) inventoryHas += slot.amount;
+    }
+  }
+
+  const totalAvailable = granaryHas + inventoryHas;
+  if (totalAvailable < totalItems) {
+    notifyPlayer(
+      player.name,
+      `§cNeed §b${totalItems}x ${entry.label}§c to sell (granary: ${granaryHas}, inventory: ${inventoryHas}).`
+    );
+    return false;
+  }
+
+  let remaining = totalItems;
+
+  if (granaryHas > 0 && remaining > 0) {
+    const fromGranary = Math.min(granaryHas, remaining);
+    village.granaryItems[entry.itemId] = granaryHas - fromGranary;
+    if (village.granaryItems[entry.itemId] === 0) delete village.granaryItems[entry.itemId];
+    remaining -= fromGranary;
+  }
+
+  if (remaining > 0 && container) {
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot || slot.typeId !== entry.itemId) continue;
+      const take = Math.min(slot.amount, remaining);
+      remaining -= take;
+      if (take >= slot.amount) {
+        container.setItem(i, undefined);
+      } else {
+        slot.amount -= take;
+        container.setItem(i, slot);
+      }
+    }
+  }
+
+  if (container) {
+    let emeraldsLeft = emeraldsEarned;
+    for (let i = 0; i < container.size && emeraldsLeft > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(emeraldsLeft, 64);
+        container.setItem(i, new ItemStack("minecraft:emerald", give));
+        emeraldsLeft -= give;
+      } else if (slot.typeId === "minecraft:emerald" && slot.amount < 64) {
+        const give = Math.min(emeraldsLeft, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        emeraldsLeft -= give;
+      }
+    }
+    if (emeraldsLeft > 0) {
+      notifyPlayer(player.name, "§eInventory full — some emeralds dropped on the ground.");
+      try {
+        const loc = player.location;
+        player.dimension.spawnItem(new ItemStack("minecraft:emerald", emeraldsLeft), loc);
+      } catch { /* ignore */ }
+    }
+  }
+
+  saveVillage(village);
+  notifyPlayer(
+    player.name,
+    `§aSold §b${totalItems}x ${entry.label}§a → §6+${emeraldsEarned}💎§a.`
+  );
   return true;
 }
 

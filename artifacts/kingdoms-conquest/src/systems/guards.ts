@@ -11,6 +11,24 @@ const GUARD_ENTITY_MAP: Record<TroopType, string> = {
   cavalry: "kingdoms:cavalry",
 };
 
+function getBestAvailableTroopType(village: VillageData): TroopType {
+  const types: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
+  for (const t of types) {
+    if (village.troops[t] > 0) return t;
+  }
+  return "cityGuards";
+}
+
+function countAssignedTroops(village: VillageData, troopType: TroopType): number {
+  return village.guardPoles.reduce((sum, pole) => {
+    return sum + (pole.troopType === troopType ? pole.assignedGuards : 0);
+  }, 0);
+}
+
+function availableTroops(village: VillageData, troopType: TroopType): number {
+  return Math.max(0, village.troops[troopType] - countAssignedTroops(village, troopType));
+}
+
 export function registerGuardPole(
   village: VillageData,
   location: { x: number; y: number; z: number },
@@ -21,18 +39,35 @@ export function registerGuardPole(
     return false;
   }
 
+  const troopType = getBestAvailableTroopType(village);
+  const maxCanAssign = Math.min(MAX_GUARDS_PER_POLE, availableTroops(village, troopType));
+
   const pole: GuardPoleData = {
     id: generateId(),
     location,
     type,
-    assignedGuards: 0,
-    troopType: "cityGuards",
+    assignedGuards: maxCanAssign,
+    requestedGuards: MAX_GUARDS_PER_POLE,
+    troopType,
     entityIds: [],
   };
 
   village.guardPoles.push(pole);
+
+  if (maxCanAssign > 0) {
+    spawnPoleGuards(village, pole);
+    notifyPlayer(
+      village.owner,
+      `§aGuard pole (${type}) placed — §b${maxCanAssign}/${MAX_GUARDS_PER_POLE} guards assigned§a in §b${village.name}§a.`
+    );
+  } else {
+    notifyPlayer(
+      village.owner,
+      `§eGuard pole (${type}) placed in §b${village.name}§e — no guards available yet, will fill when recruited.`
+    );
+  }
+
   saveVillage(village);
-  notifyPlayer(village.owner, `§aGuard pole (${type}) registered in §b${village.name}§a.`);
   return true;
 }
 
@@ -60,14 +95,15 @@ export function assignGuardsToPole(
     return false;
   }
 
-  if (village.troops[troopType] < count) {
-    notifyPlayer(village.owner, `§cNot enough ${troopType} in barracks.`);
+  if (availableTroops(village, troopType) + pole.assignedGuards < count) {
+    notifyPlayer(village.owner, `§cNot enough available ${troopType} (need ${count}, free: ${availableTroops(village, troopType) + (pole.troopType === troopType ? pole.assignedGuards : 0)}).`);
     return false;
   }
 
   despawnPoleGuards(village, pole);
 
   pole.assignedGuards = count;
+  pole.requestedGuards = count;
   pole.troopType = troopType;
 
   spawnPoleGuards(village, pole);
@@ -80,6 +116,31 @@ export function assignGuardsToPole(
   return true;
 }
 
+export function fillUnderstaffedPoles(village: VillageData): void {
+  let changed = false;
+
+  for (const pole of village.guardPoles) {
+    if (pole.assignedGuards >= pole.requestedGuards) continue;
+
+    const needed = pole.requestedGuards - pole.assignedGuards;
+    const free = availableTroops(village, pole.troopType);
+    if (free <= 0) continue;
+
+    const toAdd = Math.min(needed, free);
+    despawnPoleGuards(village, pole);
+    pole.assignedGuards += toAdd;
+    spawnPoleGuards(village, pole);
+    changed = true;
+
+    notifyPlayer(
+      village.owner,
+      `§e+${toAdd} guard(s) filled post in §b${village.name}§e. (${pole.assignedGuards}/${pole.requestedGuards} at this pole)`
+    );
+  }
+
+  if (changed) saveVillage(village);
+}
+
 function spawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
   const dim = world.getDimension(village.location.dimension);
   const entityType = GUARD_ENTITY_MAP[pole.troopType];
@@ -87,7 +148,8 @@ function spawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
 
   for (let i = 0; i < pole.assignedGuards; i++) {
     try {
-      const angle = (i / pole.assignedGuards) * Math.PI * 2;
+      const count = Math.max(pole.assignedGuards, 1);
+      const angle = (i / count) * Math.PI * 2;
       const entity = dim.spawnEntity(entityType, {
         x: pole.location.x + Math.cos(angle) * 2,
         y: pole.location.y,
@@ -124,6 +186,7 @@ export function refreshAllGuards(): void {
         spawnPoleGuards(village, pole);
       }
     }
+    fillUnderstaffedPoles(village);
   }
 }
 

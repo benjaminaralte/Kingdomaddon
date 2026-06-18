@@ -24,7 +24,15 @@ import {
 import { processAllFood, getFoodProduction, getFoodConsumption, buyFood, sellFood } from "./systems/food.js";
 import { processAllWages, recruitTroop, disbandTroop, upgradeBarracks } from "./systems/military.js";
 import { processAllPopulation } from "./systems/population.js";
-import { processAllMarkets, tradeMerchant, upgradeMarket } from "./systems/market.js";
+import {
+  processAllMarkets,
+  tradeMerchant,
+  upgradeMarket,
+  buySeedsFromMarket,
+  sellFoodBulk,
+  SEED_SHOP,
+  FOOD_SELL_RATES,
+} from "./systems/market.js";
 import { tickBandits } from "./systems/bandit.js";
 import { tickTradeCarts, registerTradePole, removeTradePole, sendTradeCart } from "./systems/trade.js";
 import { tickWatchtowers } from "./systems/watchtower.js";
@@ -140,6 +148,26 @@ world.afterEvents.itemUseOn.subscribe((event) => {
   if (!player) return;
 
   const typeId = block.typeId;
+  const heldItem = event.itemStack;
+
+  if (typeId === CUSTOM_BLOCKS.GRANARY && heldItem) {
+    const village = findVillageAt(block.location);
+    if (village && village.owner === player.name) {
+      const foodEntry = FOOD_SELL_RATES.find((e) => e.itemId === heldItem.typeId);
+      if (foodEntry) {
+        depositPlayerItemsToGranary(player, village, heldItem.typeId, 64);
+        return;
+      }
+    }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK && heldItem?.typeId === "minecraft:emerald") {
+    const village = findVillageAt(block.location);
+    if (village && village.owner === player.name) {
+      depositEmeralds(player, village.id, heldItem.amount);
+      return;
+    }
+  }
 
   switch (typeId) {
     case CUSTOM_BLOCKS.TOWN_HALL:
@@ -416,20 +444,82 @@ async function showMarketMenu(
 
   const form = new ActionFormData()
     .title(`${village.name} — Market Lv${village.marketLevel}`)
-    .body(`Active: ${village.activeMerchants.length}/${maxMerchants} merchants\n${merchantList}\n\nTreasury: ${village.treasury}💎`)
-    .button("Buy 10 Food (20💎)")
-    .button("Sell 10 Food (10💎)")
-    .button(`Upgrade Market (${village.marketLevel * 20}💎)`)
+    .body(
+      `§bTreasury: §6${village.treasury}💎§r  |  Merchants: ${village.activeMerchants.length}/${maxMerchants}\n\n${merchantList}\n\n§7Tip: hold food and right-click granary to deposit instantly.\n§7Hold emeralds and right-click treasury to deposit instantly.`
+    )
+    .button("🌱 Seed Shop")
+    .button("🌾 Sell Food (bulk)")
+    .button(`⬆ Upgrade Market (${village.marketLevel * 20}💎)`)
+    .button("🍞 Buy Food (abstract, 20💎/10)")
+    .button("💰 Sell Food (abstract, 10💎/10)")
     .button("Close");
 
   const response = await form.show(player);
   if (response.canceled) return;
 
   switch (response.selection) {
-    case 0: buyFood(village, 10); break;
-    case 1: sellFood(village, 10); break;
+    case 0: await showSeedShopMenu(player, village); break;
+    case 1: await showFoodSellMenu(player, village); break;
     case 2: upgradeMarket(village); break;
+    case 3: buyFood(village, 10); break;
+    case 4: sellFood(village, 10); break;
   }
+}
+
+async function showSeedShopMenu(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const form = new ActionFormData()
+    .title(`${village.name} — Seed Shop`)
+    .body(
+      `§bBuy seeds with emeralds from your inventory.\n§7Market Lv${village.marketLevel} (needs Lv1+)\n\nSeeds help villager farmers auto-replant crops.`
+    );
+
+  for (const entry of SEED_SHOP) {
+    form.button(`${entry.label} ×${entry.quantityPerPurchase}  [${entry.emeraldCost}💎]`);
+  }
+  form.button("Back");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection >= SEED_SHOP.length) return;
+
+  buySeedsFromMarket(player, village, SEED_SHOP[response.selection]);
+}
+
+async function showFoodSellMenu(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const form = new ActionFormData()
+    .title(`${village.name} — Sell Food`)
+    .body(
+      `§bSell food in bulk for emeralds (to your inventory).\n§7Sources: granary first, then player inventory.\n§cMinimum batch required — low rates by design.`
+    );
+
+  for (const entry of FOOD_SELL_RATES) {
+    const granaryStock = village.granaryItems[entry.itemId] ?? 0;
+    const batchVal = entry.itemsPerEmerald;
+    form.button(`${entry.label}  [${batchVal} items = 1💎]  Granary: ${granaryStock}`);
+  }
+  form.button("Back");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection >= FOOD_SELL_RATES.length) return;
+
+  const entry = FOOD_SELL_RATES[response.selection];
+
+  const batchForm = new ModalFormData()
+    .title(`Sell ${entry.label}`)
+    .slider(`Batches to sell (${entry.itemsPerEmerald} items = 1💎, min ${entry.minBatch} items)`, 1, 10, 1, 1);
+
+  const batchResp = await batchForm.show(player);
+  if (batchResp.canceled || batchResp.formValues === undefined) return;
+
+  const batches = batchResp.formValues[0] as number;
+  sellFoodBulk(player, village, entry, batches);
 }
 
 async function showBlacksmithMenu(

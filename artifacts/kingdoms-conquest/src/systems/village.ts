@@ -123,6 +123,7 @@ export function claimVillage(
     activeCarts: [],
     granaryItems: {},
     lastSoldierFeedDay: getCurrentDay(),
+    builtHousingUnits: 0,
   };
 
   saveVillage(village);

@@ -9,7 +9,7 @@ var __export = (target, all) => {
 };
 
 // src/types/index.ts
-var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, WATCHTOWER_DETECTION_RADIUS, MERCHANT_SPAWN_RADIUS, BANDIT_MIGRATE_DISTANCE;
+var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, MERCHANT_SPAWN_RADIUS, BANDIT_MIGRATE_DISTANCE;
 var init_types = __esm({
   "src/types/index.ts"() {
     "use strict";
@@ -29,6 +29,7 @@ var init_types = __esm({
     FOOD_PER_SOLDIER_PER_DAY = 2;
     POPULATION_GROWTH_INTERVAL_DAYS = 2;
     WAGE_INTERVAL_DAYS = 3;
+    MAX_GUARDS_PER_POLE = 3;
     WATCHTOWER_DETECTION_RADIUS = 48;
     MERCHANT_SPAWN_RADIUS = 8;
     BANDIT_MIGRATE_DISTANCE = 200;
@@ -757,7 +758,8 @@ function claimVillage(player, townHallBlock, kingdomName) {
     activeMerchants: [],
     activeCarts: [],
     granaryItems: {},
-    lastSoldierFeedDay: getCurrentDay()
+    lastSoldierFeedDay: getCurrentDay(),
+    builtHousingUnits: 0
   };
   saveVillage(village);
   addVillageToKingdom(kingdom.id, villageId);
@@ -1641,6 +1643,7 @@ init_notify();
 import { world as world7 } from "@minecraft/server";
 var GROWTH_CHANCE = 0.6;
 var MORTALITY_CHANCE = 0.4;
+var HOUSING_UNIT_SIZE = 5;
 function tickPopulation(village) {
   if (daysSince(village.lastDayProcessed) < POPULATION_GROWTH_INTERVAL_DAYS) return;
   if (village.foodShortageStage >= 4) {
@@ -1658,6 +1661,7 @@ function tickPopulation(village) {
       Math.floor(village.population * 0.3)
     );
     notifyPlayer(village.owner, `\xA7aPopulation grew in \xA7b${village.name}\xA7a! (${village.population})`);
+    checkAndGrowStructures(village);
   }
   spawnVillagerEntity(village);
 }
@@ -1679,22 +1683,76 @@ function handlePopulationDecline(village) {
     );
   }
 }
+function checkAndGrowStructures(village) {
+  const builtUnits = village.builtHousingUnits ?? 0;
+  const unitsNeeded = Math.floor(village.population / HOUSING_UNIT_SIZE);
+  if (unitsNeeded <= builtUnits) return;
+  placeFarmlandUnit(village);
+  village.builtHousingUnits = builtUnits + 1;
+  village.housingCapacity = Math.max(village.housingCapacity, (builtUnits + 1) * HOUSING_UNIT_SIZE + 5);
+  saveVillage(village);
+  notifyPlayer(village.owner, `\xA76New farm and housing unit built for \xA7b${village.name}\xA76! Capacity: ${village.housingCapacity}`);
+}
+function placeFarmlandUnit(village) {
+  try {
+    const dim = world7.getDimension(village.location.dimension);
+    const builtUnits = village.builtHousingUnits ?? 0;
+    const angle = builtUnits * 72 * Math.PI / 180;
+    const radius = 12 + builtUnits * 6;
+    const cx = Math.floor(village.townHallLocation.x + Math.cos(angle) * radius);
+    const cy = village.townHallLocation.y;
+    const cz = Math.floor(village.townHallLocation.z + Math.sin(angle) * radius);
+    const floor = findSolidY(dim, cx, cy, cz);
+    const farmY = floor + 1;
+    dim.runCommand(`fill ${cx - 2} ${farmY} ${cz - 2} ${cx + 2} ${farmY} ${cz + 2} minecraft:farmland`);
+    dim.runCommand(`setblock ${cx} ${farmY} ${cz} minecraft:water`);
+    dim.runCommand(`fill ${cx - 2} ${farmY + 1} ${cz - 2} ${cx + 2} ${farmY + 1} ${cz + 2} minecraft:wheat[growth=0]`);
+    dim.runCommand(`setblock ${cx} ${farmY + 1} ${cz} minecraft:air`);
+    dim.runCommand(`setblock ${cx - 3} ${farmY} ${cz} minecraft:composter`);
+    dim.runCommand(`setblock ${cx - 3} ${farmY + 1} ${cz} minecraft:air`);
+    const bedX = cx + 3;
+    dim.runCommand(`setblock ${bedX} ${farmY} ${cz} minecraft:white_bed["direction":1,"head_bit":true,"occupied_bit":false]`);
+    dim.runCommand(`setblock ${bedX + 1} ${farmY} ${cz} minecraft:white_bed["direction":1,"head_bit":false,"occupied_bit":false]`);
+  } catch {
+  }
+}
+function findSolidY(dim, x, startY, z) {
+  for (let y = startY; y >= startY - 10; y--) {
+    try {
+      const block = dim.getBlock({ x, y, z });
+      if (block && block.typeId !== "minecraft:air" && block.typeId !== "minecraft:water") {
+        return y;
+      }
+    } catch {
+      break;
+    }
+  }
+  return startY;
+}
 function spawnVillagerEntity(village) {
   const dim = world7.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   const query = {
-    type: "minecraft:villager",
+    type: "minecraft:villager_v2",
     location: { x: loc.x, y: loc.y, z: loc.z },
     maxDistance: 64
   };
   const existingVillagers = dim.getEntities(query);
   if (existingVillagers.length < village.population) {
     try {
-      dim.spawnEntity("minecraft:villager", {
-        x: loc.x + (Math.random() * 6 - 3),
+      const spawnX = loc.x + (Math.random() * 6 - 3);
+      const spawnZ = loc.z + (Math.random() * 6 - 3);
+      const entity = dim.spawnEntity("minecraft:villager_v2", {
+        x: spawnX,
         y: loc.y,
-        z: loc.z + (Math.random() * 6 - 3)
+        z: spawnZ
       });
+      entity.setDynamicProperty("kc:village_id", village.id);
+      entity.nameTag = `Villager [${village.name}]`;
+      try {
+        dim.runCommand(`event entity @e[type=minecraft:villager_v2,x=${Math.floor(spawnX)},y=${Math.floor(loc.y)},z=${Math.floor(spawnZ)},r=3] minecraft:become_farmer`);
+      } catch {
+      }
     } catch {
     }
   }
@@ -1710,7 +1768,7 @@ init_types();
 init_storage();
 init_tick();
 init_notify();
-import { world as world8 } from "@minecraft/server";
+import { world as world8, ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
 var MERCHANT_STOCK_TEMPLATES = {
   common: {
     "minecraft:iron_ingot": 32,
@@ -1728,6 +1786,30 @@ var MERCHANT_STOCK_TEMPLATES = {
     "minecraft:apple": 48
   }
 };
+var SEED_SHOP = [
+  { itemId: "minecraft:wheat_seeds", label: "Wheat Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
+  { itemId: "minecraft:carrot", label: "Carrots (seed)", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "minecraft:potato", label: "Potatoes (seed)", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "minecraft:beetroot_seeds", label: "Beetroot Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
+  { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 }
+];
+var FOOD_SELL_RATES = [
+  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 6, minBatch: 16 },
+  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 5, minBatch: 16 },
+  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 3, minBatch: 8 },
+  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 10, minBatch: 16 },
+  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 6, minBatch: 16 },
+  { itemId: "minecraft:cooked_beef", label: "Cooked Beef", itemsPerEmerald: 2, minBatch: 8 },
+  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork", itemsPerEmerald: 2, minBatch: 8 },
+  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 3, minBatch: 8 },
+  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 3, minBatch: 8 },
+  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 3, minBatch: 8 },
+  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 }
+];
 function getMaxMerchants(village) {
   return Math.floor(village.marketLevel * 1.5 + village.population / 20);
 }
@@ -1847,6 +1929,133 @@ function upgradeMarket(village) {
   village.marketLevel++;
   saveVillage(village);
   notifyPlayer(village.owner, `\xA7aMarket upgraded to level \xA7b${village.marketLevel}\xA7a in \xA7b${village.name}\xA7a!`);
+  return true;
+}
+function buySeedsFromMarket(player, village, entry) {
+  if (village.marketLevel < 1) {
+    notifyPlayer(player.name, "\xA7cBuild and upgrade the market first.");
+    return false;
+  }
+  const inv = player.getComponent(EntityInventoryComponent5.componentId);
+  if (!inv?.container) return false;
+  const container = inv.container;
+  let emeraldsHeld = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === "minecraft:emerald") emeraldsHeld += slot.amount;
+  }
+  if (emeraldsHeld < entry.emeraldCost) {
+    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost} emeralds\xA7c (you have ${emeraldsHeld}) to buy ${entry.quantityPerPurchase}x ${entry.label}.`);
+    return false;
+  }
+  let emeraldsToRemove = entry.emeraldCost;
+  for (let i = 0; i < container.size && emeraldsToRemove > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== "minecraft:emerald") continue;
+    const take = Math.min(slot.amount, emeraldsToRemove);
+    emeraldsToRemove -= take;
+    if (take >= slot.amount) {
+      container.setItem(i, void 0);
+    } else {
+      slot.amount -= take;
+      container.setItem(i, slot);
+    }
+  }
+  let remaining = entry.quantityPerPurchase;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const give = Math.min(remaining, 64);
+      container.setItem(i, new ItemStack4(entry.itemId, give));
+      remaining -= give;
+    } else if (slot.typeId === entry.itemId && slot.amount < 64) {
+      const give = Math.min(remaining, 64 - slot.amount);
+      slot.amount += give;
+      container.setItem(i, slot);
+      remaining -= give;
+    }
+  }
+  if (remaining > 0) {
+    notifyPlayer(player.name, "\xA7cInventory full \u2014 some seeds couldn't be delivered.");
+  }
+  notifyPlayer(player.name, `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost}\u{1F48E}\xA7a.`);
+  return true;
+}
+function sellFoodBulk(player, village, entry, batches) {
+  const totalItems = entry.itemsPerEmerald * batches;
+  const emeraldsEarned = batches;
+  if (batches < 1) {
+    notifyPlayer(player.name, "\xA7cMinimum 1 batch.");
+    return false;
+  }
+  const granaryHas = village.granaryItems[entry.itemId] ?? 0;
+  const inv = player.getComponent(EntityInventoryComponent5.componentId);
+  const container = inv?.container;
+  let inventoryHas = 0;
+  if (container) {
+    for (let i = 0; i < container.size; i++) {
+      const slot = container.getItem(i);
+      if (slot?.typeId === entry.itemId) inventoryHas += slot.amount;
+    }
+  }
+  const totalAvailable = granaryHas + inventoryHas;
+  if (totalAvailable < totalItems) {
+    notifyPlayer(
+      player.name,
+      `\xA7cNeed \xA7b${totalItems}x ${entry.label}\xA7c to sell (granary: ${granaryHas}, inventory: ${inventoryHas}).`
+    );
+    return false;
+  }
+  let remaining = totalItems;
+  if (granaryHas > 0 && remaining > 0) {
+    const fromGranary = Math.min(granaryHas, remaining);
+    village.granaryItems[entry.itemId] = granaryHas - fromGranary;
+    if (village.granaryItems[entry.itemId] === 0) delete village.granaryItems[entry.itemId];
+    remaining -= fromGranary;
+  }
+  if (remaining > 0 && container) {
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot || slot.typeId !== entry.itemId) continue;
+      const take = Math.min(slot.amount, remaining);
+      remaining -= take;
+      if (take >= slot.amount) {
+        container.setItem(i, void 0);
+      } else {
+        slot.amount -= take;
+        container.setItem(i, slot);
+      }
+    }
+  }
+  if (container) {
+    let emeraldsLeft = emeraldsEarned;
+    for (let i = 0; i < container.size && emeraldsLeft > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(emeraldsLeft, 64);
+        container.setItem(i, new ItemStack4("minecraft:emerald", give));
+        emeraldsLeft -= give;
+      } else if (slot.typeId === "minecraft:emerald" && slot.amount < 64) {
+        const give = Math.min(emeraldsLeft, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        emeraldsLeft -= give;
+      }
+    }
+    if (emeraldsLeft > 0) {
+      notifyPlayer(player.name, "\xA7eInventory full \u2014 some emeralds dropped on the ground.");
+      try {
+        const loc = player.location;
+        player.dimension.spawnItem(new ItemStack4("minecraft:emerald", emeraldsLeft), loc);
+      } catch {
+      }
+    }
+  }
+  saveVillage(village);
+  notifyPlayer(
+    player.name,
+    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${emeraldsEarned}\u{1F48E}\xA7a.`
+  );
   return true;
 }
 function processAllMarkets() {
@@ -2167,22 +2376,51 @@ var GUARD_ENTITY_MAP = {
   archers: "kingdoms:archer",
   cavalry: "kingdoms:cavalry"
 };
+function getBestAvailableTroopType(village) {
+  const types = ["cityGuards", "spearmen", "archers", "cavalry"];
+  for (const t of types) {
+    if (village.troops[t] > 0) return t;
+  }
+  return "cityGuards";
+}
+function countAssignedTroops(village, troopType) {
+  return village.guardPoles.reduce((sum, pole) => {
+    return sum + (pole.troopType === troopType ? pole.assignedGuards : 0);
+  }, 0);
+}
+function availableTroops(village, troopType) {
+  return Math.max(0, village.troops[troopType] - countAssignedTroops(village, troopType));
+}
 function registerGuardPole(village, location, type) {
   if (village.guardPoles.length >= 32) {
     notifyPlayer(village.owner, "\xA7cMaximum guard poles reached for this village.");
     return false;
   }
+  const troopType = getBestAvailableTroopType(village);
+  const maxCanAssign = Math.min(MAX_GUARDS_PER_POLE, availableTroops(village, troopType));
   const pole = {
     id: generateId(),
     location,
     type,
-    assignedGuards: 0,
-    troopType: "cityGuards",
+    assignedGuards: maxCanAssign,
+    requestedGuards: MAX_GUARDS_PER_POLE,
+    troopType,
     entityIds: []
   };
   village.guardPoles.push(pole);
+  if (maxCanAssign > 0) {
+    spawnPoleGuards(village, pole);
+    notifyPlayer(
+      village.owner,
+      `\xA7aGuard pole (${type}) placed \u2014 \xA7b${maxCanAssign}/${MAX_GUARDS_PER_POLE} guards assigned\xA7a in \xA7b${village.name}\xA7a.`
+    );
+  } else {
+    notifyPlayer(
+      village.owner,
+      `\xA7eGuard pole (${type}) placed in \xA7b${village.name}\xA7e \u2014 no guards available yet, will fill when recruited.`
+    );
+  }
   saveVillage(village);
-  notifyPlayer(village.owner, `\xA7aGuard pole (${type}) registered in \xA7b${village.name}\xA7a.`);
   return true;
 }
 function removeGuardPole(village, poleId) {
@@ -2193,13 +2431,33 @@ function removeGuardPole(village, poleId) {
   village.guardPoles.splice(idx, 1);
   saveVillage(village);
 }
+function fillUnderstaffedPoles(village) {
+  let changed = false;
+  for (const pole of village.guardPoles) {
+    if (pole.assignedGuards >= pole.requestedGuards) continue;
+    const needed = pole.requestedGuards - pole.assignedGuards;
+    const free = availableTroops(village, pole.troopType);
+    if (free <= 0) continue;
+    const toAdd = Math.min(needed, free);
+    despawnPoleGuards(village, pole);
+    pole.assignedGuards += toAdd;
+    spawnPoleGuards(village, pole);
+    changed = true;
+    notifyPlayer(
+      village.owner,
+      `\xA7e+${toAdd} guard(s) filled post in \xA7b${village.name}\xA7e. (${pole.assignedGuards}/${pole.requestedGuards} at this pole)`
+    );
+  }
+  if (changed) saveVillage(village);
+}
 function spawnPoleGuards(village, pole) {
   const dim = world12.getDimension(village.location.dimension);
   const entityType = GUARD_ENTITY_MAP[pole.troopType];
   pole.entityIds = [];
   for (let i = 0; i < pole.assignedGuards; i++) {
     try {
-      const angle = i / pole.assignedGuards * Math.PI * 2;
+      const count = Math.max(pole.assignedGuards, 1);
+      const angle = i / count * Math.PI * 2;
       const entity = dim.spawnEntity(entityType, {
         x: pole.location.x + Math.cos(angle) * 2,
         y: pole.location.y,
@@ -2233,6 +2491,7 @@ function refreshAllGuards() {
         spawnPoleGuards(village, pole);
       }
     }
+    fillUnderstaffedPoles(village);
   }
 }
 
@@ -2353,6 +2612,24 @@ world13.afterEvents.itemUseOn.subscribe((event) => {
   const block = event.block;
   if (!player) return;
   const typeId = block.typeId;
+  const heldItem = event.itemStack;
+  if (typeId === CUSTOM_BLOCKS.GRANARY && heldItem) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      const foodEntry = FOOD_SELL_RATES.find((e) => e.itemId === heldItem.typeId);
+      if (foodEntry) {
+        depositPlayerItemsToGranary(player, village, heldItem.typeId, 64);
+        return;
+      }
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK && heldItem?.typeId === "minecraft:emerald") {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      depositEmeralds(player, village.id, heldItem.amount);
+      return;
+    }
+  }
   switch (typeId) {
     case CUSTOM_BLOCKS.TOWN_HALL:
       void showTownHallMenu(player, block);
@@ -2579,23 +2856,71 @@ async function showMarketMenu(player, block) {
   const merchantList = village.activeMerchants.map(
     (m, i) => `Merchant ${i + 1}: ${Object.entries(m.stock).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ")}`
   ).join("\n") || "No merchants present.";
-  const form = new ActionFormData().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(`Active: ${village.activeMerchants.length}/${maxMerchants} merchants
+  const form = new ActionFormData().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
+    `\xA7bTreasury: \xA76${village.treasury}\u{1F48E}\xA7r  |  Merchants: ${village.activeMerchants.length}/${maxMerchants}
+
 ${merchantList}
 
-Treasury: ${village.treasury}\u{1F48E}`).button("Buy 10 Food (20\u{1F48E})").button("Sell 10 Food (10\u{1F48E})").button(`Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("Close");
+\xA77Tip: hold food and right-click granary to deposit instantly.
+\xA77Hold emeralds and right-click treasury to deposit instantly.`
+  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
     case 0:
-      buyFood(village, 10);
+      await showSeedShopMenu(player, village);
       break;
     case 1:
-      sellFood(village, 10);
+      await showFoodSellMenu(player, village);
       break;
     case 2:
       upgradeMarket(village);
       break;
+    case 3:
+      buyFood(village, 10);
+      break;
+    case 4:
+      sellFood(village, 10);
+      break;
   }
+}
+async function showSeedShopMenu(player, village) {
+  const form = new ActionFormData().title(`${village.name} \u2014 Seed Shop`).body(
+    `\xA7bBuy seeds with emeralds from your inventory.
+\xA77Market Lv${village.marketLevel} (needs Lv1+)
+
+Seeds help villager farmers auto-replant crops.`
+  );
+  for (const entry of SEED_SHOP) {
+    form.button(`${entry.label} \xD7${entry.quantityPerPurchase}  [${entry.emeraldCost}\u{1F48E}]`);
+  }
+  form.button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= SEED_SHOP.length) return;
+  buySeedsFromMarket(player, village, SEED_SHOP[response.selection]);
+}
+async function showFoodSellMenu(player, village) {
+  const form = new ActionFormData().title(`${village.name} \u2014 Sell Food`).body(
+    `\xA7bSell food in bulk for emeralds (to your inventory).
+\xA77Sources: granary first, then player inventory.
+\xA7cMinimum batch required \u2014 low rates by design.`
+  );
+  for (const entry2 of FOOD_SELL_RATES) {
+    const granaryStock = village.granaryItems[entry2.itemId] ?? 0;
+    const batchVal = entry2.itemsPerEmerald;
+    form.button(`${entry2.label}  [${batchVal} items = 1\u{1F48E}]  Granary: ${granaryStock}`);
+  }
+  form.button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= FOOD_SELL_RATES.length) return;
+  const entry = FOOD_SELL_RATES[response.selection];
+  const batchForm = new ModalFormData().title(`Sell ${entry.label}`).slider(`Batches to sell (${entry.itemsPerEmerald} items = 1\u{1F48E}, min ${entry.minBatch} items)`, 1, 10, 1, 1);
+  const batchResp = await batchForm.show(player);
+  if (batchResp.canceled || batchResp.formValues === void 0) return;
+  const batches = batchResp.formValues[0];
+  sellFoodBulk(player, village, entry, batches);
 }
 async function showBlacksmithMenu(player, block) {
   const village = findVillageAt2(block.location);
