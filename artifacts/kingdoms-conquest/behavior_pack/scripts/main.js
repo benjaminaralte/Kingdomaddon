@@ -1065,7 +1065,7 @@ init_harvest();
 // src/systems/treasury.ts
 init_storage();
 init_notify();
-import { EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
+import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
 function depositEmeralds(player, villageId, amount) {
   const village = getVillage(villageId);
   if (!village || village.owner !== player.name) return false;
@@ -1095,6 +1095,43 @@ function depositEmeralds(player, villageId, amount) {
   notifyPlayer(player.name, `\xA7aDeposited \xA76${removed}\u{1F48E}\xA7a into \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)`);
   return true;
 }
+function withdrawEmeralds(player, villageId, amount) {
+  const village = getVillage(villageId);
+  if (!village || village.owner !== player.name) return false;
+  if (village.treasury < amount) {
+    notifyPlayer(player.name, `\xA7cNot enough emeralds in treasury (${village.treasury}\u{1F48E}).`);
+    return false;
+  }
+  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  if (!inv?.container) return false;
+  const container = inv.container;
+  let remaining = amount;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const give = Math.min(remaining, 64);
+      container.setItem(i, new ItemStack2("minecraft:emerald", give));
+      remaining -= give;
+    } else if (slot.typeId === "minecraft:emerald" && slot.amount < 64) {
+      const give = Math.min(remaining, 64 - slot.amount);
+      slot.amount += give;
+      container.setItem(i, slot);
+      remaining -= give;
+    }
+  }
+  if (remaining > 0) {
+    notifyPlayer(player.name, "\xA7cInventory full \u2014 not all emeralds could be withdrawn.");
+    const withdrawn = amount - remaining;
+    village.treasury -= withdrawn;
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7aWithdrew \xA76${withdrawn}\u{1F48E}\xA7a. (Treasury: \xA76${village.treasury}\u{1F48E}\xA7a)`);
+    return false;
+  }
+  village.treasury -= amount;
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7aWithdrew \xA76${amount}\u{1F48E}\xA7a from \xA7b${village.name}\xA7a. (Treasury: \xA76${village.treasury}\u{1F48E}\xA7a)`);
+  return true;
+}
 function getTreasuryReport(village) {
   const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3 };
   const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry) / 3;
@@ -1113,7 +1150,7 @@ function getTreasuryReport(village) {
 init_types();
 init_storage();
 init_notify();
-import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
+import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
 var WEAPON_UPGRADE_COSTS = [
   { material: "minecraft:cobblestone", materialCount: 1, emeralds: 1 },
   { material: "minecraft:iron_ingot", materialCount: 1, emeralds: 1 },
@@ -1231,7 +1268,7 @@ function giveBackItems(player, typeId, amount) {
     const item = container.getItem(i);
     if (item === void 0) {
       const give = Math.min(remaining, 64);
-      container.setItem(i, new ItemStack2(typeId, give));
+      container.setItem(i, new ItemStack3(typeId, give));
       remaining -= give;
     }
   }
@@ -1765,7 +1802,7 @@ init_types();
 init_storage();
 init_tick();
 init_notify();
-import { world as world8, ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
+import { world as world8, ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
 var MERCHANT_STOCK_TEMPLATES = {
   common: {
     "minecraft:iron_ingot": 32,
@@ -1963,7 +2000,7 @@ function buySeedsFromMarket(player, village, entry) {
     const slot = container.getItem(i);
     if (!slot) {
       const give = Math.min(remaining, 64);
-      container.setItem(i, new ItemStack3(entry.itemId, give));
+      container.setItem(i, new ItemStack4(entry.itemId, give));
       remaining -= give;
     } else if (slot.typeId === entry.itemId && slot.amount < 64) {
       const give = Math.min(remaining, 64 - slot.amount);
@@ -2730,7 +2767,7 @@ function sendReinforcements(fromVillageId, toVillageId, troops) {
 // src/systems/deployTroops.ts
 init_storage();
 init_notify();
-import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
+import { ItemStack as ItemStack5, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
   "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
   "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
@@ -2792,7 +2829,7 @@ function pickupTroops(player, village, pickup) {
       const slot = container.getItem(i);
       if (!slot) {
         const give = Math.min(remaining, 64);
-        container.setItem(i, new ItemStack4(itemId, give));
+        container.setItem(i, new ItemStack5(itemId, give));
         remaining -= give;
       } else if (slot.typeId === itemId && slot.amount < 64) {
         const give = Math.min(remaining, 64 - slot.amount);
@@ -3424,7 +3461,7 @@ async function showTreasuryBlockMenu(player, block) {
     return;
   }
   const report = getTreasuryReport(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Close");
+  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -3437,13 +3474,19 @@ async function showTreasuryBlockMenu(player, block) {
     case 2:
       depositEmeralds(player, village.id, 9999);
       break;
+    case 3:
+      withdrawEmeralds(player, village.id, 10);
+      break;
+    case 4:
+      withdrawEmeralds(player, village.id, 64);
+      break;
   }
 }
 async function showTreasuryMenu(player, villageId) {
   const village = getVillage(villageId);
   if (!village) return;
   const report = getTreasuryReport(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Back");
+  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -3455,6 +3498,12 @@ async function showTreasuryMenu(player, villageId) {
       break;
     case 2:
       depositEmeralds(player, villageId, 9999);
+      break;
+    case 3:
+      withdrawEmeralds(player, villageId, 10);
+      break;
+    case 4:
+      withdrawEmeralds(player, villageId, 64);
       break;
   }
 }

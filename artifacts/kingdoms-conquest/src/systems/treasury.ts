@@ -1,4 +1,4 @@
-import { Player, EntityInventoryComponent } from "@minecraft/server";
+import { Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
 import type { VillageData } from "../types/index.js";
 import { getVillage, saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
@@ -35,6 +35,48 @@ export function depositEmeralds(player: Player, villageId: string, amount: numbe
   village.treasury += removed;
   saveVillage(village);
   notifyPlayer(player.name, `§aDeposited §6${removed}💎§a into §b${village.name}§a treasury. (Total: §6${village.treasury}💎§a)`);
+  return true;
+}
+
+export function withdrawEmeralds(player: Player, villageId: string, amount: number): boolean {
+  const village = getVillage(villageId);
+  if (!village || village.owner !== player.name) return false;
+  if (village.treasury < amount) {
+    notifyPlayer(player.name, `§cNot enough emeralds in treasury (${village.treasury}💎).`);
+    return false;
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return false;
+  const container = inv.container;
+
+  let remaining = amount;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const give = Math.min(remaining, 64);
+      container.setItem(i, new ItemStack("minecraft:emerald", give));
+      remaining -= give;
+    } else if (slot.typeId === "minecraft:emerald" && slot.amount < 64) {
+      const give = Math.min(remaining, 64 - slot.amount);
+      slot.amount += give;
+      container.setItem(i, slot);
+      remaining -= give;
+    }
+  }
+
+  if (remaining > 0) {
+    notifyPlayer(player.name, "§cInventory full — not all emeralds could be withdrawn.");
+    const withdrawn = amount - remaining;
+    village.treasury -= withdrawn;
+    saveVillage(village);
+    notifyPlayer(player.name, `§aWithdrew §6${withdrawn}💎§a. (Treasury: §6${village.treasury}💎§a)`);
+    return false;
+  }
+
+  village.treasury -= amount;
+  saveVillage(village);
+  notifyPlayer(player.name, `§aWithdrew §6${amount}💎§a from §b${village.name}§a. (Treasury: §6${village.treasury}💎§a)`);
   return true;
 }
 

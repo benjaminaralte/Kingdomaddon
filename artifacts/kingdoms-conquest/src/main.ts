@@ -51,6 +51,7 @@ import {
 } from "./systems/kingdom.js";
 import {
   depositEmeralds,
+  withdrawEmeralds,
   getTreasuryReport,
 } from "./systems/treasury.js";
 import { upgradeWeapons, upgradeArmor, getBlacksmithSummary } from "./systems/blacksmith.js";
@@ -765,6 +766,8 @@ async function showTreasuryBlockMenu(
     .button("Deposit 10💎 from inventory")
     .button("Deposit 64💎 from inventory")
     .button("Deposit all emeralds")
+    .button("Withdraw 10💎 to inventory")
+    .button("Withdraw 64💎 to inventory")
     .button("Close");
 
   const response = await form.show(player);
@@ -774,6 +777,8 @@ async function showTreasuryBlockMenu(
     case 0: depositEmeralds(player, village.id, 10); break;
     case 1: depositEmeralds(player, village.id, 64); break;
     case 2: depositEmeralds(player, village.id, 9999); break;
+    case 3: withdrawEmeralds(player, village.id, 10); break;
+    case 4: withdrawEmeralds(player, village.id, 64); break;
   }
 }
 
@@ -792,6 +797,8 @@ async function showTreasuryMenu(
     .button("Deposit 10💎 from inventory")
     .button("Deposit 64💎 from inventory")
     .button("Deposit all emeralds")
+    .button("Withdraw 10💎 to inventory")
+    .button("Withdraw 64💎 to inventory")
     .button("Back");
 
   const response = await form.show(player);
@@ -801,6 +808,8 @@ async function showTreasuryMenu(
     case 0: depositEmeralds(player, villageId, 10); break;
     case 1: depositEmeralds(player, villageId, 64); break;
     case 2: depositEmeralds(player, villageId, 9999); break;
+    case 3: withdrawEmeralds(player, villageId, 10); break;
+    case 4: withdrawEmeralds(player, villageId, 64); break;
   }
 }
 
