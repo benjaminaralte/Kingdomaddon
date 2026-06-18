@@ -62,6 +62,12 @@ import {
   getTradeStationSummary,
   ensureResourceStorage,
 } from "./systems/tradeStation.js";
+import {
+  pickupTroops,
+  releaseTroops,
+  countTroopTokens,
+  TROOP_TOKEN_MAP,
+} from "./systems/deployTroops.js";
 import type { GuardPoleType } from "./types/index.js";
 
 const CUSTOM_BLOCKS = {
@@ -359,6 +365,17 @@ world.beforeEvents.playerBreakBlock.subscribe((event) => {
   });
 });
 
+world.afterEvents.itemUse.subscribe((event) => {
+  const player = event.source;
+  if (!player) return;
+  const itemId = event.itemStack?.typeId;
+  if (!itemId || !TROOP_TOKEN_MAP[itemId]) return;
+
+  system.run(() => {
+    releaseTroops(player);
+  });
+});
+
 registerCommands();
 
 async function showClaimVillageForm(
@@ -432,10 +449,19 @@ async function showBarracksMenu(
   }
 
   const t = village.troops;
+  const carried = countTroopTokens(player);
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+
   const form = new ActionFormData()
     .title(`${village.name} — Barracks Lv${village.barracksLevel}`)
     .body(
-      `Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\nArchers: ${t.archers}  Cavalry: ${t.cavalry}\n\nTreasury: ${village.treasury}💎  Pop: ${village.population}/${village.housingCapacity}`
+      `§7── Stationed ──\n` +
+      `Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n` +
+      `Archers: ${t.archers}  Cavalry: ${t.cavalry}\n\n` +
+      `§7── Carried in Inventory ──\n` +
+      `Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}\n` +
+      `Archers: ${carried.archers}  Cavalry: ${carried.cavalry}\n\n` +
+      `Treasury: ${village.treasury}💎  Pop: ${village.population}/${village.housingCapacity}`
     )
     .button("Recruit City Guard (5💎)")
     .button("Recruit Spearman (8💎)")
@@ -443,7 +469,9 @@ async function showBarracksMenu(
     .button("Recruit Cavalry (12💎)")
     .button("Disband 1 Guard")
     .button("Disband 1 Spearman")
-    .button(`Upgrade Barracks (${village.barracksLevel * 15}💎)`);
+    .button(`Upgrade Barracks (${village.barracksLevel * 15}💎)`)
+    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`)
+    .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)");
 
   const response = await form.show(player);
   if (response.canceled) return;
@@ -456,7 +484,82 @@ async function showBarracksMenu(
     case 4: disbandTroop(village, "cityGuards", 1); break;
     case 5: disbandTroop(village, "spearmen", 1); break;
     case 6: upgradeBarracks(village); break;
+    case 7: await showPickUpTroopsForm(player, village); break;
+    case 8: await showReturnTroopsForm(player, village); break;
   }
+}
+
+async function showPickUpTroopsForm(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const t = village.troops;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+
+  if (total === 0) {
+    notifyPlayer(player.name, `§cNo troops stationed in §b${village.name}§c to pick up.`);
+    return;
+  }
+
+  const form = new ModalFormData()
+    .title(`⚔ Pick Up Troops — ${village.name}`)
+    .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0)
+    .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0)
+    .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0)
+    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
+
+  const response = await form.show(player);
+  if (response.canceled) return;
+
+  const [guards, spearmen, archers, cavalry] = response.formValues as number[];
+  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry });
+}
+
+async function showReturnTroopsForm(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const carried = countTroopTokens(player);
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+
+  if (total === 0) {
+    notifyPlayer(player.name, "§cYou are not carrying any troops.");
+    return;
+  }
+
+  const form = new ActionFormData()
+    .title(`Return Troops — ${village.name}`)
+    .body(
+      `§7Return all carried troops to this barracks.\n\n` +
+      `§fCarrying:\n` +
+      `  Guards: ${carried.cityGuards}\n` +
+      `  Spearmen: ${carried.spearmen}\n` +
+      `  Archers: ${carried.archers}\n` +
+      `  Cavalry: ${carried.cavalry}\n\n` +
+      `§aTotal: ${total} troops`
+    )
+    .button("Return All Troops")
+    .button("Cancel");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection !== 0) return;
+
+  const { EntityInventoryComponent: EIC } = await import("@minecraft/server");
+  const inv = player.getComponent(EIC.componentId) as import("@minecraft/server").EntityInventoryComponent | undefined;
+  if (!inv?.container) return;
+  const container = inv.container;
+
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    const info = TROOP_TOKEN_MAP[slot.typeId];
+    if (!info) continue;
+    village.troops[info.troopType] += slot.amount;
+    container.setItem(i, undefined);
+  }
+
+  saveVillage(village);
+  notifyPlayer(player.name, `§a${total} troops returned to §b${village.name}§a barracks.`);
 }
 
 async function showMarketMenu(

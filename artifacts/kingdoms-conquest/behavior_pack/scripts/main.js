@@ -2727,6 +2727,149 @@ function sendReinforcements(fromVillageId, toVillageId, troops) {
   return true;
 }
 
+// src/systems/deployTroops.ts
+init_storage();
+init_notify();
+import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
+var TROOP_TOKEN_MAP = {
+  "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
+  "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
+  "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
+  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" }
+};
+function pickupTroops(player, village, pickup) {
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry;
+  if (total <= 0) {
+    notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
+    return false;
+  }
+  if (pickup.cityGuards > village.troops.cityGuards) {
+    notifyPlayer(player.name, `\xA7cNot enough City Guards (have ${village.troops.cityGuards}).`);
+    return false;
+  }
+  if (pickup.spearmen > village.troops.spearmen) {
+    notifyPlayer(player.name, `\xA7cNot enough Spearmen (have ${village.troops.spearmen}).`);
+    return false;
+  }
+  if (pickup.archers > village.troops.archers) {
+    notifyPlayer(player.name, `\xA7cNot enough Archers (have ${village.troops.archers}).`);
+    return false;
+  }
+  if (pickup.cavalry > village.troops.cavalry) {
+    notifyPlayer(player.name, `\xA7cNot enough Cavalry (have ${village.troops.cavalry}).`);
+    return false;
+  }
+  const inv = player.getComponent(EntityInventoryComponent6.componentId);
+  if (!inv?.container) {
+    notifyPlayer(player.name, "\xA7cInventory unavailable.");
+    return false;
+  }
+  const container = inv.container;
+  const toGive = [
+    { itemId: "kingdoms:guard_token", count: pickup.cityGuards },
+    { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
+    { itemId: "kingdoms:archer_token", count: pickup.archers },
+    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry }
+  ].filter((t) => t.count > 0);
+  let slotsNeeded = 0;
+  for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
+  let freeSlots = 0;
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) freeSlots++;
+  }
+  if (freeSlots < slotsNeeded) {
+    notifyPlayer(player.name, `\xA7cNot enough inventory space (need ${slotsNeeded} free slots).`);
+    return false;
+  }
+  village.troops.cityGuards -= pickup.cityGuards;
+  village.troops.spearmen -= pickup.spearmen;
+  village.troops.archers -= pickup.archers;
+  village.troops.cavalry -= pickup.cavalry;
+  saveVillage(village);
+  for (const { itemId, count } of toGive) {
+    let remaining = count;
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(remaining, 64);
+        container.setItem(i, new ItemStack4(itemId, give));
+        remaining -= give;
+      } else if (slot.typeId === itemId && slot.amount < 64) {
+        const give = Math.min(remaining, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        remaining -= give;
+      }
+    }
+  }
+  const summary = toGive.map(({ itemId, count }) => `${count} ${TROOP_TOKEN_MAP[itemId]?.label}`).join(", ");
+  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a. Right-click any token to deploy!`);
+  return true;
+}
+function releaseTroops(player) {
+  const inv = player.getComponent(EntityInventoryComponent6.componentId);
+  if (!inv?.container) return false;
+  const container = inv.container;
+  const found = {};
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    if (TROOP_TOKEN_MAP[slot.typeId]) {
+      found[slot.typeId] = (found[slot.typeId] ?? 0) + slot.amount;
+    }
+  }
+  const total = Object.values(found).reduce((a, b) => a + b, 0);
+  if (total === 0) return false;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot && TROOP_TOKEN_MAP[slot.typeId]) {
+      container.setItem(i, void 0);
+    }
+  }
+  const loc = player.location;
+  const dim = player.dimension;
+  const parts = [];
+  for (const [itemId, count] of Object.entries(found)) {
+    const info = TROOP_TOKEN_MAP[itemId];
+    if (!info) continue;
+    let spawned = 0;
+    for (let n = 0; n < count; n++) {
+      try {
+        const offset = {
+          x: loc.x + (Math.random() * 4 - 2),
+          y: loc.y,
+          z: loc.z + (Math.random() * 4 - 2)
+        };
+        const entity = dim.spawnEntity(info.entityId, offset);
+        entity.nameTag = `${player.name}'s ${info.label}`;
+        entity.setDynamicProperty("kc:owner", player.name);
+        spawned++;
+      } catch {
+      }
+    }
+    if (spawned > 0) parts.push(`${spawned} ${info.label}`);
+  }
+  if (parts.length === 0) {
+    notifyPlayer(player.name, "\xA7cCould not deploy troops (chunk not loaded).");
+    return false;
+  }
+  notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
+  return true;
+}
+function countTroopTokens(player) {
+  const inv = player.getComponent(EntityInventoryComponent6.componentId);
+  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  if (!inv?.container) return result;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    const info = TROOP_TOKEN_MAP[slot.typeId];
+    if (info) result[info.troopType] += slot.amount;
+  }
+  return result;
+}
+
 // src/main.ts
 var CUSTOM_BLOCKS = {
   TOWN_HALL: "kingdoms:town_hall",
@@ -2981,6 +3124,15 @@ world13.beforeEvents.playerBreakBlock.subscribe((event) => {
     }
   });
 });
+world13.afterEvents.itemUse.subscribe((event) => {
+  const player = event.source;
+  if (!player) return;
+  const itemId = event.itemStack?.typeId;
+  if (!itemId || !TROOP_TOKEN_MAP[itemId]) return;
+  system2.run(() => {
+    releaseTroops(player);
+  });
+});
 registerCommands();
 async function showClaimVillageForm(player, block) {
   const form = new ModalFormData().title("Claim Village").textField("Kingdom Name", "Enter your kingdom name...").textField("Village Name", "Enter a name for this village...");
@@ -3034,12 +3186,19 @@ async function showBarracksMenu(player, block) {
     return;
   }
   const t = village.troops;
+  const carried = countTroopTokens(player);
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
   const form = new ActionFormData().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
-    `Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
+    `\xA77\u2500\u2500 Stationed \u2500\u2500
+Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
 Archers: ${t.archers}  Cavalry: ${t.cavalry}
 
+\xA77\u2500\u2500 Carried in Inventory \u2500\u2500
+Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}
+Archers: ${carried.archers}  Cavalry: ${carried.cavalry}
+
 Treasury: ${village.treasury}\u{1F48E}  Pop: ${village.population}/${village.housingCapacity}`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`);
+  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -3064,7 +3223,61 @@ Treasury: ${village.treasury}\u{1F48E}  Pop: ${village.population}/${village.hou
     case 6:
       upgradeBarracks(village);
       break;
+    case 7:
+      await showPickUpTroopsForm(player, village);
+      break;
+    case 8:
+      await showReturnTroopsForm(player, village);
+      break;
   }
+}
+async function showPickUpTroopsForm(player, village) {
+  const t = village.troops;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+  if (total === 0) {
+    notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
+    return;
+  }
+  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
+  const response = await form.show(player);
+  if (response.canceled) return;
+  const [guards, spearmen, archers, cavalry] = response.formValues;
+  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry });
+}
+async function showReturnTroopsForm(player, village) {
+  const carried = countTroopTokens(player);
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+  if (total === 0) {
+    notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
+    return;
+  }
+  const form = new ActionFormData().title(`Return Troops \u2014 ${village.name}`).body(
+    `\xA77Return all carried troops to this barracks.
+
+\xA7fCarrying:
+  Guards: ${carried.cityGuards}
+  Spearmen: ${carried.spearmen}
+  Archers: ${carried.archers}
+  Cavalry: ${carried.cavalry}
+
+\xA7aTotal: ${total} troops`
+  ).button("Return All Troops").button("Cancel");
+  const response = await form.show(player);
+  if (response.canceled || response.selection !== 0) return;
+  const { EntityInventoryComponent: EIC } = await import("@minecraft/server");
+  const inv = player.getComponent(EIC.componentId);
+  if (!inv?.container) return;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    const info = TROOP_TOKEN_MAP[slot.typeId];
+    if (!info) continue;
+    village.troops[info.troopType] += slot.amount;
+    container.setItem(i, void 0);
+  }
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7a${total} troops returned to \xA7b${village.name}\xA7a barracks.`);
 }
 async function showMarketMenu(player, block) {
   const village = findVillageAt2(block.location);

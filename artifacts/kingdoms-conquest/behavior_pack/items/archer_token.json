@@ -1,0 +1,14 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:archer_token",
+      "menu_category": { "category": "none" }
+    },
+    "components": {
+      "minecraft:display_name": { "value": "Archer" },
+      "minecraft:icon": { "texture": "bow" },
+      "minecraft:max_stack_size": 64
+    }
+  }
+}
