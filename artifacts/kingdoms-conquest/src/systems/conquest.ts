@@ -14,6 +14,7 @@ import {
   areAtWar,
 } from "./kingdom.js";
 import { notifyVillageUnderSiege } from "./watchtower.js";
+import { garrisonDeployedSoldiers } from "./deployTroops.js";
 
 const SIEGE_RADIUS = 48;
 const CAPTURE_PROXIMITY = 5;
@@ -121,7 +122,6 @@ function captureVillage(siege: SiegeData, target: VillageData): void {
   const transferredTreasury = target.treasury;
 
   notifyPlayer(oldOwner, `§4⚔ §b${target.name}§4 has been captured by §c${attackerKingdom.name}§4!`);
-  notifyPlayer(siege.attackerName, `§a⚔ §b${target.name}§a has been captured! Treasury: ${transferredTreasury}💎`);
 
   removeVillageFromKingdom(defenderKingdomId, target.id);
   addVillageToKingdom(siege.attackerKingdomId, target.id);
@@ -143,6 +143,15 @@ function captureVillage(siege: SiegeData, target: VillageData): void {
       saveVillage(attackerVillages[0]);
     }
   }
+
+  const attacker = world.getPlayers().find((p) => p.name === siege.attackerName);
+  const dim = attacker?.dimension ?? world.getDimension("overworld");
+  const garrisoned = garrisonDeployedSoldiers(siege.attackerName, target, dim);
+
+  const garrisonMsg = garrisoned > 0
+    ? ` §7(${garrisoned} surviving soldiers now garrison the village.)`
+    : "";
+  notifyPlayer(siege.attackerName, `§a⚔ §b${target.name}§a has been captured! Treasury: §6${transferredTreasury}💎§a.${garrisonMsg}`);
 }
 
 export function getActiveSiege(villageId: string): SiegeData | undefined {

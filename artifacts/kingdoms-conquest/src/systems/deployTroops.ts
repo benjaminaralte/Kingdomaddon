@@ -1,4 +1,4 @@
-import { Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
+import { Player, ItemStack, EntityInventoryComponent, Entity } from "@minecraft/server";
 import type { VillageData, TroopType } from "../types/index.js";
 import { saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
@@ -159,6 +159,114 @@ export function releaseTroops(player: Player): boolean {
 
   notifyPlayer(player.name, `§c⚔ DEPLOYED: §f${parts.join(", ")}§c into battle!`);
   return true;
+}
+
+const ENTITY_TO_TOKEN: Record<string, string> = {
+  "kingdoms:city_guard":  "kingdoms:guard_token",
+  "kingdoms:spearman":    "kingdoms:spearman_token",
+  "kingdoms:archer":      "kingdoms:archer_token",
+  "kingdoms:cavalry":     "kingdoms:cavalry_token",
+};
+
+const RECALL_RADIUS = 48;
+
+export function recallNearbyTroops(player: Player): boolean {
+  const dim = player.dimension;
+  const loc = player.location;
+
+  const found: Record<string, number> = {};
+  const toRemove: Entity[] = [];
+
+  for (const entityType of Object.keys(ENTITY_TO_TOKEN)) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: RECALL_RADIUS });
+      for (const entity of entities) {
+        if (entity.getDynamicProperty("kc:owner") === player.name) {
+          found[entityType] = (found[entityType] ?? 0) + 1;
+          toRemove.push(entity);
+        }
+      }
+    } catch { /* chunk unloaded */ }
+  }
+
+  if (toRemove.length === 0) {
+    notifyPlayer(player.name, "§eNo your soldiers found within 48 blocks.");
+    return false;
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return false;
+  const container = inv.container;
+
+  const parts: string[] = [];
+
+  for (const [entityType, count] of Object.entries(found)) {
+    const tokenId = ENTITY_TO_TOKEN[entityType];
+    const info = TROOP_TOKEN_MAP[tokenId];
+    if (!tokenId || !info) continue;
+
+    let remaining = count;
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(remaining, 64);
+        container.setItem(i, new ItemStack(tokenId, give));
+        remaining -= give;
+      } else if (slot.typeId === tokenId && slot.amount < 64) {
+        const give = Math.min(remaining, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        remaining -= give;
+      }
+    }
+
+    const recalled = count - remaining;
+    if (recalled > 0) parts.push(`${recalled} ${info.label}`);
+  }
+
+  for (const entity of toRemove) {
+    try { entity.remove(); } catch { /* already removed */ }
+  }
+
+  if (parts.length === 0) {
+    notifyPlayer(player.name, "§cInventory full — soldiers had nowhere to go.");
+    return false;
+  }
+
+  notifyPlayer(player.name, `§a📜 Recalled: §f${parts.join(", ")}§a to your inventory.`);
+  return true;
+}
+
+export function garrisonDeployedSoldiers(
+  attackerName: string,
+  village: VillageData,
+  dimension: import("@minecraft/server").Dimension
+): number {
+  const entityToTroop: Record<string, TroopType> = {
+    "kingdoms:city_guard": "cityGuards",
+    "kingdoms:spearman":   "spearmen",
+    "kingdoms:archer":     "archers",
+    "kingdoms:cavalry":    "cavalry",
+  };
+
+  const loc = village.townHallLocation;
+  let total = 0;
+
+  for (const [entityType, troopType] of Object.entries(entityToTroop)) {
+    try {
+      const entities = dimension.getEntities({ type: entityType, location: loc, maxDistance: 64 });
+      for (const entity of entities) {
+        if (entity.getDynamicProperty("kc:owner") === attackerName) {
+          village.troops[troopType]++;
+          total++;
+          try { entity.remove(); } catch { /* already removed */ }
+        }
+      }
+    } catch { /* chunk unloaded */ }
+  }
+
+  if (total > 0) saveVillage(village);
+  return total;
 }
 
 export function countTroopTokens(player: Player): Record<TroopType, number> {

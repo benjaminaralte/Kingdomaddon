@@ -66,6 +66,7 @@ import {
 import {
   pickupTroops,
   releaseTroops,
+  recallNearbyTroops,
   countTroopTokens,
   TROOP_TOKEN_MAP,
 } from "./systems/deployTroops.js";
@@ -370,11 +371,20 @@ world.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   if (!player) return;
   const itemId = event.itemStack?.typeId;
-  if (!itemId || !TROOP_TOKEN_MAP[itemId]) return;
+  if (!itemId) return;
 
-  system.run(() => {
-    releaseTroops(player);
-  });
+  if (itemId === "kingdoms:recall_scroll") {
+    system.run(() => {
+      recallNearbyTroops(player);
+    });
+    return;
+  }
+
+  if (TROOP_TOKEN_MAP[itemId]) {
+    system.run(() => {
+      releaseTroops(player);
+    });
+  }
 });
 
 registerCommands();

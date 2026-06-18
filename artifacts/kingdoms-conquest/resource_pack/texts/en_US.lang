@@ -20,6 +20,8 @@ item.kingdoms:granary_item.name=Granary
 item.kingdoms:blacksmith_item.name=Blacksmith
 item.kingdoms:trade_station_item.name=Trade Station
 
+item.kingdoms:recall_scroll.name=Recall Scroll
+
 item.kingdoms:guard_token.name=City Guard
 item.kingdoms:spearman_token.name=Spearman
 item.kingdoms:archer_token.name=Archer
