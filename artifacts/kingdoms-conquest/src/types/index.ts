@@ -85,6 +85,12 @@ export interface TradeCartData {
   isRailShipment: boolean;
 }
 
+export interface TrainingJob {
+  troopType: TroopType;
+  count: number;
+  completeTick: number;
+}
+
 export interface VillageData {
   id: string;
   name: string;
@@ -119,6 +125,7 @@ export interface VillageData {
   hasTradeStation: boolean;
   tradeStationLocation?: Vec3;
   resourceStorage: ResourceStorage;
+  trainingQueue: TrainingJob[];
 }
 
 export interface KingdomData {

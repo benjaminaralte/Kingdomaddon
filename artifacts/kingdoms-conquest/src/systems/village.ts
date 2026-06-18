@@ -127,6 +127,7 @@ export function claimVillage(
     builtHousingUnits: 0,
     hasTradeStation: false,
     resourceStorage: { ...EMPTY_RESOURCE_STORAGE },
+    trainingQueue: [],
   };
 
   saveVillage(village);

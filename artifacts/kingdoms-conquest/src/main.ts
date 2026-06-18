@@ -1,6 +1,6 @@
 import { world, system } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
-import type { VillageData, KingdomData, MerchantData, ResourceStorage } from "./types/index.js";
+import type { VillageData, KingdomData, MerchantData, ResourceStorage, TroopType } from "./types/index.js";
 import { RESOURCE_LABELS } from "./types/index.js";
 import { getCurrentTick } from "./utils/tick.js";
 import { notifyPlayer } from "./utils/notify.js";
@@ -35,6 +35,14 @@ import {
 } from "./systems/market.js";
 import { tickBandits } from "./systems/bandit.js";
 import { tickTradeCarts, registerTradePole, removeTradePole, sendTradeCart, sendRailShipment } from "./systems/trade.js";
+import {
+  queueTraining,
+  tickTraining,
+  getTrainingQueueSummary,
+  TRAINING_COSTS,
+  TRAINING_TICKS,
+  TROOP_LABELS,
+} from "./systems/training.js";
 import { tickWatchtowers } from "./systems/watchtower.js";
 import { tickSieges } from "./systems/conquest.js";
 import {
@@ -309,6 +317,10 @@ system.runInterval(() => {
   tickWatchtowers(tick);
   tickTradeCarts(tick);
   tickSieges(tick);
+
+  for (const village of getAllVillages()) {
+    tickTraining(village, tick);
+  }
 }, 20);
 
 system.runInterval(() => {
@@ -463,6 +475,10 @@ async function showBarracksMenu(
   const carried = countTroopTokens(player);
   const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
 
+  const tick = getCurrentTick();
+  const queueSummary = getTrainingQueueSummary(village, tick);
+  const queueCount = village.trainingQueue?.length ?? 0;
+
   const form = new ActionFormData()
     .title(`${village.name} — Barracks Lv${village.barracksLevel}`)
     .body(
@@ -472,7 +488,10 @@ async function showBarracksMenu(
       `§7── Carried in Inventory ──\n` +
       `Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}\n` +
       `Archers: ${carried.archers}  Cavalry: ${carried.cavalry}\n\n` +
-      `Treasury: ${village.treasury}💎  Pop: ${village.population}/${village.housingCapacity}`
+      `§7── Training Queue (${queueCount}/10) ──\n` +
+      `${queueSummary}\n\n` +
+      `Treasury: ${village.treasury}💎  Food: ${village.foodStorage}\n` +
+      `Iron: ${village.resourceStorage.iron}  Wood: ${village.resourceStorage.wood}`
     )
     .button("Recruit City Guard (5💎)")
     .button("Recruit Spearman (8💎)")
@@ -482,7 +501,8 @@ async function showBarracksMenu(
     .button("Disband 1 Spearman")
     .button(`Upgrade Barracks (${village.barracksLevel * 15}💎)`)
     .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`)
-    .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)");
+    .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)")
+    .button(`🪖 Train Troops (queue: ${queueCount}/10)`);
 
   const response = await form.show(player);
   if (response.canceled) return;
@@ -497,6 +517,7 @@ async function showBarracksMenu(
     case 6: upgradeBarracks(village); break;
     case 7: await showPickUpTroopsForm(player, village); break;
     case 8: await showReturnTroopsForm(player, village); break;
+    case 9: await showTrainTroopsForm(player, village); break;
   }
 }
 
@@ -571,6 +592,56 @@ async function showReturnTroopsForm(
 
   saveVillage(village);
   notifyPlayer(player.name, `§a${total} troops returned to §b${village.name}§a barracks.`);
+}
+
+async function showTrainTroopsForm(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const tick = getCurrentTick();
+  const queueCount = village.trainingQueue?.length ?? 0;
+
+  const troopTypes: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
+
+  const makeCostLine = (type: TroopType) => {
+    const c = TRAINING_COSTS[type];
+    const secs = Math.ceil(TRAINING_TICKS[type] / 20);
+    const parts = [`${c.food} food`, `${c.iron} iron`];
+    if (c.wood > 0) parts.push(`${c.wood} wood`);
+    return `${parts.join(", ")} | ~${secs}s/unit`;
+  };
+
+  const rs = village.resourceStorage;
+  const queueSummary = getTrainingQueueSummary(village, tick);
+
+  const form = new ActionFormData()
+    .title(`Train Troops — ${village.name}`)
+    .body(
+      `§7── Resources ──\n` +
+      `Food: §f${village.foodStorage}  §7Iron: §f${rs.iron}  §7Wood: §f${rs.wood}\n\n` +
+      `§7── Queue (${queueCount}/10) ──\n${queueSummary}\n\n` +
+      `§7Select a troop type to queue training:`
+    )
+    .button(`City Guard\n§7${makeCostLine("cityGuards")}`)
+    .button(`Spearman\n§7${makeCostLine("spearmen")}`)
+    .button(`Archer\n§7${makeCostLine("archers")}`)
+    .button(`Cavalry\n§7${makeCostLine("cavalry")}`)
+    .button("Back");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === 4) return;
+
+  const selectedType = troopTypes[response.selection!];
+
+  const countForm = new ModalFormData()
+    .title(`Train ${TROOP_LABELS[selectedType]}`)
+    .slider(`How many to train? (cost ×N)`, 1, 20, 1, 1);
+
+  const countResponse = await countForm.show(player);
+  if (countResponse.canceled || countResponse.formValues == null) return;
+
+  const count = countResponse.formValues[0] as number;
+  queueTraining(village, selectedType, count, tick);
 }
 
 async function showMarketMenu(
