@@ -4,6 +4,7 @@ import {
   CLAIM_COST_EMERALDS,
   VILLAGE_CLAIM_RADIUS,
   MIN_VILLAGERS_TO_CLAIM,
+  EMPTY_RESOURCE_STORAGE,
 } from "../types/index.js";
 import {
   generateId,
@@ -124,6 +125,8 @@ export function claimVillage(
     granaryItems: {},
     lastSoldierFeedDay: getCurrentDay(),
     builtHousingUnits: 0,
+    hasTradeStation: false,
+    resourceStorage: { ...EMPTY_RESOURCE_STORAGE },
   };
 
   saveVillage(village);
@@ -158,6 +161,8 @@ export function getVillageSummary(village: VillageData): string {
   const t = village.troops;
   const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry;
   const stages = ["✔ None", "⚠ Stage 1", "⚠ Stage 2", "§c Stage 3", "§c Stage 4"];
+  const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
+  const hasStation = village.hasTradeStation ? "§a✔ Active" : "§c✘ None";
 
   return [
     `§b${village.name}§r (${village.owner})`,
@@ -167,6 +172,8 @@ export function getVillageSummary(village: VillageData): string {
     `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry})`,
     `Food Shortage: ${stages[village.foodShortageStage] ?? "Unknown"}`,
     `Weapon Tier: ${village.blacksmith.weaponTier}  Armor Tier: ${village.blacksmith.armorTier}`,
+    `Trade Station: ${hasStation}`,
+    `Resources: Fe:${rs.iron} Au:${rs.gold} C:${rs.coal} W:${rs.wood} St:${rs.stone} Di:${rs.diamonds}`,
   ].join("\n");
 }
 

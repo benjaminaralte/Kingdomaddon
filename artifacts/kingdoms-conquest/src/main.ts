@@ -1,6 +1,7 @@
 import { world, system } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
-import type { VillageData, KingdomData, MerchantData } from "./types/index.js";
+import type { VillageData, KingdomData, MerchantData, ResourceStorage } from "./types/index.js";
+import { RESOURCE_LABELS } from "./types/index.js";
 import { getCurrentTick } from "./utils/tick.js";
 import { notifyPlayer } from "./utils/notify.js";
 import { getAllVillages, getVillage, getAllKingdoms, saveVillage } from "./storage/index.js";
@@ -34,7 +35,7 @@ import {
   FOOD_SELL_RATES,
 } from "./systems/market.js";
 import { tickBandits } from "./systems/bandit.js";
-import { tickTradeCarts, registerTradePole, removeTradePole, sendTradeCart } from "./systems/trade.js";
+import { tickTradeCarts, registerTradePole, removeTradePole, sendTradeCart, sendRailShipment } from "./systems/trade.js";
 import { tickWatchtowers } from "./systems/watchtower.js";
 import { tickSieges } from "./systems/conquest.js";
 import {
@@ -56,6 +57,13 @@ import {
 } from "./systems/treasury.js";
 import { upgradeWeapons, upgradeArmor, getBlacksmithSummary } from "./systems/blacksmith.js";
 import { sendReinforcements } from "./systems/reinforcements.js";
+import {
+  registerTradeStation,
+  removeTradeStation,
+  getConnectedVillages,
+  getTradeStationSummary,
+  ensureResourceStorage,
+} from "./systems/tradeStation.js";
 import type { GuardPoleType } from "./types/index.js";
 
 const CUSTOM_BLOCKS = {
@@ -65,6 +73,7 @@ const CUSTOM_BLOCKS = {
   GUARD_POLE_ROAD: "kingdoms:guard_pole_road",
   GUARD_POLE_WATCHTOWER: "kingdoms:guard_pole_watchtower",
   TRADE_POLE: "kingdoms:trade_pole",
+  TRADE_STATION: "kingdoms:trade_station",
   BARRACKS: "kingdoms:barracks",
   MARKET: "kingdoms:market",
   GRANARY: "kingdoms:granary",
@@ -121,6 +130,23 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
       return;
     }
     registerTradePole(village, block.location);
+  }
+
+  if (typeId === CUSTOM_BLOCKS.TRADE_STATION) {
+    const village = findVillageAt(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "§cNo village territory here. Claim a village first.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "§cThis is not your village.");
+      return;
+    }
+    if (village.hasTradeStation) {
+      notifyPlayer(player.name, `§c§b${village.name}§c already has a Trade Station.`);
+      return;
+    }
+    registerTradeStation(village, block.location);
   }
 
   if (typeId === CUSTOM_BLOCKS.GRANARY) {
@@ -188,6 +214,9 @@ world.afterEvents.itemUseOn.subscribe((event) => {
     case CUSTOM_BLOCKS.TREASURY_BLOCK:
       void showTreasuryBlockMenu(player, block);
       break;
+    case CUSTOM_BLOCKS.TRADE_STATION:
+      void showTradeStationMenu(player, block);
+      break;
   }
 });
 
@@ -232,6 +261,16 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
       if (pole) {
         removeTradePole(village, pole.id);
         notifyPlayer(player.name, `§eTrade pole removed.`);
+      }
+    }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.TRADE_STATION) {
+    const village = findVillageAt(blockLoc);
+    if (village) {
+      const loc = village.tradeStationLocation;
+      if (loc && loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        removeTradeStation(village);
       }
     }
   }
@@ -810,7 +849,11 @@ async function showSendAmountsForm(
   }
 
   if (emeralds > 0 || food > 0) {
-    sendTradeCart(fromId, toId, { emeralds, food, troops: {} });
+    sendTradeCart(fromId, toId, {
+      emeralds, food,
+      iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0,
+      troops: {},
+    });
   }
 }
 
@@ -887,4 +930,263 @@ async function showMerchantTradeMenu(
     case 2: tradeMerchant(village, entityId, "minecraft:diamond", 1); break;
     case 3: tradeMerchant(village, entityId, "minecraft:bread", 16); break;
   }
+}
+
+async function showTradeStationMenu(
+  player: import("@minecraft/server").Player,
+  block: import("@minecraft/server").Block
+): Promise<void> {
+  const village = findVillageAt(block.location);
+  if (!village) {
+    notifyPlayer(player.name, "§cNo village here. Claim a village first.");
+    return;
+  }
+
+  const isOwner = village.owner === player.name;
+  const summary = getTradeStationSummary(village);
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Trade Station`)
+    .body(summary);
+
+  if (isOwner) {
+    form
+      .button("📦 Dispatch Resources")
+      .button("🗡 Dispatch Reinforcements")
+      .button("📊 Resource Storage")
+      .button("🚂 Active Shipments");
+  } else {
+    form.button("Close");
+  }
+
+  const response = await form.show(player);
+  if (response.canceled || !isOwner) return;
+
+  switch (response.selection) {
+    case 0: await showDispatchResourceMenu(player, village.id); break;
+    case 1: await showDispatchMilitaryMenu(player, village.id); break;
+    case 2: await showResourceStorageMenu(player, village.id); break;
+    case 3: await showActiveShipmentsMenu(player, village.id); break;
+  }
+}
+
+async function showDispatchResourceMenu(
+  player: import("@minecraft/server").Player,
+  fromVillageId: string
+): Promise<void> {
+  const from = getVillage(fromVillageId);
+  if (!from) return;
+
+  ensureResourceStorage(from);
+  const rs = from.resourceStorage;
+  const connected = getConnectedVillages(from);
+
+  if (connected.length === 0) {
+    notifyPlayer(
+      player.name,
+      `§cNo villages with Trade Stations found. Build Trade Stations in other villages and connect them with rails.`
+    );
+    return;
+  }
+
+  const form = new ActionFormData()
+    .title(`${from.name} — Dispatch Resources`)
+    .body(
+      `§7Select destination village.\n\n§bAvailable:\n§f  Food: ${from.foodStorage}🌾  Treasury: ${from.treasury}💎\n  Iron: ${rs.iron}  Gold: ${rs.gold}  Coal: ${rs.coal}\n  Wood: ${rs.wood}  Stone: ${rs.stone}  Diamonds: ${rs.diamonds}`
+    );
+
+  for (const v of connected) {
+    const stationIcon = v.hasTradeStation ? "🚉" : "⛔";
+    form.button(`${stationIcon} ${v.name} (${v.owner})`);
+  }
+  form.button("Cancel");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection >= connected.length) return;
+
+  const to = connected[response.selection];
+  await showResourceAmountsForm(player, fromVillageId, to.id);
+}
+
+async function showResourceAmountsForm(
+  player: import("@minecraft/server").Player,
+  fromId: string,
+  toId: string
+): Promise<void> {
+  const from = getVillage(fromId);
+  const to = getVillage(toId);
+  if (!from || !to) return;
+
+  ensureResourceStorage(from);
+  const rs = from.resourceStorage;
+
+  const form = new ModalFormData()
+    .title(`📦 ${from.name} → ${to.name}`)
+    .slider("Food 🌾", 0, Math.max(from.foodStorage, 1), 1, 0)
+    .slider("Emeralds 💎", 0, Math.max(from.treasury, 1), 1, 0)
+    .slider("Iron", 0, Math.max(rs.iron, 1), 1, 0)
+    .slider("Gold", 0, Math.max(rs.gold, 1), 1, 0)
+    .slider("Coal", 0, Math.max(rs.coal, 1), 1, 0)
+    .slider("Wood", 0, Math.max(rs.wood, 1), 1, 0)
+    .slider("Stone", 0, Math.max(rs.stone, 1), 1, 0)
+    .slider("Diamonds", 0, Math.max(rs.diamonds, 1), 1, 0);
+
+  const response = await form.show(player);
+  if (response.canceled) return;
+
+  const [food, emeralds, iron, gold, coal, wood, stone, diamonds] = response.formValues as number[];
+
+  if (food === 0 && emeralds === 0 && iron === 0 && gold === 0 && coal === 0 && wood === 0 && stone === 0 && diamonds === 0) {
+    notifyPlayer(player.name, "§cNo resources selected.");
+    return;
+  }
+
+  sendRailShipment(fromId, toId, {
+    food, emeralds, iron, gold, coal, wood, stone, diamonds, troops: {},
+  });
+}
+
+async function showDispatchMilitaryMenu(
+  player: import("@minecraft/server").Player,
+  fromVillageId: string
+): Promise<void> {
+  const from = getVillage(fromVillageId);
+  if (!from) return;
+
+  const connected = getConnectedVillages(from);
+
+  if (connected.length === 0) {
+    notifyPlayer(
+      player.name,
+      `§cNo villages with Trade Stations found. Build Trade Stations and connect with rails.`
+    );
+    return;
+  }
+
+  const t = from.troops;
+  const form = new ActionFormData()
+    .title(`${from.name} — Dispatch Reinforcements`)
+    .body(
+      `§7Select destination village.\n\n§bAvailable Troops:\n§f  Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n  Archers: ${t.archers}  Cavalry: ${t.cavalry}`
+    );
+
+  for (const v of connected) {
+    const vt = v.troops;
+    const total = vt.cityGuards + vt.spearmen + vt.archers + vt.cavalry;
+    form.button(`🚉 ${v.name} (${total} troops)`);
+  }
+  form.button("Cancel");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection >= connected.length) return;
+
+  const to = connected[response.selection];
+  await showMilitaryAmountsForm(player, fromVillageId, to.id);
+}
+
+async function showMilitaryAmountsForm(
+  player: import("@minecraft/server").Player,
+  fromId: string,
+  toId: string
+): Promise<void> {
+  const from = getVillage(fromId);
+  const to = getVillage(toId);
+  if (!from || !to) return;
+
+  const t = from.troops;
+  const form = new ModalFormData()
+    .title(`🗡 ${from.name} → ${to.name}`)
+    .slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0)
+    .slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0)
+    .slider("Archers", 0, Math.max(t.archers, 1), 1, 0)
+    .slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0);
+
+  const response = await form.show(player);
+  if (response.canceled) return;
+
+  const [guards, spearmen, archers, cavalry] = response.formValues as number[];
+
+  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0) {
+    notifyPlayer(player.name, "§cNo troops selected.");
+    return;
+  }
+
+  sendRailShipment(fromId, toId, {
+    food: 0, emeralds: 0, iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0,
+    troops: { cityGuards: guards, spearmen, archers, cavalry },
+  });
+}
+
+async function showResourceStorageMenu(
+  player: import("@minecraft/server").Player,
+  villageId: string
+): Promise<void> {
+  const village = getVillage(villageId);
+  if (!village) return;
+
+  ensureResourceStorage(village);
+  const rs = village.resourceStorage;
+
+  const resourceKeys = Object.keys(RESOURCE_LABELS) as Array<keyof ResourceStorage>;
+  const storageLines = resourceKeys
+    .map((k) => `  ${RESOURCE_LABELS[k]}: ${rs[k]}`)
+    .join("\n");
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Resource Storage`)
+    .body(`§7Railway deliveries are stored here.\n\n§b── Storage ──\n§f${storageLines}\n\n§7Treasury: §6${village.treasury}💎§7  Food: §a${village.foodStorage}🌾`);
+
+  const depositOptions: Array<{ key: keyof ResourceStorage; label: string; amount: number }> = [];
+  for (const k of resourceKeys) {
+    if (rs[k] > 0) {
+      depositOptions.push({ key: k, label: RESOURCE_LABELS[k], amount: rs[k] });
+      form.button(`Withdraw ${RESOURCE_LABELS[k]} (${rs[k]})`);
+    }
+  }
+  form.button("Close");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection >= depositOptions.length) return;
+
+  const opt = depositOptions[response.selection];
+  notifyPlayer(player.name, `§aWithdrew ${opt.amount} ${opt.label} from storage. (Note: use /give for actual items)`);
+  rs[opt.key] = 0;
+  saveVillage(village);
+}
+
+async function showActiveShipmentsMenu(
+  player: import("@minecraft/server").Player,
+  villageId: string
+): Promise<void> {
+  const village = getVillage(villageId);
+  if (!village) return;
+
+  const railCarts = village.activeCarts.filter((c) => c.isRailShipment);
+
+  if (railCarts.length === 0) {
+    notifyPlayer(player.name, `§eNo active rail shipments from §b${village.name}§e.`);
+    return;
+  }
+
+  const lines = railCarts.map((c, i) => {
+    const dest = getVillage(c.destinationVillageId);
+    const type = c.isMilitary ? "🗡" : "📦";
+    const cargo = [
+      c.cargo.food > 0 ? `${c.cargo.food}🌾` : "",
+      c.cargo.emeralds > 0 ? `${c.cargo.emeralds}💎` : "",
+      c.cargo.iron > 0 ? `${c.cargo.iron}Fe` : "",
+      c.cargo.gold > 0 ? `${c.cargo.gold}Au` : "",
+    ].filter(Boolean).join(" ");
+    return `${type} #${i + 1} → ${dest?.name ?? "Unknown"}: ${cargo || "Troops"}`;
+  }).join("\n");
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Active Shipments`)
+    .body(`§b${railCarts.length} rail shipment(s) in transit:\n\n§f${lines}\n\n§7Shipments travel physically. If destroyed, cargo is lost.`)
+    .button("Close");
+
+  await form.show(player);
 }

@@ -30,6 +30,12 @@ export function sendReinforcements(
   const cargo: TradeCartCargo = {
     food: 0,
     emeralds: 0,
+    iron: 0,
+    gold: 0,
+    coal: 0,
+    wood: 0,
+    stone: 0,
+    diamonds: 0,
     troops,
   };
 

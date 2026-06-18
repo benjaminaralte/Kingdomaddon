@@ -3,6 +3,7 @@ import type { VillageData, TradePoleData, TradeCartData, TradeCartCargo } from "
 import { generateId, getVillage, saveVillage, getAllVillages } from "../storage/index.js";
 import { distance, moveToward } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
+import { getCargoSummary, ensureResourceStorage } from "./tradeStation.js";
 
 const CART_SPEED = 0.4;
 const POLE_ARRIVE_DISTANCE = 3;
@@ -50,7 +51,6 @@ export function sendTradeCart(
     notifyPlayer(from.owner, "§cNot enough emeralds in treasury to send.");
     return false;
   }
-
   if (from.foodStorage < cargo.food) {
     notifyPlayer(from.owner, "§cNot enough food in granary to send.");
     return false;
@@ -77,18 +77,20 @@ export function sendTradeCart(
     return false;
   }
 
+  const isMilitary = Object.values(cargo.troops ?? {}).some((v) => (v ?? 0) > 0);
   const cartData: TradeCartData = {
     entityId: cartEntity.id,
     sourceVillageId: fromVillageId,
     destinationVillageId: toVillageId,
     cargo,
     currentPoleIndex: 0,
-    isMilitary: Object.values(cargo.troops ?? {}).some((v) => (v ?? 0) > 0),
+    isMilitary,
+    isRailShipment: false,
   };
 
   cartEntity.setDynamicProperty("kc:cart_data", JSON.stringify(cartData));
   cartEntity.setDynamicProperty("kc:village_id", fromVillageId);
-  cartEntity.nameTag = `Cart → ${to.name}`;
+  cartEntity.nameTag = isMilitary ? `🗡 Cart → ${to.name}` : `📦 Cart → ${to.name}`;
 
   from.activeCarts.push(cartData);
   from.tradeCartCount++;
@@ -98,6 +100,147 @@ export function sendTradeCart(
     from.owner,
     `§aTrade cart dispatched from §b${from.name}§a to §b${to.name}§a.`
   );
+  return true;
+}
+
+export function sendRailShipment(
+  fromVillageId: string,
+  toVillageId: string,
+  cargo: TradeCartCargo
+): boolean {
+  const from = getVillage(fromVillageId);
+  const to = getVillage(toVillageId);
+  if (!from || !to) return false;
+
+  if (!from.hasTradeStation) {
+    notifyPlayer(from.owner, "§c§b" + from.name + "§c has no Trade Station. Build one first.");
+    return false;
+  }
+  if (!to.hasTradeStation) {
+    notifyPlayer(from.owner, "§c§b" + to.name + "§c has no Trade Station. They cannot receive rail shipments.");
+    return false;
+  }
+
+  if (from.treasury < cargo.emeralds) {
+    notifyPlayer(from.owner, `§cNot enough emeralds. Have: ${from.treasury}, Need: ${cargo.emeralds}.`);
+    return false;
+  }
+  if (from.foodStorage < cargo.food) {
+    notifyPlayer(from.owner, `§cNot enough food. Have: ${from.foodStorage}, Need: ${cargo.food}.`);
+    return false;
+  }
+
+  ensureResourceStorage(from);
+  const rs = from.resourceStorage;
+  if ((cargo.iron ?? 0) > 0 && rs.iron < cargo.iron) {
+    notifyPlayer(from.owner, `§cNot enough Iron. Have: ${rs.iron}, Need: ${cargo.iron}.`);
+    return false;
+  }
+  if ((cargo.gold ?? 0) > 0 && rs.gold < cargo.gold) {
+    notifyPlayer(from.owner, `§cNot enough Gold. Have: ${rs.gold}, Need: ${cargo.gold}.`);
+    return false;
+  }
+  if ((cargo.coal ?? 0) > 0 && rs.coal < cargo.coal) {
+    notifyPlayer(from.owner, `§cNot enough Coal. Have: ${rs.coal}, Need: ${cargo.coal}.`);
+    return false;
+  }
+  if ((cargo.wood ?? 0) > 0 && rs.wood < cargo.wood) {
+    notifyPlayer(from.owner, `§cNot enough Wood. Have: ${rs.wood}, Need: ${cargo.wood}.`);
+    return false;
+  }
+  if ((cargo.stone ?? 0) > 0 && rs.stone < cargo.stone) {
+    notifyPlayer(from.owner, `§cNot enough Stone. Have: ${rs.stone}, Need: ${cargo.stone}.`);
+    return false;
+  }
+  if ((cargo.diamonds ?? 0) > 0 && rs.diamonds < cargo.diamonds) {
+    notifyPlayer(from.owner, `§cNot enough Diamonds. Have: ${rs.diamonds}, Need: ${cargo.diamonds}.`);
+    return false;
+  }
+
+  const troops = cargo.troops ?? {};
+  if ((troops.cityGuards ?? 0) > from.troops.cityGuards) {
+    notifyPlayer(from.owner, `§cNot enough City Guards. Have: ${from.troops.cityGuards}.`);
+    return false;
+  }
+  if ((troops.spearmen ?? 0) > from.troops.spearmen) {
+    notifyPlayer(from.owner, `§cNot enough Spearmen. Have: ${from.troops.spearmen}.`);
+    return false;
+  }
+  if ((troops.archers ?? 0) > from.troops.archers) {
+    notifyPlayer(from.owner, `§cNot enough Archers. Have: ${from.troops.archers}.`);
+    return false;
+  }
+  if ((troops.cavalry ?? 0) > from.troops.cavalry) {
+    notifyPlayer(from.owner, `§cNot enough Cavalry. Have: ${from.troops.cavalry}.`);
+    return false;
+  }
+
+  from.treasury -= cargo.emeralds;
+  from.foodStorage -= cargo.food;
+  rs.iron -= (cargo.iron ?? 0);
+  rs.gold -= (cargo.gold ?? 0);
+  rs.coal -= (cargo.coal ?? 0);
+  rs.wood -= (cargo.wood ?? 0);
+  rs.stone -= (cargo.stone ?? 0);
+  rs.diamonds -= (cargo.diamonds ?? 0);
+  from.troops.cityGuards -= (troops.cityGuards ?? 0);
+  from.troops.spearmen -= (troops.spearmen ?? 0);
+  from.troops.archers -= (troops.archers ?? 0);
+  from.troops.cavalry -= (troops.cavalry ?? 0);
+
+  const dim = world.getDimension(from.location.dimension);
+  const spawnLoc = from.tradeStationLocation ?? from.townHallLocation;
+
+  let cartEntity;
+  try {
+    const isMil = Object.values(troops).some((v) => (v ?? 0) > 0);
+    const entityType = isMil ? "kingdoms:military_transport" : "kingdoms:trade_cart";
+    cartEntity = dim.spawnEntity(entityType, {
+      x: spawnLoc.x + (Math.random() * 2 - 1),
+      y: spawnLoc.y,
+      z: spawnLoc.z + (Math.random() * 2 - 1),
+    });
+  } catch {
+    notifyPlayer(from.owner, "§cCould not spawn rail shipment (chunk not loaded). Resources refunded.");
+    from.treasury += cargo.emeralds;
+    from.foodStorage += cargo.food;
+    rs.iron += (cargo.iron ?? 0);
+    rs.gold += (cargo.gold ?? 0);
+    rs.coal += (cargo.coal ?? 0);
+    rs.wood += (cargo.wood ?? 0);
+    rs.stone += (cargo.stone ?? 0);
+    rs.diamonds += (cargo.diamonds ?? 0);
+    from.troops.cityGuards += (troops.cityGuards ?? 0);
+    from.troops.spearmen += (troops.spearmen ?? 0);
+    from.troops.archers += (troops.archers ?? 0);
+    from.troops.cavalry += (troops.cavalry ?? 0);
+    saveVillage(from);
+    return false;
+  }
+
+  const isMilitary = Object.values(troops).some((v) => (v ?? 0) > 0);
+  const cartData: TradeCartData = {
+    entityId: cartEntity.id,
+    sourceVillageId: fromVillageId,
+    destinationVillageId: toVillageId,
+    cargo,
+    currentPoleIndex: 0,
+    isMilitary,
+    isRailShipment: true,
+  };
+
+  cartEntity.setDynamicProperty("kc:cart_data", JSON.stringify(cartData));
+  cartEntity.setDynamicProperty("kc:village_id", fromVillageId);
+  cartEntity.nameTag = isMilitary
+    ? `🗡 Reinforcements → ${to.name}`
+    : `📦 Shipment → ${to.name}`;
+
+  from.activeCarts.push(cartData);
+  saveVillage(from);
+
+  const summary = getCargoSummary(cargo);
+  notifyPlayer(from.owner, `§aRail shipment dispatched: §b${from.name} → ${to.name}§a [${summary}]`);
+  notifyPlayer(to.owner, `§eIncoming rail shipment from §b${from.name}§e! [${summary}]`);
   return true;
 }
 
@@ -117,10 +260,19 @@ function processVillageCarts(village: VillageData): void {
 
   for (let i = village.activeCarts.length - 1; i >= 0; i--) {
     const cart = village.activeCarts[i];
-    const cartEntities = dim.getEntities({ type: "kingdoms:trade_cart" });
-    const entity = cartEntities.find((e) => e.id === cart.entityId);
+
+    const allEntities = dim.getEntities({
+      type: cart.isMilitary && cart.isRailShipment
+        ? "kingdoms:military_transport"
+        : "kingdoms:trade_cart",
+    });
+    const entity = allEntities.find((e) => e.id === cart.entityId);
 
     if (!entity) {
+      if (cart.isRailShipment) {
+        const summary = getCargoSummary(cart.cargo);
+        notifyPlayer(village.owner, `§c⚠ Rail shipment DESTROYED en route to §b${getVillage(cart.destinationVillageId)?.name ?? "unknown"}§c! Cargo lost: [${summary}]`);
+      }
       village.activeCarts.splice(i, 1);
       changed = true;
       continue;
@@ -135,10 +287,11 @@ function processVillageCarts(village: VillageData): void {
     }
 
     const destPoles = dest.tradePoles.sort((a, b) => a.order - b.order);
+    const targetLoc = dest.tradeStationLocation ?? dest.townHallLocation;
 
     if (destPoles.length === 0) {
-      moveEntityToward(entity, dest.townHallLocation);
-      const d = distance(entity.location, dest.townHallLocation);
+      moveEntityToward(entity, targetLoc);
+      const d = distance(entity.location, targetLoc);
       if (d < POLE_ARRIVE_DISTANCE) {
         deliverCart(cart, village, dest, entity, i);
         changed = true;
@@ -180,8 +333,16 @@ function deliverCart(
   entity: import("@minecraft/server").Entity,
   cartIndex: number
 ): void {
+  ensureResourceStorage(destVillage);
+
   destVillage.treasury += cart.cargo.emeralds;
   destVillage.foodStorage += cart.cargo.food;
+  destVillage.resourceStorage.iron += (cart.cargo.iron ?? 0);
+  destVillage.resourceStorage.gold += (cart.cargo.gold ?? 0);
+  destVillage.resourceStorage.coal += (cart.cargo.coal ?? 0);
+  destVillage.resourceStorage.wood += (cart.cargo.wood ?? 0);
+  destVillage.resourceStorage.stone += (cart.cargo.stone ?? 0);
+  destVillage.resourceStorage.diamonds += (cart.cargo.diamonds ?? 0);
 
   for (const [troopType, count] of Object.entries(cart.cargo.troops ?? {})) {
     const key = troopType as keyof typeof destVillage.troops;
@@ -192,14 +353,18 @@ function deliverCart(
 
   entity.remove();
   sourceVillage.activeCarts.splice(cartIndex, 1);
-  sourceVillage.tradeCartCount = Math.max(0, sourceVillage.tradeCartCount - 1);
+  if (!cart.isRailShipment) {
+    sourceVillage.tradeCartCount = Math.max(0, sourceVillage.tradeCartCount - 1);
+  }
 
-  notifyPlayer(
-    destVillage.owner,
-    `§aTrade cart arrived at §b${destVillage.name}§a! (+${cart.cargo.emeralds}💎, +${cart.cargo.food}🌾)`
-  );
+  const summary = getCargoSummary(cart.cargo);
+  const prefix = cart.isRailShipment ? "§a🚂 Rail shipment" : "§aTrade cart";
+  notifyPlayer(destVillage.owner, `${prefix} arrived at §b${destVillage.name}§a! [${summary}]`);
+  if (destVillage.owner !== sourceVillage.owner) {
+    notifyPlayer(sourceVillage.owner, `§aShipment delivered to §b${destVillage.name}§a.`);
+  }
 
-  if (sourceVillage.tradeCartCount <= 0) {
+  if (!cart.isRailShipment && sourceVillage.tradeCartCount <= 0) {
     spawnDepotCart(sourceVillage);
   }
 }

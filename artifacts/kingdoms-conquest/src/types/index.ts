@@ -54,6 +54,27 @@ export interface MerchantData {
   currentPoleIndex: number;
 }
 
+export interface ResourceStorage {
+  iron: number;
+  gold: number;
+  coal: number;
+  wood: number;
+  stone: number;
+  diamonds: number;
+}
+
+export interface TradeCartCargo {
+  food: number;
+  emeralds: number;
+  iron: number;
+  gold: number;
+  coal: number;
+  wood: number;
+  stone: number;
+  diamonds: number;
+  troops: Partial<TroopData>;
+}
+
 export interface TradeCartData {
   entityId: string;
   destinationVillageId: string;
@@ -61,12 +82,7 @@ export interface TradeCartData {
   cargo: TradeCartCargo;
   currentPoleIndex: number;
   isMilitary: boolean;
-}
-
-export interface TradeCartCargo {
-  food: number;
-  emeralds: number;
-  troops: Partial<TroopData>;
+  isRailShipment: boolean;
 }
 
 export interface VillageData {
@@ -100,6 +116,9 @@ export interface VillageData {
   activeMerchants: MerchantData[];
   activeCarts: TradeCartData[];
   builtHousingUnits: number;
+  hasTradeStation: boolean;
+  tradeStationLocation?: Vec3;
+  resourceStorage: ResourceStorage;
 }
 
 export interface KingdomData {
@@ -133,6 +152,24 @@ export const TROOP_WAGES: Record<TroopType, number> = {
   spearmen: 2,
   archers: 2,
   cavalry: 3,
+};
+
+export const EMPTY_RESOURCE_STORAGE: ResourceStorage = {
+  iron: 0,
+  gold: 0,
+  coal: 0,
+  wood: 0,
+  stone: 0,
+  diamonds: 0,
+};
+
+export const RESOURCE_LABELS: Record<keyof ResourceStorage, string> = {
+  iron: "Iron",
+  gold: "Gold",
+  coal: "Coal",
+  wood: "Wood",
+  stone: "Stone",
+  diamonds: "Diamonds",
 };
 
 export const TICKS_PER_DAY = 24000;
