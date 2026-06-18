@@ -340,34 +340,12 @@ export function sellFoodBulk(
     }
   }
 
-  if (container) {
-    let emeraldsLeft = emeraldsEarned;
-    for (let i = 0; i < container.size && emeraldsLeft > 0; i++) {
-      const slot = container.getItem(i);
-      if (!slot) {
-        const give = Math.min(emeraldsLeft, 64);
-        container.setItem(i, new ItemStack("minecraft:emerald", give));
-        emeraldsLeft -= give;
-      } else if (slot.typeId === "minecraft:emerald" && slot.amount < 64) {
-        const give = Math.min(emeraldsLeft, 64 - slot.amount);
-        slot.amount += give;
-        container.setItem(i, slot);
-        emeraldsLeft -= give;
-      }
-    }
-    if (emeraldsLeft > 0) {
-      notifyPlayer(player.name, "§eInventory full — some emeralds dropped on the ground.");
-      try {
-        const loc = player.location;
-        player.dimension.spawnItem(new ItemStack("minecraft:emerald", emeraldsLeft), loc);
-      } catch { /* ignore */ }
-    }
-  }
+  village.treasury += emeraldsEarned;
 
   saveVillage(village);
   notifyPlayer(
     player.name,
-    `§aSold §b${totalItems}x ${entry.label}§a → §6+${emeraldsEarned}💎§a.`
+    `§aSold §b${totalItems}x ${entry.label}§a → §6+${emeraldsEarned}💎§a added to §b${village.name}§a treasury. (Total: §6${village.treasury}💎§a)`
   );
   return true;
 }

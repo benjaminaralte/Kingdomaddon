@@ -13,7 +13,6 @@ import {
   depositPlayerItemsToGranary,
   getGranaryReport,
   processAllSoldierFood,
-  processAllTreasuryCollect,
 } from "./systems/harvest.js";
 import { registerCommands } from "./systems/commands.js";
 import {
@@ -52,7 +51,6 @@ import {
 } from "./systems/kingdom.js";
 import {
   depositEmeralds,
-  withdrawEmeralds,
   getTreasuryReport,
 } from "./systems/treasury.js";
 import { upgradeWeapons, upgradeArmor, getBlacksmithSummary } from "./systems/blacksmith.js";
@@ -324,9 +322,6 @@ system.runInterval(() => {
   }
 }, 72000);
 
-system.runInterval(() => {
-  processAllTreasuryCollect();
-}, 2400);
 
 world.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
@@ -662,12 +657,11 @@ async function showTreasuryBlockMenu(
   const report = getTreasuryReport(village);
 
   const form = new ActionFormData()
-    .title(`${village.name} — Treasury Block`)
-    .body(`${report}\n\n§7Emeralds dropped within 6 blocks auto-collect every 2 min.`)
+    .title(`${village.name} — Treasury`)
+    .body(report)
     .button("Deposit 10💎 from inventory")
     .button("Deposit 64💎 from inventory")
-    .button("Withdraw 10💎 to inventory")
-    .button("Withdraw 64💎 to inventory")
+    .button("Deposit all emeralds")
     .button("Close");
 
   const response = await form.show(player);
@@ -676,8 +670,7 @@ async function showTreasuryBlockMenu(
   switch (response.selection) {
     case 0: depositEmeralds(player, village.id, 10); break;
     case 1: depositEmeralds(player, village.id, 64); break;
-    case 2: withdrawEmeralds(player, village.id, 10); break;
-    case 3: withdrawEmeralds(player, village.id, 64); break;
+    case 2: depositEmeralds(player, village.id, 9999); break;
   }
 }
 
@@ -693,10 +686,9 @@ async function showTreasuryMenu(
   const form = new ActionFormData()
     .title(`${village.name} — Treasury`)
     .body(report)
-    .button("Deposit 10💎")
-    .button("Deposit 64💎")
-    .button("Withdraw 10💎")
-    .button("Withdraw 64💎")
+    .button("Deposit 10💎 from inventory")
+    .button("Deposit 64💎 from inventory")
+    .button("Deposit all emeralds")
     .button("Back");
 
   const response = await form.show(player);
@@ -705,8 +697,7 @@ async function showTreasuryMenu(
   switch (response.selection) {
     case 0: depositEmeralds(player, villageId, 10); break;
     case 1: depositEmeralds(player, villageId, 64); break;
-    case 2: withdrawEmeralds(player, villageId, 10); break;
-    case 3: withdrawEmeralds(player, villageId, 64); break;
+    case 2: depositEmeralds(player, villageId, 9999); break;
   }
 }
 

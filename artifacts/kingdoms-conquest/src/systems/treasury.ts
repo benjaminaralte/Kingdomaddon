@@ -1,6 +1,6 @@
-import { Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
+import { Player, EntityInventoryComponent } from "@minecraft/server";
 import type { VillageData } from "../types/index.js";
-import { getVillage, saveVillage, getAllVillages } from "../storage/index.js";
+import { getVillage, saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
 export function depositEmeralds(player: Player, villageId: string, amount: number): boolean {
@@ -28,47 +28,13 @@ export function depositEmeralds(player: Player, villageId: string, amount: numbe
   }
 
   if (removed === 0) {
-    notifyPlayer(player.name, "§cNo emeralds in inventory.");
+    notifyPlayer(player.name, "§cNo emeralds in inventory to deposit.");
     return false;
   }
 
   village.treasury += removed;
   saveVillage(village);
-  notifyPlayer(player.name, `§aDeposited ${removed}💎 into §b${village.name}§a treasury. (Total: ${village.treasury}💎)`);
-  return true;
-}
-
-export function withdrawEmeralds(player: Player, villageId: string, amount: number): boolean {
-  const village = getVillage(villageId);
-  if (!village || village.owner !== player.name) return false;
-  if (village.treasury < amount) {
-    notifyPlayer(player.name, `§cNot enough emeralds in treasury (${village.treasury}💎).`);
-    return false;
-  }
-
-  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
-  if (!inv) return false;
-  const container = inv.container;
-  if (!container) return false;
-
-  let remaining = amount;
-  for (let i = 0; i < container.size && remaining > 0; i++) {
-    if (container.getItem(i) === undefined) {
-      const stackSize = Math.min(remaining, 64);
-      const item = new ItemStack("minecraft:emerald", stackSize);
-      container.setItem(i, item);
-      remaining -= stackSize;
-    }
-  }
-
-  if (remaining > 0) {
-    notifyPlayer(player.name, "§cInventory full.");
-    return false;
-  }
-
-  village.treasury -= amount;
-  saveVillage(village);
-  notifyPlayer(player.name, `§aWithdrew ${amount}💎 from §b${village.name}§a. (Remaining: ${village.treasury}💎)`);
+  notifyPlayer(player.name, `§aDeposited §6${removed}💎§a into §b${village.name}§a treasury. (Total: §6${village.treasury}💎§a)`);
   return true;
 }
 
@@ -88,34 +54,25 @@ export function transferEmeralds(
   to.treasury += amount;
   saveVillage(from);
   saveVillage(to);
-  notifyPlayer(ownerName, `§aTransferred ${amount}💎 from §b${from.name}§a to §b${to.name}§a.`);
+  notifyPlayer(ownerName, `§aTransferred §6${amount}💎§a from §b${from.name}§a to §b${to.name}§a.`);
   return true;
 }
 
-export function collectTax(kingdomId: string, taxRate: number): void {
-  const villages = getAllVillages().filter((v) => v.kingdomId === kingdomId);
-  for (const village of villages) {
-    const tax = Math.floor(village.treasury * taxRate);
-    if (tax > 0) {
-      village.treasury -= tax;
-      saveVillage(village);
-    }
-  }
-}
-
 export function getTreasuryReport(village: VillageData): string {
-  const { TROOP_WAGES } = { TROOP_WAGES: { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3 } };
+  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3 };
   const dailyWages =
-    (village.troops.cityGuards * TROOP_WAGES.cityGuards +
-      village.troops.spearmen * TROOP_WAGES.spearmen +
-      village.troops.archers * TROOP_WAGES.archers +
-      village.troops.cavalry * TROOP_WAGES.cavalry) /
-    3;
+    (village.troops.cityGuards * wages.cityGuards +
+      village.troops.spearmen * wages.spearmen +
+      village.troops.archers * wages.archers +
+      village.troops.cavalry * wages.cavalry) / 3;
 
   return [
     `§b${village.name} Treasury§r`,
-    `Balance: ${village.treasury}💎`,
-    `Daily wage cost: ~${dailyWages.toFixed(1)}💎/day`,
-    `Days of wages remaining: ${dailyWages > 0 ? Math.floor(village.treasury / dailyWages) : "∞"}`,
+    `§7Balance: §6${village.treasury}💎`,
+    `§7Daily wage cost: §c~${dailyWages.toFixed(1)}💎/day`,
+    `§7Wages covered: §f${dailyWages > 0 ? Math.floor(village.treasury / dailyWages) + " days" : "∞"}`,
+    ``,
+    `§7Deposit emeralds from inventory to fund the treasury.`,
+    `§7Emeralds are spent on wages, recruitment, upgrades & trade.`,
   ].join("\n");
 }
