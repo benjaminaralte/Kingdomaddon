@@ -1,9 +1,14 @@
 import { world, Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
 import type { VillageData, MerchantData } from "../types/index.js";
-import { MERCHANT_SPAWN_RADIUS } from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
-import { isNewDay } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
+
+const MERCHANT_OUTER_SPAWN_MIN = 70;
+const MERCHANT_OUTER_SPAWN_MAX = 100;
+const MERCHANT_MOVE_SPEED = 2.0;       // blocks per second (called every 20 ticks)
+const MERCHANT_ARRIVE_RADIUS = 2.5;    // blocks
+const MERCHANT_DANGER_RADIUS = 5;      // hostiles within this range damage merchant
+const MERCHANT_SPAWN_INTERVAL = 1200;  // ticks — try spawn every ~60s
 
 const MERCHANT_STOCK_TEMPLATES: Record<string, Record<string, number>> = {
   common: {
@@ -64,22 +69,23 @@ export const FOOD_SELL_RATES: FoodSellEntry[] = [
 ];
 
 export function getMaxMerchants(village: VillageData): number {
-  return Math.floor(village.marketLevel * 1.5 + village.population / 20);
+  return Math.floor(village.marketLevel * 3 + village.population / 8);
 }
 
-export function tickMarket(village: VillageData): void {
-  if (!isNewDay(village.lastDayProcessed)) return;
+export function tickAllMerchantsSpawn(currentTick: number): void {
+  if (currentTick % MERCHANT_SPAWN_INTERVAL !== 0) return;
+  for (const village of getAllVillages()) {
+    cleanupDespawnedMerchants(village);
+    if (village.activeMerchants.length < getMaxMerchants(village)) {
+      spawnMerchant(village);
+    }
+  }
+}
 
-  cleanupDespawnedMerchants(village);
-
-  const maxMerchants = getMaxMerchants(village);
-  const currentCount = village.activeMerchants.length;
-
-  if (currentCount >= maxMerchants) return;
-
-  const spawnChance = 0.2 + (village.prosperity / 100) * 0.5;
-  if (Math.random() < spawnChance) {
-    spawnMerchant(village);
+export function tickAllMerchantMovement(): void {
+  for (const village of getAllVillages()) {
+    if (village.activeMerchants.length === 0) continue;
+    tickMerchantMovement(village);
   }
 }
 
@@ -91,11 +97,14 @@ function spawnMerchant(village: VillageData): void {
   const templateKey = templates[Math.floor(Math.random() * templates.length)];
   const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
 
+  const angle = Math.random() * Math.PI * 2;
+  const distance = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
+
   try {
     const entity = dim.spawnEntity("kingdoms:merchant", {
-      x: loc.x + (Math.random() * MERCHANT_SPAWN_RADIUS * 2 - MERCHANT_SPAWN_RADIUS),
+      x: loc.x + Math.cos(angle) * distance,
       y: loc.y,
-      z: loc.z + (Math.random() * MERCHANT_SPAWN_RADIUS * 2 - MERCHANT_SPAWN_RADIUS),
+      z: loc.z + Math.sin(angle) * distance,
     });
 
     const merchantData: MerchantData = {
@@ -107,18 +116,75 @@ function spawnMerchant(village: VillageData): void {
 
     entity.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
     entity.setDynamicProperty("kc:village_id", village.id);
-    entity.nameTag = `Merchant [${village.name}]`;
+    entity.nameTag = `§6Merchant §7[${village.name}]`;
 
     village.activeMerchants.push(merchantData);
     saveVillage(village);
 
     notifyPlayer(
       village.owner,
-      `§6A merchant has arrived at §b${village.name}§6! (Stock: ${Object.keys(stock).length} types)`
+      `§6A merchant has set out for §b${village.name}§6! (${Math.round(distance)} blocks away, Stock: ${Object.keys(stock).length} types)`
     );
   } catch {
     // Chunk not loaded
   }
+}
+
+function tickMerchantMovement(village: VillageData): void {
+  const dim = world.getDimension(village.location.dimension);
+  const poles = village.tradePoles;
+  const townHall = village.townHallLocation;
+  let changed = false;
+
+  for (const merchantData of village.activeMerchants) {
+    try {
+      const entities = dim.getEntities({ type: "kingdoms:merchant" });
+      const entity = entities.find((e) => e.id === merchantData.entityId);
+      if (!entity) continue;
+
+      const loc = entity.location;
+
+      let target: { x: number; y: number; z: number };
+      let onPole = false;
+
+      if (poles.length > 0 && merchantData.currentPoleIndex < poles.length) {
+        target = poles[merchantData.currentPoleIndex].location;
+        onPole = true;
+      } else {
+        target = townHall;
+      }
+
+      const dx = target.x - loc.x;
+      const dz = target.z - loc.z;
+      const dist2D = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist2D < MERCHANT_ARRIVE_RADIUS) {
+        if (onPole) {
+          merchantData.currentPoleIndex++;
+          changed = true;
+        }
+        continue;
+      }
+
+      const ratio = MERCHANT_MOVE_SPEED / dist2D;
+      entity.teleport(
+        { x: loc.x + dx * ratio, y: loc.y, z: loc.z + dz * ratio },
+        { keepVelocity: false }
+      );
+
+      try {
+        const hostiles = dim.getEntities({ location: loc, maxDistance: MERCHANT_DANGER_RADIUS, families: ["monster"] });
+        if (hostiles.length > 0) {
+          entity.applyDamage(2);
+          if (Math.random() < 0.04) {
+            notifyPlayer(village.owner, `§c⚠ A merchant heading to §b${village.name}§c is under mob attack! (${Math.round(dist2D)} blocks out)`);
+          }
+        }
+      } catch { /* family query not supported */ }
+    } catch { /* chunk unloaded */ }
+  }
+
+  if (changed) saveVillage(village);
 }
 
 function cleanupDespawnedMerchants(village: VillageData): void {
@@ -350,8 +416,3 @@ export function sellFoodBulk(
   return true;
 }
 
-export function processAllMarkets(): void {
-  for (const village of getAllVillages()) {
-    tickMarket(village);
-  }
-}

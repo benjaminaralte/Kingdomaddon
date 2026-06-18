@@ -9,7 +9,7 @@ var __export = (target, all) => {
 };
 
 // src/types/index.ts
-var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, MERCHANT_SPAWN_RADIUS, BANDIT_MIGRATE_DISTANCE;
+var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, BANDIT_MIGRATE_DISTANCE;
 var init_types = __esm({
   "src/types/index.ts"() {
     "use strict";
@@ -47,7 +47,6 @@ var init_types = __esm({
     WAGE_INTERVAL_DAYS = 3;
     MAX_GUARDS_PER_POLE = 3;
     WATCHTOWER_DETECTION_RADIUS = 48;
-    MERCHANT_SPAWN_RADIUS = 8;
     BANDIT_MIGRATE_DISTANCE = 200;
   }
 });
@@ -1060,17 +1059,406 @@ function processAllWages() {
   }
 }
 
+// src/systems/conquest.ts
+init_storage();
+init_tick();
+init_notify();
+import { world as world8 } from "@minecraft/server";
+
+// src/systems/watchtower.ts
+init_types();
+init_storage();
+init_tick();
+init_notify();
+import { world as world7 } from "@minecraft/server";
+var DETECTION_INTERVAL_TICKS = 100;
+var lastDetectionTick = 0;
+function tickWatchtowers(currentTick) {
+  if (currentTick - lastDetectionTick < DETECTION_INTERVAL_TICKS) return;
+  lastDetectionTick = currentTick;
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    const watchtowers = village.guardPoles.filter((p) => p.type === "watchtower");
+    if (watchtowers.length === 0) continue;
+    for (const tower of watchtowers) {
+      scanFromWatchtower(village, tower);
+    }
+  }
+}
+function scanFromWatchtower(village, tower) {
+  const dim = world7.getDimension(village.location.dimension);
+  const query = {
+    location: tower.location,
+    maxDistance: WATCHTOWER_DETECTION_RADIUS,
+    excludeTypes: [
+      "minecraft:item",
+      "minecraft:arrow",
+      "minecraft:experience_orb"
+    ]
+  };
+  const nearby = dim.getEntities(query);
+  const kingdom = getKingdom(village.kingdomId);
+  for (const entity of nearby) {
+    if (entity.typeId === "kingdoms:bandit") {
+      const d = Math.round(distance(entity.location, tower.location));
+      notifyPlayer(village.owner, `\xA7c\u26A0 Watchtower detected bandits near \xA7b${village.name}\xA7c! (${d}m away)`);
+      return;
+    }
+    if (entity.typeId === "minecraft:player") {
+      const playerName = entity.name;
+      if (playerName === village.owner) continue;
+      if (kingdom && isAllied(playerName, kingdom.id)) continue;
+      if (isEnemyPlayer(playerName, village.kingdomId)) {
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u2694 Enemy player \xA74${playerName}\xA7c detected near \xA7b${village.name}\xA7c!`
+        );
+        notifyPlayer(village.owner, `\xA7cVillage may be under attack!`);
+        return;
+      }
+    }
+  }
+}
+function getPlayerKingdom(playerName) {
+  return getAllKingdoms().find(
+    (k) => k.king === playerName || k.villageIds.some((vid) => {
+      const v = getVillage(vid);
+      return v?.owner === playerName;
+    })
+  );
+}
+function isAllied(playerName, kingdomId) {
+  const playerKingdom = getPlayerKingdom(playerName);
+  if (!playerKingdom) return false;
+  const kingdom = getKingdom(kingdomId);
+  return kingdom ? kingdom.alliances.includes(playerKingdom.id) : false;
+}
+function isEnemyPlayer(playerName, kingdomId) {
+  const playerKingdom = getPlayerKingdom(playerName);
+  if (!playerKingdom) return false;
+  const kingdom = getKingdom(kingdomId);
+  return kingdom ? kingdom.wars.includes(playerKingdom.id) : false;
+}
+
+// src/systems/deployTroops.ts
+init_storage();
+init_notify();
+import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
+var TROOP_TOKEN_MAP = {
+  "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
+  "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
+  "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
+  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" }
+};
+function pickupTroops(player, village, pickup) {
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry;
+  if (total <= 0) {
+    notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
+    return false;
+  }
+  if (pickup.cityGuards > village.troops.cityGuards) {
+    notifyPlayer(player.name, `\xA7cNot enough City Guards (have ${village.troops.cityGuards}).`);
+    return false;
+  }
+  if (pickup.spearmen > village.troops.spearmen) {
+    notifyPlayer(player.name, `\xA7cNot enough Spearmen (have ${village.troops.spearmen}).`);
+    return false;
+  }
+  if (pickup.archers > village.troops.archers) {
+    notifyPlayer(player.name, `\xA7cNot enough Archers (have ${village.troops.archers}).`);
+    return false;
+  }
+  if (pickup.cavalry > village.troops.cavalry) {
+    notifyPlayer(player.name, `\xA7cNot enough Cavalry (have ${village.troops.cavalry}).`);
+    return false;
+  }
+  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  if (!inv?.container) {
+    notifyPlayer(player.name, "\xA7cInventory unavailable.");
+    return false;
+  }
+  const container = inv.container;
+  const toGive = [
+    { itemId: "kingdoms:guard_token", count: pickup.cityGuards },
+    { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
+    { itemId: "kingdoms:archer_token", count: pickup.archers },
+    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry }
+  ].filter((t) => t.count > 0);
+  let slotsNeeded = 0;
+  for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
+  let freeSlots = 0;
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) freeSlots++;
+  }
+  if (freeSlots < slotsNeeded) {
+    notifyPlayer(player.name, `\xA7cNot enough inventory space (need ${slotsNeeded} free slots).`);
+    return false;
+  }
+  village.troops.cityGuards -= pickup.cityGuards;
+  village.troops.spearmen -= pickup.spearmen;
+  village.troops.archers -= pickup.archers;
+  village.troops.cavalry -= pickup.cavalry;
+  saveVillage(village);
+  for (const { itemId, count } of toGive) {
+    let remaining = count;
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(remaining, 64);
+        container.setItem(i, new ItemStack2(itemId, give));
+        remaining -= give;
+      } else if (slot.typeId === itemId && slot.amount < 64) {
+        const give = Math.min(remaining, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        remaining -= give;
+      }
+    }
+  }
+  const summary = toGive.map(({ itemId, count }) => `${count} ${TROOP_TOKEN_MAP[itemId]?.label}`).join(", ");
+  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a. Right-click any token to deploy!`);
+  return true;
+}
+function releaseTroops(player) {
+  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  if (!inv?.container) return false;
+  const container = inv.container;
+  const found = {};
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    if (TROOP_TOKEN_MAP[slot.typeId]) {
+      found[slot.typeId] = (found[slot.typeId] ?? 0) + slot.amount;
+    }
+  }
+  const total = Object.values(found).reduce((a, b) => a + b, 0);
+  if (total === 0) return false;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot && TROOP_TOKEN_MAP[slot.typeId]) {
+      container.setItem(i, void 0);
+    }
+  }
+  const loc = player.location;
+  const dim = player.dimension;
+  const parts = [];
+  for (const [itemId, count] of Object.entries(found)) {
+    const info = TROOP_TOKEN_MAP[itemId];
+    if (!info) continue;
+    let spawned = 0;
+    for (let n = 0; n < count; n++) {
+      try {
+        const offset = {
+          x: loc.x + (Math.random() * 4 - 2),
+          y: loc.y,
+          z: loc.z + (Math.random() * 4 - 2)
+        };
+        const entity = dim.spawnEntity(info.entityId, offset);
+        entity.nameTag = `${player.name}'s ${info.label}`;
+        entity.setDynamicProperty("kc:owner", player.name);
+        spawned++;
+      } catch {
+      }
+    }
+    if (spawned > 0) parts.push(`${spawned} ${info.label}`);
+  }
+  if (parts.length === 0) {
+    notifyPlayer(player.name, "\xA7cCould not deploy troops (chunk not loaded).");
+    return false;
+  }
+  notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
+  return true;
+}
+var ENTITY_TO_TOKEN = {
+  "kingdoms:city_guard": "kingdoms:guard_token",
+  "kingdoms:spearman": "kingdoms:spearman_token",
+  "kingdoms:archer": "kingdoms:archer_token",
+  "kingdoms:cavalry": "kingdoms:cavalry_token"
+};
+var RECALL_RADIUS = 48;
+function recallNearbyTroops(player) {
+  const dim = player.dimension;
+  const loc = player.location;
+  const found = {};
+  const toRemove = [];
+  for (const entityType of Object.keys(ENTITY_TO_TOKEN)) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: RECALL_RADIUS });
+      for (const entity of entities) {
+        if (entity.getDynamicProperty("kc:owner") === player.name) {
+          found[entityType] = (found[entityType] ?? 0) + 1;
+          toRemove.push(entity);
+        }
+      }
+    } catch {
+    }
+  }
+  if (toRemove.length === 0) {
+    notifyPlayer(player.name, "\xA7eNo your soldiers found within 48 blocks.");
+    return false;
+  }
+  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  if (!inv?.container) return false;
+  const container = inv.container;
+  const parts = [];
+  for (const [entityType, count] of Object.entries(found)) {
+    const tokenId = ENTITY_TO_TOKEN[entityType];
+    const info = TROOP_TOKEN_MAP[tokenId];
+    if (!tokenId || !info) continue;
+    let remaining = count;
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(remaining, 64);
+        container.setItem(i, new ItemStack2(tokenId, give));
+        remaining -= give;
+      } else if (slot.typeId === tokenId && slot.amount < 64) {
+        const give = Math.min(remaining, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        remaining -= give;
+      }
+    }
+    const recalled = count - remaining;
+    if (recalled > 0) parts.push(`${recalled} ${info.label}`);
+  }
+  for (const entity of toRemove) {
+    try {
+      entity.remove();
+    } catch {
+    }
+  }
+  if (parts.length === 0) {
+    notifyPlayer(player.name, "\xA7cInventory full \u2014 soldiers had nowhere to go.");
+    return false;
+  }
+  notifyPlayer(player.name, `\xA7a\u{1F4DC} Recalled: \xA7f${parts.join(", ")}\xA7a to your inventory.`);
+  return true;
+}
+function garrisonDeployedSoldiers(attackerName, village, dimension) {
+  const entityToTroop = {
+    "kingdoms:city_guard": "cityGuards",
+    "kingdoms:spearman": "spearmen",
+    "kingdoms:archer": "archers",
+    "kingdoms:cavalry": "cavalry"
+  };
+  const loc = village.townHallLocation;
+  let total = 0;
+  for (const [entityType, troopType] of Object.entries(entityToTroop)) {
+    try {
+      const entities = dimension.getEntities({ type: entityType, location: loc, maxDistance: 64 });
+      for (const entity of entities) {
+        if (entity.getDynamicProperty("kc:owner") === attackerName) {
+          village.troops[troopType]++;
+          total++;
+          try {
+            entity.remove();
+          } catch {
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  if (total > 0) saveVillage(village);
+  return total;
+}
+function countTroopTokens(player) {
+  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  if (!inv?.container) return result;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    const info = TROOP_TOKEN_MAP[slot.typeId];
+    if (info) result[info.troopType] += slot.amount;
+  }
+  return result;
+}
+
+// src/systems/conquest.ts
+var SIEGE_RADIUS = 48;
+var CAPTURE_PROXIMITY = 5;
+var activeSieges = /* @__PURE__ */ new Map();
+function tickSieges(_currentTick) {
+  for (const [villageId, siege] of activeSieges.entries()) {
+    const target = getVillage(villageId);
+    if (!target) {
+      activeSieges.delete(villageId);
+      continue;
+    }
+    const players = world8.getPlayers();
+    const attacker = players.find((p) => p.name === siege.attackerName);
+    if (!attacker) {
+      siege.progress = Math.max(0, siege.progress - 1);
+      if (siege.progress <= 0) {
+        activeSieges.delete(villageId);
+        notifyPlayer(target.owner, `\xA7aSiege of \xA7b${target.name}\xA7a has been lifted.`);
+      }
+      continue;
+    }
+    const d = distance(attacker.location, target.townHallLocation);
+    if (d <= CAPTURE_PROXIMITY) {
+      siege.progress++;
+      if (siege.progress >= 600) {
+        captureVillage(siege, target);
+        activeSieges.delete(villageId);
+      } else if (siege.progress % 100 === 0) {
+        const percent = Math.floor(siege.progress / 600 * 100);
+        notifyPlayer(siege.attackerName, `\xA76Capturing... ${percent}%`);
+        notifyPlayer(target.owner, `\xA7cTown Hall being captured! (${percent}%)`);
+      }
+    } else if (d > SIEGE_RADIUS * 2) {
+      siege.progress = Math.max(0, siege.progress - 2);
+    }
+  }
+}
+function captureVillage(siege, target) {
+  const attackerKingdom = getKingdom(siege.attackerKingdomId);
+  if (!attackerKingdom) return;
+  const defenderKingdomId = target.kingdomId;
+  const oldOwner = target.owner;
+  const transferredTreasury = target.treasury;
+  notifyPlayer(oldOwner, `\xA74\u2694 \xA7b${target.name}\xA74 has been captured by \xA7c${attackerKingdom.name}\xA74!`);
+  removeVillageFromKingdom(defenderKingdomId, target.id);
+  addVillageToKingdom(siege.attackerKingdomId, target.id);
+  target.owner = siege.attackerName;
+  target.kingdomId = siege.attackerKingdomId;
+  target.treasury = 0;
+  saveVillage(target);
+  const attackerKingdomUpdated = getKingdom(siege.attackerKingdomId);
+  if (attackerKingdomUpdated) {
+    const attackerVillages = attackerKingdomUpdated.villageIds.map((id) => getVillage(id)).filter((v) => !!v && v.owner === siege.attackerName);
+    if (attackerVillages.length > 0) {
+      attackerVillages[0].treasury += transferredTreasury;
+      saveVillage(attackerVillages[0]);
+    }
+  }
+  const attacker = world8.getPlayers().find((p) => p.name === siege.attackerName);
+  const dim = attacker?.dimension ?? world8.getDimension("overworld");
+  const garrisoned = garrisonDeployedSoldiers(siege.attackerName, target, dim);
+  const garrisonMsg = garrisoned > 0 ? ` \xA77(${garrisoned} surviving soldiers now garrison the village.)` : "";
+  notifyPlayer(siege.attackerName, `\xA7a\u2694 \xA7b${target.name}\xA7a has been captured! Treasury: \xA76${transferredTreasury}\u{1F48E}\xA7a.${garrisonMsg}`);
+}
+function getActiveSiege(villageId) {
+  return activeSieges.get(villageId);
+}
+function isSiegeActive(villageId) {
+  return activeSieges.has(villageId);
+}
+
 // src/systems/commands.ts
 init_harvest();
 
 // src/systems/treasury.ts
 init_storage();
 init_notify();
-import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
+import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
 function depositEmeralds(player, villageId, amount) {
   const village = getVillage(villageId);
   if (!village || village.owner !== player.name) return false;
-  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  const inv = player.getComponent(EntityInventoryComponent4.componentId);
   if (!inv) return false;
   const container = inv.container;
   if (!container) return false;
@@ -1103,7 +1491,7 @@ function withdrawEmeralds(player, villageId, amount) {
     notifyPlayer(player.name, `\xA7cNot enough emeralds in treasury (${village.treasury}\u{1F48E}).`);
     return false;
   }
-  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  const inv = player.getComponent(EntityInventoryComponent4.componentId);
   if (!inv?.container) return false;
   const container = inv.container;
   let remaining = amount;
@@ -1111,7 +1499,7 @@ function withdrawEmeralds(player, villageId, amount) {
     const slot = container.getItem(i);
     if (!slot) {
       const give = Math.min(remaining, 64);
-      container.setItem(i, new ItemStack2("minecraft:emerald", give));
+      container.setItem(i, new ItemStack3("minecraft:emerald", give));
       remaining -= give;
     } else if (slot.typeId === "minecraft:emerald" && slot.amount < 64) {
       const give = Math.min(remaining, 64 - slot.amount);
@@ -1151,7 +1539,7 @@ function getTreasuryReport(village) {
 init_types();
 init_storage();
 init_notify();
-import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
+import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
 var WEAPON_UPGRADE_COSTS = [
   { material: "minecraft:cobblestone", materialCount: 1, emeralds: 1 },
   { material: "minecraft:iron_ingot", materialCount: 1, emeralds: 1 },
@@ -1234,7 +1622,7 @@ function upgradeArmor(player, villageId) {
   return true;
 }
 function consumeItems(player, typeId, amount) {
-  const inv = player.getComponent(EntityInventoryComponent4.componentId);
+  const inv = player.getComponent(EntityInventoryComponent5.componentId);
   if (!inv) return false;
   const container = inv.container;
   if (!container) return false;
@@ -1260,7 +1648,7 @@ function consumeItems(player, typeId, amount) {
   return true;
 }
 function giveBackItems(player, typeId, amount) {
-  const inv = player.getComponent(EntityInventoryComponent4.componentId);
+  const inv = player.getComponent(EntityInventoryComponent5.componentId);
   if (!inv) return;
   const container = inv.container;
   if (!container) return;
@@ -1269,7 +1657,7 @@ function giveBackItems(player, typeId, amount) {
     const item = container.getItem(i);
     if (item === void 0) {
       const give = Math.min(remaining, 64);
-      container.setItem(i, new ItemStack3(typeId, give));
+      container.setItem(i, new ItemStack4(typeId, give));
       remaining -= give;
     }
   }
@@ -1362,6 +1750,10 @@ function handleKcCommand(player, subcommand, args) {
     case "bs":
       cmdBlacksmith(player, args[0]);
       break;
+    case "map":
+    case "m":
+      showMap(player);
+      break;
     default:
       notifyPlayer(player.name, `\xA7cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -1385,6 +1777,7 @@ function showHelp(player) {
     "\xA7e/scriptevent kc:ally <kingdomName>\xA7r \u2014 propose alliance",
     "\xA7e/scriptevent kc:kingdoms\xA7r \u2014 list all kingdoms",
     "\xA7e/scriptevent kc:blacksmith <id>\xA7r \u2014 smithy summary",
+    "\xA7e/scriptevent kc:map\xA7r \u2014 strategic overview of all villages",
     "\xA77Troop types: cityGuards, spearmen, archers, cavalry"
   ];
   for (const line of lines) notifyPlayer(player.name, line);
@@ -1562,6 +1955,48 @@ function cmdBlacksmith(player, idPrefix) {
   const summary = getBlacksmithSummary(village);
   for (const line of summary.split("\n")) notifyPlayer(player.name, line);
 }
+function showMap(player) {
+  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const kingdom = getKingdomOf(player.name);
+  if (myVillages.length === 0) {
+    notifyPlayer(player.name, "\xA7eYou don't own any villages yet.");
+    return;
+  }
+  notifyPlayer(player.name, `\xA7b\u2550\u2550\u2550 ${kingdom?.name ?? "No Kingdom"} \u2014 Strategic Map \u2550\u2550\u2550`);
+  for (const v of myVillages) {
+    const troops = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.cavalry;
+    const training = v.trainingQueue?.length ?? 0;
+    const siegeFlag = isSiegeActive(v.id) ? " \xA7c\u2694 UNDER SIEGE\xA7r" : "";
+    const trainingTag = training > 0 ? ` \xA7e\u{1FA96}+${training}\xA7r` : "";
+    const merchants = v.activeMerchants.length;
+    notifyPlayer(
+      player.name,
+      `\xA7a${v.name}\xA7r${siegeFlag}`
+    );
+    notifyPlayer(
+      player.name,
+      `  \u{1F48E}${v.treasury}  \u2694${troops}${trainingTag}  \u{1F465}${v.population}  \u{1F9ED}${merchants} merchants`
+    );
+    notifyPlayer(
+      player.name,
+      `  \xA77${Math.round(v.townHallLocation.x)},${Math.round(v.townHallLocation.y)},${Math.round(v.townHallLocation.z)}  Iron:${v.resourceStorage.iron} Gold:${v.resourceStorage.gold}`
+    );
+  }
+  const conductingSieges = getAllVillages().filter((v) => v.owner !== player.name).map((v) => ({ v, siege: getActiveSiege(v.id) })).filter(({ siege }) => siege?.attackerName === player.name);
+  if (conductingSieges.length > 0) {
+    notifyPlayer(player.name, `\xA7c\u2694 Your Active Sieges:`);
+    for (const { v, siege } of conductingSieges) {
+      const pct = Math.floor(siege.progress / 600 * 100);
+      notifyPlayer(player.name, `  \xA7c${v.name}\xA7r (${v.owner}) \u2014 \xA76${pct}% captured`);
+    }
+  }
+  if (kingdom?.wars && kingdom.wars.length > 0) {
+    notifyPlayer(player.name, `\xA7c\u{1F3F4} At war with: \xA7f${kingdom.wars.join(", ")}`);
+  }
+  if (kingdom?.alliances && kingdom.alliances.length > 0) {
+    notifyPlayer(player.name, `\xA7a\u{1F91D} Allied with: \xA7f${kingdom.alliances.join(", ")}`);
+  }
+}
 function resolveVillage(player, idPrefix) {
   const myVillages = getAllVillages().filter((v) => v.owner === player.name);
   if (!idPrefix) {
@@ -1675,7 +2110,7 @@ init_types();
 init_storage();
 init_tick();
 init_notify();
-import { world as world7 } from "@minecraft/server";
+import { world as world9 } from "@minecraft/server";
 var GROWTH_CHANCE = 0.6;
 var MORTALITY_CHANCE = 0.4;
 var HOUSING_UNIT_SIZE = 5;
@@ -1730,7 +2165,7 @@ function checkAndGrowStructures(village) {
 }
 function placeFarmlandUnit(village) {
   try {
-    const dim = world7.getDimension(village.location.dimension);
+    const dim = world9.getDimension(village.location.dimension);
     const builtUnits = village.builtHousingUnits ?? 0;
     const angle = builtUnits * 72 * Math.PI / 180;
     const radius = 12 + builtUnits * 6;
@@ -1765,7 +2200,7 @@ function findSolidY(dim, x, startY, z) {
   return startY;
 }
 function spawnVillagerEntity(village) {
-  const dim = world7.getDimension(village.location.dimension);
+  const dim = world9.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   const query = {
     type: "minecraft:villager_v2",
@@ -1799,11 +2234,15 @@ function processAllPopulation() {
 }
 
 // src/systems/market.ts
-init_types();
 init_storage();
-init_tick();
 init_notify();
-import { world as world8, ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
+import { world as world10, ItemStack as ItemStack5, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
+var MERCHANT_OUTER_SPAWN_MIN = 70;
+var MERCHANT_OUTER_SPAWN_MAX = 100;
+var MERCHANT_MOVE_SPEED = 2;
+var MERCHANT_ARRIVE_RADIUS = 2.5;
+var MERCHANT_DANGER_RADIUS = 5;
+var MERCHANT_SPAWN_INTERVAL = 1200;
 var MERCHANT_STOCK_TEMPLATES = {
   common: {
     "minecraft:iron_ingot": 32,
@@ -1846,30 +2285,36 @@ var FOOD_SELL_RATES = [
   { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 }
 ];
 function getMaxMerchants(village) {
-  return Math.floor(village.marketLevel * 1.5 + village.population / 20);
+  return Math.floor(village.marketLevel * 3 + village.population / 8);
 }
-function tickMarket(village) {
-  if (!isNewDay(village.lastDayProcessed)) return;
-  cleanupDespawnedMerchants(village);
-  const maxMerchants = getMaxMerchants(village);
-  const currentCount = village.activeMerchants.length;
-  if (currentCount >= maxMerchants) return;
-  const spawnChance = 0.2 + village.prosperity / 100 * 0.5;
-  if (Math.random() < spawnChance) {
-    spawnMerchant(village);
+function tickAllMerchantsSpawn(currentTick) {
+  if (currentTick % MERCHANT_SPAWN_INTERVAL !== 0) return;
+  for (const village of getAllVillages()) {
+    cleanupDespawnedMerchants(village);
+    if (village.activeMerchants.length < getMaxMerchants(village)) {
+      spawnMerchant(village);
+    }
+  }
+}
+function tickAllMerchantMovement() {
+  for (const village of getAllVillages()) {
+    if (village.activeMerchants.length === 0) continue;
+    tickMerchantMovement(village);
   }
 }
 function spawnMerchant(village) {
-  const dim = world8.getDimension(village.location.dimension);
+  const dim = world10.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
   const templateKey = templates[Math.floor(Math.random() * templates.length)];
   const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
+  const angle = Math.random() * Math.PI * 2;
+  const distance2 = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
   try {
     const entity = dim.spawnEntity("kingdoms:merchant", {
-      x: loc.x + (Math.random() * MERCHANT_SPAWN_RADIUS * 2 - MERCHANT_SPAWN_RADIUS),
+      x: loc.x + Math.cos(angle) * distance2,
       y: loc.y,
-      z: loc.z + (Math.random() * MERCHANT_SPAWN_RADIUS * 2 - MERCHANT_SPAWN_RADIUS)
+      z: loc.z + Math.sin(angle) * distance2
     });
     const merchantData = {
       entityId: entity.id,
@@ -1879,18 +2324,67 @@ function spawnMerchant(village) {
     };
     entity.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
     entity.setDynamicProperty("kc:village_id", village.id);
-    entity.nameTag = `Merchant [${village.name}]`;
+    entity.nameTag = `\xA76Merchant \xA77[${village.name}]`;
     village.activeMerchants.push(merchantData);
     saveVillage(village);
     notifyPlayer(
       village.owner,
-      `\xA76A merchant has arrived at \xA7b${village.name}\xA76! (Stock: ${Object.keys(stock).length} types)`
+      `\xA76A merchant has set out for \xA7b${village.name}\xA76! (${Math.round(distance2)} blocks away, Stock: ${Object.keys(stock).length} types)`
     );
   } catch {
   }
 }
+function tickMerchantMovement(village) {
+  const dim = world10.getDimension(village.location.dimension);
+  const poles = village.tradePoles;
+  const townHall = village.townHallLocation;
+  let changed = false;
+  for (const merchantData of village.activeMerchants) {
+    try {
+      const entities = dim.getEntities({ type: "kingdoms:merchant" });
+      const entity = entities.find((e) => e.id === merchantData.entityId);
+      if (!entity) continue;
+      const loc = entity.location;
+      let target;
+      let onPole = false;
+      if (poles.length > 0 && merchantData.currentPoleIndex < poles.length) {
+        target = poles[merchantData.currentPoleIndex].location;
+        onPole = true;
+      } else {
+        target = townHall;
+      }
+      const dx = target.x - loc.x;
+      const dz = target.z - loc.z;
+      const dist2D = Math.sqrt(dx * dx + dz * dz);
+      if (dist2D < MERCHANT_ARRIVE_RADIUS) {
+        if (onPole) {
+          merchantData.currentPoleIndex++;
+          changed = true;
+        }
+        continue;
+      }
+      const ratio = MERCHANT_MOVE_SPEED / dist2D;
+      entity.teleport(
+        { x: loc.x + dx * ratio, y: loc.y, z: loc.z + dz * ratio },
+        { keepVelocity: false }
+      );
+      try {
+        const hostiles = dim.getEntities({ location: loc, maxDistance: MERCHANT_DANGER_RADIUS, families: ["monster"] });
+        if (hostiles.length > 0) {
+          entity.applyDamage(2);
+          if (Math.random() < 0.04) {
+            notifyPlayer(village.owner, `\xA7c\u26A0 A merchant heading to \xA7b${village.name}\xA7c is under mob attack! (${Math.round(dist2D)} blocks out)`);
+          }
+        }
+      } catch {
+      }
+    } catch {
+    }
+  }
+  if (changed) saveVillage(village);
+}
 function cleanupDespawnedMerchants(village) {
-  const dim = world8.getDimension(village.location.dimension);
+  const dim = world10.getDimension(village.location.dimension);
   const allEntities = dim.getEntities({ type: "kingdoms:merchant" });
   const activeIds = new Set(allEntities.map((e) => e.id));
   const before = village.activeMerchants.length;
@@ -1928,7 +2422,7 @@ function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
   return true;
 }
 function removeMerchant(village, merchantEntityId) {
-  const dim = world8.getDimension(village.location.dimension);
+  const dim = world10.getDimension(village.location.dimension);
   try {
     const entities = dim.getEntities({ type: "kingdoms:merchant" });
     const entity = entities.find((e) => e.id === merchantEntityId);
@@ -1971,7 +2465,7 @@ function buySeedsFromMarket(player, village, entry) {
     notifyPlayer(player.name, "\xA7cBuild and upgrade the market first.");
     return false;
   }
-  const inv = player.getComponent(EntityInventoryComponent5.componentId);
+  const inv = player.getComponent(EntityInventoryComponent6.componentId);
   if (!inv?.container) return false;
   const container = inv.container;
   let emeraldsHeld = 0;
@@ -2001,7 +2495,7 @@ function buySeedsFromMarket(player, village, entry) {
     const slot = container.getItem(i);
     if (!slot) {
       const give = Math.min(remaining, 64);
-      container.setItem(i, new ItemStack4(entry.itemId, give));
+      container.setItem(i, new ItemStack5(entry.itemId, give));
       remaining -= give;
     } else if (slot.typeId === entry.itemId && slot.amount < 64) {
       const give = Math.min(remaining, 64 - slot.amount);
@@ -2024,7 +2518,7 @@ function sellFoodBulk(player, village, entry, batches) {
     return false;
   }
   const granaryHas = village.granaryItems[entry.itemId] ?? 0;
-  const inv = player.getComponent(EntityInventoryComponent5.componentId);
+  const inv = player.getComponent(EntityInventoryComponent6.componentId);
   const container = inv?.container;
   let inventoryHas = 0;
   if (container) {
@@ -2070,17 +2564,12 @@ function sellFoodBulk(player, village, entry, batches) {
   );
   return true;
 }
-function processAllMarkets() {
-  for (const village of getAllVillages()) {
-    tickMarket(village);
-  }
-}
 
 // src/systems/trade.ts
 init_storage();
 init_tick();
 init_notify();
-import { world as world9 } from "@minecraft/server";
+import { world as world11 } from "@minecraft/server";
 
 // src/systems/tradeStation.ts
 init_types();
@@ -2190,7 +2679,7 @@ function sendTradeCart(fromVillageId, toVillageId, cargo) {
   }
   from.treasury -= cargo.emeralds;
   from.foodStorage -= cargo.food;
-  const dim = world9.getDimension(from.location.dimension);
+  const dim = world11.getDimension(from.location.dimension);
   const spawnLoc = from.townHallLocation;
   let cartEntity;
   try {
@@ -2303,7 +2792,7 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
   from.troops.spearmen -= troops.spearmen ?? 0;
   from.troops.archers -= troops.archers ?? 0;
   from.troops.cavalry -= troops.cavalry ?? 0;
-  const dim = world9.getDimension(from.location.dimension);
+  const dim = world11.getDimension(from.location.dimension);
   const spawnLoc = from.tradeStationLocation ?? from.townHallLocation;
   let cartEntity;
   try {
@@ -2360,7 +2849,7 @@ function tickTradeCarts(currentTick) {
   }
 }
 function processVillageCarts(village) {
-  const dim = world9.getDimension(village.location.dimension);
+  const dim = world11.getDimension(village.location.dimension);
   let changed = false;
   for (let i = village.activeCarts.length - 1; i >= 0; i--) {
     const cart = village.activeCarts[i];
@@ -2549,389 +3038,6 @@ function getTrainingQueueSummary(village, currentTick) {
     const secLeft = Math.max(0, Math.ceil((job.completeTick - currentTick) / 20));
     return `\xA77[${i + 1}] \xA7f${job.count}x ${label} \xA77\u2014 \xA7e~${secLeft}s`;
   }).join("\n");
-}
-
-// src/systems/watchtower.ts
-init_types();
-init_storage();
-init_tick();
-init_notify();
-import { world as world10 } from "@minecraft/server";
-var DETECTION_INTERVAL_TICKS = 100;
-var lastDetectionTick = 0;
-function tickWatchtowers(currentTick) {
-  if (currentTick - lastDetectionTick < DETECTION_INTERVAL_TICKS) return;
-  lastDetectionTick = currentTick;
-  for (const village of getAllVillages()) {
-    if (!village.owner) continue;
-    const watchtowers = village.guardPoles.filter((p) => p.type === "watchtower");
-    if (watchtowers.length === 0) continue;
-    for (const tower of watchtowers) {
-      scanFromWatchtower(village, tower);
-    }
-  }
-}
-function scanFromWatchtower(village, tower) {
-  const dim = world10.getDimension(village.location.dimension);
-  const query = {
-    location: tower.location,
-    maxDistance: WATCHTOWER_DETECTION_RADIUS,
-    excludeTypes: [
-      "minecraft:item",
-      "minecraft:arrow",
-      "minecraft:experience_orb"
-    ]
-  };
-  const nearby = dim.getEntities(query);
-  const kingdom = getKingdom(village.kingdomId);
-  for (const entity of nearby) {
-    if (entity.typeId === "kingdoms:bandit") {
-      const d = Math.round(distance(entity.location, tower.location));
-      notifyPlayer(village.owner, `\xA7c\u26A0 Watchtower detected bandits near \xA7b${village.name}\xA7c! (${d}m away)`);
-      return;
-    }
-    if (entity.typeId === "minecraft:player") {
-      const playerName = entity.name;
-      if (playerName === village.owner) continue;
-      if (kingdom && isAllied(playerName, kingdom.id)) continue;
-      if (isEnemyPlayer(playerName, village.kingdomId)) {
-        notifyPlayer(
-          village.owner,
-          `\xA7c\u2694 Enemy player \xA74${playerName}\xA7c detected near \xA7b${village.name}\xA7c!`
-        );
-        notifyPlayer(village.owner, `\xA7cVillage may be under attack!`);
-        return;
-      }
-    }
-  }
-}
-function getPlayerKingdom(playerName) {
-  return getAllKingdoms().find(
-    (k) => k.king === playerName || k.villageIds.some((vid) => {
-      const v = getVillage(vid);
-      return v?.owner === playerName;
-    })
-  );
-}
-function isAllied(playerName, kingdomId) {
-  const playerKingdom = getPlayerKingdom(playerName);
-  if (!playerKingdom) return false;
-  const kingdom = getKingdom(kingdomId);
-  return kingdom ? kingdom.alliances.includes(playerKingdom.id) : false;
-}
-function isEnemyPlayer(playerName, kingdomId) {
-  const playerKingdom = getPlayerKingdom(playerName);
-  if (!playerKingdom) return false;
-  const kingdom = getKingdom(kingdomId);
-  return kingdom ? kingdom.wars.includes(playerKingdom.id) : false;
-}
-
-// src/systems/conquest.ts
-init_storage();
-init_tick();
-init_notify();
-import { world as world11 } from "@minecraft/server";
-
-// src/systems/deployTroops.ts
-init_storage();
-init_notify();
-import { ItemStack as ItemStack5, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
-var TROOP_TOKEN_MAP = {
-  "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
-  "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
-  "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
-  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" }
-};
-function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry;
-  if (total <= 0) {
-    notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
-    return false;
-  }
-  if (pickup.cityGuards > village.troops.cityGuards) {
-    notifyPlayer(player.name, `\xA7cNot enough City Guards (have ${village.troops.cityGuards}).`);
-    return false;
-  }
-  if (pickup.spearmen > village.troops.spearmen) {
-    notifyPlayer(player.name, `\xA7cNot enough Spearmen (have ${village.troops.spearmen}).`);
-    return false;
-  }
-  if (pickup.archers > village.troops.archers) {
-    notifyPlayer(player.name, `\xA7cNot enough Archers (have ${village.troops.archers}).`);
-    return false;
-  }
-  if (pickup.cavalry > village.troops.cavalry) {
-    notifyPlayer(player.name, `\xA7cNot enough Cavalry (have ${village.troops.cavalry}).`);
-    return false;
-  }
-  const inv = player.getComponent(EntityInventoryComponent6.componentId);
-  if (!inv?.container) {
-    notifyPlayer(player.name, "\xA7cInventory unavailable.");
-    return false;
-  }
-  const container = inv.container;
-  const toGive = [
-    { itemId: "kingdoms:guard_token", count: pickup.cityGuards },
-    { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
-    { itemId: "kingdoms:archer_token", count: pickup.archers },
-    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry }
-  ].filter((t) => t.count > 0);
-  let slotsNeeded = 0;
-  for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
-  let freeSlots = 0;
-  for (let i = 0; i < container.size; i++) {
-    if (!container.getItem(i)) freeSlots++;
-  }
-  if (freeSlots < slotsNeeded) {
-    notifyPlayer(player.name, `\xA7cNot enough inventory space (need ${slotsNeeded} free slots).`);
-    return false;
-  }
-  village.troops.cityGuards -= pickup.cityGuards;
-  village.troops.spearmen -= pickup.spearmen;
-  village.troops.archers -= pickup.archers;
-  village.troops.cavalry -= pickup.cavalry;
-  saveVillage(village);
-  for (const { itemId, count } of toGive) {
-    let remaining = count;
-    for (let i = 0; i < container.size && remaining > 0; i++) {
-      const slot = container.getItem(i);
-      if (!slot) {
-        const give = Math.min(remaining, 64);
-        container.setItem(i, new ItemStack5(itemId, give));
-        remaining -= give;
-      } else if (slot.typeId === itemId && slot.amount < 64) {
-        const give = Math.min(remaining, 64 - slot.amount);
-        slot.amount += give;
-        container.setItem(i, slot);
-        remaining -= give;
-      }
-    }
-  }
-  const summary = toGive.map(({ itemId, count }) => `${count} ${TROOP_TOKEN_MAP[itemId]?.label}`).join(", ");
-  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a. Right-click any token to deploy!`);
-  return true;
-}
-function releaseTroops(player) {
-  const inv = player.getComponent(EntityInventoryComponent6.componentId);
-  if (!inv?.container) return false;
-  const container = inv.container;
-  const found = {};
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (!slot) continue;
-    if (TROOP_TOKEN_MAP[slot.typeId]) {
-      found[slot.typeId] = (found[slot.typeId] ?? 0) + slot.amount;
-    }
-  }
-  const total = Object.values(found).reduce((a, b) => a + b, 0);
-  if (total === 0) return false;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot && TROOP_TOKEN_MAP[slot.typeId]) {
-      container.setItem(i, void 0);
-    }
-  }
-  const loc = player.location;
-  const dim = player.dimension;
-  const parts = [];
-  for (const [itemId, count] of Object.entries(found)) {
-    const info = TROOP_TOKEN_MAP[itemId];
-    if (!info) continue;
-    let spawned = 0;
-    for (let n = 0; n < count; n++) {
-      try {
-        const offset = {
-          x: loc.x + (Math.random() * 4 - 2),
-          y: loc.y,
-          z: loc.z + (Math.random() * 4 - 2)
-        };
-        const entity = dim.spawnEntity(info.entityId, offset);
-        entity.nameTag = `${player.name}'s ${info.label}`;
-        entity.setDynamicProperty("kc:owner", player.name);
-        spawned++;
-      } catch {
-      }
-    }
-    if (spawned > 0) parts.push(`${spawned} ${info.label}`);
-  }
-  if (parts.length === 0) {
-    notifyPlayer(player.name, "\xA7cCould not deploy troops (chunk not loaded).");
-    return false;
-  }
-  notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
-  return true;
-}
-var ENTITY_TO_TOKEN = {
-  "kingdoms:city_guard": "kingdoms:guard_token",
-  "kingdoms:spearman": "kingdoms:spearman_token",
-  "kingdoms:archer": "kingdoms:archer_token",
-  "kingdoms:cavalry": "kingdoms:cavalry_token"
-};
-var RECALL_RADIUS = 48;
-function recallNearbyTroops(player) {
-  const dim = player.dimension;
-  const loc = player.location;
-  const found = {};
-  const toRemove = [];
-  for (const entityType of Object.keys(ENTITY_TO_TOKEN)) {
-    try {
-      const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: RECALL_RADIUS });
-      for (const entity of entities) {
-        if (entity.getDynamicProperty("kc:owner") === player.name) {
-          found[entityType] = (found[entityType] ?? 0) + 1;
-          toRemove.push(entity);
-        }
-      }
-    } catch {
-    }
-  }
-  if (toRemove.length === 0) {
-    notifyPlayer(player.name, "\xA7eNo your soldiers found within 48 blocks.");
-    return false;
-  }
-  const inv = player.getComponent(EntityInventoryComponent6.componentId);
-  if (!inv?.container) return false;
-  const container = inv.container;
-  const parts = [];
-  for (const [entityType, count] of Object.entries(found)) {
-    const tokenId = ENTITY_TO_TOKEN[entityType];
-    const info = TROOP_TOKEN_MAP[tokenId];
-    if (!tokenId || !info) continue;
-    let remaining = count;
-    for (let i = 0; i < container.size && remaining > 0; i++) {
-      const slot = container.getItem(i);
-      if (!slot) {
-        const give = Math.min(remaining, 64);
-        container.setItem(i, new ItemStack5(tokenId, give));
-        remaining -= give;
-      } else if (slot.typeId === tokenId && slot.amount < 64) {
-        const give = Math.min(remaining, 64 - slot.amount);
-        slot.amount += give;
-        container.setItem(i, slot);
-        remaining -= give;
-      }
-    }
-    const recalled = count - remaining;
-    if (recalled > 0) parts.push(`${recalled} ${info.label}`);
-  }
-  for (const entity of toRemove) {
-    try {
-      entity.remove();
-    } catch {
-    }
-  }
-  if (parts.length === 0) {
-    notifyPlayer(player.name, "\xA7cInventory full \u2014 soldiers had nowhere to go.");
-    return false;
-  }
-  notifyPlayer(player.name, `\xA7a\u{1F4DC} Recalled: \xA7f${parts.join(", ")}\xA7a to your inventory.`);
-  return true;
-}
-function garrisonDeployedSoldiers(attackerName, village, dimension) {
-  const entityToTroop = {
-    "kingdoms:city_guard": "cityGuards",
-    "kingdoms:spearman": "spearmen",
-    "kingdoms:archer": "archers",
-    "kingdoms:cavalry": "cavalry"
-  };
-  const loc = village.townHallLocation;
-  let total = 0;
-  for (const [entityType, troopType] of Object.entries(entityToTroop)) {
-    try {
-      const entities = dimension.getEntities({ type: entityType, location: loc, maxDistance: 64 });
-      for (const entity of entities) {
-        if (entity.getDynamicProperty("kc:owner") === attackerName) {
-          village.troops[troopType]++;
-          total++;
-          try {
-            entity.remove();
-          } catch {
-          }
-        }
-      }
-    } catch {
-    }
-  }
-  if (total > 0) saveVillage(village);
-  return total;
-}
-function countTroopTokens(player) {
-  const inv = player.getComponent(EntityInventoryComponent6.componentId);
-  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
-  if (!inv?.container) return result;
-  const container = inv.container;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (!slot) continue;
-    const info = TROOP_TOKEN_MAP[slot.typeId];
-    if (info) result[info.troopType] += slot.amount;
-  }
-  return result;
-}
-
-// src/systems/conquest.ts
-var SIEGE_RADIUS = 48;
-var CAPTURE_PROXIMITY = 5;
-var activeSieges = /* @__PURE__ */ new Map();
-function tickSieges(_currentTick) {
-  for (const [villageId, siege] of activeSieges.entries()) {
-    const target = getVillage(villageId);
-    if (!target) {
-      activeSieges.delete(villageId);
-      continue;
-    }
-    const players = world11.getPlayers();
-    const attacker = players.find((p) => p.name === siege.attackerName);
-    if (!attacker) {
-      siege.progress = Math.max(0, siege.progress - 1);
-      if (siege.progress <= 0) {
-        activeSieges.delete(villageId);
-        notifyPlayer(target.owner, `\xA7aSiege of \xA7b${target.name}\xA7a has been lifted.`);
-      }
-      continue;
-    }
-    const d = distance(attacker.location, target.townHallLocation);
-    if (d <= CAPTURE_PROXIMITY) {
-      siege.progress++;
-      if (siege.progress >= 600) {
-        captureVillage(siege, target);
-        activeSieges.delete(villageId);
-      } else if (siege.progress % 100 === 0) {
-        const percent = Math.floor(siege.progress / 600 * 100);
-        notifyPlayer(siege.attackerName, `\xA76Capturing... ${percent}%`);
-        notifyPlayer(target.owner, `\xA7cTown Hall being captured! (${percent}%)`);
-      }
-    } else if (d > SIEGE_RADIUS * 2) {
-      siege.progress = Math.max(0, siege.progress - 2);
-    }
-  }
-}
-function captureVillage(siege, target) {
-  const attackerKingdom = getKingdom(siege.attackerKingdomId);
-  if (!attackerKingdom) return;
-  const defenderKingdomId = target.kingdomId;
-  const oldOwner = target.owner;
-  const transferredTreasury = target.treasury;
-  notifyPlayer(oldOwner, `\xA74\u2694 \xA7b${target.name}\xA74 has been captured by \xA7c${attackerKingdom.name}\xA74!`);
-  removeVillageFromKingdom(defenderKingdomId, target.id);
-  addVillageToKingdom(siege.attackerKingdomId, target.id);
-  target.owner = siege.attackerName;
-  target.kingdomId = siege.attackerKingdomId;
-  target.treasury = 0;
-  saveVillage(target);
-  const attackerKingdomUpdated = getKingdom(siege.attackerKingdomId);
-  if (attackerKingdomUpdated) {
-    const attackerVillages = attackerKingdomUpdated.villageIds.map((id) => getVillage(id)).filter((v) => !!v && v.owner === siege.attackerName);
-    if (attackerVillages.length > 0) {
-      attackerVillages[0].treasury += transferredTreasury;
-      saveVillage(attackerVillages[0]);
-    }
-  }
-  const attacker = world11.getPlayers().find((p) => p.name === siege.attackerName);
-  const dim = attacker?.dimension ?? world11.getDimension("overworld");
-  const garrisoned = garrisonDeployedSoldiers(siege.attackerName, target, dim);
-  const garrisonMsg = garrisoned > 0 ? ` \xA77(${garrisoned} surviving soldiers now garrison the village.)` : "";
-  notifyPlayer(siege.attackerName, `\xA7a\u2694 \xA7b${target.name}\xA7a has been captured! Treasury: \xA76${transferredTreasury}\u{1F48E}\xA7a.${garrisonMsg}`);
 }
 
 // src/systems/guards.ts
@@ -3319,12 +3425,13 @@ system2.runInterval(() => {
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
   }
+  tickAllMerchantsSpawn(tick);
+  tickAllMerchantMovement();
 }, 20);
 system2.runInterval(() => {
   processAllFood();
   processAllWages();
   processAllPopulation();
-  processAllMarkets();
   tickBandits();
   processAllSoldierFood();
 }, 24e3);

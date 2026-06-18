@@ -25,7 +25,8 @@ import { processAllFood, getFoodProduction, getFoodConsumption, buyFood, sellFoo
 import { processAllWages, recruitTroop, disbandTroop, upgradeBarracks } from "./systems/military.js";
 import { processAllPopulation } from "./systems/population.js";
 import {
-  processAllMarkets,
+  tickAllMerchantsSpawn,
+  tickAllMerchantMovement,
   tradeMerchant,
   upgradeMarket,
   buySeedsFromMarket,
@@ -321,13 +322,14 @@ system.runInterval(() => {
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
   }
+  tickAllMerchantsSpawn(tick);
+  tickAllMerchantMovement();
 }, 20);
 
 system.runInterval(() => {
   processAllFood();
   processAllWages();
   processAllPopulation();
-  processAllMarkets();
   tickBandits();
   processAllSoldierFood();
 }, 24000);

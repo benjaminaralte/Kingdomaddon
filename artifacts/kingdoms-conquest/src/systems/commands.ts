@@ -4,6 +4,7 @@ import { getAllVillages, getAllKingdoms, saveVillage } from "../storage/index.js
 import { getVillageSummary } from "./village.js";
 import { getKingdomSummary, getKingdomOf, declareWar, makePeace, formAlliance } from "./kingdom.js";
 import { recruitTroop, disbandTroop, upgradeBarracks, getTotalTroops } from "./military.js";
+import { isSiegeActive, getActiveSiege } from "./conquest.js";
 import { getGranaryFoodUnits, getGranaryReport } from "./harvest.js";
 import { getTreasuryReport } from "./treasury.js";
 import { getBlacksmithSummary } from "./blacksmith.js";
@@ -83,6 +84,10 @@ function handleKcCommand(player: Player, subcommand: string, args: string[]): vo
     case "bs":
       cmdBlacksmith(player, args[0]);
       break;
+    case "map":
+    case "m":
+      showMap(player);
+      break;
     default:
       notifyPlayer(player.name, `§cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -107,6 +112,7 @@ function showHelp(player: Player): void {
     "§e/scriptevent kc:ally <kingdomName>§r — propose alliance",
     "§e/scriptevent kc:kingdoms§r — list all kingdoms",
     "§e/scriptevent kc:blacksmith <id>§r — smithy summary",
+    "§e/scriptevent kc:map§r — strategic overview of all villages",
     "§7Troop types: cityGuards, spearmen, archers, cavalry",
   ];
   for (const line of lines) notifyPlayer(player.name, line);
@@ -304,6 +310,56 @@ function cmdBlacksmith(player: Player, idPrefix: string | undefined): void {
   if (!village) return;
   const summary = getBlacksmithSummary(village);
   for (const line of summary.split("\n")) notifyPlayer(player.name, line);
+}
+
+function showMap(player: Player): void {
+  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const kingdom = getKingdomOf(player.name);
+
+  if (myVillages.length === 0) {
+    notifyPlayer(player.name, "§eYou don't own any villages yet.");
+    return;
+  }
+
+  notifyPlayer(player.name, `§b═══ ${kingdom?.name ?? "No Kingdom"} — Strategic Map ═══`);
+
+  for (const v of myVillages) {
+    const troops = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.cavalry;
+    const training = (v.trainingQueue?.length ?? 0);
+    const siegeFlag = isSiegeActive(v.id) ? " §c⚔ UNDER SIEGE§r" : "";
+    const trainingTag = training > 0 ? ` §e🪖+${training}§r` : "";
+    const merchants = v.activeMerchants.length;
+
+    notifyPlayer(player.name,
+      `§a${v.name}§r${siegeFlag}`
+    );
+    notifyPlayer(player.name,
+      `  💎${v.treasury}  ⚔${troops}${trainingTag}  👥${v.population}  🧭${merchants} merchants`
+    );
+    notifyPlayer(player.name,
+      `  §7${Math.round(v.townHallLocation.x)},${Math.round(v.townHallLocation.y)},${Math.round(v.townHallLocation.z)}  Iron:${v.resourceStorage.iron} Gold:${v.resourceStorage.gold}`
+    );
+  }
+
+  const conductingSieges = getAllVillages()
+    .filter((v) => v.owner !== player.name)
+    .map((v) => ({ v, siege: getActiveSiege(v.id) }))
+    .filter(({ siege }) => siege?.attackerName === player.name);
+
+  if (conductingSieges.length > 0) {
+    notifyPlayer(player.name, `§c⚔ Your Active Sieges:`);
+    for (const { v, siege } of conductingSieges) {
+      const pct = Math.floor(((siege!.progress) / 600) * 100);
+      notifyPlayer(player.name, `  §c${v.name}§r (${v.owner}) — §6${pct}% captured`);
+    }
+  }
+
+  if (kingdom?.wars && kingdom.wars.length > 0) {
+    notifyPlayer(player.name, `§c🏴 At war with: §f${kingdom.wars.join(", ")}`);
+  }
+  if (kingdom?.alliances && kingdom.alliances.length > 0) {
+    notifyPlayer(player.name, `§a🤝 Allied with: §f${kingdom.alliances.join(", ")}`);
+  }
 }
 
 function resolveVillage(player: Player, idPrefix: string | undefined): VillageData | undefined {
