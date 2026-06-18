@@ -3,6 +3,27 @@ import { FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY } from "../types/in
 import { getAllVillages, saveVillage } from "../storage/index.js";
 import { getCurrentDay, isNewDay } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
+import { FOOD_ITEM_VALUES, removeFromGranary } from "./harvest.js";
+
+/**
+ * Drains all food items from the physical granary into the abstract foodStorage
+ * reserve. Called once per day before consumption is deducted so that crops
+ * harvested by players actually feed the village population.
+ */
+function drainGranaryToFoodStorage(village: VillageData): number {
+  let converted = 0;
+  for (const [item, count] of Object.entries(village.granaryItems)) {
+    const value = FOOD_ITEM_VALUES[item] ?? 0;
+    if (value <= 0 || count <= 0) continue;
+    const units = value * count;
+    converted += units;
+    removeFromGranary(village, item, count);
+  }
+  if (converted > 0) {
+    village.foodStorage += converted;
+  }
+  return converted;
+}
 
 export function getFoodProduction(village: VillageData): number {
   const farmerOutput = village.workers.farmers * 3;
@@ -27,6 +48,16 @@ export function getFoodConsumption(village: VillageData): number {
 export function tickFood(village: VillageData): boolean {
   const currentDay = getCurrentDay();
   if (!isNewDay(village.lastDayProcessed)) return false;
+
+  // Drain physical granary items into the abstract reserve first, so harvested
+  // crops actually feed the population rather than sitting unused.
+  const drained = drainGranaryToFoodStorage(village);
+  if (drained > 0) {
+    notifyPlayer(
+      village.owner,
+      `§7${drained} food units converted from §b${village.name}§7 granary to daily reserve.`
+    );
+  }
 
   const production = getFoodProduction(village);
   const consumption = getFoodConsumption(village);

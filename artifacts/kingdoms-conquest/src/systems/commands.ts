@@ -1,14 +1,15 @@
 import { system, Player } from "@minecraft/server";
 import type { VillageData } from "../types/index.js";
-import { getAllVillages, getAllKingdoms, saveVillage } from "../storage/index.js";
+import { getAllVillages, getAllKingdoms, getKingdom, saveVillage } from "../storage/index.js";
 import { getVillageSummary } from "./village.js";
-import { getKingdomSummary, getKingdomOf, declareWar, makePeace, formAlliance } from "./kingdom.js";
+import { getKingdomSummary, getKingdomOf, declareWar, makePeace, formAlliance, getKingdomStrength, areAtWar } from "./kingdom.js";
 import { recruitTroop, disbandTroop, upgradeBarracks, getTotalTroops } from "./military.js";
-import { isSiegeActive, getActiveSiege } from "./conquest.js";
+import { isSiegeActive, getActiveSiege, initiateSiege } from "./conquest.js";
 import { getGranaryFoodUnits, getGranaryReport } from "./harvest.js";
 import { getTreasuryReport } from "./treasury.js";
 import { getBlacksmithSummary } from "./blacksmith.js";
 import { notifyPlayer } from "../utils/notify.js";
+import { getActiveBorderIntrusions, isSiegeEligible } from "./border.js";
 import type { TroopType } from "../types/index.js";
 
 const TROOP_TYPES: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
@@ -88,6 +89,16 @@ function handleKcCommand(player: Player, subcommand: string, args: string[]): vo
     case "m":
       showMap(player);
       break;
+    case "siege":
+      cmdSiege(player, args[0]);
+      break;
+    case "border":
+    case "b":
+      showBorderStatus(player);
+      break;
+    case "intel":
+      cmdIntel(player, args[0]);
+      break;
     default:
       notifyPlayer(player.name, `§cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -113,6 +124,9 @@ function showHelp(player: Player): void {
     "§e/scriptevent kc:kingdoms§r — list all kingdoms",
     "§e/scriptevent kc:blacksmith <id>§r — smithy summary",
     "§e/scriptevent kc:map§r — strategic overview of all villages",
+    "§e/scriptevent kc:siege <villageName>§r — begin siege (must be border-eligible)",
+    "§e/scriptevent kc:border§r — see border intrusion status",
+    "§e/scriptevent kc:intel <kingdomName>§r — scout an enemy kingdom",
     "§7Troop types: cityGuards, spearmen, archers, cavalry",
   ];
   for (const line of lines) notifyPlayer(player.name, line);
@@ -355,11 +369,131 @@ function showMap(player: Player): void {
   }
 
   if (kingdom?.wars && kingdom.wars.length > 0) {
-    notifyPlayer(player.name, `§c🏴 At war with: §f${kingdom.wars.join(", ")}`);
+    const warNames = kingdom.wars.map((id) => getKingdom(id)?.name ?? id).join(", ");
+    notifyPlayer(player.name, `§c🏴 At war with: §f${warNames}`);
   }
   if (kingdom?.alliances && kingdom.alliances.length > 0) {
-    notifyPlayer(player.name, `§a🤝 Allied with: §f${kingdom.alliances.join(", ")}`);
+    const allyNames = kingdom.alliances.map((id) => getKingdom(id)?.name ?? id).join(", ");
+    notifyPlayer(player.name, `§a🤝 Allied with: §f${allyNames}`);
   }
+}
+
+function cmdSiege(player: Player, villageNameOrId: string | undefined): void {
+  if (!villageNameOrId) {
+    notifyPlayer(player.name, "§cUsage: /scriptevent kc:siege <villageName or id>");
+    return;
+  }
+
+  const myKingdom = getKingdomOf(player.name);
+  if (!myKingdom) {
+    notifyPlayer(player.name, "§cYou must be in a kingdom to siege.");
+    return;
+  }
+
+  // Find any enemy village matching the name/id (not owned by player)
+  const allVillages = getAllVillages();
+  const target = allVillages.find(
+    (v) =>
+      v.owner !== player.name &&
+      (v.name.toLowerCase().startsWith(villageNameOrId.toLowerCase()) ||
+        v.id.startsWith(villageNameOrId))
+  );
+
+  if (!target) {
+    notifyPlayer(player.name, `§cNo enemy village found matching "${villageNameOrId}".`);
+    return;
+  }
+
+  if (!areAtWar(myKingdom.id, target.kingdomId)) {
+    notifyPlayer(player.name, `§cYou are not at war with §b${target.name}§c's kingdom.`);
+    return;
+  }
+
+  initiateSiege(player, target.id);
+}
+
+function showBorderStatus(player: Player): void {
+  const intrusions = getActiveBorderIntrusions().filter(
+    (i) => i.playerName === player.name
+  );
+
+  if (intrusions.length === 0) {
+    notifyPlayer(player.name, "§7You are not inside any enemy borders.");
+    return;
+  }
+
+  notifyPlayer(player.name, "§b=== Border Status ===");
+  for (const intrusion of intrusions) {
+    const village = getAllVillages().find((v) => v.id === intrusion.villageId);
+    const name = village?.name ?? intrusion.villageId;
+    const eligible = isSiegeEligible(player.name, intrusion.villageId);
+    if (eligible) {
+      notifyPlayer(player.name, `§a⚔ §b${name}§a — SIEGE ELIGIBLE. Use /scriptevent kc:siege ${name}`);
+    } else {
+      notifyPlayer(player.name, `§e⏳ §b${name}§e — Countdown in progress. Remain inside to unlock siege.`);
+    }
+  }
+
+  // Also show if anyone is inside the player's own borders
+  const myVillageIds = new Set(
+    getAllVillages().filter((v) => v.owner === player.name).map((v) => v.id)
+  );
+  const incomingIntrusions = getActiveBorderIntrusions().filter(
+    (i) => i.playerName !== player.name && myVillageIds.has(i.villageId)
+  );
+
+  if (incomingIntrusions.length > 0) {
+    notifyPlayer(player.name, "§c=== Enemy Intrusions Into Your Borders ===");
+    for (const intrusion of incomingIntrusions) {
+      const village = getAllVillages().find((v) => v.id === intrusion.villageId);
+      const eligible = isSiegeEligible(intrusion.playerName, intrusion.villageId);
+      const status = eligible ? "§4SIEGE ELIGIBLE" : "§e counting down";
+      notifyPlayer(
+        player.name,
+        `§c${intrusion.playerName}§r in §b${village?.name ?? "a village"}§r — ${status}`
+      );
+    }
+  }
+}
+
+function cmdIntel(player: Player, kingdomName: string | undefined): void {
+  if (!kingdomName) {
+    notifyPlayer(player.name, "§cUsage: /scriptevent kc:intel <kingdomName>");
+    return;
+  }
+
+  const target = getAllKingdoms().find(
+    (k) => k.name.toLowerCase() === kingdomName.toLowerCase()
+  );
+  if (!target) {
+    notifyPlayer(player.name, `§cKingdom "${kingdomName}" not found.`);
+    return;
+  }
+
+  const myKingdom = getKingdomOf(player.name);
+  const atWar = myKingdom ? areAtWar(myKingdom.id, target.id) : false;
+  const strength = getKingdomStrength(target.id);
+  const totalVillages = target.villageIds.length;
+  const allVillages = getAllVillages();
+
+  let totalPop = 0;
+  let totalFood = 0;
+  const villageNames: string[] = [];
+  for (const vid of target.villageIds) {
+    const v = allVillages.find((vv) => vv.id === vid);
+    if (!v) continue;
+    totalPop += v.population;
+    totalFood += v.foodStorage;
+    villageNames.push(v.name);
+  }
+
+  notifyPlayer(player.name, `§b=== Intel: ${target.name} ===`);
+  notifyPlayer(player.name, `§7King: §f${target.king}  §7Villages: §f${totalVillages}`);
+  notifyPlayer(player.name, `§7Population: §f${totalPop}  §7Food reserve: §f${totalFood}`);
+  notifyPlayer(player.name, `§7Military strength: §c${strength}`);
+  notifyPlayer(player.name, `§7Territories: §f${villageNames.join(", ") || "none"}`);
+  notifyPlayer(player.name, atWar ? `§4⚔ You are AT WAR with this kingdom.` : `§aNot currently at war.`);
+  notifyPlayer(player.name, `§7Allies: §f${target.alliances.length}  §7Wars: §f${target.wars.length}`);
 }
 
 function resolveVillage(player: Player, idPrefix: string | undefined): VillageData | undefined {

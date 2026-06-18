@@ -8,6 +8,10 @@ import { notifyPlayer } from "../utils/notify.js";
 const DETECTION_INTERVAL_TICKS = 100;
 let lastDetectionTick = 0;
 
+// Per-threat cooldown: key = `${villageId}:${threatId}` (player name or "bandits")
+const THREAT_ALERT_COOLDOWN = 600; // ~30s — don't re-alert for the same threat this often
+const lastAlertedThreat = new Map<string, number>();
+
 export function tickWatchtowers(currentTick: number): void {
   if (currentTick - lastDetectionTick < DETECTION_INTERVAL_TICKS) return;
   lastDetectionTick = currentTick;
@@ -18,12 +22,12 @@ export function tickWatchtowers(currentTick: number): void {
     if (watchtowers.length === 0) continue;
 
     for (const tower of watchtowers) {
-      scanFromWatchtower(village, tower);
+      scanFromWatchtower(village, tower, currentTick);
     }
   }
 }
 
-function scanFromWatchtower(village: VillageData, tower: GuardPoleData): void {
+function scanFromWatchtower(village: VillageData, tower: GuardPoleData, currentTick: number): void {
   const dim = world.getDimension(village.location.dimension);
 
   const query: EntityQueryOptions = {
@@ -41,8 +45,13 @@ function scanFromWatchtower(village: VillageData, tower: GuardPoleData): void {
 
   for (const entity of nearby) {
     if (entity.typeId === "kingdoms:bandit") {
-      const d = Math.round(distance(entity.location, tower.location));
-      notifyPlayer(village.owner, `§c⚠ Watchtower detected bandits near §b${village.name}§c! (${d}m away)`);
+      const alertKey = `${village.id}:bandits`;
+      const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
+      if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
+        const d = Math.round(distance(entity.location, tower.location));
+        notifyPlayer(village.owner, `§c⚠ Watchtower detected bandits near §b${village.name}§c! (${d}m away)`);
+        lastAlertedThreat.set(alertKey, currentTick);
+      }
       return;
     }
 
@@ -52,11 +61,15 @@ function scanFromWatchtower(village: VillageData, tower: GuardPoleData): void {
       if (kingdom && isAllied(playerName, kingdom.id)) continue;
 
       if (isEnemyPlayer(playerName, village.kingdomId)) {
-        notifyPlayer(
-          village.owner,
-          `§c⚔ Enemy player §4${playerName}§c detected near §b${village.name}§c!`
-        );
-        notifyPlayer(village.owner, `§cVillage may be under attack!`);
+        const alertKey = `${village.id}:${playerName}`;
+        const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
+        if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
+          notifyPlayer(
+            village.owner,
+            `§c⚔ Enemy player §4${playerName}§c detected near §b${village.name}§c! Village may be under attack!`
+          );
+          lastAlertedThreat.set(alertKey, currentTick);
+        }
         return;
       }
     }

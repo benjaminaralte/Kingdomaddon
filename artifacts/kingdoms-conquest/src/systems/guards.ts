@@ -168,12 +168,18 @@ function spawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
 
 function despawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
   const dim = world.getDimension(village.location.dimension);
+  // Search only within a tight radius of the pole instead of scanning all world entities
+  const POLE_SEARCH_RADIUS = 8;
   for (const eid of pole.entityIds) {
     try {
-      const entities = dim.getEntities({ type: GUARD_ENTITY_MAP[pole.troopType] });
-      const entity = entities.find((e) => e.id === eid);
+      const nearby = dim.getEntities({
+        type: GUARD_ENTITY_MAP[pole.troopType],
+        location: pole.location,
+        maxDistance: POLE_SEARCH_RADIUS,
+      });
+      const entity = nearby.find((e) => e.id === eid);
       if (entity) entity.remove();
-    } catch { /* ignore */ }
+    } catch { /* chunk not loaded or invalid query */ }
   }
   pole.entityIds = [];
 }
