@@ -15,6 +15,7 @@ import {
 } from "./kingdom.js";
 import { notifyVillageUnderSiege } from "./watchtower.js";
 import { garrisonDeployedSoldiers } from "./deployTroops.js";
+import { isSiegeEligible, clearBorderIntrusion } from "./border.js";
 
 const SIEGE_RADIUS = 48;
 const CAPTURE_PROXIMITY = 5;
@@ -58,6 +59,14 @@ export function initiateSiege(attacker: Player, targetVillageId: string): boolea
     return false;
   }
 
+  if (!isSiegeEligible(attacker.name, targetVillageId)) {
+    notifyPlayer(
+      attacker.name,
+      `§cYou must enter §b${target.name}§c's border and wait for the siege countdown before initiating a siege.`
+    );
+    return false;
+  }
+
   const siege: SiegeData = {
     attackerKingdomId: attackerKingdom.id,
     attackerName: attacker.name,
@@ -67,6 +76,7 @@ export function initiateSiege(attacker: Player, targetVillageId: string): boolea
   };
 
   activeSieges.set(targetVillageId, siege);
+  clearBorderIntrusion(attacker.name, targetVillageId);
 
   notifyPlayer(attacker.name, `§c⚔ Siege of §b${target.name}§c has begun!`);
   notifyPlayer(target.owner, `§4🔔 §b${target.name}§4 is under siege by §c${attacker.name}§4!`);

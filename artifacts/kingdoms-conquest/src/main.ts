@@ -46,6 +46,7 @@ import {
 } from "./systems/training.js";
 import { tickWatchtowers } from "./systems/watchtower.js";
 import { tickSieges, captureVillageByForce } from "./systems/conquest.js";
+import { tickBorders } from "./systems/border.js";
 import { tickAutoDefense } from "./systems/autoDefense.js";
 import {
   refreshAllGuards,
@@ -326,6 +327,7 @@ system.runInterval(() => {
   tickWatchtowers(tick);
   tickTradeCarts(tick);
   tickSieges(tick);
+  tickBorders(tick);
   tickAutoDefense(tick);
 
   for (const village of getAllVillages()) {
