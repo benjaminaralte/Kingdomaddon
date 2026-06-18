@@ -45,7 +45,8 @@ import {
   TROOP_LABELS,
 } from "./systems/training.js";
 import { tickWatchtowers } from "./systems/watchtower.js";
-import { tickSieges } from "./systems/conquest.js";
+import { tickSieges, captureVillageByForce } from "./systems/conquest.js";
+import { tickAutoDefense } from "./systems/autoDefense.js";
 import {
   refreshAllGuards,
   registerGuardPole,
@@ -243,8 +244,15 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 
   if (typeId === CUSTOM_BLOCKS.TOWN_HALL) {
     const village = findVillageAt(blockLoc);
-    if (village && village.owner === player.name) {
+    if (!village) {
+      // nothing to do
+    } else if (village.owner === player.name) {
       notifyPlayer(player.name, `§e§b${village.name}§e Town Hall broken. Rebuild to access menu.`);
+    } else if (village.owner) {
+      const captured = captureVillageByForce(player, village);
+      if (!captured) {
+        notifyPlayer(player.name, `§cYou cannot capture §b${village.name}§c — you are not at war with that kingdom.`);
+      }
     }
   }
 
@@ -318,6 +326,7 @@ system.runInterval(() => {
   tickWatchtowers(tick);
   tickTradeCarts(tick);
   tickSieges(tick);
+  tickAutoDefense(tick);
 
   for (const village of getAllVillages()) {
     tickTraining(village, tick);

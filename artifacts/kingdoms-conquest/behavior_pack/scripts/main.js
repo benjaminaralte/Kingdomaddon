@@ -535,7 +535,7 @@ init_tick();
 init_notify();
 init_storage();
 init_harvest();
-import { world as world13, system as system2 } from "@minecraft/server";
+import { world as world14, system as system2 } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 
 // src/systems/commands.ts
@@ -634,6 +634,10 @@ function formAlliance(kingdomAId, kingdomBId) {
   saveKingdom(b);
   notifyPlayer(a.king, `\xA7aAlliance formed with "${b.name}"!`);
   notifyPlayer(b.king, `\xA7aAlliance formed with "${a.name}"!`);
+}
+function areAtWar(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  return a ? a.wars.includes(kingdomBId) : false;
 }
 function getKingdomStrength(kingdomId) {
   const kingdom = getKingdom(kingdomId);
@@ -1441,11 +1445,41 @@ function captureVillage(siege, target) {
   const garrisonMsg = garrisoned > 0 ? ` \xA77(${garrisoned} surviving soldiers now garrison the village.)` : "";
   notifyPlayer(siege.attackerName, `\xA7a\u2694 \xA7b${target.name}\xA7a has been captured! Treasury: \xA76${transferredTreasury}\u{1F48E}\xA7a.${garrisonMsg}`);
 }
+function captureVillageByForce(attacker, target) {
+  const attackerKingdom = getAttackerKingdom(attacker.name);
+  if (!attackerKingdom) {
+    notifyPlayer(attacker.name, "\xA7cYou must be in a kingdom to capture a village.");
+    return false;
+  }
+  if (!areAtWar(attackerKingdom.id, target.kingdomId)) {
+    notifyPlayer(attacker.name, "\xA7cYou are not at war with that kingdom.");
+    return false;
+  }
+  if (target.owner === attacker.name) return false;
+  const siege = {
+    attackerKingdomId: attackerKingdom.id,
+    attackerName: attacker.name,
+    targetVillageId: target.id,
+    startTick: world8.getAbsoluteTime(),
+    progress: 600
+  };
+  activeSieges.delete(target.id);
+  captureVillage(siege, target);
+  return true;
+}
 function getActiveSiege(villageId) {
   return activeSieges.get(villageId);
 }
 function isSiegeActive(villageId) {
   return activeSieges.has(villageId);
+}
+function getAttackerKingdom(playerName) {
+  return getAllKingdoms().find(
+    (k) => k.king === playerName || k.villageIds.some((vid) => {
+      const v = getVillage(vid);
+      return v?.owner === playerName;
+    })
+  );
 }
 
 // src/systems/commands.ts
@@ -3040,11 +3074,163 @@ function getTrainingQueueSummary(village, currentTick) {
   }).join("\n");
 }
 
+// src/systems/autoDefense.ts
+init_types();
+init_storage();
+init_notify();
+init_tick();
+import { world as world12 } from "@minecraft/server";
+var THREAT_SCAN_INTERVAL = 60;
+var RAID_NOTIFY_COOLDOWN = 300;
+var lastRaidNotify = /* @__PURE__ */ new Map();
+var AUTO_DISPATCH_PROP = "kc:auto_dispatch";
+var AUTO_TROOP_TYPE_PROP = "kc:auto_troop_type";
+var TROOP_ENTITY_MAP = {
+  cityGuards: "kingdoms:city_guard",
+  spearmen: "kingdoms:spearman",
+  archers: "kingdoms:archer",
+  cavalry: "kingdoms:cavalry"
+};
+var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry"];
+function tickAutoDefense(currentTick) {
+  if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    scanVillageThreat(village, currentTick);
+  }
+}
+function scanVillageThreat(village, currentTick) {
+  const dim = world12.getDimension(village.location.dimension);
+  const center = village.townHallLocation;
+  let threatCount = 0;
+  let playerRaider = null;
+  try {
+    const hostiles = dim.getEntities({
+      location: center,
+      maxDistance: VILLAGE_CLAIM_RADIUS,
+      families: ["monster"]
+    });
+    threatCount += hostiles.length;
+  } catch {
+  }
+  for (const p of world12.getPlayers()) {
+    if (p.name === village.owner) continue;
+    const theirKingdom = getKingdomOf(p.name);
+    if (!theirKingdom) continue;
+    if (!areAtWar(village.kingdomId, theirKingdom.id)) continue;
+    if (distance(p.location, center) <= VILLAGE_CLAIM_RADIUS) {
+      threatCount++;
+      if (!playerRaider) playerRaider = p.name;
+    }
+  }
+  if (playerRaider) {
+    const key = `${village.id}:player`;
+    const last = lastRaidNotify.get(key) ?? 0;
+    if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
+      notifyPlayer(village.owner, `\xA7c\u{1F514} RAID ALERT! \xA7f${playerRaider}\xA7c has entered \xA7b${village.name}\xA7c!`);
+      lastRaidNotify.set(key, currentTick);
+    }
+  }
+  if (threatCount === 0) {
+    recallAutoDispatched(village);
+    return;
+  }
+  if (threatCount > 0) {
+    const key = `${village.id}:mob`;
+    const last = lastRaidNotify.get(key) ?? 0;
+    if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
+      notifyPlayer(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
+      lastRaidNotify.set(key, currentTick);
+    }
+  }
+  dispatchTroops(village, threatCount);
+}
+function countAutoDispatched(village) {
+  const dim = world12.getDimension(village.location.dimension);
+  const center = village.townHallLocation;
+  let count = 0;
+  for (const entityType of Object.values(TROOP_ENTITY_MAP)) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
+      for (const e of entities) {
+        if (e.getDynamicProperty(AUTO_DISPATCH_PROP) === village.id) count++;
+      }
+    } catch {
+    }
+  }
+  return count;
+}
+function dispatchTroops(village, threatCount) {
+  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  if (totalBarracks <= 0) return;
+  const alreadyOut = countAutoDispatched(village);
+  const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
+  if (needed <= 0) return;
+  const dim = world12.getDimension(village.location.dimension);
+  const center = village.townHallLocation;
+  let dispatched = 0;
+  for (const troopType of TROOP_PRIORITY) {
+    if (dispatched >= needed) break;
+    if (village.troops[troopType] <= 0) continue;
+    const toSend = Math.min(village.troops[troopType], needed - dispatched);
+    village.troops[troopType] -= toSend;
+    for (let i = 0; i < toSend; i++) {
+      try {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 6 + Math.random() * 12;
+        const entity = dim.spawnEntity(TROOP_ENTITY_MAP[troopType], {
+          x: center.x + Math.cos(angle) * r,
+          y: center.y,
+          z: center.z + Math.sin(angle) * r
+        });
+        entity.setDynamicProperty(AUTO_DISPATCH_PROP, village.id);
+        entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType);
+        entity.nameTag = `\u2694 [${village.name}]`;
+        dispatched++;
+      } catch {
+      }
+    }
+  }
+  if (dispatched > 0) {
+    saveVillage(village);
+    notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} auto-dispatched to defend \xA7b${village.name}\xA7e!`);
+  }
+}
+function recallAutoDispatched(village) {
+  const dim = world12.getDimension(village.location.dimension);
+  const center = village.townHallLocation;
+  const survivors = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  let recalled = 0;
+  for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP)) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
+      for (const e of entities) {
+        if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
+        const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;
+        survivors[tt] = (survivors[tt] ?? 0) + 1;
+        try {
+          e.remove();
+        } catch {
+        }
+        recalled++;
+      }
+    } catch {
+    }
+  }
+  if (recalled > 0) {
+    for (const [tt, count] of Object.entries(survivors)) {
+      village.troops[tt] += count;
+    }
+    saveVillage(village);
+    notifyPlayer(village.owner, `\xA7a\u2705 Attack repelled! \xA7f${recalled}\xA7a troop${recalled > 1 ? "s" : ""} returned to \xA7b${village.name}\xA7a barracks.`);
+  }
+}
+
 // src/systems/guards.ts
 init_types();
 init_storage();
 init_notify();
-import { world as world12 } from "@minecraft/server";
+import { world as world13 } from "@minecraft/server";
 var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
@@ -3126,7 +3312,7 @@ function fillUnderstaffedPoles(village) {
   if (changed) saveVillage(village);
 }
 function spawnPoleGuards(village, pole) {
-  const dim = world12.getDimension(village.location.dimension);
+  const dim = world13.getDimension(village.location.dimension);
   const entityType = GUARD_ENTITY_MAP[pole.troopType];
   pole.entityIds = [];
   for (let i = 0; i < pole.assignedGuards; i++) {
@@ -3147,7 +3333,7 @@ function spawnPoleGuards(village, pole) {
   }
 }
 function despawnPoleGuards(village, pole) {
-  const dim = world12.getDimension(village.location.dimension);
+  const dim = world13.getDimension(village.location.dimension);
   for (const eid of pole.entityIds) {
     try {
       const entities = dim.getEntities({ type: GUARD_ENTITY_MAP[pole.troopType] });
@@ -3234,7 +3420,7 @@ function findVillageAt2(location) {
     (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
   );
 }
-world13.afterEvents.playerPlaceBlock.subscribe((event) => {
+world14.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
   const typeId = block.typeId;
@@ -3305,7 +3491,7 @@ world13.afterEvents.playerPlaceBlock.subscribe((event) => {
     }
   }
 });
-world13.afterEvents.itemUseOn.subscribe((event) => {
+world14.afterEvents.itemUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
   if (!player) return;
@@ -3352,15 +3538,21 @@ world13.afterEvents.itemUseOn.subscribe((event) => {
       break;
   }
 });
-world13.afterEvents.playerBreakBlock.subscribe((event) => {
+world14.afterEvents.playerBreakBlock.subscribe((event) => {
   const { player } = event;
   if (!player) return;
   const typeId = event.brokenBlockPermutation.type.id;
   const blockLoc = event.block.location;
   if (typeId === CUSTOM_BLOCKS.TOWN_HALL) {
     const village = findVillageAt2(blockLoc);
-    if (village && village.owner === player.name) {
+    if (!village) {
+    } else if (village.owner === player.name) {
       notifyPlayer(player.name, `\xA7e\xA7b${village.name}\xA7e Town Hall broken. Rebuild to access menu.`);
+    } else if (village.owner) {
+      const captured = captureVillageByForce(player, village);
+      if (!captured) {
+        notifyPlayer(player.name, `\xA7cYou cannot capture \xA7b${village.name}\xA7c \u2014 you are not at war with that kingdom.`);
+      }
     }
   }
   if (typeId.startsWith("kingdoms:guard_pole")) {
@@ -3422,6 +3614,7 @@ system2.runInterval(() => {
   tickWatchtowers(tick);
   tickTradeCarts(tick);
   tickSieges(tick);
+  tickAutoDefense(tick);
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
   }
@@ -3443,7 +3636,7 @@ system2.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
-world13.beforeEvents.playerBreakBlock.subscribe((event) => {
+world14.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;
   const permutation = block.permutation;
@@ -3460,7 +3653,7 @@ world13.beforeEvents.playerBreakBlock.subscribe((event) => {
   const dimId = player.dimension.id;
   system2.run(() => {
     try {
-      const dim = world13.getDimension(dimId);
+      const dim = world14.getDimension(dimId);
       const freshBlock = dim.getBlock(loc);
       if (!freshBlock) return;
       const freshAge = freshBlock.permutation.getState("age");
@@ -3472,7 +3665,7 @@ world13.beforeEvents.playerBreakBlock.subscribe((event) => {
     }
   });
 });
-world13.afterEvents.itemUse.subscribe((event) => {
+world14.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   if (!player) return;
   const itemId = event.itemStack?.typeId;

@@ -154,6 +154,31 @@ function captureVillage(siege: SiegeData, target: VillageData): void {
   notifyPlayer(siege.attackerName, `§a⚔ §b${target.name}§a has been captured! Treasury: §6${transferredTreasury}💎§a.${garrisonMsg}`);
 }
 
+export function captureVillageByForce(attacker: Player, target: VillageData): boolean {
+  const attackerKingdom = getAttackerKingdom(attacker.name);
+  if (!attackerKingdom) {
+    notifyPlayer(attacker.name, "§cYou must be in a kingdom to capture a village.");
+    return false;
+  }
+  if (!areAtWar(attackerKingdom.id, target.kingdomId)) {
+    notifyPlayer(attacker.name, "§cYou are not at war with that kingdom.");
+    return false;
+  }
+  if (target.owner === attacker.name) return false;
+
+  const siege: SiegeData = {
+    attackerKingdomId: attackerKingdom.id,
+    attackerName: attacker.name,
+    targetVillageId: target.id,
+    startTick: world.getAbsoluteTime(),
+    progress: 600,
+  };
+
+  activeSieges.delete(target.id);
+  captureVillage(siege, target);
+  return true;
+}
+
 export function getActiveSiege(villageId: string): SiegeData | undefined {
   return activeSieges.get(villageId);
 }
