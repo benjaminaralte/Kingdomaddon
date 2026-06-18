@@ -121,6 +121,8 @@ export function claimVillage(
     blacksmith: { weaponTier: 0, armorTier: 0 },
     activeMerchants: [],
     activeCarts: [],
+    granaryItems: {},
+    lastSoldierFeedDay: getCurrentDay(),
   };
 
   saveVillage(village);

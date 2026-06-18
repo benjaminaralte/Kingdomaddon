@@ -1,0 +1,346 @@
+import { world, Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
+import type { VillageData, Vec3 } from "../types/index.js";
+import { saveVillage, getAllVillages } from "../storage/index.js";
+import { getCurrentDay, daysSince } from "../utils/tick.js";
+import { notifyPlayer } from "../utils/notify.js";
+import { VILLAGE_CLAIM_RADIUS } from "../types/index.js";
+
+export const CROP_MAX_AGES: Record<string, number> = {
+  "minecraft:wheat": 7,
+  "minecraft:carrots": 7,
+  "minecraft:potatoes": 7,
+  "minecraft:beetroots": 3,
+  "minecraft:nether_wart": 3,
+};
+
+const CROP_DROPS: Record<string, Array<{ item: string; min: number; max: number }>> = {
+  "minecraft:wheat": [
+    { item: "minecraft:wheat", min: 1, max: 1 },
+    { item: "minecraft:wheat_seeds", min: 0, max: 3 },
+  ],
+  "minecraft:carrots": [{ item: "minecraft:carrot", min: 2, max: 5 }],
+  "minecraft:potatoes": [{ item: "minecraft:potato", min: 2, max: 5 }],
+  "minecraft:beetroots": [
+    { item: "minecraft:beetroot", min: 1, max: 1 },
+    { item: "minecraft:beetroot_seeds", min: 0, max: 3 },
+  ],
+  "minecraft:nether_wart": [{ item: "minecraft:nether_wart", min: 2, max: 4 }],
+};
+
+export const FOOD_ITEM_VALUES: Record<string, number> = {
+  "minecraft:wheat": 2,
+  "minecraft:carrot": 3,
+  "minecraft:potato": 1,
+  "minecraft:baked_potato": 5,
+  "minecraft:beetroot": 1,
+  "minecraft:bread": 5,
+  "minecraft:melon_slice": 2,
+  "minecraft:apple": 4,
+  "minecraft:pumpkin": 4,
+  "minecraft:cooked_beef": 8,
+  "minecraft:cooked_porkchop": 8,
+  "minecraft:cooked_chicken": 6,
+  "minecraft:cooked_mutton": 6,
+  "minecraft:cooked_salmon": 6,
+  "minecraft:cooked_cod": 5,
+  "minecraft:nether_wart": 0,
+};
+
+export function isCropBlock(typeId: string): boolean {
+  return typeId in CROP_MAX_AGES;
+}
+
+export function getGranaryFoodUnits(village: VillageData): number {
+  return Object.entries(village.granaryItems).reduce((total, [item, count]) => {
+    const value = FOOD_ITEM_VALUES[item] ?? 0;
+    return total + value * count;
+  }, 0);
+}
+
+export function addToGranary(village: VillageData, item: string, amount: number): void {
+  if (amount <= 0) return;
+  village.granaryItems[item] = (village.granaryItems[item] ?? 0) + amount;
+  saveVillage(village);
+}
+
+export function removeFromGranary(village: VillageData, item: string, amount: number): number {
+  const current = village.granaryItems[item] ?? 0;
+  const removed = Math.min(current, amount);
+  if (removed > 0) {
+    village.granaryItems[item] = current - removed;
+    if (village.granaryItems[item] === 0) delete village.granaryItems[item];
+  }
+  return removed;
+}
+
+export function handleCropBreak(
+  player: Player,
+  blockTypeId: string,
+  blockAge: number,
+  blockLocation: Vec3,
+  dimensionId: string
+): boolean {
+  const maxAge = CROP_MAX_AGES[blockTypeId];
+  if (maxAge === undefined || blockAge < maxAge) return false;
+
+  const village = findVillageAt(blockLocation, dimensionId);
+  if (!village) return false;
+
+  const drops = CROP_DROPS[blockTypeId] ?? [];
+  const harvestedItems: Array<{ item: string; amount: number }> = [];
+  const playerItems: Array<{ item: string; amount: number }> = [];
+
+  for (const drop of drops) {
+    const amount = drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1));
+    if (amount <= 0) continue;
+    const isFood = (FOOD_ITEM_VALUES[drop.item] ?? -1) >= 0;
+    if (isFood) {
+      harvestedItems.push({ item: drop.item, amount });
+    } else {
+      playerItems.push({ item: drop.item, amount });
+    }
+  }
+
+  for (const { item, amount } of harvestedItems) {
+    addToGranary(village, item, amount);
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (inv?.container) {
+    for (const { item, amount } of playerItems) {
+      let remaining = amount;
+      const container = inv.container;
+      for (let i = 0; i < container.size && remaining > 0; i++) {
+        const slot = container.getItem(i);
+        if (!slot) {
+          const give = Math.min(remaining, 64);
+          container.setItem(i, new ItemStack(item, give));
+          remaining -= give;
+        } else if (slot.typeId === item && slot.amount < 64) {
+          const give = Math.min(remaining, 64 - slot.amount);
+          slot.amount += give;
+          container.setItem(i, slot);
+          remaining -= give;
+        }
+      }
+    }
+  }
+
+  const foodTotal = harvestedItems.reduce((sum, { item, amount }) => sum + (FOOD_ITEM_VALUES[item] ?? 0) * amount, 0);
+  if (foodTotal > 0) {
+    notifyPlayer(player.name, `§a+${harvestedItems.map(({ item, amount }) => `${amount}x ${item.replace("minecraft:", "")}`).join(", ")} → §b${village.name} Granary`);
+  }
+
+  return true;
+}
+
+export function withdrawFromGranary(
+  player: Player,
+  village: VillageData,
+  itemTypeId: string,
+  amount: number
+): boolean {
+  const available = village.granaryItems[itemTypeId] ?? 0;
+  if (available < amount) {
+    notifyPlayer(player.name, `§cNot enough ${itemTypeId.replace("minecraft:", "")} in granary (${available} available).`);
+    return false;
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return false;
+  const container = inv.container;
+
+  let remaining = amount;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const give = Math.min(remaining, 64);
+      container.setItem(i, new ItemStack(itemTypeId, give));
+      remaining -= give;
+    } else if (slot.typeId === itemTypeId && slot.amount < 64) {
+      const give = Math.min(remaining, 64 - slot.amount);
+      slot.amount += give;
+      container.setItem(i, slot);
+      remaining -= give;
+    }
+  }
+
+  if (remaining > 0) {
+    notifyPlayer(player.name, "§cInventory full.");
+    return false;
+  }
+
+  removeFromGranary(village, itemTypeId, amount);
+  notifyPlayer(player.name, `§aWithdrew ${amount}x ${itemTypeId.replace("minecraft:", "")} from §b${village.name}§a granary.`);
+  return true;
+}
+
+export function depositPlayerItemsToGranary(
+  player: Player,
+  village: VillageData,
+  itemTypeId: string,
+  amount: number
+): boolean {
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return false;
+  const container = inv.container;
+
+  let available = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === itemTypeId) available += slot.amount;
+  }
+
+  const toDeposit = Math.min(available, amount);
+  if (toDeposit === 0) {
+    notifyPlayer(player.name, `§cNo ${itemTypeId.replace("minecraft:", "")} in your inventory.`);
+    return false;
+  }
+
+  let remaining = toDeposit;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== itemTypeId) continue;
+    const take = Math.min(slot.amount, remaining);
+    remaining -= take;
+    if (take >= slot.amount) {
+      container.setItem(i, undefined);
+    } else {
+      slot.amount -= take;
+      container.setItem(i, slot);
+    }
+  }
+
+  addToGranary(village, itemTypeId, toDeposit);
+  notifyPlayer(player.name, `§aDeposited ${toDeposit}x ${itemTypeId.replace("minecraft:", "")} into §b${village.name}§a granary.`);
+  return true;
+}
+
+export function consumeSoldierFoodFromGranary(village: VillageData): void {
+  const currentDay = getCurrentDay();
+  const daysSinceFeed = daysSince(village.lastSoldierFeedDay ?? 0);
+  if (daysSinceFeed < 3) return;
+
+  const soldiers =
+    village.troops.cityGuards +
+    village.troops.spearmen +
+    village.troops.archers +
+    village.troops.cavalry;
+
+  if (soldiers === 0) {
+    village.lastSoldierFeedDay = currentDay;
+    saveVillage(village);
+    return;
+  }
+
+  const foodNeeded = soldiers * 6;
+
+  let foodPaid = 0;
+  const items = Object.keys(village.granaryItems);
+
+  for (const item of items) {
+    if (foodPaid >= foodNeeded) break;
+    const value = FOOD_ITEM_VALUES[item] ?? 0;
+    if (value <= 0) continue;
+    const unitsNeeded = Math.ceil((foodNeeded - foodPaid) / value);
+    const removed = removeFromGranary(village, item, unitsNeeded);
+    foodPaid += removed * value;
+  }
+
+  if (foodPaid < foodNeeded) {
+    const shortfall = foodNeeded - foodPaid;
+    const abstractFood = Math.ceil(shortfall);
+    if (village.foodStorage >= abstractFood) {
+      village.foodStorage -= abstractFood;
+      foodPaid += abstractFood;
+    } else {
+      village.foodStorage = 0;
+      notifyPlayer(
+        village.owner,
+        `§c⚠ Soldiers in §b${village.name}§c couldn't be fully fed! Morale dropping.`
+      );
+      village.prosperity = Math.max(0, village.prosperity - 10);
+    }
+  } else {
+    notifyPlayer(
+      village.owner,
+      `§e${soldiers} soldiers in §b${village.name}§e consumed food from granary.`
+    );
+  }
+
+  village.lastSoldierFeedDay = currentDay;
+  saveVillage(village);
+}
+
+export function processAllSoldierFood(): void {
+  for (const village of getAllVillages()) {
+    consumeSoldierFoodFromGranary(village);
+  }
+}
+
+export function collectDroppedEmeraldsNearTreasury(village: VillageData): void {
+  if (!village.treasuryLocation) return;
+  const dim = world.getDimension(village.location.dimension);
+  const loc = village.treasuryLocation;
+
+  try {
+    const items = dim.getEntities({
+      type: "minecraft:item",
+      location: { x: loc.x + 0.5, y: loc.y + 0.5, z: loc.z + 0.5 },
+      maxDistance: 6,
+    });
+
+    let collected = 0;
+    for (const item of items) {
+      const itemComp = item.getComponent("minecraft:item") as { itemStack?: ItemStack } | undefined;
+      if (!itemComp?.itemStack) continue;
+      if (itemComp.itemStack.typeId !== "minecraft:emerald") continue;
+      collected += itemComp.itemStack.amount;
+      item.remove();
+    }
+
+    if (collected > 0) {
+      village.treasury += collected;
+      saveVillage(village);
+      notifyPlayer(village.owner, `§a+${collected}💎 auto-collected to §b${village.name}§a treasury.`);
+    }
+  } catch {
+    // chunk not loaded
+  }
+}
+
+export function processAllTreasuryCollect(): void {
+  for (const village of getAllVillages()) {
+    collectDroppedEmeraldsNearTreasury(village);
+  }
+}
+
+export function getGranaryReport(village: VillageData): string {
+  const items = Object.entries(village.granaryItems).filter(([, count]) => count > 0);
+  if (items.length === 0) {
+    return `§b${village.name} Granary§r\nEmpty — harvest crops within village range to fill it.\n\nAbstract food reserve: ${village.foodStorage}🌾`;
+  }
+
+  const lines = items.map(([item, count]) => {
+    const foodVal = FOOD_ITEM_VALUES[item] ?? 0;
+    return `${item.replace("minecraft:", "")} ×${count} (${foodVal * count} food units)`;
+  });
+
+  const totalFood = getGranaryFoodUnits(village);
+  return [
+    `§b${village.name} Granary§r`,
+    ...lines,
+    ``,
+    `Total: ${totalFood} food units`,
+    `Abstract reserve: ${village.foodStorage}🌾`,
+  ].join("\n");
+}
+
+function findVillageAt(location: Vec3, dimensionId: string): VillageData | undefined {
+  return getAllVillages().find(
+    (v) =>
+      v.location.dimension === dimensionId &&
+      Math.abs(v.location.x - location.x) < VILLAGE_CLAIM_RADIUS &&
+      Math.abs(v.location.z - location.z) < VILLAGE_CLAIM_RADIUS
+  );
+}

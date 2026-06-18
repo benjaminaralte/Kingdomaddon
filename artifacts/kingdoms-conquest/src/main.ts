@@ -3,7 +3,18 @@ import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import type { VillageData, KingdomData, MerchantData } from "./types/index.js";
 import { getCurrentTick } from "./utils/tick.js";
 import { notifyPlayer } from "./utils/notify.js";
-import { getAllVillages, getVillage, getAllKingdoms } from "./storage/index.js";
+import { getAllVillages, getVillage, getAllKingdoms, saveVillage } from "./storage/index.js";
+import {
+  handleCropBreak,
+  isCropBlock,
+  CROP_MAX_AGES,
+  withdrawFromGranary,
+  depositPlayerItemsToGranary,
+  getGranaryReport,
+  processAllSoldierFood,
+  processAllTreasuryCollect,
+} from "./systems/harvest.js";
+import { registerCommands } from "./systems/commands.js";
 import {
   claimVillage,
   getVillageSummary,
@@ -49,6 +60,7 @@ const CUSTOM_BLOCKS = {
   BARRACKS: "kingdoms:barracks",
   MARKET: "kingdoms:market",
   GRANARY: "kingdoms:granary",
+  TREASURY_BLOCK: "kingdoms:treasury",
   BLACKSMITH: "kingdoms:blacksmith",
 };
 
@@ -102,6 +114,24 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     }
     registerTradePole(village, block.location);
   }
+
+  if (typeId === CUSTOM_BLOCKS.GRANARY) {
+    const village = findVillageAt(block.location);
+    if (village && village.owner === player.name) {
+      village.granaryLocation = block.location;
+      saveVillage(village);
+      notifyPlayer(player.name, `§aGranary registered for §b${village.name}§a.`);
+    }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK) {
+    const village = findVillageAt(block.location);
+    if (village && village.owner === player.name) {
+      village.treasuryLocation = block.location;
+      saveVillage(village);
+      notifyPlayer(player.name, `§aVillage Treasury registered for §b${village.name}§a.`);
+    }
+  }
 });
 
 world.afterEvents.itemUseOn.subscribe((event) => {
@@ -125,7 +155,10 @@ world.afterEvents.itemUseOn.subscribe((event) => {
       void showBlacksmithMenu(player, block);
       break;
     case CUSTOM_BLOCKS.GRANARY:
-      void showGranaryMenu(player, block);
+      void showGranaryStorageMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TREASURY_BLOCK:
+      void showTreasuryBlockMenu(player, block);
       break;
   }
 });
@@ -174,6 +207,28 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
       }
     }
   }
+
+  if (typeId === CUSTOM_BLOCKS.GRANARY) {
+    const village = findVillageAt(blockLoc);
+    if (village && village.granaryLocation) {
+      const loc = village.granaryLocation;
+      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        village.granaryLocation = undefined;
+        saveVillage(village);
+      }
+    }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK) {
+    const village = findVillageAt(blockLoc);
+    if (village && village.treasuryLocation) {
+      const loc = village.treasuryLocation;
+      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        village.treasuryLocation = undefined;
+        saveVillage(village);
+      }
+    }
+  }
 });
 
 system.runInterval(() => {
@@ -189,6 +244,7 @@ system.runInterval(() => {
   processAllPopulation();
   processAllMarkets();
   tickBandits();
+  processAllSoldierFood();
 }, 24000);
 
 system.runInterval(() => {
@@ -200,6 +256,48 @@ system.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72000);
+
+system.runInterval(() => {
+  processAllTreasuryCollect();
+}, 2400);
+
+world.beforeEvents.playerBreakBlock.subscribe((event) => {
+  const { player, block } = event;
+  if (!isCropBlock(block.typeId)) return;
+
+  const permutation = block.permutation;
+  const age = permutation.getState("age") as number | undefined;
+  if (age === undefined) return;
+
+  const maxAge = CROP_MAX_AGES[block.typeId];
+  if (age < maxAge) return;
+
+  const village = findVillageAt(block.location);
+  if (!village) return;
+
+  event.cancel = true;
+
+  const blockTypeId = block.typeId;
+  const blockAge = age;
+  const loc = { x: block.location.x, y: block.location.y, z: block.location.z };
+  const dimId = player.dimension.id;
+
+  system.run(() => {
+    try {
+      const dim = world.getDimension(dimId);
+      const freshBlock = dim.getBlock(loc);
+      if (!freshBlock) return;
+      const freshAge = freshBlock.permutation.getState("age") as number | undefined;
+      if (freshAge !== blockAge) return;
+      freshBlock.setPermutation(freshBlock.permutation.withState("age", 0));
+      handleCropBreak(player, blockTypeId, blockAge, loc, dimId);
+    } catch {
+      handleCropBreak(player, blockTypeId, blockAge, loc, dimId);
+    }
+  });
+});
+
+registerCommands();
 
 async function showClaimVillageForm(
   player: import("@minecraft/server").Player,
@@ -361,7 +459,7 @@ async function showBlacksmithMenu(
   }
 }
 
-async function showGranaryMenu(
+async function showGranaryStorageMenu(
   player: import("@minecraft/server").Player,
   block: import("@minecraft/server").Block
 ): Promise<void> {
@@ -371,17 +469,87 @@ async function showGranaryMenu(
     return;
   }
 
+  const report = getGranaryReport(village);
+  const items = Object.entries(village.granaryItems).filter(([, count]) => count > 0);
   const prod = getFoodProduction(village);
   const cons = getFoodConsumption(village);
 
   const form = new ActionFormData()
     .title(`${village.name} — Granary`)
     .body(
-      `Food Storage: ${village.foodStorage}🌾\nDaily Production: +${prod}\nDaily Consumption: -${cons}\nNet per day: ${prod >= cons ? "+" : ""}${prod - cons}\n\nFarmers: ${village.workers.farmers}\nShortage Stage: ${village.foodShortageStage}/4`
-    )
+      `${report}\n\nFarmers: ${village.workers.farmers}  Daily: +${prod}/-${cons}\nShortage: ${village.foodShortageStage}/4`
+    );
+
+  const withdrawable: string[] = [];
+  for (const [item] of items) {
+    form.button(`Withdraw 8x ${item.replace("minecraft:", "")}`);
+    withdrawable.push(item);
+  }
+  form.button("Deposit Food from Inventory");
+  form.button("Close");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+
+  if (response.selection < withdrawable.length) {
+    withdrawFromGranary(player, village, withdrawable[response.selection], 8);
+  } else if (response.selection === withdrawable.length) {
+    await showGranaryDepositMenu(player, village);
+  }
+}
+
+async function showGranaryDepositMenu(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const { FOOD_ITEM_VALUES } = await import("./systems/harvest.js");
+  const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
+
+  const form = new ActionFormData()
+    .title(`Deposit Food — ${village.name}`)
+    .body("Select a food type to deposit 16 of from your inventory:");
+
+  for (const item of foodItems) {
+    form.button(item.replace("minecraft:", ""));
+  }
+  form.button("Cancel");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined || response.selection >= foodItems.length) return;
+
+  depositPlayerItemsToGranary(player, village, foodItems[response.selection], 16);
+}
+
+async function showTreasuryBlockMenu(
+  player: import("@minecraft/server").Player,
+  block: import("@minecraft/server").Block
+): Promise<void> {
+  const village = findVillageAt(block.location);
+  if (!village || village.owner !== player.name) {
+    notifyPlayer(player.name, "§cYou don't own this village.");
+    return;
+  }
+
+  const report = getTreasuryReport(village);
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Treasury Block`)
+    .body(`${report}\n\n§7Emeralds dropped within 6 blocks auto-collect every 2 min.`)
+    .button("Deposit 10💎 from inventory")
+    .button("Deposit 64💎 from inventory")
+    .button("Withdraw 10💎 to inventory")
+    .button("Withdraw 64💎 to inventory")
     .button("Close");
 
-  await form.show(player);
+  const response = await form.show(player);
+  if (response.canceled) return;
+
+  switch (response.selection) {
+    case 0: depositEmeralds(player, village.id, 10); break;
+    case 1: depositEmeralds(player, village.id, 64); break;
+    case 2: withdrawEmeralds(player, village.id, 10); break;
+    case 3: withdrawEmeralds(player, village.id, 64); break;
+  }
 }
 
 async function showTreasuryMenu(

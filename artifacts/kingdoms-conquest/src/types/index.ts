@@ -79,6 +79,10 @@ export interface VillageData {
   housingCapacity: number;
   treasury: number;
   foodStorage: number;
+  granaryItems: Record<string, number>;
+  lastSoldierFeedDay: number;
+  granaryLocation?: Vec3;
+  treasuryLocation?: Vec3;
   marketLevel: number;
   barracksLevel: number;
   prosperity: number;
