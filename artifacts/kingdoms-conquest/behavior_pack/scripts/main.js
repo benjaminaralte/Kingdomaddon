@@ -2455,10 +2455,10 @@ function spawnDepotCart(village) {
 init_storage();
 init_notify();
 var TRAINING_COSTS = {
-  cityGuards: { food: 5, iron: 3, wood: 0 },
-  spearmen: { food: 8, iron: 5, wood: 0 },
-  archers: { food: 6, iron: 3, wood: 3 },
-  cavalry: { food: 10, iron: 8, wood: 0 }
+  cityGuards: { emeralds: 2, iron: 5, gold: 0 },
+  spearmen: { emeralds: 3, iron: 8, gold: 0 },
+  archers: { emeralds: 3, iron: 6, gold: 2 },
+  cavalry: { emeralds: 5, iron: 10, gold: 3 }
 };
 var TRAINING_TICKS = {
   cityGuards: 1200,
@@ -2476,15 +2476,14 @@ var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
   const cost = TRAINING_COSTS[troopType];
   const rs = village.resourceStorage;
-  const food = village.foodStorage;
-  if (food < cost.food * count) {
-    return `\xA7cNeed \xA7f${cost.food * count}\xA7c food (have \xA7f${food}\xA7c).`;
+  if (village.treasury < cost.emeralds * count) {
+    return `\xA7cNeed \xA7f${cost.emeralds * count}\u{1F48E}\xA7c emeralds (treasury: \xA7f${village.treasury}\xA7c).`;
   }
   if (rs.iron < cost.iron * count) {
     return `\xA7cNeed \xA7f${cost.iron * count}\xA7c iron (have \xA7f${rs.iron}\xA7c).`;
   }
-  if (cost.wood > 0 && rs.wood < cost.wood * count) {
-    return `\xA7cNeed \xA7f${cost.wood * count}\xA7c wood (have \xA7f${rs.wood}\xA7c).`;
+  if (cost.gold > 0 && rs.gold < cost.gold * count) {
+    return `\xA7cNeed \xA7f${cost.gold * count}\xA7c gold (have \xA7f${rs.gold}\xA7c).`;
   }
   return null;
 }
@@ -2499,9 +2498,9 @@ function queueTraining(village, troopType, count, currentTick) {
     return false;
   }
   const cost = TRAINING_COSTS[troopType];
-  village.foodStorage -= cost.food * count;
+  village.treasury -= cost.emeralds * count;
   village.resourceStorage.iron -= cost.iron * count;
-  if (cost.wood > 0) village.resourceStorage.wood -= cost.wood * count;
+  if (cost.gold > 0) village.resourceStorage.gold -= cost.gold * count;
   const ticksNeeded = TRAINING_TICKS[troopType] * count;
   const lastJobEnd = village.trainingQueue.length > 0 ? village.trainingQueue[village.trainingQueue.length - 1].completeTick : currentTick;
   const job = {
@@ -2514,9 +2513,9 @@ function queueTraining(village, troopType, count, currentTick) {
   const label = TROOP_LABELS[troopType];
   const cost2 = TRAINING_COSTS[troopType];
   const costStr = [
-    `${cost2.food * count} food`,
+    `${cost2.emeralds * count}\u{1F48E}`,
     cost2.iron * count > 0 ? `${cost2.iron * count} iron` : "",
-    cost2.wood * count > 0 ? `${cost2.wood * count} wood` : ""
+    cost2.gold * count > 0 ? `${cost2.gold * count} gold` : ""
   ].filter(Boolean).join(", ");
   const secRemaining = Math.ceil((job.completeTick - currentTick) / 20);
   notifyPlayer(village.owner, `\xA7a\u{1FA96} Training \xA7f${count} ${label}\xA7a started. Cost: \xA7f${costStr}\xA7a. Ready in \xA7f~${secRemaining}s\xA7a.`);
@@ -3453,8 +3452,7 @@ Archers: ${carried.archers}  Cavalry: ${carried.cavalry}
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
-Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}
-Iron: ${village.resourceStorage.iron}  Wood: ${village.resourceStorage.wood}`
+Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}`
   ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
   const response = await form.show(player);
   if (response.canceled) return;
@@ -3546,15 +3544,15 @@ async function showTrainTroopsForm(player, village) {
   const makeCostLine = (type) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
-    const parts = [`${c.food} food`, `${c.iron} iron`];
-    if (c.wood > 0) parts.push(`${c.wood} wood`);
+    const parts = [`${c.emeralds}\u{1F48E}`, `${c.iron} iron`];
+    if (c.gold > 0) parts.push(`${c.gold} gold`);
     return `${parts.join(", ")} | ~${secs}s/unit`;
   };
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
   const form = new ActionFormData().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
-Food: \xA7f${village.foodStorage}  \xA77Iron: \xA7f${rs.iron}  \xA77Wood: \xA7f${rs.wood}
+Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}
 
 \xA77\u2500\u2500 Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}

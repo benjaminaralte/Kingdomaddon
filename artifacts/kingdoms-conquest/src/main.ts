@@ -490,8 +490,7 @@ async function showBarracksMenu(
       `Archers: ${carried.archers}  Cavalry: ${carried.cavalry}\n\n` +
       `§7── Training Queue (${queueCount}/10) ──\n` +
       `${queueSummary}\n\n` +
-      `Treasury: ${village.treasury}💎  Food: ${village.foodStorage}\n` +
-      `Iron: ${village.resourceStorage.iron}  Wood: ${village.resourceStorage.wood}`
+      `Treasury: ${village.treasury}💎  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}`
     )
     .button("Recruit City Guard (5💎)")
     .button("Recruit Spearman (8💎)")
@@ -606,8 +605,8 @@ async function showTrainTroopsForm(
   const makeCostLine = (type: TroopType) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
-    const parts = [`${c.food} food`, `${c.iron} iron`];
-    if (c.wood > 0) parts.push(`${c.wood} wood`);
+    const parts = [`${c.emeralds}💎`, `${c.iron} iron`];
+    if (c.gold > 0) parts.push(`${c.gold} gold`);
     return `${parts.join(", ")} | ~${secs}s/unit`;
   };
 
@@ -618,7 +617,7 @@ async function showTrainTroopsForm(
     .title(`Train Troops — ${village.name}`)
     .body(
       `§7── Resources ──\n` +
-      `Food: §f${village.foodStorage}  §7Iron: §f${rs.iron}  §7Wood: §f${rs.wood}\n\n` +
+      `Treasury: §f${village.treasury}💎  §7Iron: §f${rs.iron}  §7Gold: §f${rs.gold}\n\n` +
       `§7── Queue (${queueCount}/10) ──\n${queueSummary}\n\n` +
       `§7Select a troop type to queue training:`
     )

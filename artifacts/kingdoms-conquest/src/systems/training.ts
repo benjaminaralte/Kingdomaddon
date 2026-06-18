@@ -3,16 +3,16 @@ import { saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
 export interface TrainingCost {
-  food: number;
+  emeralds: number;
   iron: number;
-  wood: number;
+  gold: number;
 }
 
 export const TRAINING_COSTS: Record<TroopType, TrainingCost> = {
-  cityGuards: { food: 5,  iron: 3, wood: 0 },
-  spearmen:   { food: 8,  iron: 5, wood: 0 },
-  archers:    { food: 6,  iron: 3, wood: 3 },
-  cavalry:    { food: 10, iron: 8, wood: 0 },
+  cityGuards: { emeralds: 2,  iron: 5,  gold: 0 },
+  spearmen:   { emeralds: 3,  iron: 8,  gold: 0 },
+  archers:    { emeralds: 3,  iron: 6,  gold: 2 },
+  cavalry:    { emeralds: 5,  iron: 10, gold: 3 },
 };
 
 export const TRAINING_TICKS: Record<TroopType, number> = {
@@ -34,16 +34,15 @@ const MAX_QUEUE_SIZE = 10;
 export function canAffordTraining(village: VillageData, troopType: TroopType, count: number): string | null {
   const cost = TRAINING_COSTS[troopType];
   const rs = village.resourceStorage;
-  const food = village.foodStorage;
 
-  if (food < cost.food * count) {
-    return `§cNeed §f${cost.food * count}§c food (have §f${food}§c).`;
+  if (village.treasury < cost.emeralds * count) {
+    return `§cNeed §f${cost.emeralds * count}💎§c emeralds (treasury: §f${village.treasury}§c).`;
   }
   if (rs.iron < cost.iron * count) {
     return `§cNeed §f${cost.iron * count}§c iron (have §f${rs.iron}§c).`;
   }
-  if (cost.wood > 0 && rs.wood < cost.wood * count) {
-    return `§cNeed §f${cost.wood * count}§c wood (have §f${rs.wood}§c).`;
+  if (cost.gold > 0 && rs.gold < cost.gold * count) {
+    return `§cNeed §f${cost.gold * count}§c gold (have §f${rs.gold}§c).`;
   }
   return null;
 }
@@ -66,9 +65,9 @@ export function queueTraining(
   }
 
   const cost = TRAINING_COSTS[troopType];
-  village.foodStorage -= cost.food * count;
+  village.treasury -= cost.emeralds * count;
   village.resourceStorage.iron -= cost.iron * count;
-  if (cost.wood > 0) village.resourceStorage.wood -= cost.wood * count;
+  if (cost.gold > 0) village.resourceStorage.gold -= cost.gold * count;
 
   const ticksNeeded = TRAINING_TICKS[troopType] * count;
   const lastJobEnd = village.trainingQueue.length > 0
@@ -87,9 +86,9 @@ export function queueTraining(
   const label = TROOP_LABELS[troopType];
   const cost2 = TRAINING_COSTS[troopType];
   const costStr = [
-    `${cost2.food * count} food`,
+    `${cost2.emeralds * count}💎`,
     cost2.iron * count > 0 ? `${cost2.iron * count} iron` : "",
-    cost2.wood * count > 0 ? `${cost2.wood * count} wood` : "",
+    cost2.gold * count > 0 ? `${cost2.gold * count} gold` : "",
   ].filter(Boolean).join(", ");
 
   const secRemaining = Math.ceil((job.completeTick - currentTick) / 20);
