@@ -8,140 +8,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/types/index.ts
-var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, BANDIT_MIGRATE_DISTANCE;
-var init_types = __esm({
-  "src/types/index.ts"() {
-    "use strict";
-    WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
-    ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
-    TROOP_WAGES = {
-      cityGuards: 1,
-      spearmen: 2,
-      archers: 2,
-      cavalry: 3
-    };
-    EMPTY_RESOURCE_STORAGE = {
-      iron: 0,
-      gold: 0,
-      coal: 0,
-      wood: 0,
-      stone: 0,
-      diamonds: 0
-    };
-    RESOURCE_LABELS = {
-      iron: "Iron",
-      gold: "Gold",
-      coal: "Coal",
-      wood: "Wood",
-      stone: "Stone",
-      diamonds: "Diamonds"
-    };
-    TICKS_PER_DAY = 24e3;
-    CLAIM_COST_EMERALDS = 10;
-    VILLAGE_CLAIM_RADIUS = 64;
-    MIN_VILLAGERS_TO_CLAIM = 3;
-    FOOD_PER_VILLAGER_PER_DAY = 1;
-    FOOD_PER_SOLDIER_PER_DAY = 2;
-    POPULATION_GROWTH_INTERVAL_DAYS = 2;
-    WAGE_INTERVAL_DAYS = 3;
-    MAX_GUARDS_PER_POLE = 3;
-    WATCHTOWER_DETECTION_RADIUS = 48;
-    BANDIT_MIGRATE_DISTANCE = 200;
-  }
-});
-
-// src/utils/tick.ts
-import { world } from "@minecraft/server";
-function getCurrentDay() {
-  return Math.floor(world.getAbsoluteTime() / TICKS_PER_DAY);
-}
-function getCurrentTick() {
-  return world.getAbsoluteTime();
-}
-function isNewDay(lastProcessedDay) {
-  return getCurrentDay() > lastProcessedDay;
-}
-function daysSince(day) {
-  return getCurrentDay() - day;
-}
-function distanceSq(a, b) {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
-}
-function distance(a, b) {
-  return Math.sqrt(distanceSq(a, b));
-}
-var init_tick = __esm({
-  "src/utils/tick.ts"() {
-    "use strict";
-    init_types();
-  }
-});
-
-// src/systems/playerSettings.ts
-import { world as world2 } from "@minecraft/server";
-function settingsKey(playerName) {
-  return `kc:settings:${playerName}`;
-}
-function getPlayerSettings(playerName) {
-  const raw = world2.getDynamicProperty(settingsKey(playerName));
-  if (!raw) return { ...DEFAULT_SETTINGS };
-  try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-function savePlayerSettings(playerName, settings) {
-  world2.setDynamicProperty(settingsKey(playerName), JSON.stringify(settings));
-}
-function isAlertsEnabled(playerName) {
-  return getPlayerSettings(playerName).alertsEnabled;
-}
-function toggleAlerts(playerName) {
-  const settings = getPlayerSettings(playerName);
-  settings.alertsEnabled = !settings.alertsEnabled;
-  savePlayerSettings(playerName, settings);
-  return settings.alertsEnabled;
-}
-var DEFAULT_SETTINGS;
-var init_playerSettings = __esm({
-  "src/systems/playerSettings.ts"() {
-    "use strict";
-    DEFAULT_SETTINGS = {
-      alertsEnabled: true
-    };
-  }
-});
-
-// src/utils/notify.ts
-import { world as world3 } from "@minecraft/server";
-function notifyPlayer(playerName, message) {
-  const player = world3.getPlayers().find((p) => p.name === playerName);
-  if (player) {
-    player.sendMessage(`\xA76[Kingdoms]\xA7r ${message}`);
-  }
-}
-function notifyAlert(playerName, message) {
-  if (!isAlertsEnabled(playerName)) return;
-  notifyPlayer(playerName, message);
-}
-function notifyKingdom(kingName, villageOwners, message) {
-  const players = world3.getPlayers();
-  const recipients = /* @__PURE__ */ new Set([kingName, ...villageOwners]);
-  for (const player of players) {
-    if (recipients.has(player.name)) {
-      player.sendMessage(`\xA7d[Kingdom]\xA7r ${message}`);
-    }
-  }
-}
-var init_notify = __esm({
-  "src/utils/notify.ts"() {
-    "use strict";
-    init_playerSettings();
-  }
-});
-
 // src/storage/index.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -284,32 +150,166 @@ var init_storage = __esm({
   }
 });
 
+// src/main.ts
+import { world as world16, system as system3, EntityInventoryComponent as EntityInventoryComponent8 } from "@minecraft/server";
+import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+
+// src/types/index.ts
+var WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
+var ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
+var TROOP_WAGES = {
+  cityGuards: 1,
+  spearmen: 2,
+  archers: 2,
+  cavalry: 3
+};
+var EMPTY_RESOURCE_STORAGE = {
+  iron: 0,
+  gold: 0,
+  coal: 0,
+  wood: 0,
+  stone: 0,
+  diamonds: 0
+};
+var RESOURCE_LABELS = {
+  iron: "Iron",
+  gold: "Gold",
+  coal: "Coal",
+  wood: "Wood",
+  stone: "Stone",
+  diamonds: "Diamonds"
+};
+var TICKS_PER_DAY = 24e3;
+var CLAIM_COST_EMERALDS = 10;
+var VILLAGE_CLAIM_RADIUS = 64;
+var MIN_VILLAGERS_TO_CLAIM = 3;
+var FOOD_PER_VILLAGER_PER_DAY = 1;
+var FOOD_PER_SOLDIER_PER_DAY = 2;
+var POPULATION_GROWTH_INTERVAL_DAYS = 2;
+var WAGE_INTERVAL_DAYS = 3;
+var MAX_GUARDS_PER_POLE = 3;
+var WATCHTOWER_DETECTION_RADIUS = 48;
+var BANDIT_MIGRATE_DISTANCE = 200;
+
+// src/utils/tick.ts
+import { world } from "@minecraft/server";
+function getCurrentDay() {
+  return Math.floor(world.getAbsoluteTime() / TICKS_PER_DAY);
+}
+function getCurrentTick() {
+  return world.getAbsoluteTime();
+}
+function isNewDay(lastProcessedDay) {
+  return getCurrentDay() > lastProcessedDay;
+}
+function daysSince(day) {
+  return getCurrentDay() - day;
+}
+function distanceSq(a, b) {
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
+}
+function distance(a, b) {
+  return Math.sqrt(distanceSq(a, b));
+}
+
+// src/utils/notify.ts
+import { world as world3 } from "@minecraft/server";
+
+// src/systems/playerSettings.ts
+import { world as world2 } from "@minecraft/server";
+var DEFAULT_SETTINGS = {
+  alertsEnabled: true
+};
+function settingsKey(playerName) {
+  return `kc:settings:${playerName}`;
+}
+function getPlayerSettings(playerName) {
+  const raw = world2.getDynamicProperty(settingsKey(playerName));
+  if (!raw) return { ...DEFAULT_SETTINGS };
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+function savePlayerSettings(playerName, settings) {
+  world2.setDynamicProperty(settingsKey(playerName), JSON.stringify(settings));
+}
+function isAlertsEnabled(playerName) {
+  return getPlayerSettings(playerName).alertsEnabled;
+}
+function toggleAlerts(playerName) {
+  const settings = getPlayerSettings(playerName);
+  settings.alertsEnabled = !settings.alertsEnabled;
+  savePlayerSettings(playerName, settings);
+  return settings.alertsEnabled;
+}
+
+// src/utils/notify.ts
+function notifyPlayer(playerName, message) {
+  const player = world3.getPlayers().find((p) => p.name === playerName);
+  if (player) {
+    player.sendMessage(`\xA76[Kingdoms]\xA7r ${message}`);
+  }
+}
+function notifyAlert(playerName, message) {
+  if (!isAlertsEnabled(playerName)) return;
+  notifyPlayer(playerName, message);
+}
+function notifyKingdom(kingName, villageOwners, message) {
+  const players = world3.getPlayers();
+  const recipients = /* @__PURE__ */ new Set([kingName, ...villageOwners]);
+  for (const player of players) {
+    if (recipients.has(player.name)) {
+      player.sendMessage(`\xA7d[Kingdom]\xA7r ${message}`);
+    }
+  }
+}
+
+// src/main.ts
+init_storage();
+
 // src/systems/harvest.ts
-var harvest_exports = {};
-__export(harvest_exports, {
-  CROP_MAX_AGES: () => CROP_MAX_AGES,
-  FOOD_ITEM_VALUES: () => FOOD_ITEM_VALUES,
-  addToFieldStorage: () => addToFieldStorage,
-  addToGranary: () => addToGranary,
-  autoHarvestAllVillages: () => autoHarvestAllVillages,
-  autoHarvestVillage: () => autoHarvestVillage,
-  collectDroppedEmeraldsNearTreasury: () => collectDroppedEmeraldsNearTreasury,
-  collectFieldStorage: () => collectFieldStorage,
-  consumeSoldierFoodFromGranary: () => consumeSoldierFoodFromGranary,
-  depositPlayerItemsToGranary: () => depositPlayerItemsToGranary,
-  getFieldStorageReport: () => getFieldStorageReport,
-  getFieldStorageTotal: () => getFieldStorageTotal,
-  getGranaryFoodUnits: () => getGranaryFoodUnits,
-  getGranaryReport: () => getGranaryReport,
-  handleCropBreak: () => handleCropBreak,
-  isCropBlock: () => isCropBlock,
-  processAllSoldierFood: () => processAllSoldierFood,
-  processAllTreasuryCollect: () => processAllTreasuryCollect,
-  removeFromGranary: () => removeFromGranary,
-  upgradeFieldWorkers: () => upgradeFieldWorkers,
-  withdrawFromGranary: () => withdrawFromGranary
-});
+init_storage();
 import { world as world5, ItemStack, EntityInventoryComponent } from "@minecraft/server";
+var CROP_MAX_AGES = {
+  "minecraft:wheat": 7,
+  "minecraft:carrots": 7,
+  "minecraft:potatoes": 7,
+  "minecraft:beetroots": 3,
+  "minecraft:nether_wart": 3
+};
+var CROP_DROPS = {
+  "minecraft:wheat": [
+    { item: "minecraft:wheat", min: 1, max: 1 },
+    { item: "minecraft:wheat_seeds", min: 0, max: 3 }
+  ],
+  "minecraft:carrots": [{ item: "minecraft:carrot", min: 2, max: 5 }],
+  "minecraft:potatoes": [{ item: "minecraft:potato", min: 2, max: 5 }],
+  "minecraft:beetroots": [
+    { item: "minecraft:beetroot", min: 1, max: 1 },
+    { item: "minecraft:beetroot_seeds", min: 0, max: 3 }
+  ],
+  "minecraft:nether_wart": [{ item: "minecraft:nether_wart", min: 2, max: 4 }]
+};
+var FOOD_ITEM_VALUES = {
+  "minecraft:wheat": 2,
+  "minecraft:carrot": 3,
+  "minecraft:potato": 1,
+  "minecraft:baked_potato": 5,
+  "minecraft:beetroot": 1,
+  "minecraft:bread": 5,
+  "minecraft:melon_slice": 2,
+  "minecraft:apple": 4,
+  "minecraft:pumpkin": 4,
+  "minecraft:cooked_beef": 8,
+  "minecraft:cooked_porkchop": 8,
+  "minecraft:cooked_chicken": 6,
+  "minecraft:cooked_mutton": 6,
+  "minecraft:cooked_salmon": 6,
+  "minecraft:cooked_cod": 5,
+  "minecraft:nether_wart": 0
+};
 function isCropBlock(typeId) {
   return typeId in CROP_MAX_AGES;
 }
@@ -491,37 +491,6 @@ function processAllSoldierFood() {
     consumeSoldierFoodFromGranary(village);
   }
 }
-function collectDroppedEmeraldsNearTreasury(village) {
-  if (!village.treasuryLocation) return;
-  const dim = world5.getDimension(village.location.dimension);
-  const loc = village.treasuryLocation;
-  try {
-    const items = dim.getEntities({
-      type: "minecraft:item",
-      location: { x: loc.x + 0.5, y: loc.y + 0.5, z: loc.z + 0.5 },
-      maxDistance: 6
-    });
-    let collected = 0;
-    for (const item of items) {
-      const itemComp = item.getComponent("minecraft:item");
-      if (!itemComp?.itemStack) continue;
-      if (itemComp.itemStack.typeId !== "minecraft:emerald") continue;
-      collected += itemComp.itemStack.amount;
-      item.remove();
-    }
-    if (collected > 0) {
-      village.treasury += collected;
-      saveVillage(village);
-      notifyPlayer(village.owner, `\xA7a+${collected}\u{1F48E} auto-collected to \xA7b${village.name}\xA7a treasury.`);
-    }
-  } catch {
-  }
-}
-function processAllTreasuryCollect() {
-  for (const village of getAllVillages()) {
-    collectDroppedEmeraldsNearTreasury(village);
-  }
-}
 function getGranaryReport(village) {
   const items = Object.entries(village.granaryItems).filter(([, count]) => count > 0);
   if (items.length === 0) {
@@ -614,6 +583,12 @@ function collectFieldStorage(player, village) {
   }
   return transferred;
 }
+var AUTO_HARVEST_SCAN_RADIUS = 16;
+var AUTO_HARVEST_SCAN_STEP = 2;
+var AUTO_HARVEST_Y_RANGE = 3;
+var FIELD_WORKER_UPGRADE_COST = 20;
+var FIELD_WORKER_MAX_LEVEL = 5;
+var FIELD_WORKER_CAP_PER_LEVEL = 50;
 function getHarvestCap(village) {
   return FIELD_WORKER_CAP_PER_LEVEL + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_CAP_PER_LEVEL;
 }
@@ -687,84 +662,17 @@ function autoHarvestAllVillages() {
     autoHarvestVillage(village);
   }
 }
-var CROP_MAX_AGES, CROP_DROPS, FOOD_ITEM_VALUES, AUTO_HARVEST_SCAN_RADIUS, AUTO_HARVEST_SCAN_STEP, AUTO_HARVEST_Y_RANGE, FIELD_WORKER_UPGRADE_COST, FIELD_WORKER_MAX_LEVEL, FIELD_WORKER_CAP_PER_LEVEL;
-var init_harvest = __esm({
-  "src/systems/harvest.ts"() {
-    "use strict";
-    init_storage();
-    init_tick();
-    init_notify();
-    init_types();
-    CROP_MAX_AGES = {
-      "minecraft:wheat": 7,
-      "minecraft:carrots": 7,
-      "minecraft:potatoes": 7,
-      "minecraft:beetroots": 3,
-      "minecraft:nether_wart": 3
-    };
-    CROP_DROPS = {
-      "minecraft:wheat": [
-        { item: "minecraft:wheat", min: 1, max: 1 },
-        { item: "minecraft:wheat_seeds", min: 0, max: 3 }
-      ],
-      "minecraft:carrots": [{ item: "minecraft:carrot", min: 2, max: 5 }],
-      "minecraft:potatoes": [{ item: "minecraft:potato", min: 2, max: 5 }],
-      "minecraft:beetroots": [
-        { item: "minecraft:beetroot", min: 1, max: 1 },
-        { item: "minecraft:beetroot_seeds", min: 0, max: 3 }
-      ],
-      "minecraft:nether_wart": [{ item: "minecraft:nether_wart", min: 2, max: 4 }]
-    };
-    FOOD_ITEM_VALUES = {
-      "minecraft:wheat": 2,
-      "minecraft:carrot": 3,
-      "minecraft:potato": 1,
-      "minecraft:baked_potato": 5,
-      "minecraft:beetroot": 1,
-      "minecraft:bread": 5,
-      "minecraft:melon_slice": 2,
-      "minecraft:apple": 4,
-      "minecraft:pumpkin": 4,
-      "minecraft:cooked_beef": 8,
-      "minecraft:cooked_porkchop": 8,
-      "minecraft:cooked_chicken": 6,
-      "minecraft:cooked_mutton": 6,
-      "minecraft:cooked_salmon": 6,
-      "minecraft:cooked_cod": 5,
-      "minecraft:nether_wart": 0
-    };
-    AUTO_HARVEST_SCAN_RADIUS = 16;
-    AUTO_HARVEST_SCAN_STEP = 2;
-    AUTO_HARVEST_Y_RANGE = 3;
-    FIELD_WORKER_UPGRADE_COST = 20;
-    FIELD_WORKER_MAX_LEVEL = 5;
-    FIELD_WORKER_CAP_PER_LEVEL = 50;
-  }
-});
-
-// src/main.ts
-init_types();
-init_tick();
-init_notify();
-init_storage();
-init_harvest();
-import { world as world16, system as system3 } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 
 // src/systems/commands.ts
 init_storage();
 import { system as system2 } from "@minecraft/server";
 
 // src/systems/village.ts
-init_types();
-init_storage();
-init_tick();
-init_notify();
 import { world as world6, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
+init_storage();
 
 // src/systems/kingdom.ts
 init_storage();
-init_notify();
 function createKingdom(king, name) {
   const existing = getKingdomByKing(king);
   if (existing) return existing;
@@ -1054,17 +962,11 @@ function getKingdomOf2(playerName) {
 }
 
 // src/systems/military.ts
-init_types();
 init_storage();
-init_tick();
-init_notify();
 
 // src/systems/bandit.ts
-init_types();
-init_storage();
-init_tick();
-init_notify();
 import { world as world7, system } from "@minecraft/server";
+init_storage();
 var MAX_WORLD_CAMPS = 5;
 var MIN_WORLD_SPAWN_DIST = 300;
 var MAX_WORLD_SPAWN_DIST = 600;
@@ -1396,16 +1298,11 @@ function processAllWages() {
 
 // src/systems/conquest.ts
 init_storage();
-init_tick();
-init_notify();
 import { world as world10 } from "@minecraft/server";
 
 // src/systems/watchtower.ts
-init_types();
-init_storage();
-init_tick();
-init_notify();
 import { world as world8 } from "@minecraft/server";
+init_storage();
 var DETECTION_INTERVAL_TICKS = 100;
 var lastDetectionTick = 0;
 var THREAT_ALERT_COOLDOWN = 600;
@@ -1502,7 +1399,6 @@ function notifyVillageUnderSiege(villageId) {
 
 // src/systems/deployTroops.ts
 init_storage();
-init_notify();
 import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
   "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
@@ -1740,8 +1636,6 @@ function countTroopTokens(player) {
 // src/systems/border.ts
 init_storage();
 import { world as world9 } from "@minecraft/server";
-init_notify();
-init_types();
 var BORDER_RADIUS = VILLAGE_CLAIM_RADIUS;
 var SIEGE_ELIGIBILITY_TICKS = 2400;
 var REMINDER_INTERVAL_TICKS = 400;
@@ -2050,12 +1944,8 @@ function getAttackerKingdom(playerName) {
   );
 }
 
-// src/systems/commands.ts
-init_harvest();
-
 // src/systems/treasury.ts
 init_storage();
-init_notify();
 import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
 function depositEmeralds(player, villageId, amount) {
   const village = getVillage(villageId);
@@ -2138,10 +2028,8 @@ function getTreasuryReport(village) {
 }
 
 // src/systems/blacksmith.ts
-init_types();
-init_storage();
-init_notify();
 import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
+init_storage();
 var WEAPON_UPGRADE_COSTS = [
   { material: "minecraft:cobblestone", materialCount: 1, emeralds: 1 },
   { material: "minecraft:iron_ingot", materialCount: 1, emeralds: 1 },
@@ -2282,8 +2170,6 @@ function getBlacksmithSummary(village) {
 }
 
 // src/systems/commands.ts
-init_notify();
-init_playerSettings();
 var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry"];
 function registerCommands() {
   system2.afterEvents.scriptEventReceive.subscribe(
@@ -3043,11 +2929,7 @@ function resolveVillage(player, idPrefix) {
 }
 
 // src/systems/food.ts
-init_types();
 init_storage();
-init_tick();
-init_notify();
-init_harvest();
 function drainGranaryToFoodStorage(village) {
   let converted = 0;
   for (const [item, count] of Object.entries(village.granaryItems)) {
@@ -3158,11 +3040,8 @@ function processAllFood() {
 }
 
 // src/systems/population.ts
-init_types();
-init_storage();
-init_tick();
-init_notify();
 import { world as world11 } from "@minecraft/server";
+init_storage();
 var GROWTH_CHANCE = 0.6;
 var MORTALITY_CHANCE = 0.4;
 var HOUSING_UNIT_SIZE = 5;
@@ -3287,7 +3166,6 @@ function processAllPopulation() {
 
 // src/systems/market.ts
 init_storage();
-init_notify();
 import { world as world12, ItemStack as ItemStack5, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
 var MERCHANT_OUTER_SPAWN_MIN = 70;
 var MERCHANT_OUTER_SPAWN_MAX = 100;
@@ -3619,13 +3497,10 @@ function sellFoodBulk(player, village, entry, batches) {
 
 // src/systems/trade.ts
 init_storage();
-init_notify();
 import { world as world13, EntityInventoryComponent as EntityInventoryComponent7 } from "@minecraft/server";
 
 // src/systems/tradeStation.ts
-init_types();
 init_storage();
-init_notify();
 function registerTradeStation(village, location) {
   village.hasTradeStation = true;
   village.tradeStationLocation = { x: location.x, y: location.y, z: location.z };
@@ -3692,7 +3567,6 @@ function ensureResourceStorage(village) {
 }
 
 // src/systems/trade.ts
-init_harvest();
 var TRADE_STATION_DETECT_RADIUS = 5;
 var STATION_TICK_INTERVAL = 40;
 var lastStationTick = 0;
@@ -3987,7 +3861,6 @@ function extractUntaggedMinecart(cart, village) {
 
 // src/systems/training.ts
 init_storage();
-init_notify();
 var TRAINING_COSTS = {
   cityGuards: { emeralds: 2, iron: 5, gold: 0 },
   spearmen: { emeralds: 3, iron: 8, gold: 0 },
@@ -4086,11 +3959,8 @@ function getTrainingQueueSummary(village, currentTick) {
 }
 
 // src/systems/autoDefense.ts
-init_types();
-init_storage();
-init_notify();
-init_tick();
 import { world as world14 } from "@minecraft/server";
+init_storage();
 var THREAT_SCAN_INTERVAL = 60;
 var RAID_NOTIFY_COOLDOWN = 300;
 var lastRaidNotify = /* @__PURE__ */ new Map();
@@ -4238,10 +4108,8 @@ function recallAutoDispatched(village) {
 }
 
 // src/systems/guards.ts
-init_types();
-init_storage();
-init_notify();
 import { world as world15 } from "@minecraft/server";
+init_storage();
 var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
@@ -4374,7 +4242,6 @@ function refreshAllGuards() {
 
 // src/systems/reinforcements.ts
 init_storage();
-init_notify();
 function sendReinforcements(fromVillageId, toVillageId, troops) {
   const from = getVillage(fromVillageId);
   const to = getVillage(toVillageId);
@@ -5055,7 +4922,7 @@ async function showPickUpTroopsForm(player, village) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
   }
-  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), { defaultValue: 0 }).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), { defaultValue: 0 }).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), { defaultValue: 0 }).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), { defaultValue: 0 });
+  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
   const [guards, spearmen, archers, cavalry] = response.formValues;
@@ -5081,8 +4948,7 @@ async function showReturnTroopsForm(player, village) {
   ).button("Return All Troops").button("Cancel");
   const response = await form.show(player);
   if (response.canceled || response.selection !== 0) return;
-  const { EntityInventoryComponent: EIC } = await import("@minecraft/server");
-  const inv = player.getComponent(EIC.componentId);
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
   if (!inv?.container) return;
   const container = inv.container;
   for (let i = 0; i < container.size; i++) {
@@ -5125,7 +4991,7 @@ ${queueSummary}
   const response = await form.show(player);
   if (response.canceled || response.selection === 4) return;
   const selectedType = troopTypes[response.selection];
-  const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost \xD7N)`, 1, 20, { defaultValue: 1 });
+  const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
   const countResponse = await countForm.show(player);
   if (countResponse.canceled || countResponse.formValues == null) return;
   const count = countResponse.formValues[0];
@@ -5201,7 +5067,7 @@ async function showFoodSellMenu(player, village) {
   if (response.canceled || response.selection === void 0) return;
   if (response.selection >= FOOD_SELL_RATES.length) return;
   const entry = FOOD_SELL_RATES[response.selection];
-  const batchForm = new ModalFormData().title(`Sell ${entry.label}`).slider(`Batches to sell (${entry.itemsPerEmerald} items = 1\u{1F48E}, min ${entry.minBatch} items)`, 1, 10, { defaultValue: 1 });
+  const batchForm = new ModalFormData().title(`Sell ${entry.label}`).slider(`Batches to sell (${entry.itemsPerEmerald} items = 1\u{1F48E}, min ${entry.minBatch} items)`, 1, 10, 1, 1);
   const batchResp = await batchForm.show(player);
   if (batchResp.canceled || batchResp.formValues === void 0) return;
   const batches = batchResp.formValues[0];
@@ -5272,8 +5138,7 @@ Shortage: ${village.foodShortageStage}/4`
   }
 }
 async function showGranaryDepositMenu(player, village) {
-  const { FOOD_ITEM_VALUES: FOOD_ITEM_VALUES2 } = await Promise.resolve().then(() => (init_harvest(), harvest_exports));
-  const foodItems = Object.keys(FOOD_ITEM_VALUES2).filter((k) => (FOOD_ITEM_VALUES2[k] ?? 0) > 0);
+  const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
   const form = new ActionFormData().title(`Deposit Food \u2014 ${village.name}`).body("Select a food type to deposit 16 of from your inventory:");
   for (const item of foodItems) {
     form.button(item.replace("minecraft:", ""));
@@ -5422,7 +5287,7 @@ async function showSendAmountsForm(player, fromId, toId) {
   const from = getVillage(fromId);
   const to = getVillage(toId);
   if (!from || !to) return;
-  const form = new ModalFormData().title(`${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(from.troops.cityGuards, 1), { defaultValue: 0 }).slider("Spearmen", 0, Math.max(from.troops.spearmen, 1), { defaultValue: 0 }).slider("Archers", 0, Math.max(from.troops.archers, 1), { defaultValue: 0 }).slider("Cavalry", 0, Math.max(from.troops.cavalry, 1), { defaultValue: 0 }).slider("Emeralds", 0, Math.max(from.treasury, 1), { defaultValue: 0 }).slider("Food", 0, Math.max(from.foodStorage, 1), { defaultValue: 0 });
+  const form = new ModalFormData().title(`${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(from.troops.cityGuards, 1), 1, 0).slider("Spearmen", 0, Math.max(from.troops.spearmen, 1), 1, 0).slider("Archers", 0, Math.max(from.troops.archers, 1), 1, 0).slider("Cavalry", 0, Math.max(from.troops.cavalry, 1), 1, 0).slider("Emeralds", 0, Math.max(from.treasury, 1), 1, 0).slider("Food", 0, Math.max(from.foodStorage, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
   const [guards, spearmen, archers, cavalry, emeralds, food] = response.formValues;
@@ -5563,7 +5428,7 @@ async function showResourceAmountsForm(player, fromId, toId) {
   if (!from || !to) return;
   ensureResourceStorage(from);
   const rs = from.resourceStorage;
-  const form = new ModalFormData().title(`\u{1F4E6} ${from.name} \u2192 ${to.name}`).slider("Food \u{1F33E}", 0, Math.max(from.foodStorage, 1), { defaultValue: 0 }).slider("Emeralds \u{1F48E}", 0, Math.max(from.treasury, 1), { defaultValue: 0 }).slider("Iron", 0, Math.max(rs.iron, 1), { defaultValue: 0 }).slider("Gold", 0, Math.max(rs.gold, 1), { defaultValue: 0 }).slider("Coal", 0, Math.max(rs.coal, 1), { defaultValue: 0 }).slider("Wood", 0, Math.max(rs.wood, 1), { defaultValue: 0 }).slider("Stone", 0, Math.max(rs.stone, 1), { defaultValue: 0 }).slider("Diamonds", 0, Math.max(rs.diamonds, 1), { defaultValue: 0 });
+  const form = new ModalFormData().title(`\u{1F4E6} ${from.name} \u2192 ${to.name}`).slider("Food \u{1F33E}", 0, Math.max(from.foodStorage, 1), 1, 0).slider("Emeralds \u{1F48E}", 0, Math.max(from.treasury, 1), 1, 0).slider("Iron", 0, Math.max(rs.iron, 1), 1, 0).slider("Gold", 0, Math.max(rs.gold, 1), 1, 0).slider("Coal", 0, Math.max(rs.coal, 1), 1, 0).slider("Wood", 0, Math.max(rs.wood, 1), 1, 0).slider("Stone", 0, Math.max(rs.stone, 1), 1, 0).slider("Diamonds", 0, Math.max(rs.diamonds, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
   const [food, emeralds, iron, gold, coal, wood, stone, diamonds] = response.formValues;
@@ -5619,7 +5484,7 @@ async function showMilitaryAmountsForm(player, fromId, toId) {
   const to = getVillage(toId);
   if (!from || !to) return;
   const t = from.troops;
-  const form = new ModalFormData().title(`\u{1F5E1} ${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(t.cityGuards, 1), { defaultValue: 0 }).slider("Spearmen", 0, Math.max(t.spearmen, 1), { defaultValue: 0 }).slider("Archers", 0, Math.max(t.archers, 1), { defaultValue: 0 }).slider("Cavalry", 0, Math.max(t.cavalry, 1), { defaultValue: 0 });
+  const form = new ModalFormData().title(`\u{1F5E1} ${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0).slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0).slider("Archers", 0, Math.max(t.archers, 1), 1, 0).slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
   const [guards, spearmen, archers, cavalry] = response.formValues;

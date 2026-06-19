@@ -1,4 +1,4 @@
-import { world, system } from "@minecraft/server";
+import { world, system, EntityInventoryComponent } from "@minecraft/server";
 import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import type { VillageData, KingdomData, MerchantData, ResourceStorage, TroopType } from "./types/index.js";
 import { RESOURCE_LABELS } from "./types/index.js";
@@ -9,6 +9,7 @@ import {
   handleCropBreak,
   isCropBlock,
   CROP_MAX_AGES,
+  FOOD_ITEM_VALUES,
   withdrawFromGranary,
   depositPlayerItemsToGranary,
   getGranaryReport,
@@ -556,10 +557,10 @@ async function showPickUpTroopsForm(
 
   const form = new ModalFormData()
     .title(`⚔ Pick Up Troops — ${village.name}`)
-    .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), { defaultValue: 0 })
-    .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), { defaultValue: 0 })
-    .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), { defaultValue: 0 })
-    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), { defaultValue: 0 });
+    .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0)
+    .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0)
+    .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0)
+    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
 
   const response = await form.show(player);
   if (response.canceled) return;
@@ -597,8 +598,7 @@ async function showReturnTroopsForm(
   const response = await form.show(player);
   if (response.canceled || response.selection !== 0) return;
 
-  const { EntityInventoryComponent: EIC } = await import("@minecraft/server");
-  const inv = player.getComponent(EIC.componentId) as import("@minecraft/server").EntityInventoryComponent | undefined;
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
   if (!inv?.container) return;
   const container = inv.container;
 
@@ -656,7 +656,7 @@ async function showTrainTroopsForm(
 
   const countForm = new ModalFormData()
     .title(`Train ${TROOP_LABELS[selectedType]}`)
-    .slider(`How many to train? (cost ×N)`, 1, 20, { defaultValue: 1 });
+    .slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
 
   const countResponse = await countForm.show(player);
   if (countResponse.canceled || countResponse.formValues == null) return;
@@ -753,7 +753,7 @@ async function showFoodSellMenu(
 
   const batchForm = new ModalFormData()
     .title(`Sell ${entry.label}`)
-    .slider(`Batches to sell (${entry.itemsPerEmerald} items = 1💎, min ${entry.minBatch} items)`, 1, 10, { defaultValue: 1 });
+    .slider(`Batches to sell (${entry.itemsPerEmerald} items = 1💎, min ${entry.minBatch} items)`, 1, 10, 1, 1);
 
   const batchResp = await batchForm.show(player);
   if (batchResp.canceled || batchResp.formValues === undefined) return;
@@ -850,7 +850,6 @@ async function showGranaryDepositMenu(
   player: import("@minecraft/server").Player,
   village: VillageData
 ): Promise<void> {
-  const { FOOD_ITEM_VALUES } = await import("./systems/harvest.js");
   const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
 
   const form = new ActionFormData()
@@ -1055,12 +1054,12 @@ async function showSendAmountsForm(
 
   const form = new ModalFormData()
     .title(`${from.name} → ${to.name}`)
-    .slider("City Guards", 0, Math.max(from.troops.cityGuards, 1), { defaultValue: 0 })
-    .slider("Spearmen", 0, Math.max(from.troops.spearmen, 1), { defaultValue: 0 })
-    .slider("Archers", 0, Math.max(from.troops.archers, 1), { defaultValue: 0 })
-    .slider("Cavalry", 0, Math.max(from.troops.cavalry, 1), { defaultValue: 0 })
-    .slider("Emeralds", 0, Math.max(from.treasury, 1), { defaultValue: 0 })
-    .slider("Food", 0, Math.max(from.foodStorage, 1), { defaultValue: 0 });
+    .slider("City Guards", 0, Math.max(from.troops.cityGuards, 1), 1, 0)
+    .slider("Spearmen", 0, Math.max(from.troops.spearmen, 1), 1, 0)
+    .slider("Archers", 0, Math.max(from.troops.archers, 1), 1, 0)
+    .slider("Cavalry", 0, Math.max(from.troops.cavalry, 1), 1, 0)
+    .slider("Emeralds", 0, Math.max(from.treasury, 1), 1, 0)
+    .slider("Food", 0, Math.max(from.foodStorage, 1), 1, 0);
 
   const response = await form.show(player);
   if (response.canceled) return;
@@ -1248,14 +1247,14 @@ async function showResourceAmountsForm(
 
   const form = new ModalFormData()
     .title(`📦 ${from.name} → ${to.name}`)
-    .slider("Food 🌾", 0, Math.max(from.foodStorage, 1), { defaultValue: 0 })
-    .slider("Emeralds 💎", 0, Math.max(from.treasury, 1), { defaultValue: 0 })
-    .slider("Iron", 0, Math.max(rs.iron, 1), { defaultValue: 0 })
-    .slider("Gold", 0, Math.max(rs.gold, 1), { defaultValue: 0 })
-    .slider("Coal", 0, Math.max(rs.coal, 1), { defaultValue: 0 })
-    .slider("Wood", 0, Math.max(rs.wood, 1), { defaultValue: 0 })
-    .slider("Stone", 0, Math.max(rs.stone, 1), { defaultValue: 0 })
-    .slider("Diamonds", 0, Math.max(rs.diamonds, 1), { defaultValue: 0 });
+    .slider("Food 🌾", 0, Math.max(from.foodStorage, 1), 1, 0)
+    .slider("Emeralds 💎", 0, Math.max(from.treasury, 1), 1, 0)
+    .slider("Iron", 0, Math.max(rs.iron, 1), 1, 0)
+    .slider("Gold", 0, Math.max(rs.gold, 1), 1, 0)
+    .slider("Coal", 0, Math.max(rs.coal, 1), 1, 0)
+    .slider("Wood", 0, Math.max(rs.wood, 1), 1, 0)
+    .slider("Stone", 0, Math.max(rs.stone, 1), 1, 0)
+    .slider("Diamonds", 0, Math.max(rs.diamonds, 1), 1, 0);
 
   const response = await form.show(player);
   if (response.canceled) return;
@@ -1323,10 +1322,10 @@ async function showMilitaryAmountsForm(
   const t = from.troops;
   const form = new ModalFormData()
     .title(`🗡 ${from.name} → ${to.name}`)
-    .slider("City Guards", 0, Math.max(t.cityGuards, 1), { defaultValue: 0 })
-    .slider("Spearmen", 0, Math.max(t.spearmen, 1), { defaultValue: 0 })
-    .slider("Archers", 0, Math.max(t.archers, 1), { defaultValue: 0 })
-    .slider("Cavalry", 0, Math.max(t.cavalry, 1), { defaultValue: 0 });
+    .slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0)
+    .slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0)
+    .slider("Archers", 0, Math.max(t.archers, 1), 1, 0)
+    .slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0);
 
   const response = await form.show(player);
   if (response.canceled) return;
