@@ -344,3 +344,164 @@ function findVillageAt(location: Vec3, dimensionId: string): VillageData | undef
       Math.abs(v.location.z - location.z) < VILLAGE_CLAIM_RADIUS
   );
 }
+
+// ── Field Storage ─────────────────────────────────────────────────────────────
+// NPC auto-harvest goes here. Players must manually collect and carry to granary.
+
+export function addToFieldStorage(village: VillageData, item: string, amount: number): void {
+  if (amount <= 0) return;
+  village.fieldStorage ??= {};
+  village.fieldStorage[item] = (village.fieldStorage[item] ?? 0) + amount;
+}
+
+export function getFieldStorageTotal(village: VillageData): number {
+  if (!village.fieldStorage) return 0;
+  return Object.entries(village.fieldStorage).reduce((total, [item, count]) => {
+    return total + (FOOD_ITEM_VALUES[item] ?? 0) * count;
+  }, 0);
+}
+
+export function getFieldStorageReport(village: VillageData): string {
+  const fs = village.fieldStorage ?? {};
+  const items = Object.entries(fs).filter(([, count]) => count > 0);
+  if (items.length === 0) return `§b${village.name} Field Storage§r\nEmpty — NPC farmers will fill this each day.`;
+  const lines = items.map(([item, count]) => {
+    const val = FOOD_ITEM_VALUES[item] ?? 0;
+    return `${item.replace("minecraft:", "")} ×${count} (${val * count} food units)`;
+  });
+  const total = getFieldStorageTotal(village);
+  return [`§b${village.name} Field Storage§r`, ...lines, ``, `Total: ${total} food units`].join("\n");
+}
+
+/**
+ * Moves all items from the village's field storage into the player's inventory.
+ * Returns the number of item stacks transferred.
+ */
+export function collectFieldStorage(player: Player, village: VillageData): number {
+  const fs = village.fieldStorage ?? {};
+  const items = Object.entries(fs).filter(([, count]) => count > 0);
+  if (items.length === 0) {
+    notifyPlayer(player.name, `§eField storage in §b${village.name}§e is empty. Wait for farmers to harvest.`);
+    return 0;
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return 0;
+  const container = inv.container;
+
+  let transferred = 0;
+  const leftover: Record<string, number> = {};
+
+  for (const [item, total] of items) {
+    let remaining = total;
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot) {
+        const give = Math.min(remaining, 64);
+        container.setItem(i, new ItemStack(item, give));
+        remaining -= give;
+        transferred++;
+      } else if (slot.typeId === item && slot.amount < 64) {
+        const give = Math.min(remaining, 64 - slot.amount);
+        slot.amount += give;
+        container.setItem(i, slot);
+        remaining -= give;
+      }
+    }
+    if (remaining > 0) leftover[item] = remaining;
+  }
+
+  village.fieldStorage = leftover;
+  saveVillage(village);
+
+  const foodUnits = getFieldStorageTotal(village);
+  const leftoverNote = Object.keys(leftover).length > 0 ? " §e(inventory full — some items left behind)" : "";
+  notifyPlayer(
+    player.name,
+    `§a🌾 Collected field harvest from §b${village.name}§a! Bring items to the granary to deposit.${leftoverNote}`
+  );
+  if (foodUnits > 0) {
+    notifyPlayer(player.name, `§7${foodUnits} food units still remain in field storage.`);
+  }
+  return transferred;
+}
+
+// ── NPC Auto-Harvest ──────────────────────────────────────────────────────────
+
+const MAX_AUTO_HARVESTS_PER_CYCLE = 50;
+const AUTO_HARVEST_SCAN_RADIUS = 16;
+const AUTO_HARVEST_SCAN_STEP = 2;
+const AUTO_HARVEST_Y_RANGE = 3;
+
+/**
+ * Simulates NPC farmers harvesting ripe crops within the village bounds.
+ * Harvested items go into fieldStorage — players must collect and deposit manually.
+ * Only activates when at least one farmer is assigned.
+ */
+export function autoHarvestVillage(village: VillageData): void {
+  if ((village.workers?.farmers ?? 0) === 0) return;
+
+  const dim = world.getDimension(village.location.dimension);
+  const cx = Math.floor(village.townHallLocation.x);
+  const cz = Math.floor(village.townHallLocation.z);
+  const baseY = Math.floor(village.townHallLocation.y);
+
+  let harvestCount = 0;
+  let anyAdded = false;
+
+  outer: for (
+    let x = cx - AUTO_HARVEST_SCAN_RADIUS;
+    x <= cx + AUTO_HARVEST_SCAN_RADIUS;
+    x += AUTO_HARVEST_SCAN_STEP
+  ) {
+    for (
+      let z = cz - AUTO_HARVEST_SCAN_RADIUS;
+      z <= cz + AUTO_HARVEST_SCAN_RADIUS;
+      z += AUTO_HARVEST_SCAN_STEP
+    ) {
+      if (harvestCount >= MAX_AUTO_HARVESTS_PER_CYCLE) break outer;
+      for (let y = baseY - AUTO_HARVEST_Y_RANGE; y <= baseY + AUTO_HARVEST_Y_RANGE; y++) {
+        try {
+          const block = dim.getBlock({ x, y, z });
+          if (!block || !isCropBlock(block.typeId)) continue;
+
+          const maxAge = CROP_MAX_AGES[block.typeId];
+          const age = block.permutation.getState("age") as number | undefined;
+          if (age === undefined || age < maxAge) continue;
+
+          // Reset crop to seedling stage (replanted)
+          block.setPermutation(block.permutation.withState("age", 0));
+
+          const drops = CROP_DROPS[block.typeId] ?? [];
+          for (const drop of drops) {
+            const amount = drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1));
+            if (amount <= 0) continue;
+            const isFood = (FOOD_ITEM_VALUES[drop.item] ?? -1) >= 0;
+            if (isFood) {
+              addToFieldStorage(village, drop.item, amount);
+              anyAdded = true;
+            }
+          }
+          harvestCount++;
+        } catch {
+          // Chunk not loaded — skip silently
+        }
+      }
+    }
+  }
+
+  if (anyAdded) {
+    saveVillage(village);
+    const fieldTotal = getFieldStorageTotal(village);
+    notifyPlayer(
+      village.owner,
+      `§7🌾 Farmers in §b${village.name}§7 harvested ${harvestCount} crop(s). Field storage: §f${fieldTotal}§7 food units. Collect at the granary.`
+    );
+  }
+}
+
+export function autoHarvestAllVillages(): void {
+  for (const village of getAllVillages()) {
+    autoHarvestVillage(village);
+  }
+}

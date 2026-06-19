@@ -13,6 +13,10 @@ import {
   depositPlayerItemsToGranary,
   getGranaryReport,
   processAllSoldierFood,
+  collectFieldStorage,
+  getFieldStorageReport,
+  getFieldStorageTotal,
+  autoHarvestAllVillages,
 } from "./systems/harvest.js";
 import { registerCommands } from "./systems/commands.js";
 import {
@@ -343,6 +347,7 @@ system.runInterval(() => {
   processAllPopulation();
   tickBandits();
   processAllSoldierFood();
+  autoHarvestAllVillages();
 }, 24000);
 
 system.runInterval(() => {
@@ -795,6 +800,9 @@ async function showGranaryStorageMenu(
   const prod = getFoodProduction(village);
   const cons = getFoodConsumption(village);
 
+  const fieldTotal = getFieldStorageTotal(village);
+  const fieldBtn = `🌾 Collect Field Harvest${fieldTotal > 0 ? ` (${fieldTotal} food units ready)` : " (empty)"}`;
+
   const form = new ActionFormData()
     .title(`${village.name} — Granary`)
     .body(
@@ -807,6 +815,8 @@ async function showGranaryStorageMenu(
     withdrawable.push(item);
   }
   form.button("Deposit Food from Inventory");
+  form.button(fieldBtn);
+  form.button("📦 View Field Storage");
   form.button("Close");
 
   const response = await form.show(player);
@@ -816,6 +826,11 @@ async function showGranaryStorageMenu(
     withdrawFromGranary(player, village, withdrawable[response.selection], 8);
   } else if (response.selection === withdrawable.length) {
     await showGranaryDepositMenu(player, village);
+  } else if (response.selection === withdrawable.length + 1) {
+    collectFieldStorage(player, village);
+  } else if (response.selection === withdrawable.length + 2) {
+    const rpt = getFieldStorageReport(village);
+    for (const line of rpt.split("\n")) notifyPlayer(player.name, line);
   }
 }
 

@@ -5,11 +5,12 @@ import { getVillageSummary } from "./village.js";
 import { getKingdomSummary, getKingdomOf, declareWar, makePeace, formAlliance, getKingdomStrength, areAtWar } from "./kingdom.js";
 import { recruitTroop, disbandTroop, upgradeBarracks, getTotalTroops } from "./military.js";
 import { isSiegeActive, getActiveSiege, initiateSiege } from "./conquest.js";
-import { getGranaryFoodUnits, getGranaryReport } from "./harvest.js";
+import { getGranaryFoodUnits, getGranaryReport, collectFieldStorage } from "./harvest.js";
 import { getTreasuryReport } from "./treasury.js";
 import { getBlacksmithSummary } from "./blacksmith.js";
 import { notifyPlayer } from "../utils/notify.js";
 import { getActiveBorderIntrusions, isSiegeEligible } from "./border.js";
+import { toggleAlerts, getPlayerSettings } from "./playerSettings.js";
 import type { TroopType } from "../types/index.js";
 
 const TROOP_TYPES: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
@@ -99,6 +100,12 @@ function handleKcCommand(player: Player, subcommand: string, args: string[]): vo
     case "intel":
       cmdIntel(player, args[0]);
       break;
+    case "alerts":
+      cmdToggleAlerts(player);
+      break;
+    case "collect":
+      cmdCollect(player, args[0]);
+      break;
     default:
       notifyPlayer(player.name, `§cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -127,6 +134,8 @@ function showHelp(player: Player): void {
     "§e/scriptevent kc:siege <villageName>§r — begin siege (must be border-eligible)",
     "§e/scriptevent kc:border§r — see border intrusion status",
     "§e/scriptevent kc:intel <kingdomName>§r — scout an enemy kingdom",
+    "§e/scriptevent kc:alerts§r — toggle incoming-attack alerts on/off",
+    "§e/scriptevent kc:collect <id>§r — collect NPC-harvested crops to your inventory",
     "§7Troop types: cityGuards, spearmen, archers, cavalry",
   ];
   for (const line of lines) notifyPlayer(player.name, line);
@@ -494,6 +503,25 @@ function cmdIntel(player: Player, kingdomName: string | undefined): void {
   notifyPlayer(player.name, `§7Territories: §f${villageNames.join(", ") || "none"}`);
   notifyPlayer(player.name, atWar ? `§4⚔ You are AT WAR with this kingdom.` : `§aNot currently at war.`);
   notifyPlayer(player.name, `§7Allies: §f${target.alliances.length}  §7Wars: §f${target.wars.length}`);
+}
+
+function cmdToggleAlerts(player: Player): void {
+  const enabled = toggleAlerts(player.name);
+  if (enabled) {
+    notifyPlayer(player.name, `§a🔔 Incoming-attack alerts §lENABLED§r§a. You will be notified of raids, border intrusions, and siege events.`);
+  } else {
+    notifyPlayer(player.name, `§7🔕 Incoming-attack alerts §lDISABLED§r§7. You will not receive threat notifications until you run /kc:alerts again.`);
+  }
+}
+
+function cmdCollect(player: Player, idPrefix: string | undefined): void {
+  const village = resolveVillage(player, idPrefix);
+  if (!village) return;
+  const { alertsEnabled } = getPlayerSettings(player.name);
+  collectFieldStorage(player, village);
+  if (!alertsEnabled) {
+    notifyPlayer(player.name, `§7Tip: alerts are currently OFF. Use §f/scriptevent kc:alerts§7 to re-enable.`);
+  }
 }
 
 function resolveVillage(player: Player, idPrefix: string | undefined): VillageData | undefined {

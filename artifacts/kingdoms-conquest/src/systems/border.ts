@@ -2,7 +2,7 @@ import { world } from "@minecraft/server";
 import type { Dimension } from "@minecraft/server";
 import { getAllVillages, getVillage } from "../storage/index.js";
 import { getKingdomOf, areAtWar } from "./kingdom.js";
-import { notifyPlayer } from "../utils/notify.js";
+import { notifyPlayer, notifyAlert } from "../utils/notify.js";
 import { VILLAGE_CLAIM_RADIUS } from "../types/index.js";
 import type { VillageData } from "../types/index.js";
 
@@ -78,7 +78,7 @@ export function tickBorders(tick: number): void {
         activeIntrusions.set(key, intrusion);
 
         const countdownSec = Math.floor(SIEGE_ELIGIBILITY_TICKS / 20);
-        notifyPlayer(
+        notifyAlert(
           village.owner,
           `§c⚔ Border Alert: §e${player.name}§c has entered §b${village.name}§c's territory! Siege eligible in ${countdownSec}s.`
         );
@@ -97,7 +97,7 @@ export function tickBorders(tick: number): void {
             player.name,
             `§a⚔ Siege eligibility unlocked for §b${village.name}§a! Type §f/siege ${village.name}§a to begin.`
           );
-          notifyPlayer(
+          notifyAlert(
             village.owner,
             `§4🔔 SIEGE READY: §c${player.name}§4 is now eligible to besiege §b${village.name}§4!`
           );
@@ -109,7 +109,7 @@ export function tickBorders(tick: number): void {
             player.name,
             `§6⏳ Siege eligible in §f${remaining}s§6 — stay inside §b${village.name}§6's border.`
           );
-          notifyPlayer(
+          notifyAlert(
             village.owner,
             `§c⚠ §e${player.name}§c is still inside §b${village.name}§c's border — siege eligible in §f${remaining}s§c.`
           );

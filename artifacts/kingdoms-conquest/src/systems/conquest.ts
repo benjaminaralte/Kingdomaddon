@@ -7,7 +7,7 @@ import {
   saveVillage,
 } from "../storage/index.js";
 import { distance } from "../utils/tick.js";
-import { notifyPlayer } from "../utils/notify.js";
+import { notifyPlayer, notifyAlert } from "../utils/notify.js";
 import {
   addVillageToKingdom,
   removeVillageFromKingdom,
@@ -79,7 +79,7 @@ export function initiateSiege(attacker: Player, targetVillageId: string): boolea
   clearBorderIntrusion(attacker.name, targetVillageId);
 
   notifyPlayer(attacker.name, `§c⚔ Siege of §b${target.name}§c has begun!`);
-  notifyPlayer(target.owner, `§4🔔 §b${target.name}§4 is under siege by §c${attacker.name}§4!`);
+  notifyAlert(target.owner, `§4🔔 §b${target.name}§4 is under siege by §c${attacker.name}§4!`);
   notifyVillageUnderSiege(targetVillageId);
 
   return true;
@@ -115,7 +115,7 @@ export function tickSieges(_currentTick: number): void {
       } else if (siege.progress % 100 === 0) {
         const percent = Math.floor((siege.progress / 600) * 100);
         notifyPlayer(siege.attackerName, `§6Capturing... ${percent}%`);
-        notifyPlayer(target.owner, `§cTown Hall being captured! (${percent}%)`);
+        notifyAlert(target.owner, `§cTown Hall being captured! (${percent}%)`);
       }
     } else if (d > SIEGE_RADIUS * 2) {
       siege.progress = Math.max(0, siege.progress - 2);

@@ -126,6 +126,7 @@ export interface VillageData {
   tradeStationLocation?: Vec3;
   resourceStorage: ResourceStorage;
   trainingQueue: TrainingJob[];
+  fieldStorage?: Record<string, number>;
 }
 
 export interface KingdomData {

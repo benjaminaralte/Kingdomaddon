@@ -3,7 +3,7 @@ import type { VillageData, GuardPoleData } from "../types/index.js";
 import { WATCHTOWER_DETECTION_RADIUS } from "../types/index.js";
 import { getAllVillages, getAllKingdoms, getKingdom, getVillage } from "../storage/index.js";
 import { distance } from "../utils/tick.js";
-import { notifyPlayer } from "../utils/notify.js";
+import { notifyAlert } from "../utils/notify.js";
 
 const DETECTION_INTERVAL_TICKS = 100;
 let lastDetectionTick = 0;
@@ -49,7 +49,7 @@ function scanFromWatchtower(village: VillageData, tower: GuardPoleData, currentT
       const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
       if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
         const d = Math.round(distance(entity.location, tower.location));
-        notifyPlayer(village.owner, `§c⚠ Watchtower detected bandits near §b${village.name}§c! (${d}m away)`);
+        notifyAlert(village.owner, `§c⚠ Watchtower detected bandits near §b${village.name}§c! (${d}m away)`);
         lastAlertedThreat.set(alertKey, currentTick);
       }
       return;
@@ -64,7 +64,7 @@ function scanFromWatchtower(village: VillageData, tower: GuardPoleData, currentT
         const alertKey = `${village.id}:${playerName}`;
         const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
         if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
-          notifyPlayer(
+          notifyAlert(
             village.owner,
             `§c⚔ Enemy player §4${playerName}§c detected near §b${village.name}§c! Village may be under attack!`
           );
@@ -104,20 +104,20 @@ function isEnemyPlayer(playerName: string, kingdomId: string): boolean {
 export function notifyWatchtowerUnderAttack(villageId: string): void {
   const village = getVillage(villageId);
   if (!village) return;
-  notifyPlayer(village.owner, `§4🔔 WATCHTOWER UNDER ATTACK in §b${village.name}§4!`);
+  notifyAlert(village.owner, `§4🔔 WATCHTOWER UNDER ATTACK in §b${village.name}§4!`);
 }
 
 export function notifyVillageUnderSiege(villageId: string): void {
   const village = getVillage(villageId);
   if (!village) return;
-  notifyPlayer(village.owner, `§4🔔 §b${village.name}§4 IS UNDER SIEGE!`);
+  notifyAlert(village.owner, `§4🔔 §b${village.name}§4 IS UNDER SIEGE!`);
 
   const kingdom = getKingdom(village.kingdomId);
   if (kingdom) {
     for (const vid of kingdom.villageIds) {
       const v = getVillage(vid);
       if (v && v.owner !== village.owner) {
-        notifyPlayer(v.owner, `§c⚔ Your allied village §b${village.name}§c is under siege!`);
+        notifyAlert(v.owner, `§c⚔ Your allied village §b${village.name}§c is under siege!`);
       }
     }
   }

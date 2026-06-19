@@ -2,7 +2,7 @@ import { world } from "@minecraft/server";
 import type { VillageData, TroopType } from "../types/index.js";
 import { VILLAGE_CLAIM_RADIUS } from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
-import { notifyPlayer } from "../utils/notify.js";
+import { notifyPlayer, notifyAlert } from "../utils/notify.js";
 import { distance } from "../utils/tick.js";
 import { areAtWar, getKingdomOf } from "./kingdom.js";
 
@@ -60,7 +60,7 @@ function scanVillageThreat(village: VillageData, currentTick: number): void {
     const key = `${village.id}:player`;
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
-      notifyPlayer(village.owner, `§c🔔 RAID ALERT! §f${playerRaider}§c has entered §b${village.name}§c!`);
+      notifyAlert(village.owner, `§c🔔 RAID ALERT! §f${playerRaider}§c has entered §b${village.name}§c!`);
       lastRaidNotify.set(key, currentTick);
     }
   }
@@ -74,7 +74,7 @@ function scanVillageThreat(village: VillageData, currentTick: number): void {
     const key = `${village.id}:mob`;
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
-      notifyPlayer(village.owner, `§c⚔ §b${village.name}§c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
+      notifyAlert(village.owner, `§c⚔ §b${village.name}§c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
       lastRaidNotify.set(key, currentTick);
     }
   }

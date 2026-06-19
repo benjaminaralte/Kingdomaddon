@@ -1,10 +1,21 @@
 import { world } from "@minecraft/server";
+import { isAlertsEnabled } from "../systems/playerSettings.js";
 
 export function notifyPlayer(playerName: string, message: string): void {
   const player = world.getPlayers().find((p) => p.name === playerName);
   if (player) {
     player.sendMessage(`§6[Kingdoms]§r ${message}`);
   }
+}
+
+/**
+ * Like notifyPlayer but respects the player's alert-toggle setting.
+ * Use this for all incoming-attack / border-intrusion / siege alerts
+ * sent to the DEFENDER (not for the attacker's own action feedback).
+ */
+export function notifyAlert(playerName: string, message: string): void {
+  if (!isAlertsEnabled(playerName)) return;
+  notifyPlayer(playerName, message);
 }
 
 export function notifyAllPlayers(message: string): void {
