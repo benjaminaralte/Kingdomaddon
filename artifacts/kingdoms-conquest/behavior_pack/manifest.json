@@ -5,7 +5,7 @@
     "description": "Transform Minecraft villages into living kingdoms. Grow populations, manage economies, build armies, and conquer territories.",
     "uuid": "a7f3c2d1-e8b4-4f9a-b5c6-d0e1f2a3b4c5",
     "version": [1, 0, 0],
-    "min_engine_version": [1, 21, 130]
+    "min_engine_version": [1, 26, 30]
   },
   "modules": [
     {
