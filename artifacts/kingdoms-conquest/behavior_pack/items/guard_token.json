@@ -3,11 +3,19 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:guard_token",
-      "menu_category": { "category": "none" }
+      "menu_category": {
+        "category": "none"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "City Guard" },
-      "minecraft:icon": { "texture": "shield" },
+      "minecraft:display_name": {
+        "value": "City Guard"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "shield"
+        }
+      },
       "minecraft:max_stack_size": 64
     }
   }

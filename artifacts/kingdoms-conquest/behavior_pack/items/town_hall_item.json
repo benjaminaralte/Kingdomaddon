@@ -8,8 +8,14 @@
       }
     },
     "components": {
-      "minecraft:display_name": { "value": "Town Hall" },
-      "minecraft:icon": { "texture": "town_hall" },
+      "minecraft:display_name": {
+        "value": "Town Hall"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "nether_star"
+        }
+      },
       "minecraft:block_placer": {
         "block": "kingdoms:town_hall"
       },

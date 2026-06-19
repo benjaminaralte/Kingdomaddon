@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:bandit",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/pillager" },
+      "geometry": { "default": "geometry.pillager" },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}

@@ -8,8 +8,14 @@
       }
     },
     "components": {
-      "minecraft:display_name": { "value": "Treasury" },
-      "minecraft:icon": { "texture": "treasury" },
+      "minecraft:display_name": {
+        "value": "Treasury"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "gold_ingot"
+        }
+      },
       "minecraft:block_placer": {
         "block": "kingdoms:treasury"
       },

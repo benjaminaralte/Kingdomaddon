@@ -3,11 +3,19 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:spearman_token",
-      "menu_category": { "category": "none" }
+      "menu_category": {
+        "category": "none"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "Spearman" },
-      "minecraft:icon": { "texture": "iron_sword" },
+      "minecraft:display_name": {
+        "value": "Spearman"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "iron_sword"
+        }
+      },
       "minecraft:max_stack_size": 64
     }
   }

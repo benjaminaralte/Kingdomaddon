@@ -3,11 +3,19 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:cavalry_token",
-      "menu_category": { "category": "none" }
+      "menu_category": {
+        "category": "none"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "Cavalry" },
-      "minecraft:icon": { "texture": "saddle" },
+      "minecraft:display_name": {
+        "value": "Cavalry"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "saddle"
+        }
+      },
       "minecraft:max_stack_size": 64
     }
   }

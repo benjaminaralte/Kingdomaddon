@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:archer",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/skeleton/skeleton" },
+      "geometry": { "default": "geometry.skeleton" },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}
