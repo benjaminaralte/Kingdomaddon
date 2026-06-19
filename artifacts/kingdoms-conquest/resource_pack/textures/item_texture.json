@@ -1,0 +1,21 @@
+{
+  "resource_pack_name": "kingdoms_conquest",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "town_hall":              { "textures": "textures/items/nether_star" },
+    "barracks":               { "textures": "textures/items/iron_sword" },
+    "market":                 { "textures": "textures/items/emerald" },
+    "granary":                { "textures": "textures/items/wheat" },
+    "blacksmith":             { "textures": "textures/items/iron_ingot" },
+    "trade_station":          { "textures": "textures/items/minecart" },
+    "treasury":               { "textures": "textures/items/gold_ingot" },
+    "guard_pole_village":     { "textures": "textures/items/stick" },
+    "guard_pole_watchtower":  { "textures": "textures/items/spyglass" },
+    "trade_pole":             { "textures": "textures/items/stick" },
+    "recall_scroll":          { "textures": "textures/items/paper" },
+    "guard_token":            { "textures": "textures/items/iron_chestplate" },
+    "spearman_token":         { "textures": "textures/items/iron_sword" },
+    "archer_token":           { "textures": "textures/items/bow" },
+    "cavalry_token":          { "textures": "textures/items/saddle" }
+  }
+}

@@ -9,8 +9,10 @@ tile.kingdoms:market.name=Market
 tile.kingdoms:granary.name=Granary
 tile.kingdoms:blacksmith.name=Blacksmith
 tile.kingdoms:trade_station.name=Trade Station
+tile.kingdoms:treasury.name=Treasury
 
 item.kingdoms:town_hall_item.name=Town Hall
+item.kingdoms:treasury_item.name=Treasury
 item.kingdoms:guard_pole_village_item.name=Village Guard Pole
 item.kingdoms:guard_pole_watchtower_item.name=Watchtower Pole
 item.kingdoms:trade_pole_item.name=Trade Pole

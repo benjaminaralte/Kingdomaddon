@@ -4416,6 +4416,253 @@ function sendReinforcements(fromVillageId, toVillageId, troops) {
   return true;
 }
 
+// src/systems/structureBuilder.ts
+var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
+  "kingdoms:town_hall",
+  "kingdoms:barracks",
+  "kingdoms:market",
+  "kingdoms:granary",
+  "kingdoms:blacksmith",
+  "kingdoms:trade_station",
+  "kingdoms:treasury"
+]);
+function blk(x, y, z, b) {
+  return { x, y, z, b };
+}
+function fill(x1, y1, z1, x2, y2, z2, b) {
+  const out = [];
+  for (let x = x1; x <= x2; x++)
+    for (let y = y1; y <= y2; y++)
+      for (let z = z1; z <= z2; z++)
+        out.push({ x, y, z, b });
+  return out;
+}
+function ring(x1, z1, x2, z2, y1, y2, b) {
+  const out = [];
+  for (let x = x1; x <= x2; x++)
+    for (let z = z1; z <= z2; z++)
+      if (x === x1 || x === x2 || z === z1 || z === z2)
+        for (let y = y1; y <= y2; y++)
+          out.push({ x, y, z, b });
+  return out;
+}
+function townHallBlueprint() {
+  const p = [];
+  p.push(...fill(-4, 1, -4, 4, 12, 4, "minecraft:air"));
+  p.push(...fill(-4, 0, -4, 4, 0, 4, "minecraft:stone_bricks"));
+  for (const [cx, cz] of [[-4, -4], [-4, 4], [4, -4], [4, 4]]) {
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  }
+  p.push(...fill(-3, 1, -4, 3, 5, -4, "minecraft:oak_planks"));
+  p.push(...fill(4, 1, -3, 4, 5, 3, "minecraft:oak_planks"));
+  p.push(...fill(-4, 1, -3, -4, 5, 3, "minecraft:oak_planks"));
+  for (let x = -3; x <= 3; x++)
+    for (let y = 1; y <= 5; y++)
+      if (!(x >= -1 && x <= 1 && y <= 2))
+        p.push(blk(x, y, 4, "minecraft:oak_planks"));
+  for (const wx of [-2, 0, 2]) {
+    p.push(blk(wx, 2, -4, "minecraft:glass"), blk(wx, 3, -4, "minecraft:glass"));
+    p.push(blk(wx, 2, 4, "minecraft:glass"), blk(wx, 3, 4, "minecraft:glass"));
+  }
+  for (const wz of [-2, 0, 2]) {
+    p.push(blk(4, 2, wz, "minecraft:glass"), blk(4, 3, wz, "minecraft:glass"));
+    p.push(blk(-4, 2, wz, "minecraft:glass"), blk(-4, 3, wz, "minecraft:glass"));
+  }
+  const filtered = p.filter((b) => !(b.z === 4 && b.x >= -1 && b.x <= 1 && b.y <= 2));
+  p.length = 0;
+  p.push(...filtered);
+  p.push(...fill(-4, 6, -4, 4, 6, 4, "minecraft:stone_bricks"));
+  p.push(...fill(-3, 7, -3, 3, 7, 3, "minecraft:stone_bricks"));
+  p.push(...fill(-2, 8, -2, 2, 8, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-1, 9, -1, 1, 9, 1, "minecraft:stone_bricks"));
+  p.push(blk(0, 10, 0, "minecraft:stone_bricks"));
+  p.push(blk(0, 11, 0, "minecraft:lantern"));
+  p.push(blk(-3, 1, -3, "minecraft:bookshelf"), blk(-3, 2, -3, "minecraft:bookshelf"));
+  p.push(blk(3, 1, -3, "minecraft:bookshelf"), blk(3, 2, -3, "minecraft:bookshelf"));
+  p.push(blk(-2, 1, -3, "minecraft:bookshelf"), blk(2, 1, -3, "minecraft:bookshelf"));
+  p.push(blk(2, 1, 0, "minecraft:crafting_table"));
+  p.push(blk(-2, 1, 0, "minecraft:lectern"));
+  p.push(blk(0, 1, 2, "minecraft:sea_lantern"));
+  return p;
+}
+function barracksBlueprint() {
+  const p = [];
+  p.push(...fill(-4, 1, -3, 4, 5, 3, "minecraft:air"));
+  p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:cobblestone"));
+  p.push(...fill(-4, 1, -3, 4, 4, -3, "minecraft:stone_bricks"));
+  p.push(...fill(4, 1, -2, 4, 4, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-4, 1, -2, -4, 4, 2, "minecraft:stone_bricks"));
+  for (let x = -4; x <= 4; x++)
+    for (let y = 1; y <= 4; y++)
+      if (!(x >= -1 && x <= 1 && y <= 2))
+        p.push(blk(x, y, 3, "minecraft:stone_bricks"));
+  for (const wx of [-3, 0, 3]) {
+    p.push(blk(wx, 3, -3, "minecraft:glass"));
+    p.push(blk(wx, 3, 3, "minecraft:glass"));
+  }
+  p.push(blk(-4, 3, 0, "minecraft:glass"), blk(4, 3, 0, "minecraft:glass"));
+  p.push(...fill(-4, 5, -3, 4, 5, 3, "minecraft:stone_bricks"));
+  for (let x = -4; x <= 4; x += 2) {
+    p.push(blk(x, 6, -3, "minecraft:stone_bricks"));
+    p.push(blk(x, 6, 3, "minecraft:stone_bricks"));
+  }
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-4, 6, z, "minecraft:stone_bricks"));
+    p.push(blk(4, 6, z, "minecraft:stone_bricks"));
+  }
+  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
+  p.push(blk(0, 1, -2, "minecraft:smithing_table"));
+  for (let x = -3; x <= 3; x += 2) p.push(blk(x, 1, 1, "minecraft:red_carpet"));
+  p.push(blk(0, 1, 2, "minecraft:sea_lantern"));
+  return p;
+}
+function marketBlueprint() {
+  const p = [];
+  p.push(...fill(-5, 1, -5, 5, 5, 5, "minecraft:air"));
+  p.push(...fill(-5, 0, -5, 5, 0, 5, "minecraft:cobblestone"));
+  p.push(...ring(-5, -5, 5, 5, 0, 0, "minecraft:stone_bricks"));
+  const postPositions = [
+    [-5, -5],
+    [-5, 0],
+    [-5, 5],
+    [0, -5],
+    [0, 5],
+    [5, -5],
+    [5, 0],
+    [5, 5]
+  ];
+  for (const [px, pz] of postPositions)
+    p.push(...fill(px, 1, pz, px, 4, pz, "minecraft:oak_log"));
+  p.push(...fill(-5, 5, -5, 5, 5, 5, "minecraft:oak_planks"));
+  for (const [lx, lz] of [[-2, -2], [-2, 2], [2, -2], [2, 2], [0, 0]])
+    p.push(blk(lx, 5, lz, "minecraft:sea_lantern"));
+  p.push(blk(-3, 1, -3, "minecraft:crafting_table"), blk(-3, 1, 0, "minecraft:crafting_table"));
+  p.push(blk(3, 1, -3, "minecraft:crafting_table"), blk(3, 1, 0, "minecraft:crafting_table"));
+  p.push(blk(0, 1, -3, "minecraft:crafting_table"), blk(0, 1, 3, "minecraft:crafting_table"));
+  p.push(blk(-3, 1, 3, "minecraft:crafting_table"), blk(3, 1, 3, "minecraft:crafting_table"));
+  p.push(blk(-4, 1, 0, "minecraft:barrel"), blk(4, 1, 0, "minecraft:barrel"));
+  p.push(blk(0, 1, -4, "minecraft:barrel"), blk(0, 1, 4, "minecraft:barrel"));
+  return p;
+}
+function granaryBlueprint() {
+  const p = [];
+  p.push(...fill(-3, 1, -3, 3, 8, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:birch_planks"));
+  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:spruce_planks"));
+  for (let y = 1; y <= 2; y++) p.push(blk(0, y, 3, "minecraft:air"));
+  p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
+  p.push(blk(0, 2, -3, "minecraft:glass"), blk(0, 2, 3, "minecraft:glass"));
+  for (const [cx, cz] of [[-3, -3], [-3, 3], [3, -3], [3, 3]])
+    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:spruce_log"));
+  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:hay_block"));
+  p.push(...fill(-2, 6, -2, 2, 6, 2, "minecraft:hay_block"));
+  p.push(...fill(-1, 7, -1, 1, 7, 1, "minecraft:hay_block"));
+  p.push(blk(0, 8, 0, "minecraft:hay_block"));
+  p.push(blk(-2, 1, -2, "minecraft:barrel"), blk(2, 1, -2, "minecraft:barrel"));
+  p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
+  p.push(blk(0, 1, -2, "minecraft:chest"));
+  p.push(blk(0, 1, 0, "minecraft:sea_lantern"));
+  return p;
+}
+function blacksmithBlueprint() {
+  const p = [];
+  p.push(...fill(-3, 1, -2, 3, 5, 2, "minecraft:air"));
+  p.push(...fill(-3, 0, -2, 3, 0, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-3, 1, -2, 3, 3, -2, "minecraft:cobblestone"));
+  p.push(...fill(3, 1, -1, 3, 3, 1, "minecraft:cobblestone"));
+  p.push(...fill(-3, 1, -1, -3, 3, 1, "minecraft:cobblestone"));
+  for (let x = -3; x <= 3; x++)
+    for (let y = 1; y <= 3; y++)
+      if (!(x >= -1 && x <= 1 && y <= 2))
+        p.push(blk(x, y, 2, "minecraft:cobblestone"));
+  p.push(...fill(-3, 4, -2, 3, 4, 2, "minecraft:cobblestone"));
+  p.push(...fill(1, 5, -1, 2, 7, 0, "minecraft:cobblestone"));
+  p.push(...fill(1, 8, -1, 2, 8, 0, "minecraft:air"));
+  p.push(blk(-2, 2, -2, "minecraft:glass"), blk(2, 2, -2, "minecraft:glass"));
+  p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
+  p.push(blk(-2, 1, -1, "minecraft:blast_furnace"));
+  p.push(blk(-1, 1, -1, "minecraft:blast_furnace"));
+  p.push(blk(2, 1, -1, "minecraft:anvil"));
+  p.push(blk(2, 1, 0, "minecraft:smithing_table"));
+  p.push(blk(-2, 1, 1, "minecraft:chest"));
+  p.push(blk(1, 1, 0, "minecraft:sea_lantern"));
+  return p;
+}
+function tradeStationBlueprint() {
+  const p = [];
+  p.push(...fill(-4, 1, -3, 4, 5, 3, "minecraft:air"));
+  p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:oak_planks"));
+  p.push(...fill(-4, 1, -3, 4, 3, -3, "minecraft:birch_planks"));
+  p.push(...fill(-4, 1, -2, -4, 3, 2, "minecraft:birch_planks"));
+  p.push(...fill(4, 1, -2, 4, 3, 2, "minecraft:birch_planks"));
+  p.push(...fill(-4, 1, 3, -4, 4, 3, "minecraft:oak_log"));
+  p.push(...fill(4, 1, 3, 4, 4, 3, "minecraft:oak_log"));
+  for (const wx of [-2, 0, 2]) p.push(blk(wx, 2, -3, "minecraft:glass"));
+  p.push(blk(-4, 2, 0, "minecraft:glass"), blk(4, 2, 0, "minecraft:glass"));
+  p.push(...fill(-4, 4, -3, 4, 4, 3, "minecraft:oak_planks"));
+  p.push(...fill(-4, 5, 2, 4, 5, 3, "minecraft:oak_planks"));
+  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
+  p.push(blk(-2, 1, 0, "minecraft:crafting_table"));
+  p.push(blk(2, 1, 0, "minecraft:lectern"));
+  p.push(blk(0, 1, -1, "minecraft:sea_lantern"));
+  for (let x = -3; x <= 3; x++) p.push(blk(x, 1, 3, "minecraft:iron_bars"));
+  return p;
+}
+function treasuryBlueprint() {
+  const p = [];
+  p.push(...fill(-3, 1, -3, 3, 6, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:deepslate_bricks"));
+  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:deepslate_bricks"));
+  p.push(...ring(-2, -2, 2, 2, 1, 4, "minecraft:deepslate_bricks"));
+  for (let y = 1; y <= 2; y++) {
+    p.push(blk(0, y, 3, "minecraft:air"));
+    p.push(blk(0, y, 2, "minecraft:air"));
+  }
+  p.push(blk(-1, 1, 2, "minecraft:iron_bars"), blk(1, 1, 2, "minecraft:iron_bars"));
+  p.push(blk(-1, 2, 2, "minecraft:iron_bars"), blk(1, 2, 2, "minecraft:iron_bars"));
+  p.push(blk(3, 4, 0, "minecraft:air"), blk(-3, 4, 0, "minecraft:air"));
+  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:deepslate_bricks"));
+  for (let x = -3; x <= 3; x += 2) {
+    p.push(blk(x, 6, -3, "minecraft:deepslate_bricks"));
+    p.push(blk(x, 6, 3, "minecraft:deepslate_bricks"));
+  }
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-3, 6, z, "minecraft:deepslate_bricks"));
+    p.push(blk(3, 6, z, "minecraft:deepslate_bricks"));
+  }
+  p.push(blk(-1, 1, -2, "minecraft:gold_block"), blk(1, 1, -2, "minecraft:gold_block"));
+  p.push(blk(0, 1, -2, "minecraft:gold_block"));
+  p.push(blk(-1, 1, 0, "minecraft:chest"), blk(1, 1, 0, "minecraft:chest"));
+  p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
+  return p;
+}
+var BLUEPRINTS = {
+  "kingdoms:town_hall": townHallBlueprint,
+  "kingdoms:barracks": barracksBlueprint,
+  "kingdoms:market": marketBlueprint,
+  "kingdoms:granary": granaryBlueprint,
+  "kingdoms:blacksmith": blacksmithBlueprint,
+  "kingdoms:trade_station": tradeStationBlueprint,
+  "kingdoms:treasury": treasuryBlueprint
+};
+function generateStructure(dimension, origin, blockTypeId) {
+  const blueprint = BLUEPRINTS[blockTypeId];
+  if (!blueprint) return;
+  const placements = blueprint();
+  for (const bp of placements) {
+    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
+    try {
+      const loc = {
+        x: origin.x + bp.x,
+        y: origin.y + bp.y,
+        z: origin.z + bp.z
+      };
+      dimension.getBlock(loc)?.setType(bp.b);
+    } catch {
+    }
+  }
+}
+
 // src/main.ts
 var CUSTOM_BLOCKS = {
   TOWN_HALL: "kingdoms:town_hall",
@@ -4493,6 +4740,14 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       saveVillage(village);
       notifyPlayer(player.name, `\xA7aVillage Treasury registered for \xA7b${village.name}\xA7a.`);
     }
+  }
+  if (STRUCTURE_BLOCK_IDS.has(typeId)) {
+    const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
+    const dimension = block.dimension;
+    notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace("_", " ")}\xA77\u2026`);
+    system3.run(() => {
+      generateStructure(dimension, origin, typeId);
+    });
   }
 });
 var MENU_COOLDOWN_TICKS = 10;

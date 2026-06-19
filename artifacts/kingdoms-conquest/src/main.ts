@@ -87,6 +87,7 @@ import {
   TROOP_TOKEN_MAP,
 } from "./systems/deployTroops.js";
 import type { GuardPoleType } from "./types/index.js";
+import { generateStructure, STRUCTURE_BLOCK_IDS } from "./systems/structureBuilder.js";
 
 const CUSTOM_BLOCKS = {
   TOWN_HALL: "kingdoms:town_hall",
@@ -174,6 +175,16 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
       saveVillage(village);
       notifyPlayer(player.name, `§aVillage Treasury registered for §b${village.name}§a.`);
     }
+  }
+
+  // Generate multi-block structure for any kingdoms structure block
+  if (STRUCTURE_BLOCK_IDS.has(typeId)) {
+    const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
+    const dimension = block.dimension;
+    notifyPlayer(player.name, `§7Building §b${typeId.replace("kingdoms:", "").replace("_", " ")}§7…`);
+    system.run(() => {
+      generateStructure(dimension, origin, typeId);
+    });
   }
 });
 
