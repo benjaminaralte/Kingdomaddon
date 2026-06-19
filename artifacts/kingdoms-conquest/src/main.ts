@@ -177,32 +177,53 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
   }
 });
 
-world.afterEvents.itemUseOn.subscribe((event) => {
+// Per-player debounce: prevents rapid duplicate menu opens.
+// playerInteractWithBlock fires once per press, but the guard handles edge cases
+// (e.g. slight timing delays between the event and form.show() async setup).
+const MENU_COOLDOWN_TICKS = 10;
+const lastMenuTick = new Map<string, number>();
+
+function canOpenMenu(playerName: string): boolean {
+  const tick = getCurrentTick();
+  const last = lastMenuTick.get(playerName) ?? -99;
+  if (tick - last < MENU_COOLDOWN_TICKS) return false;
+  lastMenuTick.set(playerName, tick);
+  return true;
+}
+
+// Use itemStartUseOn (fires exactly ONCE when the player first presses use on a block).
+// The old itemUseOn fired every tick while the button was held, causing
+// menus to spam-open on every interaction.
+world.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
+  const itemStack = event.itemStack;
   if (!player) return;
 
   const typeId = block.typeId;
-  const heldItem = event.itemStack;
 
-  if (typeId === CUSTOM_BLOCKS.GRANARY && heldItem) {
+  // ── Quick deposit shortcuts (instant actions — no cooldown needed) ──────
+  if (typeId === CUSTOM_BLOCKS.GRANARY && itemStack) {
     const village = findVillageAt(block.location);
     if (village && village.owner === player.name) {
-      const foodEntry = FOOD_SELL_RATES.find((e) => e.itemId === heldItem.typeId);
+      const foodEntry = FOOD_SELL_RATES.find((e) => e.itemId === itemStack.typeId);
       if (foodEntry) {
-        depositPlayerItemsToGranary(player, village, heldItem.typeId, 64);
+        depositPlayerItemsToGranary(player, village, itemStack.typeId, 64);
         return;
       }
     }
   }
 
-  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK && heldItem?.typeId === "minecraft:emerald") {
+  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK && itemStack?.typeId === "minecraft:emerald") {
     const village = findVillageAt(block.location);
     if (village && village.owner === player.name) {
-      depositEmeralds(player, village.id, heldItem.amount);
+      depositEmeralds(player, village.id, itemStack.amount);
       return;
     }
   }
+
+  // ── Block menus (debounced to prevent accidental double-opens) ───────────
+  if (!canOpenMenu(player.name)) return;
 
   switch (typeId) {
     case CUSTOM_BLOCKS.TOWN_HALL:
@@ -1145,7 +1166,8 @@ async function showTradeStationMenu(
       .button("📦 Dispatch Resources")
       .button("🗡 Dispatch Reinforcements")
       .button("📊 Resource Storage")
-      .button("🚂 Active Shipments");
+      .button("🚂 Active Shipments")
+      .button("📋 Trade History");
   } else {
     form.button("Close");
   }
@@ -1158,6 +1180,7 @@ async function showTradeStationMenu(
     case 1: await showDispatchMilitaryMenu(player, village.id); break;
     case 2: await showResourceStorageMenu(player, village.id); break;
     case 3: await showActiveShipmentsMenu(player, village.id); break;
+    case 4: await showTradeHistoryMenu(player, village.id); break;
   }
 }
 
@@ -1377,6 +1400,46 @@ async function showActiveShipmentsMenu(
   const form = new ActionFormData()
     .title(`${village.name} — Active Shipments`)
     .body(`§b${railCarts.length} rail shipment(s) in transit:\n\n§f${lines}\n\n§7Shipments travel physically. If destroyed, cargo is lost.`)
+    .button("Close");
+
+  await form.show(player);
+}
+
+async function showTradeHistoryMenu(
+  player: import("@minecraft/server").Player,
+  villageId: string
+): Promise<void> {
+  const village = getVillage(villageId);
+  if (!village) return;
+
+  const history = village.tradeHistory ?? [];
+
+  if (history.length === 0) {
+    const form = new ActionFormData()
+      .title(`${village.name} — Trade History`)
+      .body("§7No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.")
+      .button("Close");
+    await form.show(player);
+    return;
+  }
+
+  const now = Date.now();
+  const lines = history.map((entry, i) => {
+    const icon = entry.isManual ? "🚂" : "📦";
+    const minsAgo = Math.round((now - entry.timestamp) / 60_000);
+    const timeLabel =
+      minsAgo < 1
+        ? "just now"
+        : minsAgo < 60
+        ? `${minsAgo}m ago`
+        : `${Math.floor(minsAgo / 60)}h ${minsAgo % 60}m ago`;
+    const label = i === 0 ? " §a(latest)" : "";
+    return `§e${icon} #${i + 1}${label}\n§7From: §f${entry.fromVillageName}\n§7Cargo: §f${entry.summary}\n§8${timeLabel}`;
+  });
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Trade History`)
+    .body(`§bLast ${history.length} arrival(s):\n\n` + lines.join("\n\n"))
     .button("Close");
 
   await form.show(player);

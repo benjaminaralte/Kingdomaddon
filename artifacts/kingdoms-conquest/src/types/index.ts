@@ -34,6 +34,13 @@ export interface GuardPoleData {
   entityIds: string[];
 }
 
+export interface TradeHistoryEntry {
+  timestamp: number;
+  fromVillageName: string;
+  summary: string;
+  isManual: boolean;
+}
+
 export interface TradePoleData {
   id: string;
   location: Vec3;
@@ -128,6 +135,7 @@ export interface VillageData {
   trainingQueue: TrainingJob[];
   fieldStorage?: Record<string, number>;
   fieldWorkerLevel?: number;
+  tradeHistory?: TradeHistoryEntry[];
 }
 
 export interface KingdomData {

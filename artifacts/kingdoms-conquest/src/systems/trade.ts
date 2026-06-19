@@ -1,5 +1,5 @@
 import { world, EntityInventoryComponent } from "@minecraft/server";
-import type { VillageData, TradeCartData, TradeCartCargo, ResourceStorage } from "../types/index.js";
+import type { VillageData, TradeCartData, TradeCartCargo, ResourceStorage, TradeHistoryEntry } from "../types/index.js";
 import { getVillage, saveVillage, getAllVillages } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 import { getCargoSummary, ensureResourceStorage } from "./tradeStation.js";
@@ -194,6 +194,29 @@ export function sendRailShipment(
   return true;
 }
 
+// ── Trade History ─────────────────────────────────────────────────────────────
+
+const MAX_HISTORY_ENTRIES = 10;
+
+function recordTradeHistory(
+  village: VillageData,
+  fromVillageName: string,
+  summary: string,
+  isManual: boolean
+): void {
+  village.tradeHistory ??= [];
+  const entry: TradeHistoryEntry = {
+    timestamp: Date.now(),
+    fromVillageName,
+    summary,
+    isManual,
+  };
+  village.tradeHistory.unshift(entry);
+  if (village.tradeHistory.length > MAX_HISTORY_ENTRIES) {
+    village.tradeHistory.length = MAX_HISTORY_ENTRIES;
+  }
+}
+
 // ── Trade Station Detector ─────────────────────────────────────────────────────
 
 /**
@@ -289,6 +312,7 @@ function deliverTaggedMinecart(
   if (srcVillage && srcVillage.owner !== destVillage.owner) {
     notifyPlayer(srcVillage.owner, `§a📦 Shipment delivered to §b${destVillage.name}§a.`);
   }
+  recordTradeHistory(destVillage, srcVillage?.name ?? "Unknown", summary, false);
   return true;
 }
 
@@ -329,9 +353,11 @@ function extractUntaggedMinecart(
 
   try { cart.remove(); } catch { /* already gone */ }
 
+  const receivedSummary = received.join(", ");
   notifyPlayer(
     village.owner,
-    `§a🚂 Minecart arrived at §b${village.name}§a's trade station! Received: ${received.join(", ")}`
+    `§a🚂 Minecart arrived at §b${village.name}§a's trade station! Received: ${receivedSummary}`
   );
+  recordTradeHistory(village, "Manual Delivery", receivedSummary, true);
   return true;
 }
