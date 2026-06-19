@@ -1,0 +1,39 @@
+tile.kingdoms:town_hall.name=Town Hall
+tile.kingdoms:guard_pole_village.name=Village Guard Pole
+tile.kingdoms:guard_pole_gate.name=Gate Guard Pole
+tile.kingdoms:guard_pole_road.name=Road Guard Pole
+tile.kingdoms:guard_pole_watchtower.name=Watchtower Pole
+tile.kingdoms:trade_pole.name=Trade Pole
+tile.kingdoms:barracks.name=Barracks
+tile.kingdoms:market.name=Market
+tile.kingdoms:granary.name=Granary
+tile.kingdoms:blacksmith.name=Blacksmith
+tile.kingdoms:trade_station.name=Trade Station
+tile.kingdoms:treasury.name=Treasury
+
+item.kingdoms:town_hall_item.name=Town Hall
+item.kingdoms:treasury_item.name=Treasury
+item.kingdoms:guard_pole_village_item.name=Village Guard Pole
+item.kingdoms:guard_pole_watchtower_item.name=Watchtower Pole
+item.kingdoms:trade_pole_item.name=Trade Pole
+item.kingdoms:barracks_item.name=Barracks
+item.kingdoms:market_item.name=Market
+item.kingdoms:granary_item.name=Granary
+item.kingdoms:blacksmith_item.name=Blacksmith
+item.kingdoms:trade_station_item.name=Trade Station
+
+item.kingdoms:recall_scroll.name=Recall Scroll
+
+item.kingdoms:guard_token.name=City Guard
+item.kingdoms:spearman_token.name=Spearman
+item.kingdoms:archer_token.name=Archer
+item.kingdoms:cavalry_token.name=Cavalry
+
+entity.kingdoms:merchant.name=Merchant
+entity.kingdoms:trade_cart.name=Trade Cart
+entity.kingdoms:city_guard.name=City Guard
+entity.kingdoms:spearman.name=Spearman
+entity.kingdoms:archer.name=Archer
+entity.kingdoms:cavalry.name=Cavalry
+entity.kingdoms:bandit.name=Bandit
+entity.kingdoms:military_transport.name=Military Transport

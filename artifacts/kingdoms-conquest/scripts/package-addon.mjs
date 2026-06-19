@@ -28,9 +28,7 @@ archive.on("error", (err) => {
 archive.pipe(output);
 
 const bpDir = join(root, "behavior_pack");
-const rpDir = join(root, "resource_pack");
 
 archive.directory(bpDir, "KingdomsConquest_BP");
-archive.directory(rpDir, "KingdomsConquest_RP");
 
 await archive.finalize();
