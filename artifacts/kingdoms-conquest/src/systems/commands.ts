@@ -5,6 +5,7 @@ import { getVillageSummary } from "./village.js";
 import { getKingdomSummary, getKingdomOf, declareWar, makePeace, formAlliance, getKingdomStrength, areAtWar } from "./kingdom.js";
 import { recruitTroop, disbandTroop, upgradeBarracks, getTotalTroops } from "./military.js";
 import { isSiegeActive, getActiveSiege, initiateSiege } from "./conquest.js";
+import { getBanditCampSummary } from "./bandit.js";
 import { getGranaryFoodUnits, getGranaryReport, collectFieldStorage } from "./harvest.js";
 import { getTreasuryReport } from "./treasury.js";
 import { getBlacksmithSummary } from "./blacksmith.js";
@@ -109,6 +110,9 @@ function handleKcCommand(player: Player, subcommand: string, args: string[]): vo
     case "tutorial":
     case "guide":
       cmdTutorial(player, args[0]);
+      break;
+    case "bandits":
+      cmdBandits(player);
       break;
     default:
       notifyPlayer(player.name, `§cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
@@ -527,6 +531,12 @@ function cmdCollect(player: Player, idPrefix: string | undefined): void {
   if (!alertsEnabled) {
     notifyPlayer(player.name, `§7Tip: alerts are currently OFF. Use §f/scriptevent kc:alerts§7 to re-enable.`);
   }
+}
+
+function cmdBandits(player: Player): void {
+  const summary = getBanditCampSummary();
+  notifyPlayer(player.name, "§c═══ Active Bandit Camps ═══");
+  for (const line of summary.split("\n")) notifyPlayer(player.name, line);
 }
 
 // ── Tutorial System ───────────────────────────────────────────────────────────
