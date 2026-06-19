@@ -106,6 +106,10 @@ function handleKcCommand(player: Player, subcommand: string, args: string[]): vo
     case "collect":
       cmdCollect(player, args[0]);
       break;
+    case "tutorial":
+    case "guide":
+      cmdTutorial(player, args[0]);
+      break;
     default:
       notifyPlayer(player.name, `§cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -115,6 +119,7 @@ function showHelp(player: Player): void {
   const lines = [
     "§b=== Kingdoms & Conquest Commands ===§r",
     "§e/scriptevent kc:help§r — this list",
+    "§e/scriptevent kc:tutorial§r — §aIN-GAME TUTORIAL (start here!)§r",
     "§e/scriptevent kc:status§r — your villages & kingdom",
     "§e/scriptevent kc:kingdom§r — full kingdom overview",
     "§e/scriptevent kc:villages§r — list all your villages",
@@ -523,6 +528,285 @@ function cmdCollect(player: Player, idPrefix: string | undefined): void {
     notifyPlayer(player.name, `§7Tip: alerts are currently OFF. Use §f/scriptevent kc:alerts§7 to re-enable.`);
   }
 }
+
+// ── Tutorial System ───────────────────────────────────────────────────────────
+
+function cmdTutorial(player: Player, topic: string | undefined): void {
+  const send = (msg: string) => notifyPlayer(player.name, msg);
+
+  const TOPICS: Record<string, string> = {
+    start:    "Getting Started",
+    claim:    "Getting Started",
+    recruit:  "Recruiting Troops",
+    troops:   "Recruiting Troops",
+    upgrade:  "Upgrades",
+    upgrades: "Upgrades",
+    farm:     "Farming & Granary",
+    granary:  "Farming & Granary",
+    siege:    "Siege & Conquest",
+    occupy:   "Siege & Conquest",
+    trade:    "Trade Stations",
+    rail:     "Trade Stations",
+    diplo:    "Diplomacy",
+    war:      "Diplomacy",
+  };
+
+  if (!topic) {
+    send("§b╔══════ Kingdoms & Conquest — Tutorial ══════╗");
+    send("§b║  §eRun a topic command to see the guide:§b      ║");
+    send("§b║  §f/scriptevent kc:tutorial start§b             ║");
+    send("§b║  §f/scriptevent kc:tutorial recruit§b           ║");
+    send("§b║  §f/scriptevent kc:tutorial upgrade§b           ║");
+    send("§b║  §f/scriptevent kc:tutorial farm§b              ║");
+    send("§b║  §f/scriptevent kc:tutorial siege§b             ║");
+    send("§b║  §f/scriptevent kc:tutorial trade§b             ║");
+    send("§b║  §f/scriptevent kc:tutorial diplo§b             ║");
+    send("§b╚════════════════════════════════════════════╝");
+    return;
+  }
+
+  const resolvedName = TOPICS[topic.toLowerCase()];
+  if (!resolvedName) {
+    send(`§cUnknown tutorial topic: "${topic}". Run /scriptevent kc:tutorial to see topics.`);
+    return;
+  }
+
+  switch (resolvedName) {
+    case "Getting Started":     tutorialStart(player); break;
+    case "Recruiting Troops":   tutorialRecruit(player); break;
+    case "Upgrades":            tutorialUpgrades(player); break;
+    case "Farming & Granary":   tutorialFarm(player); break;
+    case "Siege & Conquest":    tutorialSiege(player); break;
+    case "Trade Stations":      tutorialTrade(player); break;
+    case "Diplomacy":           tutorialDiplo(player); break;
+  }
+}
+
+function tutorialStart(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Getting Started ════════");
+  s("§e Step 1 — Claim Your Village");
+  s("§f  • Craft/obtain a §bkingdoms:town_hall§f block.");
+  s("§f  • Place it anywhere in the world.");
+  s("§f  • A form appears — enter your Kingdom Name and Village Name.");
+  s("§f  • Your kingdom is now created. The Town Hall block is your village hub.");
+  s("§e Step 2 — Place Your Buildings");
+  s("§f  • Tap each building block to open its menu:");
+  s("§f    §a🏛 Town Hall§f — kingdom overview, diplomacy, treasury, merchants");
+  s("§f    §a⚔ Barracks§f  — recruit, train, upgrade troops");
+  s("§f    §a🏪 Market§f   — sell food, buy seeds, upgrade market");
+  s("§f    §a🔨 Blacksmith§f — upgrade weapon & armor tiers");
+  s("§f    §a🌾 Granary§f  — food storage, field harvest, field worker upgrades");
+  s("§f    §a💎 Treasury§f — deposit emeralds, view balance");
+  s("§f    §a🚉 Trade Station§f — dispatch & receive rail shipments");
+  s("§e Step 3 — Fund Your Village");
+  s("§f  • Hold §6emeralds§f and tap your §bTreasury§f to deposit instantly.");
+  s("§f  • Hold §afood§f and tap your §bGranary§f to deposit instantly.");
+  s("§e Step 4 — Assign Workers");
+  s("§f  • Run: §e/scriptevent kc:workers <villageId> f:5 w:2");
+  s("§f  • Farmers produce crops each game day. Workers build village speed.");
+  s("§f  • Available workers = population − troops assigned.");
+  s("§7  Tip: run /scriptevent kc:status to see your village IDs.");
+  s("§b══════════════════════════════════════════");
+}
+
+function tutorialRecruit(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Recruiting Troops ════════");
+  s("§e Method 1 — Barracks Menu (Tap the Barracks block)");
+  s("§f  Buttons you'll see:");
+  s("§f  • §aRecruit City Guard§f (5💎) — sturdy, cheap defenders");
+  s("§f  • §aRecruit Spearman§f (8💎) — medium infantry");
+  s("§f  • §aRecruit Archer§f (8💎) — ranged, good vs cavalry");
+  s("§f  • §aRecruit Cavalry§f (12💎) — fast, high damage");
+  s("§f  Troops are paid from the village §btreasury§f (emeralds).");
+  s("§e Method 2 — Command Line");
+  s("§f  /scriptevent kc:recruit <villageId> cityGuards 5");
+  s("§f  /scriptevent kc:recruit <villageId> spearmen 3");
+  s("§f  /scriptevent kc:recruit <villageId> archers 3");
+  s("§f  /scriptevent kc:recruit <villageId> cavalry 2");
+  s("§e Picking Up Troops (Deploy to Battle)");
+  s("§f  • Open Barracks → tap §b⚔ Pick Up Troops§f.");
+  s("§f  • Use sliders to choose how many of each type to carry.");
+  s("§f  • Troops are added to your §binventory§f as troop tokens.");
+  s("§f  • Tokens are §4consumed§f when you use them (recall scroll or deploy).");
+  s("§e Returning Troops");
+  s("§f  • Open Barracks → §b🏹 Return Troops to Barracks§f.");
+  s("§f  • Returns all troop tokens in your inventory back to the garrison.");
+  s("§e Training Queue");
+  s("§f  • Open Barracks → §b🪖 Train Troops§f.");
+  s("§f  • Choose type & amount — they train over time and auto-join garrison.");
+  s("§f  • Queue holds up to 10 batches. Higher barracks level = faster training.");
+  s("§e Disbanding");
+  s("§f  • Open Barracks → §cDisband 1 Guard/Spearman§f.");
+  s("§f  • Or command: §e/scriptevent kc:disband <id> cityGuards 2");
+  s("§b══════════════════════════════════════════");
+}
+
+function tutorialUpgrades(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Upgrades ════════");
+  s("§e 1 — Barracks Upgrade");
+  s("§f  Tap Barracks → §aUpgrade Barracks§f (cost: level × 15💎).");
+  s("§f  Each level increases training speed and troop capacity.");
+  s("§f  Or: §e/scriptevent kc:barracks <villageId>");
+  s("§e 2 — Blacksmith: Weapons & Armor");
+  s("§f  Tap Blacksmith block → §aUpgrade Weapons§f or §aUpgrade Armor§f.");
+  s("§f  Each tier costs more emeralds. Higher tiers increase combat power.");
+  s("§f  Max Lv5 for each. View current tier: §e/scriptevent kc:blacksmith <id>");
+  s("§e 3 — Market Upgrade");
+  s("§f  Tap Market → §aUpgrade Market§f (cost: level × 20💎).");
+  s("§f  Higher level = more merchant slots + better seed variety.");
+  s("§e 4 — Field Worker Upgrade (Farming)");
+  s("§f  Tap Granary → §a⬆ Upgrade Field Workers§f (20💎 per level).");
+  s("§f  Max Lv5. Each level adds +50 crops that NPCs auto-harvest per day.");
+  s("§f  Lv0 = 50 crops/day cap.  Lv5 = 300 crops/day cap.");
+  s("§e 5 — Population Growth (automatic)");
+  s("§f  Population grows automatically when food is plentiful.");
+  s("§f  More population = more available workers & troops.");
+  s("§e Upgrade Priority Suggestion:");
+  s("§f  Barracks Lv2 → Field Workers Lv2 → Blacksmith Lv2 → Market Lv2");
+  s("§f  Then push all to Lv5 for full power.");
+  s("§b══════════════════════════════════════════");
+}
+
+function tutorialFarm(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Farming & Granary ════════");
+  s("§e How Food Works");
+  s("§f  Food sustains your population. Low food → shortage stages → population drop.");
+  s("§f  Two food pools:");
+  s("§f  • §bfoodStorage§f — village's direct food reserve (feeds population)");
+  s("§f  • §bfieldStorage§f — NPC field harvest buffer (you collect it to granary)");
+  s("§e Depositing Food (instant shortcut)");
+  s("§f  Hold any food item and §aTap your Granary block§f.");
+  s("§f  Deposits up to 64 at once directly to granary storage.");
+  s("§e NPC Auto-Harvest (every game day ~24000 ticks)");
+  s("§f  Assigned §bfarmers§f auto-harvest crops into §bfieldStorage§f buffer.");
+  s("§f  Daily cap = 50 + (Field Worker Level × 50) crops.");
+  s("§f  You must collect field storage to move it into the village food supply.");
+  s("§e Collecting Field Harvest");
+  s("§f  Tap Granary → §a🌾 Collect Field Harvest§f — moves field buffer → your inventory.");
+  s("§f  Or command: §e/scriptevent kc:collect <villageId>");
+  s("§e Viewing Field Storage");
+  s("§f  Tap Granary → §a📦 View Field Storage§f — shows what's buffered.");
+  s("§e Player Manual Harvest");
+  s("§f  Break a fully-grown crop inside your village territory.");
+  s("§f  Crops go §adirectly into the granary§f (not your inventory).");
+  s("§f  Use §e/scriptevent kc:granary§f to see current levels.");
+  s("§e Selling Food");
+  s("§f  Tap Market → §a🌾 Sell Food (bulk)§f — converts granary food to emeralds.");
+  s("§f  Or: §a💰 Sell Food (abstract, 10💎/10)§f — instant sale from village reserve.");
+  s("§e Seed Shop");
+  s("§f  Tap Market → §a🌱 Seed Shop§f — buy seeds with emeralds from your inventory.");
+  s("§f  Plant them near your village. Farmers will auto-harvest when grown.");
+  s("§b══════════════════════════════════════════");
+}
+
+function tutorialSiege(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Siege & Conquest ════════");
+  s("§e Step 1 — Declare War");
+  s("§f  You must be at war before sieging.");
+  s("§f  Command: §e/scriptevent kc:war <KingdomName>");
+  s("§f  Example: §e/scriptevent kc:war IronKingdom");
+  s("§f  See all kingdoms: §e/scriptevent kc:kingdoms");
+  s("§e Step 2 — Enter Enemy Territory");
+  s("§f  Walk inside the border of an enemy village (within ~64 blocks of their Town Hall).");
+  s("§f  You'll see a §ccountdown alert§f — stay inside to become §4siege-eligible§r.");
+  s("§f  Check your status: §e/scriptevent kc:border");
+  s("§e Step 3 — Initiate Siege");
+  s("§f  Once eligible, run: §e/scriptevent kc:siege <VillageName>");
+  s("§f  Example: §e/scriptevent kc:siege Redfort");
+  s("§f  A siege begins. Progress builds over time (0–600 ticks to capture).");
+  s("§e Step 4 — Siege Progress");
+  s("§f  • Remain inside the border to advance progress.");
+  s("§f  • Leaving pauses or slows the siege.");
+  s("§f  • Defenders can fight you off — getting killed stops the siege.");
+  s("§f  • Watch your siege % with: §e/scriptevent kc:map");
+  s("§e Step 5 — Capture / Occupy");
+  s("§f  When siege reaches 100%, the village is §bcaptured§f and joins your kingdom.");
+  s("§f  §6Alternative — Break the Town Hall:§f");
+  s("§f  • Breaking an §cenemy§f Town Hall while at war = §4instant capture§f.");
+  s("§f  • The village owner is changed to you immediately.");
+  s("§f  • Defenders will be notified. Enemy troops at that village become neutral.");
+  s("§e Defending Against a Siege");
+  s("§f  • You'll receive §calerts§f (if alerts are on) when enemies enter your border.");
+  s("§f  • Return to your village and eliminate the invader to cancel the siege.");
+  s("§f  • Toggle alerts: §e/scriptevent kc:alerts");
+  s("§e Peace & Alliance");
+  s("§f  End war: §e/scriptevent kc:peace <KingdomName>");
+  s("§f  Form alliance: §e/scriptevent kc:ally <KingdomName>");
+  s("§b══════════════════════════════════════════");
+}
+
+function tutorialTrade(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Trade Stations ════════");
+  s("§e Setup");
+  s("§f  • Place a §bkingdoms:trade_station§f block in your village.");
+  s("§f  • Do the same in the village you want to trade with.");
+  s("§f  • Connect them with §bMinecraft rail tracks§f. No poles needed.");
+  s("§e Dispatching Resources (KC Shipment)");
+  s("§f  1. Tap your Trade Station → §a📦 Dispatch Resources§f.");
+  s("§f  2. Pick a destination village from the list.");
+  s("§f  3. Enter amounts for food, emeralds, iron, etc.");
+  s("§f  4. Resources are deducted immediately; a §bchest minecart§f spawns at your station.");
+  s("§f  5. Push the minecart onto the rail toward the destination.");
+  s("§f  6. When it arrives within ~5 blocks of the destination station, it delivers automatically.");
+  s("§e Dispatching Troops (KC Military)");
+  s("§f  Tap Trade Station → §a🗡 Dispatch Reinforcements§f.");
+  s("§f  Works the same as resources — troop tokens are sent as a minecart cargo.");
+  s("§e Manual Delivery (Untagged Minecart)");
+  s("§f  • Place a chest minecart and fill it with items from your inventory.");
+  s("§f  • Push it to any allied village's trade station.");
+  s("§f  • The station auto-detects it and converts items:");
+  s("§f    §6Emerald §f→ treasury  |  §7Iron Ingot §f→ iron storage");
+  s("§f    §6Gold Ingot §f→ gold  |  §8Coal §f→ coal  |  §aAny Log §f→ wood");
+  s("§f    §7Stone/Cobblestone §f→ stone  |  §bDiamond §f→ diamonds");
+  s("§f    §aFood items §f→ food storage");
+  s("§e Viewing Shipments");
+  s("§f  Tap Trade Station → §a🚂 Active Shipments§f — see carts you dispatched.");
+  s("§f  Tap Trade Station → §a📋 Trade History§f — last 10 arrivals at this station.");
+  s("§e Resource Storage");
+  s("§f  Tap Trade Station → §a📊 Resource Storage§f — view iron/gold/coal/wood/stone balance.");
+  s("§7  Tip: resources in storage are used automatically by production buildings.");
+  s("§b══════════════════════════════════════════");
+}
+
+function tutorialDiplo(player: Player): void {
+  const s = (m: string) => notifyPlayer(player.name, m);
+  s("§b════════ Tutorial: Diplomacy ════════");
+  s("§e See All Kingdoms");
+  s("§f  /scriptevent kc:kingdoms — list all active kingdoms");
+  s("§f  /scriptevent kc:intel <KingdomName> — scout their strength & villages");
+  s("§e Declaring War");
+  s("§f  /scriptevent kc:war <KingdomName>");
+  s("§f  • Required before you can siege enemy villages.");
+  s("§f  • Both kingdoms are notified. Alert system fires for defenders.");
+  s("§e Making Peace");
+  s("§f  /scriptevent kc:peace <KingdomName>");
+  s("§f  • Ends all active sieges between the two kingdoms.");
+  s("§f  • Both sides receive the peace notification.");
+  s("§e Forming an Alliance");
+  s("§f  /scriptevent kc:ally <KingdomName>");
+  s("§f  • Allied kingdoms cannot siege each other.");
+  s("§f  • Trade between allies gets no restriction.");
+  s("§f  • Alliance remains until a war declaration breaks it.");
+  s("§e Diplomacy Menu (In-Game)");
+  s("§f  Tap your Town Hall → §aDiplomacy§f button.");
+  s("§f  Shows current wars, alliances, and quick action buttons.");
+  s("§e Kingdom Overview");
+  s("§f  Tap Town Hall → §aKingdom Overview§f.");
+  s("§f  Shows all your villages, total troops, food, treasury.");
+  s("§f  Or: §e/scriptevent kc:kingdom");
+  s("§e Alert System");
+  s("§f  You receive warnings when enemies enter your territory.");
+  s("§f  Toggle on/off: §e/scriptevent kc:alerts");
+  s("§b══════════════════════════════════════════");
+}
+
+// ── Village Resolution Helper ─────────────────────────────────────────────────
 
 function resolveVillage(player: Player, idPrefix: string | undefined): VillageData | undefined {
   const myVillages = getAllVillages().filter((v) => v.owner === player.name);
