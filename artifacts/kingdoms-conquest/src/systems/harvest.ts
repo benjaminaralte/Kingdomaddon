@@ -428,10 +428,37 @@ export function collectFieldStorage(player: Player, village: VillageData): numbe
 
 // ── NPC Auto-Harvest ──────────────────────────────────────────────────────────
 
-const MAX_AUTO_HARVESTS_PER_CYCLE = 50;
 const AUTO_HARVEST_SCAN_RADIUS = 16;
 const AUTO_HARVEST_SCAN_STEP = 2;
 const AUTO_HARVEST_Y_RANGE = 3;
+const FIELD_WORKER_UPGRADE_COST = 20;
+const FIELD_WORKER_MAX_LEVEL = 5;
+const FIELD_WORKER_CAP_PER_LEVEL = 50;
+
+function getHarvestCap(village: VillageData): number {
+  return FIELD_WORKER_CAP_PER_LEVEL + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_CAP_PER_LEVEL;
+}
+
+export function upgradeFieldWorkers(village: VillageData): boolean {
+  const currentLevel = village.fieldWorkerLevel ?? 0;
+  if (currentLevel >= FIELD_WORKER_MAX_LEVEL) {
+    notifyPlayer(village.owner, "§cField Workers are already at maximum level (Lv5).");
+    return false;
+  }
+  if (village.treasury < FIELD_WORKER_UPGRADE_COST) {
+    notifyPlayer(village.owner, `§cNeed §6${FIELD_WORKER_UPGRADE_COST}💎§c emeralds to upgrade Field Workers.`);
+    return false;
+  }
+  village.treasury -= FIELD_WORKER_UPGRADE_COST;
+  village.fieldWorkerLevel = currentLevel + 1;
+  saveVillage(village);
+  const newCap = getHarvestCap(village);
+  notifyPlayer(
+    village.owner,
+    `§aField Workers upgraded to §bLv${village.fieldWorkerLevel}§a in §b${village.name}§a! NPC farmers now harvest up to §f${newCap}§a crops per day.`
+  );
+  return true;
+}
 
 /**
  * Simulates NPC farmers harvesting ripe crops within the village bounds.
@@ -446,6 +473,7 @@ export function autoHarvestVillage(village: VillageData): void {
   const cz = Math.floor(village.townHallLocation.z);
   const baseY = Math.floor(village.townHallLocation.y);
 
+  const harvestCap = getHarvestCap(village);
   let harvestCount = 0;
   let anyAdded = false;
 
@@ -459,7 +487,7 @@ export function autoHarvestVillage(village: VillageData): void {
       z <= cz + AUTO_HARVEST_SCAN_RADIUS;
       z += AUTO_HARVEST_SCAN_STEP
     ) {
-      if (harvestCount >= MAX_AUTO_HARVESTS_PER_CYCLE) break outer;
+      if (harvestCount >= harvestCap) break outer;
       for (let y = baseY - AUTO_HARVEST_Y_RANGE; y <= baseY + AUTO_HARVEST_Y_RANGE; y++) {
         try {
           const block = dim.getBlock({ x, y, z });

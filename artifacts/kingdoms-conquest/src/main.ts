@@ -17,6 +17,7 @@ import {
   getFieldStorageReport,
   getFieldStorageTotal,
   autoHarvestAllVillages,
+  upgradeFieldWorkers,
 } from "./systems/harvest.js";
 import { registerCommands } from "./systems/commands.js";
 import {
@@ -39,7 +40,7 @@ import {
   FOOD_SELL_RATES,
 } from "./systems/market.js";
 import { tickBandits } from "./systems/bandit.js";
-import { tickTradeCarts, registerTradePole, removeTradePole, sendTradeCart, sendRailShipment } from "./systems/trade.js";
+import { tickTradeStations, sendTradeCart, sendRailShipment } from "./systems/trade.js";
 import {
   queueTraining,
   tickTraining,
@@ -138,19 +139,6 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     }
     const poleType = typeMap[typeId] ?? "village";
     registerGuardPole(village, block.location, poleType);
-  }
-
-  if (typeId === CUSTOM_BLOCKS.TRADE_POLE) {
-    const village = findVillageAt(block.location);
-    if (!village) {
-      notifyPlayer(player.name, "§cNo village territory here. Claim a village first.");
-      return;
-    }
-    if (village.owner !== player.name) {
-      notifyPlayer(player.name, "§cThis is not your village.");
-      return;
-    }
-    registerTradePole(village, block.location);
   }
 
   if (typeId === CUSTOM_BLOCKS.TRADE_STATION) {
@@ -277,22 +265,6 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     }
   }
 
-  if (typeId === CUSTOM_BLOCKS.TRADE_POLE) {
-    const village = findVillageAt(blockLoc);
-    if (village) {
-      const pole = village.tradePoles.find(
-        (p) =>
-          p.location.x === blockLoc.x &&
-          p.location.y === blockLoc.y &&
-          p.location.z === blockLoc.z
-      );
-      if (pole) {
-        removeTradePole(village, pole.id);
-        notifyPlayer(player.name, `§eTrade pole removed.`);
-      }
-    }
-  }
-
   if (typeId === CUSTOM_BLOCKS.TRADE_STATION) {
     const village = findVillageAt(blockLoc);
     if (village) {
@@ -329,7 +301,7 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 system.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
-  tickTradeCarts(tick);
+  tickTradeStations(tick);
   tickSieges(tick);
   tickBorders(tick);
   tickAutoDefense(tick);
@@ -814,9 +786,15 @@ async function showGranaryStorageMenu(
     form.button(`Withdraw 8x ${item.replace("minecraft:", "")}`);
     withdrawable.push(item);
   }
+  const fwLevel = village.fieldWorkerLevel ?? 0;
+  const fwBtn = fwLevel >= 5
+    ? `🧑‍🌾 Field Workers Lv5 (maxed)`
+    : `⬆ Upgrade Field Workers Lv${fwLevel}→${fwLevel + 1} (20💎)`;
+
   form.button("Deposit Food from Inventory");
   form.button(fieldBtn);
   form.button("📦 View Field Storage");
+  form.button(fwBtn);
   form.button("Close");
 
   const response = await form.show(player);
@@ -831,6 +809,8 @@ async function showGranaryStorageMenu(
   } else if (response.selection === withdrawable.length + 2) {
     const rpt = getFieldStorageReport(village);
     for (const line of rpt.split("\n")) notifyPlayer(player.name, line);
+  } else if (response.selection === withdrawable.length + 3) {
+    upgradeFieldWorkers(village);
   }
 }
 

@@ -127,6 +127,7 @@ export interface VillageData {
   resourceStorage: ResourceStorage;
   trainingQueue: TrainingJob[];
   fieldStorage?: Record<string, number>;
+  fieldWorkerLevel?: number;
 }
 
 export interface KingdomData {
