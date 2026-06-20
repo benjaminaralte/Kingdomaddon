@@ -53,19 +53,19 @@ export interface FoodSellEntry {
 }
 
 export const FOOD_SELL_RATES: FoodSellEntry[] = [
-  { itemId: "minecraft:wheat",           label: "Wheat",         itemsPerEmerald: 8,  minBatch: 16 },
-  { itemId: "minecraft:carrot",          label: "Carrot",        itemsPerEmerald: 6,  minBatch: 16 },
-  { itemId: "minecraft:potato",          label: "Potato",        itemsPerEmerald: 8,  minBatch: 16 },
-  { itemId: "minecraft:baked_potato",    label: "Baked Potato",  itemsPerEmerald: 5,  minBatch: 16 },
-  { itemId: "minecraft:bread",           label: "Bread",         itemsPerEmerald: 3,  minBatch: 8  },
-  { itemId: "minecraft:beetroot",        label: "Beetroot",      itemsPerEmerald: 10, minBatch: 16 },
-  { itemId: "minecraft:apple",           label: "Apple",         itemsPerEmerald: 6,  minBatch: 16 },
-  { itemId: "minecraft:cooked_beef",     label: "Cooked Beef",   itemsPerEmerald: 2,  minBatch: 8  },
-  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork",   itemsPerEmerald: 2,  minBatch: 8  },
-  { itemId: "minecraft:cooked_chicken",  label: "Cooked Chicken",itemsPerEmerald: 3,  minBatch: 8  },
-  { itemId: "minecraft:cooked_mutton",   label: "Cooked Mutton", itemsPerEmerald: 3,  minBatch: 8  },
-  { itemId: "minecraft:cooked_salmon",   label: "Cooked Salmon", itemsPerEmerald: 3,  minBatch: 8  },
-  { itemId: "minecraft:melon_slice",     label: "Melon Slice",   itemsPerEmerald: 10, minBatch: 16 },
+  { itemId: "minecraft:wheat",           label: "Wheat",         itemsPerEmerald: 5,  minBatch: 10 },
+  { itemId: "minecraft:carrot",          label: "Carrot",        itemsPerEmerald: 4,  minBatch: 8  },
+  { itemId: "minecraft:potato",          label: "Potato",        itemsPerEmerald: 5,  minBatch: 10 },
+  { itemId: "minecraft:baked_potato",    label: "Baked Potato",  itemsPerEmerald: 3,  minBatch: 6  },
+  { itemId: "minecraft:bread",           label: "Bread",         itemsPerEmerald: 2,  minBatch: 4  },
+  { itemId: "minecraft:beetroot",        label: "Beetroot",      itemsPerEmerald: 6,  minBatch: 12 },
+  { itemId: "minecraft:apple",           label: "Apple",         itemsPerEmerald: 4,  minBatch: 8  },
+  { itemId: "minecraft:cooked_beef",     label: "Cooked Beef",   itemsPerEmerald: 1,  minBatch: 2  },
+  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork",   itemsPerEmerald: 1,  minBatch: 2  },
+  { itemId: "minecraft:cooked_chicken",  label: "Cooked Chicken",itemsPerEmerald: 2,  minBatch: 4  },
+  { itemId: "minecraft:cooked_mutton",   label: "Cooked Mutton", itemsPerEmerald: 2,  minBatch: 4  },
+  { itemId: "minecraft:cooked_salmon",   label: "Cooked Salmon", itemsPerEmerald: 2,  minBatch: 4  },
+  { itemId: "minecraft:melon_slice",     label: "Melon Slice",   itemsPerEmerald: 6,  minBatch: 12 },
 ];
 
 export function getMaxMerchants(village: VillageData): number {
@@ -255,15 +255,15 @@ function removeMerchant(village: VillageData, merchantEntityId: string): void {
 
 function getMerchantPrice(itemTypeId: string): number {
   const prices: Record<string, number> = {
-    "minecraft:iron_ingot": 1,
-    "minecraft:gold_ingot": 3,
-    "minecraft:diamond": 8,
-    "minecraft:coal": 1,
-    "minecraft:bread": 1,
-    "minecraft:cooked_beef": 1,
-    "minecraft:apple": 1,
+    "minecraft:iron_ingot":  3,
+    "minecraft:gold_ingot":  5,
+    "minecraft:diamond":     12,
+    "minecraft:coal":        2,
+    "minecraft:bread":       2,
+    "minecraft:cooked_beef": 2,
+    "minecraft:apple":       1,
   };
-  return prices[itemTypeId] ?? 2;
+  return prices[itemTypeId] ?? 3;
 }
 
 export function upgradeMarket(village: VillageData): boolean {

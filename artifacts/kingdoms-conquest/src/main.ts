@@ -72,7 +72,10 @@ import {
   withdrawEmeralds,
   getTreasuryReport,
 } from "./systems/treasury.js";
-import { upgradeWeapons, upgradeArmor, getBlacksmithSummary } from "./systems/blacksmith.js";
+import {
+  upgradeWeapons, upgradeArmor, getBlacksmithSummary,
+  craftForArmory, ARMORY_RECIPES, canCraftArmoryRecipe,
+} from "./systems/blacksmith.js";
 import { sendReinforcements } from "./systems/reinforcements.js";
 import {
   registerTradeStation,
@@ -497,34 +500,43 @@ async function showBarracksMenu(
   }
 
   const t = village.troops;
+  const hk = t.heavyKnight ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0);
 
   const tick = getCurrentTick();
   const queueSummary = getTrainingQueueSummary(village, tick);
   const queueCount = village.trainingQueue?.length ?? 0;
+  const rs = village.resourceStorage;
+
+  const hkLocked = village.barracksLevel < 3;
+  const hkLine = hkLocked
+    ? `§7Heavy Knights: §c${hk} §7(🔒 needs Barracks Lv3)`
+    : `§aHeavy Knights: ${hk}`;
 
   const form = new ActionFormData()
     .title(`${village.name} — Barracks Lv${village.barracksLevel}`)
     .body(
       `§7── Stationed ──\n` +
       `Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n` +
-      `Archers: ${t.archers}  Cavalry: ${t.cavalry}\n\n` +
+      `Archers: ${t.archers}  Cavalry: ${t.cavalry}\n` +
+      `${hkLine}\n\n` +
       `§7── Carried in Inventory ──\n` +
       `Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}\n` +
-      `Archers: ${carried.archers}  Cavalry: ${carried.cavalry}\n\n` +
+      `Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}\n\n` +
       `§7── Training Queue (${queueCount}/10) ──\n` +
       `${queueSummary}\n\n` +
-      `Treasury: ${village.treasury}💎  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}`
+      `Treasury: ${village.treasury}💎  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
     )
-    .button("Recruit City Guard (5💎)")
-    .button("Recruit Spearman (8💎)")
-    .button("Recruit Archer (8💎)")
-    .button("Recruit Cavalry (12💎)")
+    .button("Recruit City Guard (8💎)")
+    .button("Recruit Spearman (12💎)")
+    .button("Recruit Archer (12💎)")
+    .button("Recruit Cavalry (20💎)")
+    .button(hkLocked ? "🔒 Heavy Knight (needs Lv3 Barracks)" : "⚔ Recruit Heavy Knight (35💎)")
     .button("Disband 1 Guard")
-    .button("Disband 1 Spearman")
+    .button("Disband 1 Heavy Knight")
     .button(`Upgrade Barracks (${village.barracksLevel * 15}💎)`)
-    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`)
+    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk} available)`)
     .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)")
     .button(`🪖 Train Troops (queue: ${queueCount}/10)`);
 
@@ -536,12 +548,13 @@ async function showBarracksMenu(
     case 1: recruitTroop(village, "spearmen", 1); break;
     case 2: recruitTroop(village, "archers", 1); break;
     case 3: recruitTroop(village, "cavalry", 1); break;
-    case 4: disbandTroop(village, "cityGuards", 1); break;
-    case 5: disbandTroop(village, "spearmen", 1); break;
-    case 6: upgradeBarracks(village); break;
-    case 7: await showPickUpTroopsForm(player, village); break;
-    case 8: await showReturnTroopsForm(player, village); break;
-    case 9: await showTrainTroopsForm(player, village); break;
+    case 4: recruitTroop(village, "heavyKnight", 1); break;
+    case 5: disbandTroop(village, "cityGuards", 1); break;
+    case 6: disbandTroop(village, "heavyKnight", 1); break;
+    case 7: upgradeBarracks(village); break;
+    case 8: await showPickUpTroopsForm(player, village); break;
+    case 9: await showReturnTroopsForm(player, village); break;
+    case 10: await showTrainTroopsForm(player, village); break;
   }
 }
 
@@ -550,7 +563,8 @@ async function showPickUpTroopsForm(
   village: VillageData
 ): Promise<void> {
   const t = village.troops;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+  const hk = t.heavyKnight ?? 0;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk;
 
   if (total === 0) {
     notifyPlayer(player.name, `§cNo troops stationed in §b${village.name}§c to pick up.`);
@@ -562,13 +576,14 @@ async function showPickUpTroopsForm(
     .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0)
     .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0)
     .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0)
-    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
+    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0)
+    .slider(`Heavy Knights (${hk} available)`, 0, Math.max(hk, 1), 1, 0);
 
   const response = await form.show(player);
   if (response.canceled) return;
 
-  const [guards, spearmen, archers, cavalry] = response.formValues as number[];
-  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry });
+  const [guards, spearmen, archers, cavalry, heavyKnight] = response.formValues as number[];
+  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, heavyKnight: heavyKnight ?? 0 });
 }
 
 async function showReturnTroopsForm(
@@ -576,7 +591,8 @@ async function showReturnTroopsForm(
   village: VillageData
 ): Promise<void> {
   const carried = countTroopTokens(player);
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+  const hkCarried = carried.heavyKnight ?? 0;
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried;
 
   if (total === 0) {
     notifyPlayer(player.name, "§cYou are not carrying any troops.");
@@ -591,7 +607,8 @@ async function showReturnTroopsForm(
       `  Guards: ${carried.cityGuards}\n` +
       `  Spearmen: ${carried.spearmen}\n` +
       `  Archers: ${carried.archers}\n` +
-      `  Cavalry: ${carried.cavalry}\n\n` +
+      `  Cavalry: ${carried.cavalry}\n` +
+      `  Heavy Knights: ${hkCarried}\n\n` +
       `§aTotal: ${total} troops`
     )
     .button("Return All Troops")
@@ -624,24 +641,26 @@ async function showTrainTroopsForm(
   const tick = getCurrentTick();
   const queueCount = village.trainingQueue?.length ?? 0;
 
-  const troopTypes: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const troopTypes: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight"];
 
   const makeCostLine = (type: TroopType) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
     const parts = [`${c.emeralds}💎`, `${c.iron} iron`];
     if (c.gold > 0) parts.push(`${c.gold} gold`);
+    if (c.diamonds > 0) parts.push(`${c.diamonds} 💠`);
     return `${parts.join(", ")} | ~${secs}s/unit`;
   };
 
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
+  const hkAvailable = village.barracksLevel >= 3;
 
   const form = new ActionFormData()
     .title(`Train Troops — ${village.name}`)
     .body(
       `§7── Resources ──\n` +
-      `Treasury: §f${village.treasury}💎  §7Iron: §f${rs.iron}  §7Gold: §f${rs.gold}\n\n` +
+      `Treasury: §f${village.treasury}💎  §7Iron: §f${rs.iron}  §7Gold: §f${rs.gold}  §7Di: §f${rs.diamonds}\n\n` +
       `§7── Queue (${queueCount}/10) ──\n${queueSummary}\n\n` +
       `§7Select a troop type to queue training:`
     )
@@ -649,10 +668,13 @@ async function showTrainTroopsForm(
     .button(`Spearman\n§7${makeCostLine("spearmen")}`)
     .button(`Archer\n§7${makeCostLine("archers")}`)
     .button(`Cavalry\n§7${makeCostLine("cavalry")}`)
+    .button(hkAvailable
+      ? `Heavy Knight\n§7${makeCostLine("heavyKnight")}`
+      : `§7Heavy Knight (🔒 Barracks Lv3 needed)\n§7${makeCostLine("heavyKnight")}`)
     .button("Back");
 
   const response = await form.show(player);
-  if (response.canceled || response.selection === 4) return;
+  if (response.canceled || response.selection === 5) return;
 
   const selectedType = troopTypes[response.selection!];
 
@@ -778,8 +800,9 @@ async function showBlacksmithMenu(
   const form = new ActionFormData()
     .title(`${village.name} — Blacksmith`)
     .body(summary)
-    .button("Upgrade Weapons")
-    .button("Upgrade Armor")
+    .button("Upgrade Weapons\n§7(pay from inventory)")
+    .button("Upgrade Armor\n§7(pay from inventory)")
+    .button("⚒ Craft for Armory\n§7(pay from village storage)")
     .button("Close");
 
   const response = await form.show(player);
@@ -788,7 +811,58 @@ async function showBlacksmithMenu(
   switch (response.selection) {
     case 0: upgradeWeapons(player, village.id); break;
     case 1: upgradeArmor(player, village.id); break;
+    case 2: await showArmoryCraftMenu(player, village); break;
   }
+}
+
+async function showArmoryCraftMenu(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const rs = village.resourceStorage;
+
+  const makeCostStr = (r: typeof ARMORY_RECIPES[0]) => {
+    const parts: string[] = [];
+    if (r.costIron     > 0) parts.push(`${r.costIron} iron`);
+    if (r.costGold     > 0) parts.push(`${r.costGold} gold`);
+    if (r.costDiamonds > 0) parts.push(`${r.costDiamonds} 💠`);
+    if (r.costWood     > 0) parts.push(`${r.costWood} wood`);
+    if (r.costStone    > 0) parts.push(`${r.costStone} stone`);
+    if (r.costEmeralds > 0) parts.push(`${r.costEmeralds}💎`);
+    return parts.join(", ");
+  };
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Craft for Armory`)
+    .body(
+      `§7Craft gear from village resource storage.\n` +
+      `§7Storage: §fFe:${rs.iron} Au:${rs.gold} 💠:${rs.diamonds} W:${rs.wood} St:${rs.stone}\n` +
+      `§7Treasury: §f${village.treasury}💎\n\n` +
+      `§7Select an item to craft (×1 batch):`
+    );
+
+  for (const recipe of ARMORY_RECIPES) {
+    const canCraft = canCraftArmoryRecipe(village, recipe);
+    const icon = canCraft ? "§a✔" : "§c✘";
+    form.button(`${icon} ${recipe.name}\n§7Cost: ${makeCostStr(recipe)}`);
+  }
+  form.button("Back");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === ARMORY_RECIPES.length) return;
+
+  const recipeIdx = response.selection!;
+  const recipe = ARMORY_RECIPES[recipeIdx];
+
+  const countForm = new ModalFormData()
+    .title(`Craft ${recipe.name}`)
+    .slider(`How many batches? (cost ×N)`, 1, 20, 1, 1);
+
+  const countResp = await countForm.show(player);
+  if (countResp.canceled || countResp.formValues == null) return;
+
+  const batches = countResp.formValues[0] as number;
+  craftForArmory(village, recipeIdx, batches);
 }
 
 async function showGranaryStorageMenu(

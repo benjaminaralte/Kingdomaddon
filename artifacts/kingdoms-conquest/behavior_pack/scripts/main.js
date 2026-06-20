@@ -158,10 +158,11 @@ import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 var WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
 var ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
 var TROOP_WAGES = {
-  cityGuards: 1,
-  spearmen: 2,
-  archers: 2,
-  cavalry: 3
+  cityGuards: 2,
+  spearmen: 3,
+  archers: 3,
+  cavalry: 5,
+  heavyKnight: 8
 };
 var EMPTY_RESOURCE_STORAGE = {
   iron: 0,
@@ -185,6 +186,7 @@ var VILLAGE_CLAIM_RADIUS = 64;
 var MIN_VILLAGERS_TO_CLAIM = 3;
 var FOOD_PER_VILLAGER_PER_DAY = 1;
 var FOOD_PER_SOLDIER_PER_DAY = 2;
+var FOOD_PER_HEAVY_KNIGHT_PER_DAY = 4;
 var POPULATION_GROWTH_INTERVAL_DAYS = 2;
 var WAGE_INTERVAL_DAYS = 3;
 var MAX_GUARDS_PER_POLE = 3;
@@ -901,7 +903,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -937,7 +939,8 @@ function renameVillage(playerName, villageId, newName) {
 }
 function getVillageSummary(village) {
   const t = village.troops;
-  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+  const hk = t.heavyKnight ?? 0;
+  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk;
   const stages = ["\u2714 None", "\u26A0 Stage 1", "\u26A0 Stage 2", "\xA7c Stage 3", "\xA7c Stage 4"];
   const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
   const hasStation = village.hasTradeStation ? "\xA7a\u2714 Active" : "\xA7c\u2718 None";
@@ -946,7 +949,7 @@ function getVillageSummary(village) {
     `Pop: ${village.population}/${village.housingCapacity}  Prosperity: ${village.prosperity}`,
     `Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}`,
     `Market Lv${village.marketLevel}  Barracks Lv${village.barracksLevel}`,
-    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry})`,
+    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} HK:${hk})`,
     `Food Shortage: ${stages[village.foodShortageStage] ?? "Unknown"}`,
     `Weapon Tier: ${village.blacksmith.weaponTier}  Armor Tier: ${village.blacksmith.armorTier}`,
     `Trade Station: ${hasStation}`,
@@ -1254,15 +1257,20 @@ function getBanditCampSummary() {
 
 // src/systems/military.ts
 var RECRUIT_COSTS = {
-  cityGuards: 5,
-  spearmen: 8,
-  archers: 8,
-  cavalry: 12
+  cityGuards: 8,
+  spearmen: 12,
+  archers: 12,
+  cavalry: 20,
+  heavyKnight: 35
 };
 function recruitTroop(village, type, count = 1) {
+  if (type === "heavyKnight" && village.barracksLevel < 3) {
+    notifyPlayer(village.owner, `\xA7cHeavy Knights require \xA7bBarracks Level 3\xA7c (currently Lv${village.barracksLevel}).`);
+    return false;
+  }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
-  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - village.workers.farmers - village.workers.workers;
+  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - village.troops.heavyKnight - village.workers.farmers - village.workers.workers;
   if (availableWorkers < count) {
     notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
     return false;
@@ -1288,7 +1296,8 @@ function tickWages(village) {
   const currentDay = getCurrentDay();
   const daysSinceWage = daysSince(village.lastWageDay);
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry;
+  const hk = village.troops.heavyKnight ?? 0;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -1325,7 +1334,7 @@ function tickWages(village) {
 }
 function handleDesertion(village) {
   const deserters = {};
-  const keys = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight"];
   let totalDeserters = 0;
   for (const key of keys) {
     if (village.troops[key] > 0) {
@@ -1361,7 +1370,7 @@ function upgradeBarracks(village) {
   return true;
 }
 function getTotalTroops(village) {
-  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
 }
 function processAllWages() {
   for (const village of getAllVillages()) {
@@ -1477,10 +1486,11 @@ var TROOP_TOKEN_MAP = {
   "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
   "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
   "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
-  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" }
+  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" },
+  "kingdoms:heavy_knight_token": { troopType: "heavyKnight", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" }
 };
 function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry;
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + pickup.heavyKnight;
   if (total <= 0) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
     return false;
@@ -1501,6 +1511,10 @@ function pickupTroops(player, village, pickup) {
     notifyPlayer(player.name, `\xA7cNot enough Cavalry (have ${village.troops.cavalry}).`);
     return false;
   }
+  if (pickup.heavyKnight > (village.troops.heavyKnight ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Heavy Knights (have ${village.troops.heavyKnight ?? 0}).`);
+    return false;
+  }
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
   if (!inv?.container) {
     notifyPlayer(player.name, "\xA7cInventory unavailable.");
@@ -1511,7 +1525,8 @@ function pickupTroops(player, village, pickup) {
     { itemId: "kingdoms:guard_token", count: pickup.cityGuards },
     { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
     { itemId: "kingdoms:archer_token", count: pickup.archers },
-    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry }
+    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry },
+    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnight }
   ].filter((t) => t.count > 0);
   let slotsNeeded = 0;
   for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
@@ -1527,6 +1542,7 @@ function pickupTroops(player, village, pickup) {
   village.troops.spearmen -= pickup.spearmen;
   village.troops.archers -= pickup.archers;
   village.troops.cavalry -= pickup.cavalry;
+  village.troops.heavyKnight = (village.troops.heavyKnight ?? 0) - pickup.heavyKnight;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
     let remaining = count;
@@ -1602,7 +1618,8 @@ var ENTITY_TO_TOKEN = {
   "kingdoms:city_guard": "kingdoms:guard_token",
   "kingdoms:spearman": "kingdoms:spearman_token",
   "kingdoms:archer": "kingdoms:archer_token",
-  "kingdoms:cavalry": "kingdoms:cavalry_token"
+  "kingdoms:cavalry": "kingdoms:cavalry_token",
+  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
@@ -1669,7 +1686,8 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
     "kingdoms:city_guard": "cityGuards",
     "kingdoms:spearman": "spearmen",
     "kingdoms:archer": "archers",
-    "kingdoms:cavalry": "cavalry"
+    "kingdoms:cavalry": "cavalry",
+    "kingdoms:heavy_knight": "heavyKnight"
   };
   const loc = village.townHallLocation;
   let total = 0;
@@ -1694,7 +1712,7 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
 }
 function countTroopTokens(player) {
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
-  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 };
   if (!inv?.container) return result;
   const container = inv.container;
   for (let i = 0; i < container.size; i++) {
@@ -2116,6 +2134,87 @@ var ARMOR_UPGRADE_COSTS = [
   { material: "minecraft:diamond", materialCount: 2, emeralds: 1 },
   { material: "minecraft:netherite_scrap", materialCount: 2, emeralds: 1 }
 ];
+var ARMORY_RECIPES = [
+  { key: "woodenSwords", name: "Wooden Swords (\xD75)", produces: 5, costWood: 10, costStone: 0, costIron: 0, costGold: 0, costDiamonds: 0, costEmeralds: 0 },
+  { key: "stoneSwords", name: "Stone Swords (\xD75)", produces: 5, costWood: 0, costStone: 10, costIron: 0, costGold: 0, costDiamonds: 0, costEmeralds: 0 },
+  { key: "ironSwords", name: "Iron Swords (\xD75)", produces: 5, costWood: 0, costStone: 0, costIron: 10, costGold: 0, costDiamonds: 0, costEmeralds: 1 },
+  { key: "goldSwords", name: "Gold Swords (\xD75)", produces: 5, costWood: 0, costStone: 0, costIron: 0, costGold: 10, costDiamonds: 0, costEmeralds: 1 },
+  { key: "diamondSwords", name: "Diamond Swords (\xD75)", produces: 5, costWood: 0, costStone: 0, costIron: 0, costGold: 0, costDiamonds: 10, costEmeralds: 2 },
+  { key: "ironArmor", name: "Iron Armor Set (helmet+chest+legs+boots)", produces: 1, costWood: 0, costStone: 0, costIron: 24, costGold: 0, costDiamonds: 0, costEmeralds: 2 },
+  { key: "goldArmor", name: "Gold Armor Set", produces: 1, costWood: 0, costStone: 0, costIron: 0, costGold: 24, costDiamonds: 0, costEmeralds: 2 },
+  { key: "diamondArmor", name: "Diamond Armor Set", produces: 1, costWood: 0, costStone: 0, costIron: 0, costGold: 0, costDiamonds: 24, costEmeralds: 5 }
+];
+function canCraftArmoryRecipe(village, recipe) {
+  const rs = village.resourceStorage;
+  return (recipe.costIron === 0 || rs.iron >= recipe.costIron) && (recipe.costGold === 0 || rs.gold >= recipe.costGold) && (recipe.costDiamonds === 0 || rs.diamonds >= recipe.costDiamonds) && (recipe.costWood === 0 || rs.wood >= recipe.costWood) && (recipe.costStone === 0 || rs.stone >= recipe.costStone) && (recipe.costEmeralds === 0 || village.treasury >= recipe.costEmeralds);
+}
+function craftForArmory(village, recipeIndex, count) {
+  if (recipeIndex < 0 || recipeIndex >= ARMORY_RECIPES.length) return false;
+  const recipe = ARMORY_RECIPES[recipeIndex];
+  const totalIron = recipe.costIron * count;
+  const totalGold = recipe.costGold * count;
+  const totalDiamonds = recipe.costDiamonds * count;
+  const totalWood = recipe.costWood * count;
+  const totalStone = recipe.costStone * count;
+  const totalEmeralds = recipe.costEmeralds * count;
+  const rs = village.resourceStorage;
+  if (totalIron > 0 && rs.iron < totalIron) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalIron} iron (have ${rs.iron}).`);
+    return false;
+  }
+  if (totalGold > 0 && rs.gold < totalGold) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalGold} gold (have ${rs.gold}).`);
+    return false;
+  }
+  if (totalDiamonds > 0 && rs.diamonds < totalDiamonds) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalDiamonds} diamonds (have ${rs.diamonds}).`);
+    return false;
+  }
+  if (totalWood > 0 && rs.wood < totalWood) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalWood} wood (have ${rs.wood}).`);
+    return false;
+  }
+  if (totalStone > 0 && rs.stone < totalStone) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalStone} stone (have ${rs.stone}).`);
+    return false;
+  }
+  if (totalEmeralds > 0 && village.treasury < totalEmeralds) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalEmeralds}\u{1F48E} (treasury: ${village.treasury}).`);
+    return false;
+  }
+  rs.iron -= totalIron;
+  rs.gold -= totalGold;
+  rs.diamonds -= totalDiamonds;
+  rs.wood -= totalWood;
+  rs.stone -= totalStone;
+  village.treasury -= totalEmeralds;
+  if (!village.armory) village.armory = {};
+  const prev = village.armory[recipe.key] ?? 0;
+  village.armory[recipe.key] = prev + recipe.produces * count;
+  saveVillage(village);
+  const total = recipe.produces * count;
+  notifyPlayer(
+    village.owner,
+    `\xA7a\u2692 Crafted \xA7b${total}x ${recipe.name}\xA7a \u2192 stored in \xA7b${village.name}\xA7a armory. (Total: \xA7f${village.armory[recipe.key]}\xA7a)`
+  );
+  return true;
+}
+function getArmorySummary(village) {
+  const armory = village.armory ?? {};
+  const entries = Object.entries(armory).filter(([, v]) => (v ?? 0) > 0);
+  if (entries.length === 0) return "\xA77Armory is empty.";
+  const labels = {
+    woodenSwords: "Wooden Swords",
+    stoneSwords: "Stone Swords",
+    ironSwords: "Iron Swords",
+    goldSwords: "Gold Swords",
+    diamondSwords: "Diamond Swords",
+    ironArmor: "Iron Armor Sets",
+    goldArmor: "Gold Armor Sets",
+    diamondArmor: "Diamond Armor Sets"
+  };
+  return entries.map(([k, v]) => `  \xA7f${v}x \xA77${labels[k] ?? k}`).join("\n");
+}
 function upgradeWeapons(player, villageId) {
   const village = getVillage(villageId);
   if (!village || village.owner !== player.name) return false;
@@ -2126,7 +2225,7 @@ function upgradeWeapons(player, villageId) {
   }
   const cost = WEAPON_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2160,7 +2259,7 @@ function upgradeArmor(player, villageId) {
   }
   const cost = ARMOR_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2232,13 +2331,19 @@ function getBlacksmithSummary(village) {
   const nextAT = ARMOR_TIERS[village.blacksmith.armorTier + 1];
   const wCost = WEAPON_UPGRADE_COSTS[village.blacksmith.weaponTier];
   const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
+  const rs = village.resourceStorage;
   return [
     `\xA7b${village.name} Blacksmith\xA7r`,
     `Weapon Tier: \xA7a${wt}\xA7r ${nextWT ? `\u2192 ${nextWT}` : "(MAX)"}`,
     `Armor Tier: \xA7a${at}\xA7r ${nextAT ? `\u2192 ${nextAT}` : "(MAX)"}`,
     soldiers > 0 && wCost ? `Weapon upgrade cost: ${wCost.materialCount * soldiers}x ${wCost.material.replace("minecraft:", "")} + ${wCost.emeralds * soldiers}\u{1F48E}` : "",
-    soldiers > 0 && aCost ? `Armor upgrade cost: ${aCost.materialCount * soldiers}x ${aCost.material.replace("minecraft:", "")} + ${aCost.emeralds * soldiers}\u{1F48E}` : ""
+    soldiers > 0 && aCost ? `Armor upgrade cost: ${aCost.materialCount * soldiers}x ${aCost.material.replace("minecraft:", "")} + ${aCost.emeralds * soldiers}\u{1F48E}` : "",
+    `
+\xA77\u2500\u2500 Storage \u2500\u2500
+Iron: \xA7f${rs.iron}\xA77  Gold: \xA7f${rs.gold}\xA77  Diamonds: \xA7f${rs.diamonds}\xA77  Wood: \xA7f${rs.wood}\xA77  Stone: \xA7f${rs.stone}`,
+    `\xA77\u2500\u2500 Armory \u2500\u2500`,
+    getArmorySummary(village)
   ].filter(Boolean).join("\n");
 }
 
@@ -3018,13 +3123,13 @@ function drainGranaryToFoodStorage(village) {
   return converted;
 }
 function getFoodProduction(village) {
-  const farmerOutput = village.workers.farmers * 3;
-  return farmerOutput;
+  return village.workers.farmers * 4;
 }
 function getFoodConsumption(village) {
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
-  const civilians = village.population - soldiers;
-  return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + soldiers * FOOD_PER_SOLDIER_PER_DAY;
+  const hk = village.troops.heavyKnight ?? 0;
+  const regularSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const civilians = village.population - regularSoldiers - hk;
+  return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + regularSoldiers * FOOD_PER_SOLDIER_PER_DAY + hk * FOOD_PER_HEAVY_KNIGHT_PER_DAY;
 }
 function tickFood(village) {
   const currentDay = getCurrentDay();
@@ -3088,7 +3193,7 @@ function updateFoodShortageStage(village, dailyConsumption) {
   }
 }
 function buyFood(village, amount) {
-  const costPerUnit = 2;
+  const costPerUnit = 3;
   const total = amount * costPerUnit;
   if (village.treasury < total) return false;
   village.treasury -= total;
@@ -3098,7 +3203,7 @@ function buyFood(village, amount) {
   return true;
 }
 function sellFood(village, amount) {
-  const sellPricePerUnit = 1;
+  const sellPricePerUnit = 2;
   if (village.foodStorage < amount) return false;
   village.foodStorage -= amount;
   village.treasury += amount * sellPricePerUnit;
@@ -3281,19 +3386,19 @@ var SEED_SHOP = [
   { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 }
 ];
 var FOOD_SELL_RATES = [
-  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 6, minBatch: 16 },
-  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 5, minBatch: 16 },
-  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 10, minBatch: 16 },
-  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 6, minBatch: 16 },
-  { itemId: "minecraft:cooked_beef", label: "Cooked Beef", itemsPerEmerald: 2, minBatch: 8 },
-  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork", itemsPerEmerald: 2, minBatch: 8 },
-  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 }
+  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 5, minBatch: 10 },
+  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 4, minBatch: 8 },
+  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 5, minBatch: 10 },
+  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 4, minBatch: 8 },
+  { itemId: "minecraft:cooked_beef", label: "Cooked Beef", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 6, minBatch: 12 }
 ];
 function getMaxMerchants(village) {
   return Math.floor(village.marketLevel * 3 + village.population / 8);
@@ -3445,15 +3550,15 @@ function removeMerchant(village, merchantEntityId) {
 }
 function getMerchantPrice(itemTypeId) {
   const prices = {
-    "minecraft:iron_ingot": 1,
-    "minecraft:gold_ingot": 3,
-    "minecraft:diamond": 8,
-    "minecraft:coal": 1,
-    "minecraft:bread": 1,
-    "minecraft:cooked_beef": 1,
+    "minecraft:iron_ingot": 3,
+    "minecraft:gold_ingot": 5,
+    "minecraft:diamond": 12,
+    "minecraft:coal": 2,
+    "minecraft:bread": 2,
+    "minecraft:cooked_beef": 2,
     "minecraft:apple": 1
   };
-  return prices[itemTypeId] ?? 2;
+  return prices[itemTypeId] ?? 3;
 }
 function upgradeMarket(village) {
   if (village.marketLevel >= 5) {
@@ -3943,22 +4048,25 @@ function extractUntaggedMinecart(cart, village) {
 // src/systems/training.ts
 init_storage();
 var TRAINING_COSTS = {
-  cityGuards: { emeralds: 2, iron: 5, gold: 0 },
-  spearmen: { emeralds: 3, iron: 8, gold: 0 },
-  archers: { emeralds: 3, iron: 6, gold: 2 },
-  cavalry: { emeralds: 5, iron: 10, gold: 3 }
+  cityGuards: { emeralds: 4, iron: 8, gold: 0, diamonds: 0 },
+  spearmen: { emeralds: 6, iron: 12, gold: 0, diamonds: 0 },
+  archers: { emeralds: 6, iron: 10, gold: 4, diamonds: 0 },
+  cavalry: { emeralds: 12, iron: 18, gold: 6, diamonds: 0 },
+  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 }
 };
 var TRAINING_TICKS = {
   cityGuards: 1200,
   spearmen: 1800,
   archers: 1600,
-  cavalry: 2400
+  cavalry: 2400,
+  heavyKnight: 6e3
 };
 var TROOP_LABELS = {
   cityGuards: "City Guard",
   spearmen: "Spearman",
   archers: "Archer",
-  cavalry: "Cavalry"
+  cavalry: "Cavalry",
+  heavyKnight: "Heavy Knight"
 };
 var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
@@ -3973,11 +4081,18 @@ function canAffordTraining(village, troopType, count) {
   if (cost.gold > 0 && rs.gold < cost.gold * count) {
     return `\xA7cNeed \xA7f${cost.gold * count}\xA7c gold (have \xA7f${rs.gold}\xA7c).`;
   }
+  if (cost.diamonds > 0 && rs.diamonds < cost.diamonds * count) {
+    return `\xA7cNeed \xA7f${cost.diamonds * count}\xA7c diamonds (have \xA7f${rs.diamonds}\xA7c).`;
+  }
   return null;
 }
 function queueTraining(village, troopType, count, currentTick) {
   if (village.trainingQueue.length >= MAX_QUEUE_SIZE) {
     notifyPlayer(village.owner, `\xA7cTraining queue is full (max ${MAX_QUEUE_SIZE} jobs).`);
+    return false;
+  }
+  if (troopType === "heavyKnight" && village.barracksLevel < 3) {
+    notifyPlayer(village.owner, `\xA7cHeavy Knights require \xA7bBarracks Level 3+\xA7c (currently Lv${village.barracksLevel}).`);
     return false;
   }
   const err = canAffordTraining(village, troopType, count);
@@ -3989,6 +4104,7 @@ function queueTraining(village, troopType, count, currentTick) {
   village.treasury -= cost.emeralds * count;
   village.resourceStorage.iron -= cost.iron * count;
   if (cost.gold > 0) village.resourceStorage.gold -= cost.gold * count;
+  if (cost.diamonds > 0) village.resourceStorage.diamonds -= cost.diamonds * count;
   const ticksNeeded = TRAINING_TICKS[troopType] * count;
   const lastJobEnd = village.trainingQueue.length > 0 ? village.trainingQueue[village.trainingQueue.length - 1].completeTick : currentTick;
   const job = {
@@ -3999,11 +4115,11 @@ function queueTraining(village, troopType, count, currentTick) {
   village.trainingQueue.push(job);
   saveVillage(village);
   const label = TROOP_LABELS[troopType];
-  const cost2 = TRAINING_COSTS[troopType];
   const costStr = [
-    `${cost2.emeralds * count}\u{1F48E}`,
-    cost2.iron * count > 0 ? `${cost2.iron * count} iron` : "",
-    cost2.gold * count > 0 ? `${cost2.gold * count} gold` : ""
+    `${cost.emeralds * count}\u{1F48E}`,
+    cost.iron * count > 0 ? `${cost.iron * count} iron` : "",
+    cost.gold * count > 0 ? `${cost.gold * count} gold` : "",
+    cost.diamonds * count > 0 ? `${cost.diamonds * count} \u{1F4A0}` : ""
   ].filter(Boolean).join(", ");
   const secRemaining = Math.ceil((job.completeTick - currentTick) / 20);
   notifyPlayer(village.owner, `\xA7a\u{1FA96} Training \xA7f${count} ${label}\xA7a started. Cost: \xA7f${costStr}\xA7a. Ready in \xA7f~${secRemaining}s\xA7a.`);
@@ -4051,9 +4167,10 @@ var TROOP_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
-  cavalry: "kingdoms:cavalry"
+  cavalry: "kingdoms:cavalry",
+  heavyKnight: "kingdoms:heavy_knight"
 };
-var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry"];
+var TROOP_PRIORITY = ["heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
   for (const village of getAllVillages()) {
@@ -4123,7 +4240,7 @@ function countAutoDispatched(village) {
   return count;
 }
 function dispatchTroops(village, threatCount) {
-  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
   if (totalBarracks <= 0) return;
   const alreadyOut = countAutoDispatched(village);
   const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
@@ -4161,7 +4278,7 @@ function dispatchTroops(village, threatCount) {
 function recallAutoDispatched(village) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  const survivors = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  const survivors = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 };
   let recalled = 0;
   for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP)) {
     try {
@@ -4195,10 +4312,11 @@ var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
-  cavalry: "kingdoms:cavalry"
+  cavalry: "kingdoms:cavalry",
+  heavyKnight: "kingdoms:heavy_knight"
 };
 function getBestAvailableTroopType(village) {
-  const types = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const types = ["heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
   for (const t of types) {
     if (village.troops[t] > 0) return t;
   }
@@ -4943,25 +5061,30 @@ async function showBarracksMenu(player, block) {
     return;
   }
   const t = village.troops;
+  const hk = t.heavyKnight ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0);
   const tick = getCurrentTick();
   const queueSummary = getTrainingQueueSummary(village, tick);
   const queueCount = village.trainingQueue?.length ?? 0;
+  const rs = village.resourceStorage;
+  const hkLocked = village.barracksLevel < 3;
+  const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
   const form = new ActionFormData().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
 Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
 Archers: ${t.archers}  Cavalry: ${t.cavalry}
+${hkLine}
 
 \xA77\u2500\u2500 Carried in Inventory \u2500\u2500
 Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}
-Archers: ${carried.archers}  Cavalry: ${carried.cavalry}
+Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}
 
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
-Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
+Treasury: ${village.treasury}\u{1F48E}  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
+  ).button("Recruit City Guard (8\u{1F48E})").button("Recruit Spearman (12\u{1F48E})").button("Recruit Archer (12\u{1F48E})").button("Recruit Cavalry (20\u{1F48E})").button(hkLocked ? "\u{1F512} Heavy Knight (needs Lv3 Barracks)" : "\u2694 Recruit Heavy Knight (35\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Heavy Knight").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -4978,41 +5101,46 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
       recruitTroop(village, "cavalry", 1);
       break;
     case 4:
-      disbandTroop(village, "cityGuards", 1);
+      recruitTroop(village, "heavyKnight", 1);
       break;
     case 5:
-      disbandTroop(village, "spearmen", 1);
+      disbandTroop(village, "cityGuards", 1);
       break;
     case 6:
-      upgradeBarracks(village);
+      disbandTroop(village, "heavyKnight", 1);
       break;
     case 7:
-      await showPickUpTroopsForm(player, village);
+      upgradeBarracks(village);
       break;
     case 8:
-      await showReturnTroopsForm(player, village);
+      await showPickUpTroopsForm(player, village);
       break;
     case 9:
+      await showReturnTroopsForm(player, village);
+      break;
+    case 10:
       await showTrainTroopsForm(player, village);
       break;
   }
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+  const hk = t.heavyKnight ?? 0;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk;
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
   }
-  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
+  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0).slider(`Heavy Knights (${hk} available)`, 0, Math.max(hk, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry] = response.formValues;
-  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry });
+  const [guards, spearmen, archers, cavalry, heavyKnight] = response.formValues;
+  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, heavyKnight: heavyKnight ?? 0 });
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+  const hkCarried = carried.heavyKnight ?? 0;
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried;
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
@@ -5025,6 +5153,7 @@ async function showReturnTroopsForm(player, village) {
   Spearmen: ${carried.spearmen}
   Archers: ${carried.archers}
   Cavalry: ${carried.cavalry}
+  Heavy Knights: ${hkCarried}
 
 \xA7aTotal: ${total} troops`
   ).button("Return All Troops").button("Cancel");
@@ -5047,19 +5176,21 @@ async function showReturnTroopsForm(player, village) {
 async function showTrainTroopsForm(player, village) {
   const tick = getCurrentTick();
   const queueCount = village.trainingQueue?.length ?? 0;
-  const troopTypes = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const troopTypes = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight"];
   const makeCostLine = (type) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
     const parts = [`${c.emeralds}\u{1F48E}`, `${c.iron} iron`];
     if (c.gold > 0) parts.push(`${c.gold} gold`);
+    if (c.diamonds > 0) parts.push(`${c.diamonds} \u{1F4A0}`);
     return `${parts.join(", ")} | ~${secs}s/unit`;
   };
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
+  const hkAvailable = village.barracksLevel >= 3;
   const form = new ActionFormData().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
-Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}
+Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}  \xA77Di: \xA7f${rs.diamonds}
 
 \xA77\u2500\u2500 Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
@@ -5069,9 +5200,11 @@ ${queueSummary}
 \xA77${makeCostLine("cityGuards")}`).button(`Spearman
 \xA77${makeCostLine("spearmen")}`).button(`Archer
 \xA77${makeCostLine("archers")}`).button(`Cavalry
-\xA77${makeCostLine("cavalry")}`).button("Back");
+\xA77${makeCostLine("cavalry")}`).button(hkAvailable ? `Heavy Knight
+\xA77${makeCostLine("heavyKnight")}` : `\xA77Heavy Knight (\u{1F512} Barracks Lv3 needed)
+\xA77${makeCostLine("heavyKnight")}`).button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === 4) return;
+  if (response.canceled || response.selection === 5) return;
   const selectedType = troopTypes[response.selection];
   const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
   const countResponse = await countForm.show(player);
@@ -5162,7 +5295,7 @@ async function showBlacksmithMenu(player, block) {
     return;
   }
   const summary = getBlacksmithSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons").button("Upgrade Armor").button("Close");
+  const form = new ActionFormData().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5172,7 +5305,46 @@ async function showBlacksmithMenu(player, block) {
     case 1:
       upgradeArmor(player, village.id);
       break;
+    case 2:
+      await showArmoryCraftMenu(player, village);
+      break;
   }
+}
+async function showArmoryCraftMenu(player, village) {
+  const rs = village.resourceStorage;
+  const makeCostStr = (r) => {
+    const parts = [];
+    if (r.costIron > 0) parts.push(`${r.costIron} iron`);
+    if (r.costGold > 0) parts.push(`${r.costGold} gold`);
+    if (r.costDiamonds > 0) parts.push(`${r.costDiamonds} \u{1F4A0}`);
+    if (r.costWood > 0) parts.push(`${r.costWood} wood`);
+    if (r.costStone > 0) parts.push(`${r.costStone} stone`);
+    if (r.costEmeralds > 0) parts.push(`${r.costEmeralds}\u{1F48E}`);
+    return parts.join(", ");
+  };
+  const form = new ActionFormData().title(`${village.name} \u2014 Craft for Armory`).body(
+    `\xA77Craft gear from village resource storage.
+\xA77Storage: \xA7fFe:${rs.iron} Au:${rs.gold} \u{1F4A0}:${rs.diamonds} W:${rs.wood} St:${rs.stone}
+\xA77Treasury: \xA7f${village.treasury}\u{1F48E}
+
+\xA77Select an item to craft (\xD71 batch):`
+  );
+  for (const recipe2 of ARMORY_RECIPES) {
+    const canCraft = canCraftArmoryRecipe(village, recipe2);
+    const icon = canCraft ? "\xA7a\u2714" : "\xA7c\u2718";
+    form.button(`${icon} ${recipe2.name}
+\xA77Cost: ${makeCostStr(recipe2)}`);
+  }
+  form.button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === ARMORY_RECIPES.length) return;
+  const recipeIdx = response.selection;
+  const recipe = ARMORY_RECIPES[recipeIdx];
+  const countForm = new ModalFormData().title(`Craft ${recipe.name}`).slider(`How many batches? (cost \xD7N)`, 1, 20, 1, 1);
+  const countResp = await countForm.show(player);
+  if (countResp.canceled || countResp.formValues == null) return;
+  const batches = countResp.formValues[0];
+  craftForArmory(village, recipeIdx, batches);
 }
 async function showGranaryStorageMenu(player, block) {
   const village = findVillageAt2(block.location);

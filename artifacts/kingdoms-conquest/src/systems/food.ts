@@ -1,15 +1,14 @@
 import type { VillageData, FoodShortageStage } from "../types/index.js";
-import { FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY } from "../types/index.js";
+import {
+  FOOD_PER_VILLAGER_PER_DAY,
+  FOOD_PER_SOLDIER_PER_DAY,
+  FOOD_PER_HEAVY_KNIGHT_PER_DAY,
+} from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
 import { getCurrentDay, isNewDay } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
 import { FOOD_ITEM_VALUES, removeFromGranary } from "./harvest.js";
 
-/**
- * Drains all food items from the physical granary into the abstract foodStorage
- * reserve. Called once per day before consumption is deducted so that crops
- * harvested by players actually feed the village population.
- */
 function drainGranaryToFoodStorage(village: VillageData): number {
   let converted = 0;
   for (const [item, count] of Object.entries(village.granaryItems)) {
@@ -26,22 +25,23 @@ function drainGranaryToFoodStorage(village: VillageData): number {
 }
 
 export function getFoodProduction(village: VillageData): number {
-  const farmerOutput = village.workers.farmers * 3;
-  return farmerOutput;
+  return village.workers.farmers * 4;
 }
 
 export function getFoodConsumption(village: VillageData): number {
-  const soldiers =
+  const hk = village.troops.heavyKnight ?? 0;
+  const regularSoldiers =
     village.troops.cityGuards +
     village.troops.spearmen +
     village.troops.archers +
     village.troops.cavalry;
 
-  const civilians = village.population - soldiers;
+  const civilians = village.population - regularSoldiers - hk;
 
   return (
     Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY +
-    soldiers * FOOD_PER_SOLDIER_PER_DAY
+    regularSoldiers * FOOD_PER_SOLDIER_PER_DAY +
+    hk * FOOD_PER_HEAVY_KNIGHT_PER_DAY
   );
 }
 
@@ -49,8 +49,6 @@ export function tickFood(village: VillageData): boolean {
   const currentDay = getCurrentDay();
   if (!isNewDay(village.lastDayProcessed)) return false;
 
-  // Drain physical granary items into the abstract reserve first, so harvested
-  // crops actually feed the population rather than sitting unused.
   const drained = drainGranaryToFoodStorage(village);
   if (drained > 0) {
     notifyPlayer(
@@ -119,7 +117,7 @@ function updateFoodShortageStage(village: VillageData, dailyConsumption: number)
 }
 
 export function buyFood(village: VillageData, amount: number): boolean {
-  const costPerUnit = 2;
+  const costPerUnit = 3;
   const total = amount * costPerUnit;
 
   if (village.treasury < total) return false;
@@ -132,7 +130,7 @@ export function buyFood(village: VillageData, amount: number): boolean {
 }
 
 export function sellFood(village: VillageData, amount: number): boolean {
-  const sellPricePerUnit = 1;
+  const sellPricePerUnit = 2;
 
   if (village.foodStorage < amount) return false;
 

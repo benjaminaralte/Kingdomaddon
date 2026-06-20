@@ -4,10 +4,11 @@ import { saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
 export const TROOP_TOKEN_MAP: Record<string, { troopType: TroopType; entityId: string; label: string }> = {
-  "kingdoms:guard_token":    { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
-  "kingdoms:spearman_token": { troopType: "spearmen",   entityId: "kingdoms:spearman",   label: "Spearman"   },
-  "kingdoms:archer_token":   { troopType: "archers",    entityId: "kingdoms:archer",     label: "Archer"     },
-  "kingdoms:cavalry_token":  { troopType: "cavalry",    entityId: "kingdoms:cavalry",    label: "Cavalry"    },
+  "kingdoms:guard_token":        { troopType: "cityGuards",  entityId: "kingdoms:city_guard",   label: "City Guard"   },
+  "kingdoms:spearman_token":     { troopType: "spearmen",    entityId: "kingdoms:spearman",     label: "Spearman"     },
+  "kingdoms:archer_token":       { troopType: "archers",     entityId: "kingdoms:archer",       label: "Archer"       },
+  "kingdoms:cavalry_token":      { troopType: "cavalry",     entityId: "kingdoms:cavalry",      label: "Cavalry"      },
+  "kingdoms:heavy_knight_token": { troopType: "heavyKnight", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" },
 };
 
 export interface TroopPickup {
@@ -15,6 +16,7 @@ export interface TroopPickup {
   spearmen: number;
   archers: number;
   cavalry: number;
+  heavyKnight: number;
 }
 
 export function pickupTroops(
@@ -22,28 +24,17 @@ export function pickupTroops(
   village: VillageData,
   pickup: TroopPickup
 ): boolean {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry;
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + pickup.heavyKnight;
   if (total <= 0) {
     notifyPlayer(player.name, "§cSelect at least one troop to pick up.");
     return false;
   }
 
-  if (pickup.cityGuards > village.troops.cityGuards) {
-    notifyPlayer(player.name, `§cNot enough City Guards (have ${village.troops.cityGuards}).`);
-    return false;
-  }
-  if (pickup.spearmen > village.troops.spearmen) {
-    notifyPlayer(player.name, `§cNot enough Spearmen (have ${village.troops.spearmen}).`);
-    return false;
-  }
-  if (pickup.archers > village.troops.archers) {
-    notifyPlayer(player.name, `§cNot enough Archers (have ${village.troops.archers}).`);
-    return false;
-  }
-  if (pickup.cavalry > village.troops.cavalry) {
-    notifyPlayer(player.name, `§cNot enough Cavalry (have ${village.troops.cavalry}).`);
-    return false;
-  }
+  if (pickup.cityGuards  > village.troops.cityGuards)           { notifyPlayer(player.name, `§cNot enough City Guards (have ${village.troops.cityGuards}).`);     return false; }
+  if (pickup.spearmen    > village.troops.spearmen)             { notifyPlayer(player.name, `§cNot enough Spearmen (have ${village.troops.spearmen}).`);           return false; }
+  if (pickup.archers     > village.troops.archers)              { notifyPlayer(player.name, `§cNot enough Archers (have ${village.troops.archers}).`);             return false; }
+  if (pickup.cavalry     > village.troops.cavalry)              { notifyPlayer(player.name, `§cNot enough Cavalry (have ${village.troops.cavalry}).`);             return false; }
+  if (pickup.heavyKnight > (village.troops.heavyKnight ?? 0))   { notifyPlayer(player.name, `§cNot enough Heavy Knights (have ${village.troops.heavyKnight ?? 0}).`); return false; }
 
   const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
   if (!inv?.container) {
@@ -53,10 +44,11 @@ export function pickupTroops(
   const container = inv.container;
 
   const toGive: Array<{ itemId: string; count: number }> = [
-    { itemId: "kingdoms:guard_token",    count: pickup.cityGuards },
-    { itemId: "kingdoms:spearman_token", count: pickup.spearmen   },
-    { itemId: "kingdoms:archer_token",   count: pickup.archers    },
-    { itemId: "kingdoms:cavalry_token",  count: pickup.cavalry    },
+    { itemId: "kingdoms:guard_token",        count: pickup.cityGuards  },
+    { itemId: "kingdoms:spearman_token",     count: pickup.spearmen    },
+    { itemId: "kingdoms:archer_token",       count: pickup.archers     },
+    { itemId: "kingdoms:cavalry_token",      count: pickup.cavalry     },
+    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnight },
   ].filter((t) => t.count > 0);
 
   let slotsNeeded = 0;
@@ -72,10 +64,11 @@ export function pickupTroops(
     return false;
   }
 
-  village.troops.cityGuards -= pickup.cityGuards;
-  village.troops.spearmen   -= pickup.spearmen;
-  village.troops.archers    -= pickup.archers;
-  village.troops.cavalry    -= pickup.cavalry;
+  village.troops.cityGuards  -= pickup.cityGuards;
+  village.troops.spearmen    -= pickup.spearmen;
+  village.troops.archers     -= pickup.archers;
+  village.troops.cavalry     -= pickup.cavalry;
+  village.troops.heavyKnight = (village.troops.heavyKnight ?? 0) - pickup.heavyKnight;
   saveVillage(village);
 
   for (const { itemId, count } of toGive) {
@@ -162,10 +155,11 @@ export function releaseTroops(player: Player): boolean {
 }
 
 const ENTITY_TO_TOKEN: Record<string, string> = {
-  "kingdoms:city_guard":  "kingdoms:guard_token",
-  "kingdoms:spearman":    "kingdoms:spearman_token",
-  "kingdoms:archer":      "kingdoms:archer_token",
-  "kingdoms:cavalry":     "kingdoms:cavalry_token",
+  "kingdoms:city_guard":   "kingdoms:guard_token",
+  "kingdoms:spearman":     "kingdoms:spearman_token",
+  "kingdoms:archer":       "kingdoms:archer_token",
+  "kingdoms:cavalry":      "kingdoms:cavalry_token",
+  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token",
 };
 
 const RECALL_RADIUS = 48;
@@ -243,10 +237,11 @@ export function garrisonDeployedSoldiers(
   dimension: import("@minecraft/server").Dimension
 ): number {
   const entityToTroop: Record<string, TroopType> = {
-    "kingdoms:city_guard": "cityGuards",
-    "kingdoms:spearman":   "spearmen",
-    "kingdoms:archer":     "archers",
-    "kingdoms:cavalry":    "cavalry",
+    "kingdoms:city_guard":   "cityGuards",
+    "kingdoms:spearman":     "spearmen",
+    "kingdoms:archer":       "archers",
+    "kingdoms:cavalry":      "cavalry",
+    "kingdoms:heavy_knight": "heavyKnight",
   };
 
   const loc = village.townHallLocation;
@@ -271,7 +266,7 @@ export function garrisonDeployedSoldiers(
 
 export function countTroopTokens(player: Player): Record<TroopType, number> {
   const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
-  const result: Record<TroopType, number> = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  const result: Record<TroopType, number> = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 };
   if (!inv?.container) return result;
   const container = inv.container;
 

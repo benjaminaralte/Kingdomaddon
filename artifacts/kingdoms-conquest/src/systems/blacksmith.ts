@@ -1,5 +1,5 @@
 import { Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
-import type { VillageData } from "../types/index.js";
+import type { VillageData, ArmoryItemKey } from "../types/index.js";
 import { WEAPON_TIERS, ARMOR_TIERS } from "../types/index.js";
 import { getVillage, saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
@@ -12,18 +12,112 @@ interface UpgradeCost {
 
 const WEAPON_UPGRADE_COSTS: UpgradeCost[] = [
   { material: "minecraft:cobblestone", materialCount: 1, emeralds: 1 },
-  { material: "minecraft:iron_ingot", materialCount: 1, emeralds: 1 },
-  { material: "minecraft:gold_ingot", materialCount: 1, emeralds: 1 },
-  { material: "minecraft:diamond", materialCount: 1, emeralds: 1 },
+  { material: "minecraft:iron_ingot",  materialCount: 1, emeralds: 1 },
+  { material: "minecraft:gold_ingot",  materialCount: 1, emeralds: 1 },
+  { material: "minecraft:diamond",     materialCount: 1, emeralds: 1 },
   { material: "minecraft:netherite_scrap", materialCount: 1, emeralds: 1 },
 ];
 
 const ARMOR_UPGRADE_COSTS: UpgradeCost[] = [
-  { material: "minecraft:iron_ingot", materialCount: 2, emeralds: 1 },
-  { material: "minecraft:gold_ingot", materialCount: 2, emeralds: 1 },
-  { material: "minecraft:diamond", materialCount: 2, emeralds: 1 },
+  { material: "minecraft:iron_ingot",      materialCount: 2, emeralds: 1 },
+  { material: "minecraft:gold_ingot",      materialCount: 2, emeralds: 1 },
+  { material: "minecraft:diamond",         materialCount: 2, emeralds: 1 },
   { material: "minecraft:netherite_scrap", materialCount: 2, emeralds: 1 },
 ];
+
+export interface ArmoryRecipe {
+  key: ArmoryItemKey;
+  name: string;
+  produces: number;
+  costIron: number;
+  costGold: number;
+  costDiamonds: number;
+  costWood: number;
+  costStone: number;
+  costEmeralds: number;
+}
+
+export const ARMORY_RECIPES: ArmoryRecipe[] = [
+  { key: "woodenSwords",  name: "Wooden Swords (×5)",      produces: 5,  costWood: 10, costStone: 0,  costIron: 0,  costGold: 0,  costDiamonds: 0,  costEmeralds: 0 },
+  { key: "stoneSwords",   name: "Stone Swords (×5)",       produces: 5,  costWood: 0,  costStone: 10, costIron: 0,  costGold: 0,  costDiamonds: 0,  costEmeralds: 0 },
+  { key: "ironSwords",    name: "Iron Swords (×5)",        produces: 5,  costWood: 0,  costStone: 0,  costIron: 10, costGold: 0,  costDiamonds: 0,  costEmeralds: 1 },
+  { key: "goldSwords",    name: "Gold Swords (×5)",        produces: 5,  costWood: 0,  costStone: 0,  costIron: 0,  costGold: 10, costDiamonds: 0,  costEmeralds: 1 },
+  { key: "diamondSwords", name: "Diamond Swords (×5)",     produces: 5,  costWood: 0,  costStone: 0,  costIron: 0,  costGold: 0,  costDiamonds: 10, costEmeralds: 2 },
+  { key: "ironArmor",     name: "Iron Armor Set (helmet+chest+legs+boots)", produces: 1, costWood: 0, costStone: 0, costIron: 24, costGold: 0,  costDiamonds: 0,  costEmeralds: 2 },
+  { key: "goldArmor",     name: "Gold Armor Set",          produces: 1,  costWood: 0,  costStone: 0,  costIron: 0,  costGold: 24, costDiamonds: 0,  costEmeralds: 2 },
+  { key: "diamondArmor",  name: "Diamond Armor Set",       produces: 1,  costWood: 0,  costStone: 0,  costIron: 0,  costGold: 0,  costDiamonds: 24, costEmeralds: 5 },
+];
+
+export function canCraftArmoryRecipe(village: VillageData, recipe: ArmoryRecipe): boolean {
+  const rs = village.resourceStorage;
+  return (
+    (recipe.costIron     === 0 || rs.iron     >= recipe.costIron)     &&
+    (recipe.costGold     === 0 || rs.gold     >= recipe.costGold)     &&
+    (recipe.costDiamonds === 0 || rs.diamonds >= recipe.costDiamonds) &&
+    (recipe.costWood     === 0 || rs.wood     >= recipe.costWood)     &&
+    (recipe.costStone    === 0 || rs.stone    >= recipe.costStone)    &&
+    (recipe.costEmeralds === 0 || village.treasury >= recipe.costEmeralds)
+  );
+}
+
+export function craftForArmory(village: VillageData, recipeIndex: number, count: number): boolean {
+  if (recipeIndex < 0 || recipeIndex >= ARMORY_RECIPES.length) return false;
+  const recipe = ARMORY_RECIPES[recipeIndex];
+
+  const totalIron     = recipe.costIron     * count;
+  const totalGold     = recipe.costGold     * count;
+  const totalDiamonds = recipe.costDiamonds * count;
+  const totalWood     = recipe.costWood     * count;
+  const totalStone    = recipe.costStone    * count;
+  const totalEmeralds = recipe.costEmeralds * count;
+
+  const rs = village.resourceStorage;
+
+  if (totalIron     > 0 && rs.iron     < totalIron)     { notifyPlayer(village.owner, `§cNeed ${totalIron} iron (have ${rs.iron}).`);         return false; }
+  if (totalGold     > 0 && rs.gold     < totalGold)     { notifyPlayer(village.owner, `§cNeed ${totalGold} gold (have ${rs.gold}).`);         return false; }
+  if (totalDiamonds > 0 && rs.diamonds < totalDiamonds) { notifyPlayer(village.owner, `§cNeed ${totalDiamonds} diamonds (have ${rs.diamonds}).`); return false; }
+  if (totalWood     > 0 && rs.wood     < totalWood)     { notifyPlayer(village.owner, `§cNeed ${totalWood} wood (have ${rs.wood}).`);         return false; }
+  if (totalStone    > 0 && rs.stone    < totalStone)    { notifyPlayer(village.owner, `§cNeed ${totalStone} stone (have ${rs.stone}).`);       return false; }
+  if (totalEmeralds > 0 && village.treasury < totalEmeralds) { notifyPlayer(village.owner, `§cNeed ${totalEmeralds}💎 (treasury: ${village.treasury}).`); return false; }
+
+  rs.iron     -= totalIron;
+  rs.gold     -= totalGold;
+  rs.diamonds -= totalDiamonds;
+  rs.wood     -= totalWood;
+  rs.stone    -= totalStone;
+  village.treasury -= totalEmeralds;
+
+  if (!village.armory) village.armory = {};
+  const prev = village.armory[recipe.key] ?? 0;
+  village.armory[recipe.key] = prev + recipe.produces * count;
+
+  saveVillage(village);
+
+  const total = recipe.produces * count;
+  notifyPlayer(
+    village.owner,
+    `§a⚒ Crafted §b${total}x ${recipe.name}§a → stored in §b${village.name}§a armory. ` +
+    `(Total: §f${village.armory[recipe.key]}§a)`
+  );
+  return true;
+}
+
+export function getArmorySummary(village: VillageData): string {
+  const armory = village.armory ?? {};
+  const entries = Object.entries(armory).filter(([, v]) => (v ?? 0) > 0);
+  if (entries.length === 0) return "§7Armory is empty.";
+  const labels: Record<ArmoryItemKey, string> = {
+    woodenSwords:  "Wooden Swords",
+    stoneSwords:   "Stone Swords",
+    ironSwords:    "Iron Swords",
+    goldSwords:    "Gold Swords",
+    diamondSwords: "Diamond Swords",
+    ironArmor:     "Iron Armor Sets",
+    goldArmor:     "Gold Armor Sets",
+    diamondArmor:  "Diamond Armor Sets",
+  };
+  return entries.map(([k, v]) => `  §f${v}x §7${labels[k as ArmoryItemKey] ?? k}`).join("\n");
+}
 
 export function getWeaponUpgradeCost(currentTier: number): UpgradeCost | undefined {
   return WEAPON_UPGRADE_COSTS[currentTier];
@@ -50,7 +144,8 @@ export function upgradeWeapons(player: Player, villageId: string): boolean {
     village.troops.cityGuards +
     village.troops.spearmen +
     village.troops.archers +
-    village.troops.cavalry;
+    village.troops.cavalry +
+    (village.troops.heavyKnight ?? 0);
 
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
@@ -97,7 +192,8 @@ export function upgradeArmor(player: Player, villageId: string): boolean {
     village.troops.cityGuards +
     village.troops.spearmen +
     village.troops.archers +
-    village.troops.cavalry;
+    village.troops.cavalry +
+    (village.troops.heavyKnight ?? 0);
 
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
@@ -189,7 +285,10 @@ export function getBlacksmithSummary(village: VillageData): string {
     village.troops.cityGuards +
     village.troops.spearmen +
     village.troops.archers +
-    village.troops.cavalry;
+    village.troops.cavalry +
+    (village.troops.heavyKnight ?? 0);
+
+  const rs = village.resourceStorage;
 
   return [
     `§b${village.name} Blacksmith§r`,
@@ -201,6 +300,9 @@ export function getBlacksmithSummary(village: VillageData): string {
     soldiers > 0 && aCost
       ? `Armor upgrade cost: ${aCost.materialCount * soldiers}x ${aCost.material.replace("minecraft:", "")} + ${aCost.emeralds * soldiers}💎`
       : "",
+    `\n§7── Storage ──\nIron: §f${rs.iron}§7  Gold: §f${rs.gold}§7  Diamonds: §f${rs.diamonds}§7  Wood: §f${rs.wood}§7  Stone: §f${rs.stone}`,
+    `§7── Armory ──`,
+    getArmorySummary(village),
   ]
     .filter(Boolean)
     .join("\n");

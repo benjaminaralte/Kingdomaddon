@@ -8,13 +8,14 @@ export interface Vec3WithDim extends Vec3 {
   dimension: string;
 }
 
-export type TroopType = "cityGuards" | "spearmen" | "archers" | "cavalry";
+export type TroopType = "cityGuards" | "spearmen" | "archers" | "cavalry" | "heavyKnight";
 
 export interface TroopData {
   cityGuards: number;
   spearmen: number;
   archers: number;
   cavalry: number;
+  heavyKnight: number;
 }
 
 export interface WorkerAssignments {
@@ -98,6 +99,16 @@ export interface TrainingJob {
   completeTick: number;
 }
 
+export type ArmoryItemKey =
+  | "woodenSwords"
+  | "stoneSwords"
+  | "ironSwords"
+  | "goldSwords"
+  | "diamondSwords"
+  | "ironArmor"
+  | "goldArmor"
+  | "diamondArmor";
+
 export interface VillageData {
   id: string;
   name: string;
@@ -136,6 +147,7 @@ export interface VillageData {
   fieldStorage?: Record<string, number>;
   fieldWorkerLevel?: number;
   tradeHistory?: TradeHistoryEntry[];
+  armory?: Partial<Record<ArmoryItemKey, number>>;
 }
 
 export interface KingdomData {
@@ -165,10 +177,11 @@ export const WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "nether
 export const ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"] as const;
 
 export const TROOP_WAGES: Record<TroopType, number> = {
-  cityGuards: 1,
-  spearmen: 2,
-  archers: 2,
-  cavalry: 3,
+  cityGuards: 2,
+  spearmen:   3,
+  archers:    3,
+  cavalry:    5,
+  heavyKnight: 8,
 };
 
 export const EMPTY_RESOURCE_STORAGE: ResourceStorage = {
@@ -196,6 +209,7 @@ export const VILLAGE_CLAIM_RADIUS = 64;
 export const MIN_VILLAGERS_TO_CLAIM = 3;
 export const FOOD_PER_VILLAGER_PER_DAY = 1;
 export const FOOD_PER_SOLDIER_PER_DAY = 2;
+export const FOOD_PER_HEAVY_KNIGHT_PER_DAY = 4;
 export const POPULATION_GROWTH_INTERVAL_DAYS = 2;
 export const WAGE_INTERVAL_DAYS = 3;
 export const MAX_GUARDS_PER_POLE = 3;

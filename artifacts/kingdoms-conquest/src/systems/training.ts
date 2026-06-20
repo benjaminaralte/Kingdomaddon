@@ -6,27 +6,31 @@ export interface TrainingCost {
   emeralds: number;
   iron: number;
   gold: number;
+  diamonds: number;
 }
 
 export const TRAINING_COSTS: Record<TroopType, TrainingCost> = {
-  cityGuards: { emeralds: 2,  iron: 5,  gold: 0 },
-  spearmen:   { emeralds: 3,  iron: 8,  gold: 0 },
-  archers:    { emeralds: 3,  iron: 6,  gold: 2 },
-  cavalry:    { emeralds: 5,  iron: 10, gold: 3 },
+  cityGuards:  { emeralds: 4,  iron: 8,  gold: 0,  diamonds: 0 },
+  spearmen:    { emeralds: 6,  iron: 12, gold: 0,  diamonds: 0 },
+  archers:     { emeralds: 6,  iron: 10, gold: 4,  diamonds: 0 },
+  cavalry:     { emeralds: 12, iron: 18, gold: 6,  diamonds: 0 },
+  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 },
 };
 
 export const TRAINING_TICKS: Record<TroopType, number> = {
-  cityGuards: 1200,
-  spearmen:   1800,
-  archers:    1600,
-  cavalry:    2400,
+  cityGuards:  1200,
+  spearmen:    1800,
+  archers:     1600,
+  cavalry:     2400,
+  heavyKnight: 6000,
 };
 
 export const TROOP_LABELS: Record<TroopType, string> = {
-  cityGuards: "City Guard",
-  spearmen:   "Spearman",
-  archers:    "Archer",
-  cavalry:    "Cavalry",
+  cityGuards:  "City Guard",
+  spearmen:    "Spearman",
+  archers:     "Archer",
+  cavalry:     "Cavalry",
+  heavyKnight: "Heavy Knight",
 };
 
 const MAX_QUEUE_SIZE = 10;
@@ -44,6 +48,9 @@ export function canAffordTraining(village: VillageData, troopType: TroopType, co
   if (cost.gold > 0 && rs.gold < cost.gold * count) {
     return `§cNeed §f${cost.gold * count}§c gold (have §f${rs.gold}§c).`;
   }
+  if (cost.diamonds > 0 && rs.diamonds < cost.diamonds * count) {
+    return `§cNeed §f${cost.diamonds * count}§c diamonds (have §f${rs.diamonds}§c).`;
+  }
   return null;
 }
 
@@ -58,6 +65,11 @@ export function queueTraining(
     return false;
   }
 
+  if (troopType === "heavyKnight" && village.barracksLevel < 3) {
+    notifyPlayer(village.owner, `§cHeavy Knights require §bBarracks Level 3+§c (currently Lv${village.barracksLevel}).`);
+    return false;
+  }
+
   const err = canAffordTraining(village, troopType, count);
   if (err) {
     notifyPlayer(village.owner, err);
@@ -68,6 +80,7 @@ export function queueTraining(
   village.treasury -= cost.emeralds * count;
   village.resourceStorage.iron -= cost.iron * count;
   if (cost.gold > 0) village.resourceStorage.gold -= cost.gold * count;
+  if (cost.diamonds > 0) village.resourceStorage.diamonds -= cost.diamonds * count;
 
   const ticksNeeded = TRAINING_TICKS[troopType] * count;
   const lastJobEnd = village.trainingQueue.length > 0
@@ -84,11 +97,11 @@ export function queueTraining(
   saveVillage(village);
 
   const label = TROOP_LABELS[troopType];
-  const cost2 = TRAINING_COSTS[troopType];
   const costStr = [
-    `${cost2.emeralds * count}💎`,
-    cost2.iron * count > 0 ? `${cost2.iron * count} iron` : "",
-    cost2.gold * count > 0 ? `${cost2.gold * count} gold` : "",
+    `${cost.emeralds * count}💎`,
+    cost.iron * count > 0 ? `${cost.iron * count} iron` : "",
+    cost.gold * count > 0 ? `${cost.gold * count} gold` : "",
+    cost.diamonds * count > 0 ? `${cost.diamonds * count} 💠` : "",
   ].filter(Boolean).join(", ");
 
   const secRemaining = Math.ceil((job.completeTick - currentTick) / 20);

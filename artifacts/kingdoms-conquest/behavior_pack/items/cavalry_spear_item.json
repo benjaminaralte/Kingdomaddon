@@ -1,0 +1,17 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:cavalry_spear",
+      "category": "equipment"
+    },
+    "components": {
+      "minecraft:max_stack_size": 1,
+      "minecraft:icon": { "textures": { "default": "kingdoms_cavalry_spear" } },
+      "minecraft:display_name": { "value": "Cavalry Spear" },
+      "minecraft:damage": { "value": 8 },
+      "minecraft:durability": { "max_durability": 250 },
+      "minecraft:hand_equipped": true
+    }
+  }
+}

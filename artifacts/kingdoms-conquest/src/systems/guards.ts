@@ -5,14 +5,15 @@ import { generateId, saveVillage, getAllVillages } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
 const GUARD_ENTITY_MAP: Record<TroopType, string> = {
-  cityGuards: "kingdoms:city_guard",
-  spearmen: "kingdoms:spearman",
-  archers: "kingdoms:archer",
-  cavalry: "kingdoms:cavalry",
+  cityGuards:  "kingdoms:city_guard",
+  spearmen:    "kingdoms:spearman",
+  archers:     "kingdoms:archer",
+  cavalry:     "kingdoms:cavalry",
+  heavyKnight: "kingdoms:heavy_knight",
 };
 
 function getBestAvailableTroopType(village: VillageData): TroopType {
-  const types: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const types: TroopType[] = ["heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
   for (const t of types) {
     if (village.troops[t] > 0) return t;
   }
@@ -168,7 +169,6 @@ function spawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
 
 function despawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
   const dim = world.getDimension(village.location.dimension);
-  // Search only within a tight radius of the pole instead of scanning all world entities
   const POLE_SEARCH_RADIUS = 8;
   for (const eid of pole.entityIds) {
     try {

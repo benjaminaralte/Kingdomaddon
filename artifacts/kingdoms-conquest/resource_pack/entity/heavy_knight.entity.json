@@ -1,0 +1,16 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:heavy_knight",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/heavy_knight" },
+      "geometry": { "default": "geometry.zombie" },
+      "render_controllers": ["controller.render.default"],
+      "spawn_egg": {
+        "base_color": "#4a4a4a",
+        "overlay_color": "#c0b060"
+      }
+    }
+  }
+}
