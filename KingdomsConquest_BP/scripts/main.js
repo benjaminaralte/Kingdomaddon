@@ -5096,7 +5096,7 @@ Archers: ${carried.archers}  Cavalry: ${carried.cavalry}
 ${queueSummary}
 
 Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
+  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10)} set(s) avail`);
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5129,6 +5129,9 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
       break;
     case 9:
       await showTrainTroopsForm(player, village);
+      break;
+    case 10:
+      await showGetFormationSetForm(player, village);
       break;
   }
 }
@@ -5873,16 +5876,55 @@ var STRAT_GRID = [
   {id:15, angle:270, dist:22, label:"W  \xb722"},
   {id:16, angle:315, dist:22, label:"NW \xb722"},
 ];
+var STRAT_MIN_TOWNHALL_DIST = 15;
+var STRAT_LEASH_DIST = 30;
 var stratFormations = new Map();
 var stratMarkerEntities = new Map();
 var STRAT_TROOP_LABELS = {cityGuards:"City Guards", spearmen:"Spearmen", archers:"Archers", cavalry:"Cavalry"};
 var STRAT_TROOP_KEYS   = ["cityGuards","spearmen","archers","cavalry"];
-var STRAT_ENTITY_MAP   = {
+var STRAT_TOKEN_IDS    = {
+  cityGuards: "kingdoms:guard_token",
+  spearmen:   "kingdoms:spearman_token",
+  archers:    "kingdoms:archer_token",
+  cavalry:    "kingdoms:cavalry_token"
+};
+var STRAT_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen:   "kingdoms:spearman",
   archers:    "kingdoms:archer",
   cavalry:    "kingdoms:cavalry"
 };
+function countInventoryTokens(player) {
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const result = {cityGuards:0, spearmen:0, archers:0, cavalry:0};
+  if (!inv?.container) return result;
+  const c = inv.container;
+  for (let i = 0; i < c.size; i++) {
+    const slot = c.getItem(i);
+    if (!slot) continue;
+    const info = TROOP_TOKEN_MAP[slot.typeId];
+    if (info) result[info.troopType] += slot.amount;
+  }
+  return result;
+}
+function consumeInventoryTokens(player, toConsume) {
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  if (!inv?.container) return;
+  const c = inv.container;
+  for (const key of STRAT_TROOP_KEYS) {
+    let need = toConsume[key] ?? 0;
+    if (need <= 0) continue;
+    const tid = STRAT_TOKEN_IDS[key];
+    for (let i = 0; i < c.size && need > 0; i++) {
+      const slot = c.getItem(i);
+      if (!slot || slot.typeId !== tid) continue;
+      const take = Math.min(slot.amount, need);
+      need -= take;
+      if (slot.amount - take <= 0) { c.setItem(i, void 0); }
+      else { slot.amount -= take; c.setItem(i, slot); }
+    }
+  }
+}
 function getGridWorldPos(center, gp) {
   const rad = (gp.angle * Math.PI) / 180;
   return {
@@ -5891,15 +5933,18 @@ function getGridWorldPos(center, gp) {
     z: center.z - Math.cos(rad) * gp.dist
   };
 }
-function spawnStratMarkers(player, center) {
+function spawnStratMarkers(player, center, targetVillage) {
   const markers = [];
   try {
     const dim = player.dimension;
     for (const gp of STRAT_GRID) {
-      const pos = getGridWorldPos(center, gp);
       try {
+        const pos = getGridWorldPos(center, gp);
         const e = dim.spawnEntity("minecraft:armor_stand", pos);
-        e.nameTag = `\xA7e[${gp.id}]\xA7f ${gp.label}`;
+        const blocked = !!targetVillage && gp.dist < STRAT_MIN_TOWNHALL_DIST;
+        e.nameTag = blocked
+          ? `\xA7c[${gp.id}] ${gp.label} BLOCKED`
+          : `\xA7e[${gp.id}]\xA7f ${gp.label}`;
         e.setDynamicProperty("kc:strat_marker", "1");
         markers.push(e);
       } catch {}
@@ -5930,55 +5975,57 @@ async function cmdStratMap(player) {
       rotation:  {x: 90, y: 0}
     });
   } catch {}
-  spawnStratMarkers(player, center);
+  spawnStratMarkers(player, center, targetVillage);
   await stratMapMainMenu(player, center, targetVillage);
   clearStratMarkers(player);
   try { player.camera.clear(); } catch {}
 }
 async function stratMapMainMenu(player, center, targetVillage) {
-  const isPractice = !targetVillage;
-  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
-  const tt = {cityGuards:0, spearmen:0, archers:0, cavalry:0};
-  for (const v of myVillages) {
-    for (const k of STRAT_TROOP_KEYS) tt[k] += v.troops[k] ?? 0;
-  }
+  const isMobMode = !targetVillage;
+  const tt = countInventoryTokens(player);
   const totalAvail = STRAT_TROOP_KEYS.reduce((s, k) => s + tt[k], 0);
   const preset = stratFormations.get(player.name);
   const placedTotal = preset ? preset.positions.reduce((s, p) => s + p.count, 0) : 0;
 
-  let presetStr = "\xA77No formation saved yet.";
+  let presetStr = "\xA77No formation planned yet.";
   if (preset && preset.positions.length > 0) {
     presetStr = "\xA7aSaved formation:\n" + preset.positions.map((p) => {
       const gp = STRAT_GRID.find((g) => g.id === p.gridId);
       return `  \xA7f${p.count}x ${STRAT_TROOP_LABELS[p.troopType]} \xA77@ pos ${p.gridId} (${gp?.label ?? "?"})`;
     }).join("\n");
+    if (preset.savedAt) {
+      presetStr += `\n\xA7e\u26A0 Stay within ${STRAT_LEASH_DIST} blocks of save point or formation resets!`;
+    }
   }
 
+  const modeHeader = isMobMode
+    ? `\xA76[Anti-Mob] No player village in 150 blocks.\n\xA77Troops will engage nearby zombies, pillagers & hostiles.`
+    : `\xA7cTarget: \xA7f${targetVillage.name} \xA77(${targetVillage.owner})\n\xA7cPos 1-8 (inner ring) blocked \u2014 too close to townhall.`;
+
   const body = [
-    isPractice
-      ? "\xA77\u{1F3CB} Practice Mode \u2014 no other village within 150 blocks.\n\xA77Troops will deploy and hold positions only."
-      : `\xA7cTarget: \xA7f${targetVillage.name} \xA77(${targetVillage.owner})`,
-    `\xA7eYour troops: \xA7fG:${tt.cityGuards}  Sp:${tt.spearmen}  Ar:${tt.archers}  Ca:${tt.cavalry} \xA77(${totalAvail} total)`,
-    `\xA77Placed: ${placedTotal}  Remaining: ${totalAvail - placedTotal}`,
-    "",
-    "\xA77Numbered armor-stand markers appear in the world above.",
-    "\xA77Pos 1\u20138 = inner ring ~10 blocks | Pos 9\u201316 = outer ring ~22 blocks.",
+    modeHeader,
+    `\xA7eInventory tokens: \xA7fG:${tt.cityGuards}  Sp:${tt.spearmen}  Ar:${tt.archers}  Ca:${tt.cavalry} \xA77(${totalAvail})`,
+    `\xA77Planned: ${placedTotal}  Remaining: ${totalAvail - placedTotal}`,
+    "\xA77Get tokens from Barracks \u2192 'Get Formation Set x10'.",
     "",
     presetStr
   ].join("\n");
 
+  const deployLabel = isMobMode
+    ? "\xA76[Anti-Mob] Deploy Formation"
+    : "\xA7c\u2694 Execute Raid";
+
   const form = new ActionFormData()
-    .title("\xA76\u{1F5FA} Strategic Map" + (isPractice ? " \u2014 Practice" : ` \u2014 ${targetVillage.name}`))
+    .title("\xA76[Strategic Map]" + (isMobMode ? " Anti-Mob" : ` \u2014 ${targetVillage.name}`))
     .body(body)
-    .button("\u2795 Add Troop to Position")
-    .button("\u{1F5D1} Clear Formation")
-    .button("\u{1F4BE} Set Formation  (save & hold)")
-    .button("\xA7c\u2694 Execute Raid")
-    .button("\xA7a\u{1F3CB} Practice Deploy")
-    .button("\u274C Close Map");
+    .button("\u2795 Plan Troop Position")
+    .button("[Clear] Formation")
+    .button("[Set] Lock Formation & Hold")
+    .button(deployLabel)
+    .button("[X] Close Map");
 
   const response = await form.show(player);
-  if (response.canceled || response.selection === 5) return;
+  if (response.canceled || response.selection === 4) return;
 
   switch (response.selection) {
     case 0:
@@ -5993,21 +6040,22 @@ async function stratMapMainMenu(player, center, targetVillage) {
     case 2: {
       const p2 = stratFormations.get(player.name);
       if (!p2 || p2.positions.length === 0) {
-        notifyPlayer(player.name, "\xA7cNo positions set. Add troops first.");
+        notifyPlayer(player.name, "\xA7cNo positions planned. Add troops first.");
         await stratMapMainMenu(player, center, targetVillage);
       } else {
         p2.targetVillageId = targetVillage?.id ?? null;
         p2.center = center;
+        p2.savedAt = {x: player.location.x, y: player.location.y, z: player.location.z};
         stratFormations.set(player.name, p2);
-        notifyPlayer(player.name, `\xA7a\u{1F4BE} Formation saved with ${p2.positions.length} position(s). Open the Strategic Map again and press Execute Raid when ready.`);
+        notifyPlayer(
+          player.name,
+          `\xA7a[Set] Formation locked (${p2.positions.length} pos). \xA7eDo NOT move more than ${STRAT_LEASH_DIST} blocks! Open Strategic Map then Deploy.`
+        );
       }
       break;
     }
     case 3:
-      await executeStratRaid(player, center, targetVillage, false);
-      break;
-    case 4:
-      await executeStratRaid(player, center, targetVillage, true);
+      await executeStratRaid(player, center, targetVillage, isMobMode);
       break;
   }
 }
@@ -6016,32 +6064,38 @@ async function stratAddTroopForm(player, center, targetVillage, tt, totalAvail) 
   const placedTotal = preset.positions.reduce((s, p) => s + p.count, 0);
   const remaining = totalAvail - placedTotal;
   if (remaining <= 0) {
-    notifyPlayer(player.name, `\xA7cAll ${totalAvail} troops are already placed in the formation. Clear some positions first.`);
+    notifyPlayer(player.name, `\xA7cAll ${totalAvail} tokens are planned. Clear some positions first.`);
     return;
   }
-  const troopOpts = STRAT_TROOP_KEYS.map((k) => `${STRAT_TROOP_LABELS[k]} (${tt[k]} avail)`);
-  const posOpts = STRAT_GRID.map((g) => {
+  // When targeting a village, block inner ring (< STRAT_MIN_TOWNHALL_DIST)
+  const availGrid = STRAT_GRID.filter((g) => !targetVillage || g.dist >= STRAT_MIN_TOWNHALL_DIST);
+  if (availGrid.length === 0) {
+    notifyPlayer(player.name, "\xA7cNo valid grid positions available.");
+    return;
+  }
+  const troopOpts = STRAT_TROOP_KEYS.map((k) => `${STRAT_TROOP_LABELS[k]} (${tt[k]} tokens)`);
+  const posOpts   = availGrid.map((g) => {
     const placed = preset.positions.find((p) => p.gridId === g.id);
     return placed
       ? `[${g.id}] ${g.label} \u2014 ${placed.count}x ${STRAT_TROOP_LABELS[placed.troopType]}`
       : `[${g.id}] ${g.label} (empty)`;
   });
   const form = new ModalFormData()
-    .title("Place Troops on Map")
+    .title("Plan Troops on Map")
     .dropdown("Troop Type", troopOpts, 0)
-    .dropdown("Grid Position  (watch markers in world)", posOpts, 0)
+    .dropdown("Grid Position (watch markers in world)", posOpts, 0)
     .slider("Count", 1, Math.max(1, remaining), 1, 1);
   const response = await form.show(player);
   if (response.canceled) return;
   const [typeIdx, posIdx, count] = response.formValues;
   const troopType = STRAT_TROOP_KEYS[typeIdx];
-  const gridId    = STRAT_GRID[posIdx].id;
+  const gridId    = availGrid[posIdx].id;
   const alreadyOfType = preset.positions
     .filter((p) => p.troopType === troopType)
     .reduce((s, p) => s + p.count, 0);
   const availOfType = tt[troopType] - alreadyOfType;
   if (count > availOfType) {
-    notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[troopType]}. Only ${availOfType} available after existing placements.`);
+    notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[troopType]} tokens. Only ${availOfType} available.`);
     return;
   }
   const existIdx = preset.positions.findIndex((p) => p.gridId === gridId);
@@ -6052,72 +6106,141 @@ async function stratAddTroopForm(player, center, targetVillage, tt, totalAvail) 
   }
   stratFormations.set(player.name, preset);
   const markers = stratMarkerEntities.get(player.name) ?? [];
-  const markerIdx = STRAT_GRID.findIndex((g) => g.id === gridId);
-  if (markers[markerIdx]) {
-    try { markers[markerIdx].nameTag = `\xA7a[${gridId}]\xA7f ${count}x ${STRAT_TROOP_LABELS[troopType]}`; } catch {}
+  const fullGridIdx = STRAT_GRID.findIndex((g) => g.id === gridId);
+  if (markers[fullGridIdx]) {
+    try { markers[fullGridIdx].nameTag = `\xA7a[${gridId}]\xA7f ${count}x ${STRAT_TROOP_LABELS[troopType]}`; } catch {}
   }
-  notifyPlayer(player.name, `\xA7a\u2705 ${count}x ${STRAT_TROOP_LABELS[troopType]} placed at position ${gridId} (${STRAT_GRID[posIdx].label}).`);
+  notifyPlayer(player.name, `\xA7a[OK] ${count}x ${STRAT_TROOP_LABELS[troopType]} planned at pos ${gridId} (${availGrid[posIdx].label}).`);
 }
-async function executeStratRaid(player, center, targetVillage, forcePractice) {
+async function executeStratRaid(player, center, targetVillage, isMobMode) {
   const preset = stratFormations.get(player.name);
   if (!preset || preset.positions.length === 0) {
-    notifyPlayer(player.name, "\xA7cNo formation saved. Add troops to positions first, then press Set Formation.");
+    notifyPlayer(player.name, "\xA7cNo formation set. Plan positions then press [Set] Formation.");
     return;
   }
-  const isPractice = forcePractice || !targetVillage;
-  if (!isPractice && targetVillage) {
-    const myKingdom = getKingdomOf(player.name);
-    if (!myKingdom || !areAtWar(myKingdom.id, targetVillage.kingdomId)) {
-      notifyPlayer(
-        player.name,
-        `\xA7cYou must declare war on \xA7b${targetVillage.owner}\xA7c's kingdom before raiding.\n\xA77Use: /scriptevent kc:war <kingdomName>  or place 3 black wool in their territory.`
-      );
+  // 30-block leash check
+  if (preset.savedAt) {
+    const dist = Math.hypot(player.location.x - preset.savedAt.x, player.location.z - preset.savedAt.z);
+    if (dist > STRAT_LEASH_DIST) {
+      stratFormations.delete(player.name);
+      notifyPlayer(player.name, `\xA7c[!] Formation RESET \u2014 moved more than ${STRAT_LEASH_DIST} blocks from save point.`);
       return;
     }
   }
-  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  // Village raid requires war declaration
+  if (!isMobMode && targetVillage) {
+    const myKingdom = getKingdomOf(player.name);
+    if (!myKingdom || !areAtWar(myKingdom.id, targetVillage.kingdomId)) {
+      notifyPlayer(player.name, `\xA7cDeclare war on \xA7b${targetVillage.owner}\xA7c's kingdom first (place 3 black wool or /scriptevent kc:war).`);
+      return;
+    }
+  }
+  // Validate inventory tokens
+  const toConsume = {cityGuards:0, spearmen:0, archers:0, cavalry:0};
+  for (const pl of preset.positions) toConsume[pl.troopType] = (toConsume[pl.troopType] ?? 0) + pl.count;
+  const held = countInventoryTokens(player);
+  for (const key of STRAT_TROOP_KEYS) {
+    if ((toConsume[key] ?? 0) > held[key]) {
+      notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[key]} tokens! Need ${toConsume[key]}, have ${held[key]}.`);
+      return;
+    }
+  }
+  // Consume tokens from inventory
+  consumeInventoryTokens(player, toConsume);
+  // Deploy entities at formation positions
   const dim = player.dimension;
   let totalDeployed = 0;
   for (const placement of preset.positions) {
     const gp = STRAT_GRID.find((g) => g.id === placement.gridId);
     if (!gp) continue;
     const worldPos = getGridWorldPos(center, gp);
-    let remaining = placement.count;
-    for (const v of myVillages) {
-      if (remaining <= 0) break;
-      const avail = v.troops[placement.troopType] ?? 0;
-      if (avail <= 0) continue;
-      const take = Math.min(avail, remaining);
-      v.troops[placement.troopType] -= take;
-      remaining -= take;
-      saveVillage(v);
-    }
-    const actualCount = placement.count - remaining;
     const entityType = STRAT_ENTITY_MAP[placement.troopType];
     if (!entityType) continue;
-    for (let i = 0; i < actualCount; i++) {
+    for (let i = 0; i < placement.count; i++) {
       try {
         const e = dim.spawnEntity(entityType, {
           x: worldPos.x + (Math.random() - 0.5) * 4,
           y: worldPos.y,
           z: worldPos.z + (Math.random() - 0.5) * 4
         });
-        e.nameTag = isPractice
-          ? `\xA7e\u{1F3CB} [${player.name}]`
+        e.nameTag = isMobMode
+          ? `\xA76[${player.name}] Anti-Mob`
           : `\xA7c\u2694 [${player.name} \u2192 ${targetVillage?.name}]`;
         e.setDynamicProperty("kc:strat_raid_owner", player.name);
-        e.setDynamicProperty("kc:strat_is_practice", isPractice ? "1" : "0");
+        e.setDynamicProperty("kc:strat_mob_mode", isMobMode ? "1" : "0");
         totalDeployed++;
       } catch {}
     }
   }
   stratFormations.delete(player.name);
-  if (isPractice) {
-    notifyPlayer(player.name, `\xA7a\u{1F3CB} Practice formation deployed! \xA7f${totalDeployed}\xA7a troop(s) holding positions. (No village targeted)`);
+  if (isMobMode) {
+    notifyPlayer(player.name, `\xA76[Anti-Mob] ${totalDeployed} troop(s) deployed, engaging nearby hostiles.`);
   } else {
-    notifyPlayer(player.name, `\xA7c\u2694 RAID LAUNCHED! \xA7f${totalDeployed}\xA7c troop(s) deployed in formation at \xA7b${targetVillage?.name}\xA7c!`);
-    if (targetVillage) {
-      notifyPlayer(targetVillage.owner, `\xA7c\u2694 TACTICAL RAID! \xA7f${player.name}\xA7c has launched a formation raid on your village \xA7b${targetVillage.name}\xA7c!`);
+    notifyPlayer(player.name, `\xA7c\u2694 RAID LAUNCHED! ${totalDeployed} troop(s) in formation at \xA7b${targetVillage?.name}\xA7c!`);
+    if (targetVillage) notifyPlayer(targetVillage.owner, `\xA7c\u2694 TACTICAL RAID! ${player.name} launched a formation attack on \xA7b${targetVillage.name}\xA7c!`);
+  }
+}
+
+// Tick watcher: reset formation if player moves 30+ blocks from saved position
+system3.runInterval(() => {
+  for (const [playerName, preset] of stratFormations) {
+    if (!preset.savedAt) continue;
+    const p = world16.getPlayers().find((pl) => pl.name === playerName);
+    if (!p) continue;
+    const dist = Math.hypot(p.location.x - preset.savedAt.x, p.location.z - preset.savedAt.z);
+    if (dist > STRAT_LEASH_DIST) {
+      stratFormations.delete(playerName);
+      notifyPlayer(playerName, `\xA7c[!] Formation RESET \u2014 moved more than ${STRAT_LEASH_DIST} blocks from save point.`);
     }
+  }
+}, 40);
+
+// Barracks: Get Formation Set (1 set = 10 soldiers as tokens)
+async function showGetFormationSetForm(player, village) {
+  const t = village.troops;
+  const maxSetsPerType = STRAT_TROOP_KEYS.map((k) => Math.floor(t[k] / 10));
+  const maxSets = Math.max(...maxSetsPerType);
+  if (maxSets === 0) {
+    notifyPlayer(player.name, "\xA7cNeed at least 10 troops of one type in barracks to get a Formation Set (1 set = 10 soldiers).");
+    return;
+  }
+  const troopOpts = STRAT_TROOP_KEYS.map((k, i) => `${STRAT_TROOP_LABELS[k]} (${maxSetsPerType[i]} sets avail, ${t[k]} stored)`);
+  const form = new ModalFormData()
+    .title("Get Formation Set (x10)")
+    .dropdown("Troop type", troopOpts, 0)
+    .slider("Sets to withdraw (1 set = 10 soldiers)", 1, Math.max(1, maxSets), 1, 1);
+  const response = await form.show(player);
+  if (response.canceled) return;
+  const [typeIdx, sets] = response.formValues;
+  const troopType = STRAT_TROOP_KEYS[typeIdx];
+  const needed = sets * 10;
+  if (needed > village.troops[troopType]) {
+    notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[troopType]}. Need ${needed}, have ${village.troops[troopType]}.`);
+    return;
+  }
+  const tokenId = STRAT_TOKEN_IDS[troopType];
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  if (!inv?.container) { notifyPlayer(player.name, "\xA7cInventory unavailable."); return; }
+  const container = inv.container;
+  let leftToGive = needed;
+  for (let i = 0; i < container.size && leftToGive > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const give = Math.min(leftToGive, 64);
+      try { container.setItem(i, new ItemStack2(tokenId, give)); leftToGive -= give; } catch {}
+    } else if (slot.typeId === tokenId && slot.amount < 64) {
+      const give = Math.min(leftToGive, 64 - slot.amount);
+      slot.amount += give;
+      container.setItem(i, slot);
+      leftToGive -= give;
+    }
+  }
+  const actualGiven = needed - leftToGive;
+  village.troops[troopType] -= actualGiven;
+  saveVillage(village);
+  if (leftToGive > 0) {
+    notifyPlayer(player.name, `\xA7eInventory full! Gave ${actualGiven} tokens. Free up space and try again for the rest.`);
+  } else {
+    notifyPlayer(player.name, `\xA7a[OK] Got ${sets} set(s) = ${needed} ${STRAT_TROOP_LABELS[troopType]} tokens. Use /scriptevent kc:stratmap to deploy!`);
   }
 }
