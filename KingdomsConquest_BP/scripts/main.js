@@ -1011,12 +1011,12 @@ init_storage();
 // src/systems/bandit.ts
 import { world as world7, system } from "@minecraft/server";
 init_storage();
-var MAX_WORLD_CAMPS = 5;
-var MIN_WORLD_SPAWN_DIST = 300;
-var MAX_WORLD_SPAWN_DIST = 600;
+var MAX_WORLD_CAMPS = 20;
+var MIN_WORLD_SPAWN_DIST = 150;
+var MAX_WORLD_SPAWN_DIST = 500;
 var RAID_FOOD_STEAL_PER_STRENGTH = 3;
 var MAX_RAID_FOOD_PCT = 0.15;
-var MAX_ENTITIES_PER_CAMP = 10;
+var MAX_ENTITIES_PER_CAMP = 15;
 function spawnBanditDeserters(village, count) {
   const loc = village.location;
   const angle = Math.random() * Math.PI * 2;
@@ -1046,6 +1046,7 @@ function spawnBanditDeserters(village, count) {
     };
     saveBanditCamp(camp);
     trySpawnEntities(camp);
+    system.run(() => { try { buildBanditCampStructure(world7.getDimension(camp.location.dimension), camp.location); } catch {} });
   }
 }
 function tryWorldSpawn() {
@@ -1074,6 +1075,7 @@ function tryWorldSpawn() {
   };
   saveBanditCamp(camp);
   trySpawnEntities(camp);
+  system.run(() => { try { buildBanditCampStructure(world7.getDimension(camp.location.dimension), camp.location); } catch {} });
 }
 function trySpawnEntities(camp) {
   const dim = world7.getDimension(camp.location.dimension);
@@ -5209,6 +5211,197 @@ world16.beforeEvents.playerPlaceBlock.subscribe((event) => {
     }
   }
 });
+// ── World Life System ────────────────────────────────────────────────────────
+var WORLD_SEEDS_PROP = "kc:world_seeds";
+var MAX_WORLD_SEEDS = 50;
+var WORLD_SEED_MIN_SEP = 120;
+var WORLD_LIFE_INTERVAL = 12000;
+var WORLD_GEN_DIST_MIN = 80;
+var WORLD_GEN_DIST_MAX = 220;
+var lastWorldLifeTick = 0;
+
+function getWorldSeeds() {
+  try { const r = world16.getDynamicProperty(WORLD_SEEDS_PROP); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+function saveWorldSeed(seed) {
+  try {
+    const seeds = getWorldSeeds();
+    seeds.push(seed);
+    if (seeds.length > MAX_WORLD_SEEDS) seeds.shift();
+    world16.setDynamicProperty(WORLD_SEEDS_PROP, JSON.stringify(seeds));
+  } catch {}
+}
+function isAreaSeeded(x, z) {
+  return getWorldSeeds().some((s) => Math.sqrt((s.x - x) ** 2 + (s.z - z) ** 2) < WORLD_SEED_MIN_SEP);
+}
+
+// Bandit camp visual structure
+function buildBanditCampStructure(dim, loc) {
+  const x = Math.floor(loc.x);
+  const z = Math.floor(loc.z);
+  const y = Math.floor(loc.y);
+  try {
+    dim.runCommand(`fill ${x - 4} ${y + 1} ${z - 4} ${x + 4} ${y + 4} ${z + 4} minecraft:air replace minecraft:air`);
+    dim.runCommand(`fill ${x - 4} ${y} ${z - 4} ${x + 4} ${y} ${z + 4} minecraft:dirt`);
+    dim.runCommand(`setblock ${x} ${y + 1} ${z} minecraft:campfire`);
+    dim.runCommand(`setblock ${x - 2} ${y + 1} ${z} minecraft:oak_log`);
+    dim.runCommand(`setblock ${x + 2} ${y + 1} ${z} minecraft:oak_log`);
+    dim.runCommand(`setblock ${x} ${y + 1} ${z - 2} minecraft:oak_log`);
+    dim.runCommand(`setblock ${x} ${y + 1} ${z + 2} minecraft:oak_log`);
+    dim.runCommand(`setblock ${x - 3} ${y + 1} ${z - 3} minecraft:barrel`);
+    dim.runCommand(`setblock ${x + 3} ${y + 1} ${z + 3} minecraft:barrel`);
+    dim.runCommand(`setblock ${x - 3} ${y + 1} ${z + 3} minecraft:crafting_table`);
+    dim.runCommand(`setblock ${x + 3} ${y + 1} ${z - 3} minecraft:chest`);
+    const wallOffsets = [[-4, 0], [4, 0], [0, -4], [0, 4], [-4, -2], [-4, 2], [4, -2], [4, 2], [-2, -4], [2, -4], [-2, 4], [2, 4]];
+    for (const [ox, oz] of wallOffsets) {
+      dim.runCommand(`setblock ${x + ox} ${y + 1} ${z + oz} minecraft:cobblestone_wall`);
+    }
+    dim.runCommand(`setblock ${x - 2} ${y + 2} ${z + 4} minecraft:torch`);
+    dim.runCommand(`setblock ${x + 2} ${y + 2} ${z - 4} minecraft:torch`);
+    dim.runCommand(`setblock ${x + 4} ${y + 2} ${z + 2} minecraft:torch`);
+    dim.runCommand(`setblock ${x - 4} ${y + 2} ${z - 2} minecraft:torch`);
+  } catch {}
+}
+
+// NPC house blueprint
+function buildNpcHouse(dim, cx, y, cz, material) {
+  const m = material || "minecraft:oak_planks";
+  try {
+    dim.runCommand(`fill ${cx - 3} ${y} ${cz - 3} ${cx + 3} ${y + 4} ${cz + 3} ${m} hollow`);
+    dim.runCommand(`fill ${cx - 2} ${y + 1} ${cz - 2} ${cx + 2} ${y + 3} ${cz + 2} minecraft:air`);
+    dim.runCommand(`setblock ${cx} ${y + 1} ${cz + 3} minecraft:air`);
+    dim.runCommand(`setblock ${cx} ${y + 2} ${cz + 3} minecraft:air`);
+    dim.runCommand(`setblock ${cx - 2} ${y + 2} ${cz - 3} minecraft:glass`);
+    dim.runCommand(`setblock ${cx + 2} ${y + 2} ${cz - 3} minecraft:glass`);
+    dim.runCommand(`setblock ${cx - 3} ${y + 2} ${cz} minecraft:glass`);
+    dim.runCommand(`setblock ${cx + 3} ${y + 2} ${cz} minecraft:glass`);
+    dim.runCommand(`fill ${cx - 3} ${y + 5} ${cz - 3} ${cx + 3} ${y + 5} ${cz + 3} ${m}`);
+    dim.runCommand(`setblock ${cx} ${y + 4} ${cz} minecraft:glowstone`);
+  } catch {}
+}
+
+// Farm blueprint
+function buildFarmPlot(dim, fx, y, fz) {
+  try {
+    dim.runCommand(`fill ${fx} ${y} ${fz} ${fx + 10} ${y} ${fz + 8} minecraft:farmland`);
+    dim.runCommand(`fill ${fx} ${y + 1} ${fz} ${fx + 10} ${y + 1} ${fz + 8} minecraft:wheat[growth=7]`);
+    dim.runCommand(`fill ${fx + 5} ${y} ${fz} ${fx + 5} ${y} ${fz + 8} minecraft:water`);
+    dim.runCommand(`fill ${fx + 5} ${y + 1} ${fz} ${fx + 5} ${y + 1} ${fz + 8} minecraft:air`);
+    dim.runCommand(`fill ${fx - 1} ${y + 1} ${fz - 1} ${fx + 11} ${y + 1} ${fz + 9} minecraft:oak_fence hollow`);
+    dim.runCommand(`fill ${fx + 12} ${y} ${fz} ${fx + 16} ${y + 4} ${fz + 5} minecraft:oak_planks hollow`);
+    dim.runCommand(`setblock ${fx + 14} ${y + 3} ${fz + 2} minecraft:glowstone`);
+    dim.runCommand(`setblock ${fx + 13} ${y + 1} ${fz + 6} minecraft:air`);
+    dim.runCommand(`setblock ${fx + 14} ${y + 1} ${fz + 6} minecraft:air`);
+  } catch {}
+}
+
+// Well blueprint
+function buildWell(dim, wx, y, wz) {
+  try {
+    dim.runCommand(`fill ${wx - 1} ${y} ${wz - 1} ${wx + 1} ${y + 2} ${wz + 1} minecraft:stone_bricks hollow`);
+    dim.runCommand(`setblock ${wx} ${y + 1} ${wz} minecraft:water`);
+    dim.runCommand(`setblock ${wx} ${y + 2} ${wz} minecraft:air`);
+    dim.runCommand(`fill ${wx - 1} ${y + 3} ${wz - 1} ${wx + 1} ${y + 3} ${wz + 1} minecraft:oak_slab`);
+  } catch {}
+}
+
+// NPC village generator
+function spawnNpcVillage(dim, anchor, size) {
+  const x = Math.floor(anchor.x);
+  const z = Math.floor(anchor.z);
+  const y = Math.floor(anchor.y);
+  const isCity = size === "city";
+  const ring = isCity ? 22 : 13;
+  const buildingCount = isCity ? 6 : 2;
+  const villagerCount = isCity ? 12 : 4;
+  const mat = isCity ? "minecraft:stone_bricks" : "minecraft:oak_planks";
+  try {
+    dim.runCommand(`fill ${x - ring} ${y} ${z - ring} ${x + ring} ${y} ${z + ring} minecraft:grass_block`);
+    dim.runCommand(`fill ${x - ring} ${y + 1} ${z} ${x + ring} ${y + 1} ${z} minecraft:gravel`);
+    dim.runCommand(`fill ${x} ${y + 1} ${z - ring} ${x} ${y + 1} ${z + ring} minecraft:gravel`);
+  } catch {}
+  buildWell(dim, x, y + 1, z);
+  const step = (Math.PI * 2) / buildingCount;
+  for (let i = 0; i < buildingCount; i++) {
+    const angle = i * step;
+    const bx = Math.round(x + Math.cos(angle) * ring * 0.7);
+    const bz = Math.round(z + Math.sin(angle) * ring * 0.7);
+    buildNpcHouse(dim, bx, y + 1, bz, mat);
+    try { dim.spawnEntity("minecraft:villager_v2", { x: bx, y: y + 2, z: bz }); } catch {}
+  }
+  buildFarmPlot(dim, x + ring + 3, y + 1, z - 4);
+  try { dim.spawnEntity("minecraft:villager_v2", { x: x + ring + 8, y: y + 2, z: z }); } catch {}
+  const extra = Math.max(0, villagerCount - buildingCount - 1);
+  for (let i = 0; i < extra; i++) {
+    const vx = x + Math.floor(Math.random() * 12 - 6);
+    const vz = z + Math.floor(Math.random() * 12 - 6);
+    try { dim.spawnEntity("minecraft:villager_v2", { x: vx, y: y + 2, z: vz }); } catch {}
+  }
+  if (isCity) {
+    const w = ring + 6;
+    try {
+      dim.runCommand(`fill ${x - w} ${y + 1} ${z - w} ${x + w} ${y + 4} ${z - w} minecraft:stone_bricks`);
+      dim.runCommand(`fill ${x - w} ${y + 1} ${z + w} ${x + w} ${y + 4} ${z + w} minecraft:stone_bricks`);
+      dim.runCommand(`fill ${x - w} ${y + 1} ${z - w} ${x - w} ${y + 4} ${z + w} minecraft:stone_bricks`);
+      dim.runCommand(`fill ${x + w} ${y + 1} ${z - w} ${x + w} ${y + 4} ${z + w} minecraft:stone_bricks`);
+      dim.runCommand(`fill ${x - 3} ${y + 1} ${z - w - 1} ${x + 3} ${y + 3} ${z - w + 1} minecraft:air`);
+      dim.runCommand(`fill ${x - 3} ${y + 1} ${z + w - 1} ${x + 3} ${y + 3} ${z + w + 1} minecraft:air`);
+    } catch {}
+  }
+}
+
+// Pillager patrol spawner
+function spawnPillagerPatrol(dim, loc) {
+  const count = 3 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) {
+    const px = loc.x + (Math.random() * 14 - 7);
+    const pz = loc.z + (Math.random() * 14 - 7);
+    try { dim.spawnEntity("minecraft:pillager", { x: px, y: loc.y, z: pz }); } catch {}
+  }
+  try { dim.spawnEntity("minecraft:pillager", { x: loc.x + 1, y: loc.y, z: loc.z + 1 }); } catch {}
+}
+
+// World life tick — runs periodically, spawns content near players
+function tickWorldLife(currentTick) {
+  if (currentTick - lastWorldLifeTick < WORLD_LIFE_INTERVAL) return;
+  lastWorldLifeTick = currentTick;
+  const players = world16.getAllPlayers();
+  for (const player of players) {
+    const loc = player.location;
+    const dimId = player.dimension.id;
+    const dim = world16.getDimension(dimId);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = WORLD_GEN_DIST_MIN + Math.random() * (WORLD_GEN_DIST_MAX - WORLD_GEN_DIST_MIN);
+    const cx = loc.x + Math.cos(angle) * dist;
+    const cz = loc.z + Math.sin(angle) * dist;
+    if (isAreaSeeded(cx, cz)) continue;
+    const roll = Math.random();
+    const anchor = { x: cx, y: loc.y, z: cz };
+    if (roll < 0.18) {
+      spawnNpcVillage(dim, anchor, "city");
+      saveWorldSeed({ x: cx, z: cz, type: "city" });
+    } else if (roll < 0.50) {
+      spawnNpcVillage(dim, anchor, "village");
+      saveWorldSeed({ x: cx, z: cz, type: "village" });
+    } else if (roll < 0.68) {
+      buildFarmPlot(dim, Math.floor(cx), Math.floor(loc.y) + 1, Math.floor(cz));
+      saveWorldSeed({ x: cx, z: cz, type: "farm" });
+    } else if (roll < 0.84) {
+      spawnPillagerPatrol(dim, anchor);
+      saveWorldSeed({ x: cx, z: cz, type: "pillager" });
+    } else {
+      if (getAllBanditCamps().length < MAX_WORLD_CAMPS) {
+        const camp2 = { id: generateId(), location: { x: cx, y: loc.y, z: cz, dimension: dimId }, strength: 3 + Math.floor(Math.random() * 5), originKingdomId: "", entityIds: [] };
+        saveBanditCamp(camp2);
+        trySpawnEntities(camp2);
+        buildBanditCampStructure(dim, camp2.location);
+        saveWorldSeed({ x: cx, z: cz, type: "bandit" });
+      }
+    }
+  }
+}
+// ── End World Life ─────────────────────────────────────────────────────────────
+
 system3.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
@@ -5222,6 +5415,7 @@ system3.runInterval(() => {
   }
   tickAllMerchantsSpawn(tick);
   tickAllMerchantMovement();
+  tickWorldLife(tick);
 }, 20);
 system3.runInterval(() => {
   processAllFood();
@@ -5239,6 +5433,40 @@ system3.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
+// World merchant spawner — independent of villages, spawns travelling merchants near players
+system3.runInterval(() => {
+  const players = world16.getAllPlayers();
+  for (const player of players) {
+    if (Math.random() > 0.5) continue;
+    try {
+      const dim = world16.getDimension(player.dimension.id);
+      const nearby = dim.getEntities({ type: "kingdoms:merchant", location: player.location, maxDistance: 150 });
+      if (nearby.length >= 3) continue;
+      const angle = Math.random() * Math.PI * 2;
+      const d = 60 + Math.random() * 80;
+      const m = dim.spawnEntity("kingdoms:merchant", {
+        x: player.location.x + Math.cos(angle) * d,
+        y: player.location.y,
+        z: player.location.z + Math.sin(angle) * d
+      });
+      m.nameTag = "\xA76Travelling Merchant";
+    } catch {}
+  }
+}, 6e3);
+// Intercept vanilla wandering_trader — replace with kingdoms:merchant
+world16.afterEvents.entitySpawn.subscribe((event) => {
+  const entity = event.entity;
+  if (!entity || entity.typeId !== "minecraft:wandering_trader") return;
+  const loc = { x: entity.location.x, y: entity.location.y, z: entity.location.z };
+  const dim = entity.dimension;
+  system3.run(() => {
+    try {
+      entity.remove();
+      const m = dim.spawnEntity("kingdoms:merchant", loc);
+      m.nameTag = "\xA76Travelling Merchant";
+    } catch {}
+  });
+});
 world16.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;

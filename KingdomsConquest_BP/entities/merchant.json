@@ -3,6 +3,7 @@
   "minecraft:entity": {
     "description": {
       "identifier": "kingdoms:merchant",
+      "runtime_identifier": "minecraft:wandering_trader",
       "is_spawnable": false,
       "is_summonable": true,
       "is_experimental": false
@@ -17,16 +18,17 @@
         "height": 1.8
       },
       "minecraft:health": {
-        "value": 20,
-        "max": 20
+        "value": 30,
+        "max": 30
       },
       "minecraft:movement": {
-        "value": 0.25
+        "value": 0.3
       },
       "minecraft:navigation.walk": {
         "can_path_over_water": false,
         "avoid_water": true,
-        "avoid_damage_blocks": true
+        "avoid_damage_blocks": true,
+        "can_open_doors": true
       },
       "minecraft:movement.basic": {},
       "minecraft:jump.static": {},
@@ -43,21 +45,36 @@
         "table": "loot_tables/entities/merchant.json"
       },
       "minecraft:despawn": {
-        "despawn_from_distance": {}
+        "despawn_from_distance": {
+          "min_distance": 32,
+          "max_distance": 128
+        }
       },
       "minecraft:behavior.float": {
         "priority": 0
       },
       "minecraft:behavior.look_at_player": {
-        "priority": 7,
-        "look_distance": 6.0
+        "priority": 6,
+        "look_distance": 8.0,
+        "probability": 0.02
       },
       "minecraft:behavior.random_look_around": {
         "priority": 9
       },
       "minecraft:behavior.random_stroll": {
         "priority": 8,
-        "speed_multiplier": 0.6
+        "speed_multiplier": 0.7,
+        "xz_dist": 10,
+        "y_dist": 3
+      },
+      "minecraft:behavior.panic": {
+        "priority": 1,
+        "speed_multiplier": 1.4,
+        "panic_sound": "mob.wanderingtrader.hurt",
+        "sound_interval": {
+          "range_min": 1.0,
+          "range_max": 3.0
+        }
       }
     }
   }
