@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:trade_pole_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Trade Pole"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "gold_ingot"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:trade_pole"
+      },
+      "minecraft:max_stack_size": 64
+    }
+  }
+}

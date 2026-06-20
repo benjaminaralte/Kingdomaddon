@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:city_guard",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/zombie/zombie" },
+      "geometry": { "default": "geometry.zombie" },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}

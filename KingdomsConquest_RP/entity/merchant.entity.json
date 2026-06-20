@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:merchant",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/villager2/villager2" },
+      "geometry": { "default": "geometry.villager.v2" },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}
