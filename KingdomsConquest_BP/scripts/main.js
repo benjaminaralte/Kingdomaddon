@@ -159,7 +159,7 @@ var init_storage = __esm({
 
 // src/main.ts
 import { world as world16, system as system3, EntityInventoryComponent as EntityInventoryComponent8 } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ActionFormData, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/types/index.ts
 var WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
@@ -2273,6 +2273,11 @@ function handleKcCommand(player, subcommand, args) {
     case "bandits":
       cmdBandits(player);
       break;
+    case "stratmap":
+    case "formation":
+    case "raid":
+      void cmdStratMap(player);
+      break;
     default:
       notifyPlayer(player.name, `\xA7cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -2303,6 +2308,8 @@ function showHelp(player) {
     "\xA7e/scriptevent kc:intel <kingdomName>\xA7r \u2014 scout an enemy kingdom",
     "\xA7e/scriptevent kc:alerts\xA7r \u2014 toggle incoming-attack alerts on/off",
     "\xA7e/scriptevent kc:collect <id>\xA7r \u2014 collect NPC-harvested crops to your inventory",
+    "\xA7c\u2694 WAR TIP: Place 3 black wool in a line inside an enemy village to declare war!",
+    "\xA76\u{1F5FA} /scriptevent kc:stratmap\xA7r \u2014 open Strategic Formation Map (bird's-eye view, place troops)",
     "\xA77Troop types: cityGuards, spearmen, archers, cavalry"
   ];
   for (const line of lines) notifyPlayer(player.name, line);
@@ -4644,6 +4651,14 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
   if (typeId === CUSTOM_BLOCKS.TOWN_HALL) {
     void showClaimVillageForm(player, block);
   }
+  if (typeId === "minecraft:black_wool") {
+    const woolVillage = findVillageAt2(block.location);
+    if (woolVillage && woolVillage.owner && woolVillage.owner !== player.name) {
+      if (hasWoolWarLine(block.location, player.dimension)) {
+        void triggerWoolWarDeclaration(player, woolVillage);
+      }
+    }
+  }
   if (typeId.startsWith("kingdoms:guard_pole")) {
     const typeMap = {
       "kingdoms:guard_pole_village": "village",
@@ -5785,4 +5800,324 @@ async function showTradeHistoryMenu(player, villageId) {
 
 ` + lines.join("\n\n")).button("Close");
   await form.show(player);
+}
+
+// ===== Black Wool War Declaration =====
+function hasWoolWarLine(loc, dim) {
+  const checks = [
+    [{dx:1,dz:0},{dx:2,dz:0}],
+    [{dx:-1,dz:0},{dx:-2,dz:0}],
+    [{dx:0,dz:1},{dx:0,dz:2}],
+    [{dx:0,dz:-1},{dx:0,dz:-2}],
+    [{dx:-1,dz:0},{dx:1,dz:0}],
+    [{dx:0,dz:-1},{dx:0,dz:1}],
+  ];
+  for (const [d1, d2] of checks) {
+    try {
+      const b1 = dim.getBlock({x:loc.x+d1.dx, y:loc.y, z:loc.z+d1.dz});
+      const b2 = dim.getBlock({x:loc.x+d2.dx, y:loc.y, z:loc.z+d2.dz});
+      if (b1?.typeId === "minecraft:black_wool" && b2?.typeId === "minecraft:black_wool") return true;
+    } catch {}
+  }
+  return false;
+}
+async function triggerWoolWarDeclaration(player, village) {
+  const myKingdom = getKingdomOf(player.name);
+  const enemyKingdom = getKingdom(village.kingdomId);
+  if (!myKingdom || !enemyKingdom) return;
+  if (myKingdom.id === enemyKingdom.id) return;
+  if (areAtWar(myKingdom.id, enemyKingdom.id)) {
+    notifyPlayer(player.name, `\xA7c\u2694 Already at war with ${enemyKingdom.name}.`);
+    return;
+  }
+  const form = new MessageFormData()
+    .title("\u2694 War Declaration")
+    .body(
+      `You have placed 3 black wool in ${village.name}'s territory!\n\n` +
+      `\xA7cDeclare WAR on kingdom "\xA7b${enemyKingdom.name}\xA7c" (owner: ${village.owner})?\n\n` +
+      `\xA77This cannot be undone without a peace treaty.`
+    )
+    .button1("\u2694 Declare War!")
+    .button2("Cancel");
+  const response = await form.show(player);
+  if (response.canceled) return;
+  if (response.selection === 0) {
+    declareWar(myKingdom.id, enemyKingdom.id);
+    for (const p of world16.getPlayers()) {
+      notifyPlayer(
+        p.name,
+        `\xA7c\u2694 WAR DECLARED! \xA7f${player.name} \xA77(${myKingdom.name}) \xA7chas declared war on \xA7b${enemyKingdom.name}\xA7c by placing black wool in their territory!`
+      );
+    }
+  } else {
+    notifyPlayer(player.name, "\xA77War declaration cancelled.");
+  }
+}
+
+// ===== Strategic Formation Map =====
+var STRAT_GRID = [
+  {id:1,  angle:0,   dist:10, label:"N  \xb710"},
+  {id:2,  angle:45,  dist:10, label:"NE \xb710"},
+  {id:3,  angle:90,  dist:10, label:"E  \xb710"},
+  {id:4,  angle:135, dist:10, label:"SE \xb710"},
+  {id:5,  angle:180, dist:10, label:"S  \xb710"},
+  {id:6,  angle:225, dist:10, label:"SW \xb710"},
+  {id:7,  angle:270, dist:10, label:"W  \xb710"},
+  {id:8,  angle:315, dist:10, label:"NW \xb710"},
+  {id:9,  angle:0,   dist:22, label:"N  \xb722"},
+  {id:10, angle:45,  dist:22, label:"NE \xb722"},
+  {id:11, angle:90,  dist:22, label:"E  \xb722"},
+  {id:12, angle:135, dist:22, label:"SE \xb722"},
+  {id:13, angle:180, dist:22, label:"S  \xb722"},
+  {id:14, angle:225, dist:22, label:"SW \xb722"},
+  {id:15, angle:270, dist:22, label:"W  \xb722"},
+  {id:16, angle:315, dist:22, label:"NW \xb722"},
+];
+var stratFormations = new Map();
+var stratMarkerEntities = new Map();
+var STRAT_TROOP_LABELS = {cityGuards:"City Guards", spearmen:"Spearmen", archers:"Archers", cavalry:"Cavalry"};
+var STRAT_TROOP_KEYS   = ["cityGuards","spearmen","archers","cavalry"];
+var STRAT_ENTITY_MAP   = {
+  cityGuards: "kingdoms:city_guard",
+  spearmen:   "kingdoms:spearman",
+  archers:    "kingdoms:archer",
+  cavalry:    "kingdoms:cavalry"
+};
+function getGridWorldPos(center, gp) {
+  const rad = (gp.angle * Math.PI) / 180;
+  return {
+    x: center.x + Math.sin(rad) * gp.dist,
+    y: center.y + 1,
+    z: center.z - Math.cos(rad) * gp.dist
+  };
+}
+function spawnStratMarkers(player, center) {
+  const markers = [];
+  try {
+    const dim = player.dimension;
+    for (const gp of STRAT_GRID) {
+      const pos = getGridWorldPos(center, gp);
+      try {
+        const e = dim.spawnEntity("minecraft:armor_stand", pos);
+        e.nameTag = `\xA7e[${gp.id}]\xA7f ${gp.label}`;
+        e.setDynamicProperty("kc:strat_marker", "1");
+        markers.push(e);
+      } catch {}
+    }
+  } catch {}
+  stratMarkerEntities.set(player.name, markers);
+}
+function clearStratMarkers(player) {
+  const markers = stratMarkerEntities.get(player.name) ?? [];
+  for (const e of markers) { try { e.remove(); } catch {} }
+  stratMarkerEntities.delete(player.name);
+}
+async function cmdStratMap(player) {
+  const loc = player.location;
+  let targetVillage = null;
+  let minDist = 150;
+  for (const v of getAllVillages()) {
+    if (v.owner === player.name) continue;
+    const d = Math.hypot(v.townHallLocation.x - loc.x, v.townHallLocation.z - loc.z);
+    if (d < minDist) { targetVillage = v; minDist = d; }
+  }
+  const center = targetVillage
+    ? {x: targetVillage.townHallLocation.x, y: targetVillage.townHallLocation.y, z: targetVillage.townHallLocation.z}
+    : {x: Math.floor(loc.x), y: Math.floor(loc.y), z: Math.floor(loc.z)};
+  try {
+    player.camera.setCamera("minecraft:free", {
+      location: {x: center.x + 0.5, y: center.y + 45, z: center.z + 0.5},
+      rotation:  {x: 90, y: 0}
+    });
+  } catch {}
+  spawnStratMarkers(player, center);
+  await stratMapMainMenu(player, center, targetVillage);
+  clearStratMarkers(player);
+  try { player.camera.clear(); } catch {}
+}
+async function stratMapMainMenu(player, center, targetVillage) {
+  const isPractice = !targetVillage;
+  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const tt = {cityGuards:0, spearmen:0, archers:0, cavalry:0};
+  for (const v of myVillages) {
+    for (const k of STRAT_TROOP_KEYS) tt[k] += v.troops[k] ?? 0;
+  }
+  const totalAvail = STRAT_TROOP_KEYS.reduce((s, k) => s + tt[k], 0);
+  const preset = stratFormations.get(player.name);
+  const placedTotal = preset ? preset.positions.reduce((s, p) => s + p.count, 0) : 0;
+
+  let presetStr = "\xA77No formation saved yet.";
+  if (preset && preset.positions.length > 0) {
+    presetStr = "\xA7aSaved formation:\n" + preset.positions.map((p) => {
+      const gp = STRAT_GRID.find((g) => g.id === p.gridId);
+      return `  \xA7f${p.count}x ${STRAT_TROOP_LABELS[p.troopType]} \xA77@ pos ${p.gridId} (${gp?.label ?? "?"})`;
+    }).join("\n");
+  }
+
+  const body = [
+    isPractice
+      ? "\xA77\u{1F3CB} Practice Mode \u2014 no other village within 150 blocks.\n\xA77Troops will deploy and hold positions only."
+      : `\xA7cTarget: \xA7f${targetVillage.name} \xA77(${targetVillage.owner})`,
+    `\xA7eYour troops: \xA7fG:${tt.cityGuards}  Sp:${tt.spearmen}  Ar:${tt.archers}  Ca:${tt.cavalry} \xA77(${totalAvail} total)`,
+    `\xA77Placed: ${placedTotal}  Remaining: ${totalAvail - placedTotal}`,
+    "",
+    "\xA77Numbered armor-stand markers appear in the world above.",
+    "\xA77Pos 1\u20138 = inner ring ~10 blocks | Pos 9\u201316 = outer ring ~22 blocks.",
+    "",
+    presetStr
+  ].join("\n");
+
+  const form = new ActionFormData()
+    .title("\xA76\u{1F5FA} Strategic Map" + (isPractice ? " \u2014 Practice" : ` \u2014 ${targetVillage.name}`))
+    .body(body)
+    .button("\u2795 Add Troop to Position")
+    .button("\u{1F5D1} Clear Formation")
+    .button("\u{1F4BE} Set Formation  (save & hold)")
+    .button("\xA7c\u2694 Execute Raid")
+    .button("\xA7a\u{1F3CB} Practice Deploy")
+    .button("\u274C Close Map");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === 5) return;
+
+  switch (response.selection) {
+    case 0:
+      await stratAddTroopForm(player, center, targetVillage, tt, totalAvail);
+      await stratMapMainMenu(player, center, targetVillage);
+      break;
+    case 1:
+      stratFormations.delete(player.name);
+      notifyPlayer(player.name, "\xA77Formation cleared.");
+      await stratMapMainMenu(player, center, targetVillage);
+      break;
+    case 2: {
+      const p2 = stratFormations.get(player.name);
+      if (!p2 || p2.positions.length === 0) {
+        notifyPlayer(player.name, "\xA7cNo positions set. Add troops first.");
+        await stratMapMainMenu(player, center, targetVillage);
+      } else {
+        p2.targetVillageId = targetVillage?.id ?? null;
+        p2.center = center;
+        stratFormations.set(player.name, p2);
+        notifyPlayer(player.name, `\xA7a\u{1F4BE} Formation saved with ${p2.positions.length} position(s). Open the Strategic Map again and press Execute Raid when ready.`);
+      }
+      break;
+    }
+    case 3:
+      await executeStratRaid(player, center, targetVillage, false);
+      break;
+    case 4:
+      await executeStratRaid(player, center, targetVillage, true);
+      break;
+  }
+}
+async function stratAddTroopForm(player, center, targetVillage, tt, totalAvail) {
+  const preset = stratFormations.get(player.name) ?? {positions:[]};
+  const placedTotal = preset.positions.reduce((s, p) => s + p.count, 0);
+  const remaining = totalAvail - placedTotal;
+  if (remaining <= 0) {
+    notifyPlayer(player.name, `\xA7cAll ${totalAvail} troops are already placed in the formation. Clear some positions first.`);
+    return;
+  }
+  const troopOpts = STRAT_TROOP_KEYS.map((k) => `${STRAT_TROOP_LABELS[k]} (${tt[k]} avail)`);
+  const posOpts = STRAT_GRID.map((g) => {
+    const placed = preset.positions.find((p) => p.gridId === g.id);
+    return placed
+      ? `[${g.id}] ${g.label} \u2014 ${placed.count}x ${STRAT_TROOP_LABELS[placed.troopType]}`
+      : `[${g.id}] ${g.label} (empty)`;
+  });
+  const form = new ModalFormData()
+    .title("Place Troops on Map")
+    .dropdown("Troop Type", troopOpts, 0)
+    .dropdown("Grid Position  (watch markers in world)", posOpts, 0)
+    .slider("Count", 1, Math.max(1, remaining), 1, 1);
+  const response = await form.show(player);
+  if (response.canceled) return;
+  const [typeIdx, posIdx, count] = response.formValues;
+  const troopType = STRAT_TROOP_KEYS[typeIdx];
+  const gridId    = STRAT_GRID[posIdx].id;
+  const alreadyOfType = preset.positions
+    .filter((p) => p.troopType === troopType)
+    .reduce((s, p) => s + p.count, 0);
+  const availOfType = tt[troopType] - alreadyOfType;
+  if (count > availOfType) {
+    notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[troopType]}. Only ${availOfType} available after existing placements.`);
+    return;
+  }
+  const existIdx = preset.positions.findIndex((p) => p.gridId === gridId);
+  if (existIdx >= 0) {
+    preset.positions[existIdx] = {gridId, troopType, count};
+  } else {
+    preset.positions.push({gridId, troopType, count});
+  }
+  stratFormations.set(player.name, preset);
+  const markers = stratMarkerEntities.get(player.name) ?? [];
+  const markerIdx = STRAT_GRID.findIndex((g) => g.id === gridId);
+  if (markers[markerIdx]) {
+    try { markers[markerIdx].nameTag = `\xA7a[${gridId}]\xA7f ${count}x ${STRAT_TROOP_LABELS[troopType]}`; } catch {}
+  }
+  notifyPlayer(player.name, `\xA7a\u2705 ${count}x ${STRAT_TROOP_LABELS[troopType]} placed at position ${gridId} (${STRAT_GRID[posIdx].label}).`);
+}
+async function executeStratRaid(player, center, targetVillage, forcePractice) {
+  const preset = stratFormations.get(player.name);
+  if (!preset || preset.positions.length === 0) {
+    notifyPlayer(player.name, "\xA7cNo formation saved. Add troops to positions first, then press Set Formation.");
+    return;
+  }
+  const isPractice = forcePractice || !targetVillage;
+  if (!isPractice && targetVillage) {
+    const myKingdom = getKingdomOf(player.name);
+    if (!myKingdom || !areAtWar(myKingdom.id, targetVillage.kingdomId)) {
+      notifyPlayer(
+        player.name,
+        `\xA7cYou must declare war on \xA7b${targetVillage.owner}\xA7c's kingdom before raiding.\n\xA77Use: /scriptevent kc:war <kingdomName>  or place 3 black wool in their territory.`
+      );
+      return;
+    }
+  }
+  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const dim = player.dimension;
+  let totalDeployed = 0;
+  for (const placement of preset.positions) {
+    const gp = STRAT_GRID.find((g) => g.id === placement.gridId);
+    if (!gp) continue;
+    const worldPos = getGridWorldPos(center, gp);
+    let remaining = placement.count;
+    for (const v of myVillages) {
+      if (remaining <= 0) break;
+      const avail = v.troops[placement.troopType] ?? 0;
+      if (avail <= 0) continue;
+      const take = Math.min(avail, remaining);
+      v.troops[placement.troopType] -= take;
+      remaining -= take;
+      saveVillage(v);
+    }
+    const actualCount = placement.count - remaining;
+    const entityType = STRAT_ENTITY_MAP[placement.troopType];
+    if (!entityType) continue;
+    for (let i = 0; i < actualCount; i++) {
+      try {
+        const e = dim.spawnEntity(entityType, {
+          x: worldPos.x + (Math.random() - 0.5) * 4,
+          y: worldPos.y,
+          z: worldPos.z + (Math.random() - 0.5) * 4
+        });
+        e.nameTag = isPractice
+          ? `\xA7e\u{1F3CB} [${player.name}]`
+          : `\xA7c\u2694 [${player.name} \u2192 ${targetVillage?.name}]`;
+        e.setDynamicProperty("kc:strat_raid_owner", player.name);
+        e.setDynamicProperty("kc:strat_is_practice", isPractice ? "1" : "0");
+        totalDeployed++;
+      } catch {}
+    }
+  }
+  stratFormations.delete(player.name);
+  if (isPractice) {
+    notifyPlayer(player.name, `\xA7a\u{1F3CB} Practice formation deployed! \xA7f${totalDeployed}\xA7a troop(s) holding positions. (No village targeted)`);
+  } else {
+    notifyPlayer(player.name, `\xA7c\u2694 RAID LAUNCHED! \xA7f${totalDeployed}\xA7c troop(s) deployed in formation at \xA7b${targetVillage?.name}\xA7c!`);
+    if (targetVillage) {
+      notifyPlayer(targetVillage.owner, `\xA7c\u2694 TACTICAL RAID! \xA7f${player.name}\xA7c has launched a formation raid on your village \xA7b${targetVillage.name}\xA7c!`);
+    }
+  }
 }
