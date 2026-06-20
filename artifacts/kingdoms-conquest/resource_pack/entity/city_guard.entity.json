@@ -15,7 +15,11 @@
       },
       "render_controllers": [
         "controller.render.default"
-      ]
+      ],
+      "spawn_egg": {
+        "texture": "city_guard_spawn_egg",
+        "texture_index": 0
+      }
     }
   }
 }

@@ -3,13 +3,21 @@
   "minecraft:client_entity": {
     "description": {
       "identifier": "kingdoms:heavy_knight",
-      "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/heavy_knight" },
-      "geometry": { "default": "geometry.zombie" },
-      "render_controllers": ["controller.render.default"],
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/heavy_knight"
+      },
+      "geometry": {
+        "default": "geometry.zombie"
+      },
+      "render_controllers": [
+        "controller.render.default"
+      ],
       "spawn_egg": {
-        "base_color": "#4a4a4a",
-        "overlay_color": "#c0b060"
+        "texture": "heavy_knight_spawn_egg",
+        "texture_index": 0
       }
     }
   }

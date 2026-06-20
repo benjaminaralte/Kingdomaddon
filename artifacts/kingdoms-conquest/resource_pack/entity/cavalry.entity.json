@@ -15,7 +15,11 @@
       },
       "render_controllers": [
         "controller.render.default"
-      ]
+      ],
+      "spawn_egg": {
+        "texture": "cavalry_spawn_egg",
+        "texture_index": 0
+      }
     }
   }
 }
