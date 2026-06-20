@@ -12,6 +12,9 @@ tile.kingdoms:trade_station.name=Trade Station
 tile.kingdoms:treasury.name=Treasury
 tile.kingdoms:storage.name=Material Storage
 tile.kingdoms:armory.name=Armory
+tile.kingdoms:tower.name=Watch Tower
+tile.kingdoms:wall_long.name=Long Stone Wall
+tile.kingdoms:wall_short.name=Short Stone Wall
 
 item.kingdoms:town_hall_item.name=Town Hall
 item.kingdoms:treasury_item.name=Treasury
@@ -25,6 +28,9 @@ item.kingdoms:blacksmith_item.name=Blacksmith
 item.kingdoms:trade_station_item.name=Trade Station
 item.kingdoms:storage_item.name=Material Storage
 item.kingdoms:armory_item.name=Armory
+item.kingdoms:tower_item.name=Watch Tower
+item.kingdoms:wall_long_item.name=Long Stone Wall (10x5)
+item.kingdoms:wall_short_item.name=Short Stone Wall (5x5)
 
 item.kingdoms:recall_scroll.name=Recall Scroll
 

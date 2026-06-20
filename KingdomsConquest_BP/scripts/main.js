@@ -232,6 +232,8 @@ var WAGE_INTERVAL_DAYS = 3;
 var MAX_GUARDS_PER_POLE = 3;
 var WATCHTOWER_DETECTION_RADIUS = 48;
 var BANDIT_MIGRATE_DISTANCE = 200;
+var MAX_VILLAGE_POPULATION = 20;
+var MAX_VILLAGE_SOLDIERS = 100;
 
 // src/utils/tick.ts
 import { world } from "@minecraft/server";
@@ -1229,6 +1231,15 @@ var RECRUIT_COSTS = {
   cavalry: 12
 };
 function recruitTroop(village, type, count = 1) {
+  if (!village.granaryLocation || !village.treasuryLocation) {
+    notifyPlayer(village.owner, `\xA7c\u26A0 Cannot recruit soldiers \u2014 \xA7bGranary\xA7c and \xA7bTreasury\xA7c must both be built and active in \xA7b${village.name}\xA7c!`);
+    return false;
+  }
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  if (totalSoldiers + count > MAX_VILLAGE_SOLDIERS) {
+    notifyPlayer(village.owner, `\xA7cSoldier cap of \xA7b${MAX_VILLAGE_SOLDIERS}\xA7c reached in \xA7b${village.name}\xA7c. Disband some troops first.`);
+    return false;
+  }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
   const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - village.workers.farmers - village.workers.workers;
@@ -3074,6 +3085,10 @@ function buyFood(village, amount) {
   return true;
 }
 function sellFood(village, amount) {
+  if (!village.granaryLocation || !village.treasuryLocation) {
+    notifyPlayer(village.owner, `\xA7c\u26A0 Market income halted in \xA7b${village.name}\xA7c \u2014 Granary and Treasury must both be active!`);
+    return false;
+  }
   const sellPricePerUnit = 1;
   if (village.foodStorage < amount) return false;
   village.foodStorage -= amount;
@@ -3103,14 +3118,14 @@ function tickPopulation(village) {
   if (village.foodShortageStage >= 2) {
     return;
   }
-  const canGrow = village.population < village.housingCapacity && village.foodStorage > 10;
-  if (canGrow && Math.random() < GROWTH_CHANCE) {
+  const canGrow = village.population < MAX_VILLAGE_POPULATION && village.foodStorage > 10;
+  if (canGrow) {
     village.population += 1;
     village.workers.farmers = Math.max(
       village.workers.farmers,
       Math.floor(village.population * 0.3)
     );
-    notifyPlayer(village.owner, `\xA7aPopulation grew in \xA7b${village.name}\xA7a! (${village.population})`);
+    notifyPlayer(village.owner, `\xA7aNew villager in \xA7b${village.name}\xA7a! Population: ${village.population}/${MAX_VILLAGE_POPULATION}`);
     checkAndGrowStructures(village);
   }
   spawnVillagerEntity(village);
@@ -3511,6 +3526,10 @@ function buySeedsFromMarket(player, village, entry) {
   return true;
 }
 function sellFoodBulk(player, village, entry, batches) {
+  if (!village.granaryLocation || !village.treasuryLocation) {
+    notifyPlayer(player.name, `\xA7c\u26A0 Market income halted \u2014 Granary and Treasury must both be active in \xA7b${village.name}\xA7c first!`);
+    return false;
+  }
   const totalItems = entry.itemsPerEmerald * batches;
   const emeraldsEarned = batches;
   if (batches < 1) {
@@ -4437,7 +4456,10 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:trade_station",
   "kingdoms:treasury",
   "kingdoms:storage",
-  "kingdoms:armory"
+  "kingdoms:armory",
+  "kingdoms:tower",
+  "kingdoms:wall_long",
+  "kingdoms:wall_short"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -4688,6 +4710,57 @@ function armoryBlueprint() {
   p.push(blk(-5, 1, 0, "minecraft:chest"), blk(5, 1, 0, "minecraft:chest"));
   return p;
 }
+function towerBlueprint() {
+  const p = [];
+  p.push(...fill(-2, 1, -2, 2, 12, 2, "minecraft:air"));
+  p.push(...fill(-2, 0, -2, 2, 0, 2, "minecraft:stone_bricks"));
+  for (let y = 1; y <= 11; y++) {
+    for (let x = -2; x <= 2; x++) {
+      for (let z = -2; z <= 2; z++) {
+        if (x === -2 || x === 2 || z === -2 || z === 2) {
+          if (!(x === 0 && z === 2 && y <= 2)) p.push(blk(x, y, z, "minecraft:stone_bricks"));
+        }
+      }
+    }
+  }
+  for (let x = -2; x <= 2; x++) {
+    for (let z = -2; z <= 2; z++) {
+      p.push(blk(x, 12, z, x % 2 === 0 || z % 2 === 0 ? "minecraft:stone_bricks" : "minecraft:air"));
+    }
+  }
+  p.push(blk(-2, 4, 0, "minecraft:glass"), blk(2, 4, 0, "minecraft:glass"), blk(0, 4, -2, "minecraft:glass"));
+  p.push(blk(-2, 8, 0, "minecraft:glass"), blk(2, 8, 0, "minecraft:glass"), blk(0, 8, -2, "minecraft:glass"));
+  for (let y = 1; y <= 10; y++) p.push(blk(1, y, 1, "minecraft:ladder"));
+  p.push(blk(0, 6, 0, "minecraft:sea_lantern"), blk(0, 11, 0, "minecraft:sea_lantern"));
+  p.push(blk(0, 12, 0, "minecraft:sea_lantern"));
+  return p;
+}
+function wallLongBlueprint() {
+  const p = [];
+  p.push(...fill(-5, 1, -1, 5, 5, 1, "minecraft:air"));
+  p.push(...fill(-5, 0, -1, 5, 0, 1, "minecraft:stone_bricks"));
+  p.push(...fill(-5, 1, -1, 5, 4, 1, "minecraft:stone_bricks"));
+  for (let x = -5; x <= 5; x++) {
+    if ((x + 5) % 2 === 0) {
+      p.push(blk(x, 5, -1, "minecraft:stone_bricks"), blk(x, 5, 0, "minecraft:stone_bricks"), blk(x, 5, 1, "minecraft:stone_bricks"));
+    }
+  }
+  p.push(blk(-5, 3, 0, "minecraft:torch"), blk(0, 3, 0, "minecraft:torch"), blk(5, 3, 0, "minecraft:torch"));
+  return p;
+}
+function wallShortBlueprint() {
+  const p = [];
+  p.push(...fill(-2, 1, -1, 2, 5, 1, "minecraft:air"));
+  p.push(...fill(-2, 0, -1, 2, 0, 1, "minecraft:stone_bricks"));
+  p.push(...fill(-2, 1, -1, 2, 4, 1, "minecraft:stone_bricks"));
+  for (let x = -2; x <= 2; x++) {
+    if ((x + 2) % 2 === 0) {
+      p.push(blk(x, 5, -1, "minecraft:stone_bricks"), blk(x, 5, 0, "minecraft:stone_bricks"), blk(x, 5, 1, "minecraft:stone_bricks"));
+    }
+  }
+  p.push(blk(0, 3, 0, "minecraft:torch"));
+  return p;
+}
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
   "kingdoms:barracks": barracksBlueprint,
@@ -4697,7 +4770,10 @@ var BLUEPRINTS = {
   "kingdoms:trade_station": tradeStationBlueprint,
   "kingdoms:treasury": treasuryBlueprint,
   "kingdoms:storage": storageBlueprint,
-  "kingdoms:armory": armoryBlueprint
+  "kingdoms:armory": armoryBlueprint,
+  "kingdoms:tower": towerBlueprint,
+  "kingdoms:wall_long": wallLongBlueprint,
+  "kingdoms:wall_short": wallShortBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -4732,7 +4808,10 @@ var CUSTOM_BLOCKS = {
   TREASURY_BLOCK: "kingdoms:treasury",
   BLACKSMITH: "kingdoms:blacksmith",
   STORAGE: "kingdoms:storage",
-  ARMORY: "kingdoms:armory"
+  ARMORY: "kingdoms:armory",
+  TOWER: "kingdoms:tower",
+  WALL_LONG: "kingdoms:wall_long",
+  WALL_SHORT: "kingdoms:wall_short"
 };
 function destroyStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -5286,7 +5365,7 @@ async function showTownHallMenu(player, block) {
   const summary = getVillageSummary(village);
   const form = new ActionFormData().title(`${village.name} \u2014 Town Hall`).body(summary);
   if (isOwner) {
-    form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village");
+    form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village").button("\xA7a\uD83C\uDFDB Purchase Buildings");
   } else {
     form.button("Close");
   }
@@ -5311,6 +5390,81 @@ async function showTownHallMenu(player, block) {
     case 5:
       await showRenameForm(player, village.id);
       break;
+    case 6:
+      await showBuildingShopMenu(player, village);
+      break;
+  }
+}
+var SHOP_ITEMS = [
+  { id: "kingdoms:granary_item", label: "Granary", desc: "Stores food, enables market income & soldiers", cost: 20, costItem: "minecraft:chest", prereq: false },
+  { id: "kingdoms:treasury_item", label: "Treasury", desc: "Stores emeralds, enables all village income", cost: 30, costItem: "minecraft:chest", prereq: false },
+  { id: "kingdoms:barracks_item", label: "Barracks", desc: "Train and manage your soldiers", cost: 50, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:market_item", label: "Market", desc: "Generates passive income from food trade", cost: 40, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:blacksmith_item", label: "Blacksmith", desc: "Forge and upgrade soldier weapons and armor", cost: 35, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:storage_item", label: "Material Storage", desc: "Warehouse for iron, gold, diamond, coal, wood, stone", cost: 30, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", cost: 45, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", cost: 5, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", cost: 10, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", cost: 60, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:tower_item", label: "Watch Tower", desc: "Tall stone tower for defense and visibility", cost: 40, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:wall_long_item", label: "Long Stone Wall (10x5)", desc: "Wide defensive wall with battlements", cost: 20, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", cost: 12, costItem: "minecraft:emerald", prereq: true }
+];
+async function showBuildingShopMenu(player, village) {
+  const hasInfra = !!(village.granaryLocation && village.treasuryLocation);
+  const available = SHOP_ITEMS.filter((i) => !i.prereq || hasInfra);
+  let bodyText = hasInfra
+    ? `\xA77Village:\xA7f ${village.name}\n\xA77Treasury:\xA7f ${village.treasury}\u{1F48E}\n\xA77Villagers:\xA7f ${village.population}/${MAX_VILLAGE_POPULATION}\n\n\xA7fSelect a structure to purchase.\nGranary & Treasury cost \xA7bChests\xA7f from your inventory.\nAll others cost \xA76Emeralds\xA7f from your inventory.`
+    : `\xA7c\u26A0 You must build a \xA7bGranary\xA7c and \xA7bTreasury\xA7c first!\n\xA7fAll other structures are locked until both are active.\n\n\xA77Only Granary and Treasury are available for purchase.`;
+  const form = new ActionFormData().title(`${village.name} \u2014 Building Shop`).body(bodyText);
+  for (const item of available) {
+    const costIcon = item.costItem === "minecraft:chest" ? "\xA77\uD83D\uDCE6 " : "\xA76\u{1F48E} ";
+    form.button(`${item.label}\n${costIcon}${item.cost} ${item.costItem === "minecraft:chest" ? "Chests" : "Emeralds"}`);
+  }
+  form.button("\xA77Close");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= available.length) return;
+  const chosen = available[response.selection];
+  purchaseBuilding(player, village, chosen);
+}
+function purchaseBuilding(player, village, shopItem) {
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const container = inv?.container;
+  if (!container) return;
+  let have = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === shopItem.costItem) have += slot.amount;
+  }
+  const costName = shopItem.costItem === "minecraft:chest" ? "chests" : "emeralds";
+  if (have < shopItem.cost) {
+    notifyPlayer(player.name, `\xA7cNeed \xA7b${shopItem.cost} ${costName}\xA7c to purchase ${shopItem.label}. Have: ${have}.`);
+    return;
+  }
+  let remaining = shopItem.cost;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== shopItem.costItem) continue;
+    const take = Math.min(slot.amount, remaining);
+    remaining -= take;
+    if (take >= slot.amount) {
+      container.setItem(i, void 0);
+    } else {
+      container.setItem(i, new ItemStack6(shopItem.costItem, slot.amount - take));
+    }
+  }
+  let placed = false;
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) {
+      try { container.setItem(i, new ItemStack6(shopItem.id, 1)); placed = true; break; } catch {}
+    }
+  }
+  if (placed) {
+    notifyPlayer(player.name, `\xA7aPurchased \xA7b${shopItem.label}\xA7a! Cost: \xA7b${shopItem.cost} ${costName}\xA7a. Place it in your village to construct it.`);
+  } else {
+    dropItemsAtLoc(world16.getDimension(village.location.dimension), player.location, shopItem.costItem, shopItem.cost);
+    notifyPlayer(player.name, `\xA7cInventory full \u2014 \xA7b${shopItem.label}\xA7c could not be received. Cost refunded at your feet.`);
   }
 }
 async function showBarracksMenu(player, block) {
