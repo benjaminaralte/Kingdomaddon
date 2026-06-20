@@ -4,6 +4,7 @@ import { POPULATION_GROWTH_INTERVAL_DAYS } from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
 import { daysSince } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
+import { sendCrisisTitle } from "../utils/notify.js";
 
 const GROWTH_CHANCE = 0.6;
 const MORTALITY_CHANCE = 0.4;
@@ -61,6 +62,14 @@ function handlePopulationDecline(village: VillageData): void {
       village.owner,
       `§cPopulation declined in §b${village.name}§c due to starvation! (${village.population})`
     );
+    if (village.population < 5 && village.population > 0) {
+      sendCrisisTitle(
+        village.owner,
+        "§c§lVILLAGE DYING",
+        `§e${village.name} — only ${village.population} citizens left!`,
+        "mob.villager.death"
+      );
+    }
   }
 }
 

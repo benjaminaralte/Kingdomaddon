@@ -1,6 +1,25 @@
 import { world } from "@minecraft/server";
 import { isAlertsEnabled } from "../systems/playerSettings.js";
 
+export function sendCrisisTitle(
+  playerName: string,
+  title: string,
+  subtitle: string,
+  sound = "raid.horn"
+): void {
+  const player = world.getPlayers().find((p) => p.name === playerName);
+  if (!player) return;
+  player.onScreenDisplay.setTitle(title, {
+    subtitle,
+    fadeInDuration: 10,
+    stayDuration: 80,
+    fadeOutDuration: 20,
+  });
+  try {
+    player.playSound(sound, { volume: 1.0, pitch: 1.0 });
+  } catch { /* sound may not exist */ }
+}
+
 export function notifyPlayer(playerName: string, message: string): void {
   const player = world.getPlayers().find((p) => p.name === playerName);
   if (player) {

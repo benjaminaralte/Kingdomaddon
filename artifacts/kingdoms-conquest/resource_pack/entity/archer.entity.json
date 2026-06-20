@@ -4,10 +4,18 @@
     "description": {
       "identifier": "kingdoms:archer",
       "min_engine_version": "1.16.0",
-      "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/skeleton/skeleton" },
-      "geometry": { "default": "geometry.skeleton" },
-      "render_controllers": [ "controller.render.default" ]
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/archer"
+      },
+      "geometry": {
+        "default": "geometry.skeleton"
+      },
+      "render_controllers": [
+        "controller.render.default"
+      ]
     }
   }
 }

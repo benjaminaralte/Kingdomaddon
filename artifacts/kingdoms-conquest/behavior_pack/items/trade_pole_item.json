@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "gold_ingot"
+          "default": "kingdoms_trade_pole"
         }
       },
       "minecraft:block_placer": {

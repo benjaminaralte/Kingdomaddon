@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "iron_ingot"
+          "default": "kingdoms_barracks"
         }
       },
       "minecraft:block_placer": {

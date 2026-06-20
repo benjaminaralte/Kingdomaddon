@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "feather"
+          "default": "kingdoms_guard_pole_watchtower"
         }
       },
       "minecraft:block_placer": {

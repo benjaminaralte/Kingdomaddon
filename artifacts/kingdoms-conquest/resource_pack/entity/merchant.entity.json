@@ -4,10 +4,18 @@
     "description": {
       "identifier": "kingdoms:merchant",
       "min_engine_version": "1.16.0",
-      "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/villager2/villager2" },
-      "geometry": { "default": "geometry.villager.v2" },
-      "render_controllers": [ "controller.render.default" ]
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/city_guard"
+      },
+      "geometry": {
+        "default": "geometry.villager.v2"
+      },
+      "render_controllers": [
+        "controller.render.default"
+      ]
     }
   }
 }

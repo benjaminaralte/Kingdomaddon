@@ -41,6 +41,7 @@ import {
   FOOD_SELL_RATES,
 } from "./systems/market.js";
 import { tickBandits } from "./systems/bandit.js";
+import { checkDailyCrisisAlerts } from "./systems/villageAlerts.js";
 import { tickTradeStations, sendTradeCart, sendRailShipment } from "./systems/trade.js";
 import {
   queueTraining,
@@ -353,6 +354,7 @@ system.runInterval(() => {
   tickBandits();
   processAllSoldierFood();
   autoHarvestAllVillages();
+  checkDailyCrisisAlerts();
 }, 24000);
 
 system.runInterval(() => {

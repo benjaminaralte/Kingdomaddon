@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "bow"
+          "default": "kingdoms_archer_token"
         }
       },
       "minecraft:max_stack_size": 64

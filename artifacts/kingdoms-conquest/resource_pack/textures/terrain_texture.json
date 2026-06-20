@@ -1,0 +1,20 @@
+{
+  "resource_pack_name": "kingdoms_conquest",
+  "texture_name": "atlas.terrain",
+  "padding": 8,
+  "num_mip_levels": 4,
+  "texture_data": {
+    "kingdoms_town_hall":             { "textures": "textures/blocks/town_hall" },
+    "kingdoms_barracks":              { "textures": "textures/blocks/barracks" },
+    "kingdoms_market":                { "textures": "textures/blocks/market" },
+    "kingdoms_granary":               { "textures": "textures/blocks/granary" },
+    "kingdoms_blacksmith":            { "textures": "textures/blocks/blacksmith" },
+    "kingdoms_treasury":              { "textures": "textures/blocks/treasury" },
+    "kingdoms_trade_station":         { "textures": "textures/blocks/trade_station" },
+    "kingdoms_guard_pole_village":    { "textures": "textures/blocks/guard_pole_village" },
+    "kingdoms_guard_pole_gate":       { "textures": "textures/blocks/guard_pole_gate" },
+    "kingdoms_guard_pole_road":       { "textures": "textures/blocks/guard_pole_road" },
+    "kingdoms_guard_pole_watchtower": { "textures": "textures/blocks/guard_pole_watchtower" },
+    "kingdoms_trade_pole":            { "textures": "textures/blocks/trade_pole" }
+  }
+}

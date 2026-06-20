@@ -10,7 +10,7 @@
     },
     "components": {
       "minecraft:destructible_by_mining": {
-        "seconds_to_destroy": 3.0
+        "seconds_to_destroy": 3
       },
       "minecraft:destructible_by_explosion": {
         "explosion_resistance": 10
@@ -20,7 +20,7 @@
       },
       "minecraft:material_instances": {
         "*": {
-          "texture": "stone",
+          "texture": "kingdoms_town_hall",
           "render_method": "opaque"
         }
       },

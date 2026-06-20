@@ -246,6 +246,20 @@ function toggleAlerts(playerName) {
 }
 
 // src/utils/notify.ts
+function sendCrisisTitle(playerName, title, subtitle, sound = "raid.horn") {
+  const player = world3.getPlayers().find((p) => p.name === playerName);
+  if (!player) return;
+  player.onScreenDisplay.setTitle(title, {
+    subtitle,
+    fadeInDuration: 10,
+    stayDuration: 80,
+    fadeOutDuration: 20
+  });
+  try {
+    player.playSound(sound, { volume: 1, pitch: 1 });
+  } catch {
+  }
+}
 function notifyPlayer(playerName, message) {
   const player = world3.getPlayers().find((p) => p.name === playerName);
   if (player) {
@@ -967,6 +981,64 @@ init_storage();
 // src/systems/bandit.ts
 import { world as world7, system } from "@minecraft/server";
 init_storage();
+
+// src/systems/villageAlerts.ts
+init_storage();
+var alertedKeys = /* @__PURE__ */ new Set();
+function makeKey(type, villageId) {
+  return `${type}_${villageId}_${getCurrentDay()}`;
+}
+function checkDailyCrisisAlerts() {
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    if (village.treasury === 0) {
+      const key = makeKey("treasury", village.id);
+      if (!alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        sendCrisisTitle(
+          village.owner,
+          "\xA76\xA7lTREASURY EMPTY",
+          `\xA7e${village.name} has run out of funds!`,
+          "random.anvil_land"
+        );
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u26A0 \xA7b${village.name}\xA7c treasury is empty \u2014 troops may desert!`
+        );
+      }
+    }
+    if (village.population > 0 && village.population < 5) {
+      const key = makeKey("population", village.id);
+      if (!alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        sendCrisisTitle(
+          village.owner,
+          "\xA7c\xA7lVILLAGE DYING",
+          `\xA7e${village.name} \u2014 only ${village.population} citizens left!`,
+          "mob.villager.death"
+        );
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u26A0 \xA7b${village.name}\xA7c is critically low on population (${village.population})!`
+        );
+      }
+    }
+  }
+}
+function triggerAttackAlert(ownerName, villageName, campStrength) {
+  sendCrisisTitle(
+    ownerName,
+    "\xA7c\xA7l\u2694  UNDER ATTACK!",
+    `\xA7eBandits (${campStrength}) are raiding ${villageName}!`,
+    "raid.horn"
+  );
+  notifyPlayer(
+    ownerName,
+    `\xA7c\u2694 \xA7b${villageName}\xA7c is under bandit attack! (Camp strength: ${campStrength})`
+  );
+}
+
+// src/systems/bandit.ts
 var MAX_WORLD_CAMPS = 5;
 var MIN_WORLD_SPAWN_DIST = 300;
 var MAX_WORLD_SPAWN_DIST = 600;
@@ -1106,6 +1178,7 @@ function raidNearbyTargets(camp) {
     }
   }
   if (!target) return;
+  triggerAttackAlert(target.owner, target.name, camp.strength);
   const dim = world7.getDimension(camp.location.dimension);
   const merchants = dim.getEntities({ type: "kingdoms:merchant" });
   for (const merchant of merchants) {
@@ -3082,6 +3155,14 @@ function handlePopulationDecline(village) {
       village.owner,
       `\xA7cPopulation declined in \xA7b${village.name}\xA7c due to starvation! (${village.population})`
     );
+    if (village.population < 5 && village.population > 0) {
+      sendCrisisTitle(
+        village.owner,
+        "\xA7c\xA7lVILLAGE DYING",
+        `\xA7e${village.name} \u2014 only ${village.population} citizens left!`,
+        "mob.villager.death"
+      );
+    }
   }
 }
 function checkAndGrowStructures(village) {
@@ -4753,6 +4834,7 @@ system3.runInterval(() => {
   tickBandits();
   processAllSoldierFood();
   autoHarvestAllVillages();
+  checkDailyCrisisAlerts();
 }, 24e3);
 system3.runInterval(() => {
   refreshAllGuards();

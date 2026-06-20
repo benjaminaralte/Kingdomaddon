@@ -1,11 +1,16 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "Jij6dpL9YfkVIaqGf4lZF"
+uri = "file://artifacts/kingdoms-conquest/resource_pack/pack_icon.png"
+type = "image"
+title = "kingdoms_conquest_pack_icon"
 
 [[outputs]]
 id = "HwrthQdhaV48nW7S75owj"
 uri = "file://artifacts/kingdoms-conquest/dist/kingdoms-conquest.zip"
 type = "unspecified"
-title = "Kingdoms & Conquest — Fixed (vanilla entity models, correct icon format)"
+title = "Kingdoms & Conquest — Alerts + Textures + Fixed Loot (1.9 MB)"
 
 [[outputs]]
 id = "5AwYpoMHTBUs73My5jQnS"

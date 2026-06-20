@@ -11,6 +11,7 @@ import {
 } from "../storage/index.js";
 import { distance } from "../utils/tick.js";
 import { notifyAlert } from "../utils/notify.js";
+import { triggerAttackAlert } from "./villageAlerts.js";
 
 const MAX_WORLD_CAMPS = 5;
 const MIN_WORLD_SPAWN_DIST = 300;
@@ -197,6 +198,9 @@ function raidNearbyTargets(camp: BanditCampData): void {
   }
 
   if (!target) return;
+
+  // ── Crisis title alert ─────────────────────────────────────────────────────
+  triggerAttackAlert(target.owner, target.name, camp.strength);
 
   const dim = world.getDimension(camp.location.dimension);
 

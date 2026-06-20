@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "iron_ingot"
+          "default": "kingdoms_blacksmith"
         }
       },
       "minecraft:block_placer": {
