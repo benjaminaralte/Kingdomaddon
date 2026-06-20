@@ -187,7 +187,7 @@ var RESOURCE_LABELS = {
   diamonds: "Diamonds"
 };
 var TICKS_PER_DAY = 24e3;
-var CLAIM_COST_EMERALDS = 10;
+var CLAIM_COST_COBBLESTONE = 10;
 var VILLAGE_CLAIM_RADIUS = 64;
 var MIN_VILLAGERS_TO_CLAIM = 3;
 var FOOD_PER_VILLAGER_PER_DAY = 1;
@@ -847,20 +847,20 @@ function claimVillage(player, townHallBlock, kingdomName) {
   if (!inv) return false;
   const container = inv.container;
   if (!container) return false;
-  let emeraldsFound = 0;
+  let cobbleFound = 0;
   const slotsToConsume = [];
   for (let i = 0; i < container.size; i++) {
     const item = container.getItem(i);
-    if (item && item.typeId === "minecraft:emerald") {
-      const needed = CLAIM_COST_EMERALDS - emeraldsFound;
+    if (item && item.typeId === "minecraft:cobblestone") {
+      const needed = CLAIM_COST_COBBLESTONE - cobbleFound;
       const take = Math.min(needed, item.amount);
       slotsToConsume.push({ slot: i, amount: take });
-      emeraldsFound += take;
-      if (emeraldsFound >= CLAIM_COST_EMERALDS) break;
+      cobbleFound += take;
+      if (cobbleFound >= CLAIM_COST_COBBLESTONE) break;
     }
   }
-  if (emeraldsFound < CLAIM_COST_EMERALDS) {
-    notifyPlayer(player.name, `\xA7cNeed ${CLAIM_COST_EMERALDS} emeralds to claim a village.`);
+  if (cobbleFound < CLAIM_COST_COBBLESTONE) {
+    notifyPlayer(player.name, `\xA7cNeed ${CLAIM_COST_COBBLESTONE} cobblestone to claim a village. (You have ${cobbleFound})`);
     return false;
   }
   for (const { slot, amount } of slotsToConsume) {
@@ -2707,10 +2707,10 @@ function tutorialStart(player) {
   const s = (m) => notifyPlayer(player.name, m);
   s("\xA7b\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Tutorial: Getting Started \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
   s("\xA7e Step 1 \u2014 Claim Your Village");
-  s("\xA7f  \u2022 Craft/obtain a \xA7bkingdoms:town_hall\xA7f block.");
-  s("\xA7f  \u2022 Place it anywhere in the world.");
+  s("\xA7f  \u2022 You start with a \xA7bTown Hall\xA7f block and \xA7b10 cobblestone\xA7f in your inventory.");
+  s("\xA7f  \u2022 Place the Town Hall near \xA7b3+ villagers\xA7f \u2014 the starter village has them ready.");
   s("\xA7f  \u2022 A form appears \u2014 enter your Kingdom Name and Village Name.");
-  s("\xA7f  \u2022 Your kingdom is now created. The Town Hall block is your village hub.");
+  s("\xA7f  \u2022 Costs \xA7b10 cobblestone\xA7f (consumed on claim). Your kingdom is created!");
   s("\xA7e Step 2 \u2014 Place Your Buildings");
   s("\xA7f  \u2022 Tap each building block to open its menu:");
   s("\xA7f    \xA7a\u{1F3DB} Town Hall\xA7f \u2014 kingdom overview, diplomacy, treasury, merchants");
@@ -3757,6 +3757,80 @@ function recordTradeHistory(village, fromVillageName, summary, isManual) {
     village.tradeHistory.length = MAX_HISTORY_ENTRIES;
   }
 }
+var lastPoleTick = 0;
+var POLE_TICK_INTERVAL = 40;
+var TRADE_POLE_DETECT_RADIUS = 5;
+function tickTradePoles(currentTick) {
+  if (currentTick - lastPoleTick < POLE_TICK_INTERVAL) return;
+  lastPoleTick = currentTick;
+  for (const village of getAllVillages()) {
+    if (!village.tradePoles || village.tradePoles.length === 0) continue;
+    for (const pole of village.tradePoles) {
+      processTradePoleCarts(village, pole);
+    }
+  }
+}
+function processTradePoleCarts(village, pole) {
+  const dim = world13.getDimension(village.location.dimension);
+  let minecarts;
+  try {
+    minecarts = dim.getEntities({
+      type: "minecraft:chest_minecart",
+      location: pole.location,
+      maxDistance: TRADE_POLE_DETECT_RADIUS
+    });
+  } catch {
+    return;
+  }
+  let changed = false;
+  for (const cart of minecarts) {
+    if (extractTradePoleCargo(cart, village)) changed = true;
+  }
+  if (changed) saveVillage(village);
+}
+function extractTradePoleCargo(cart, village) {
+  const inv = cart.getComponent(EntityInventoryComponent7.componentId);
+  if (!inv?.container) return false;
+  ensureResourceStorage(village);
+  const rs = village.resourceStorage;
+  const received = [];
+  let hasCargo = false;
+  for (let i = 0; i < inv.container.size; i++) {
+    const item = inv.container.getItem(i);
+    if (!item || item.amount === 0) continue;
+    hasCargo = true;
+    const troopInfo = TROOP_TOKEN_MAP[item.typeId];
+    if (troopInfo) {
+      village.troops[troopInfo.troopType] = (village.troops[troopInfo.troopType] ?? 0) + item.amount;
+      received.push(`${item.amount}x ${troopInfo.label}`);
+      continue;
+    }
+    const mapping = ITEM_RESOURCE_MAP[item.typeId];
+    const foodValue = FOOD_ITEM_VALUES[item.typeId];
+    if (mapping) {
+      if (mapping.target === "treasury") {
+        village.treasury += item.amount;
+        received.push(`${item.amount}\u{1F48E}`);
+      } else {
+        rs[mapping.target] += item.amount;
+        received.push(`${item.amount} ${mapping.target}`);
+      }
+    } else if (foodValue !== void 0 && foodValue >= 0) {
+      const units = item.amount * foodValue;
+      village.foodStorage += units;
+      received.push(`${units}\u{1F33E}`);
+    }
+  }
+  if (!hasCargo || received.length === 0) return false;
+  try { cart.remove(); } catch {}
+  const summary = received.join(", ");
+  notifyPlayer(
+    village.owner,
+    `\xA7a\u{1F682} Trade Pole received cargo at \xA7b${village.name}\xA7a: ${summary}`
+  );
+  recordTradeHistory(village, "Trade Pole Delivery", summary, true);
+  return true;
+}
 function tickTradeStations(currentTick) {
   if (currentTick - lastStationTick < STATION_TICK_INTERVAL) return;
   lastStationTick = currentTick;
@@ -4388,6 +4462,7 @@ function barracksBlueprint() {
   p.push(blk(0, 1, -2, "minecraft:smithing_table"));
   for (let x = -3; x <= 3; x += 2) p.push(blk(x, 1, 1, "minecraft:red_carpet"));
   p.push(blk(0, 1, 2, "minecraft:sea_lantern"));
+  p.push(blk(2, 2, -2, "kingdoms:barracks"));
   return p;
 }
 function marketBlueprint() {
@@ -4416,6 +4491,7 @@ function marketBlueprint() {
   p.push(blk(-3, 1, 3, "minecraft:crafting_table"), blk(3, 1, 3, "minecraft:crafting_table"));
   p.push(blk(-4, 1, 0, "minecraft:barrel"), blk(4, 1, 0, "minecraft:barrel"));
   p.push(blk(0, 1, -4, "minecraft:barrel"), blk(0, 1, 4, "minecraft:barrel"));
+  p.push(blk(0, 2, -4, "kingdoms:market"));
   return p;
 }
 function granaryBlueprint() {
@@ -4436,6 +4512,7 @@ function granaryBlueprint() {
   p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
   p.push(blk(0, 1, -2, "minecraft:chest"));
   p.push(blk(0, 1, 0, "minecraft:sea_lantern"));
+  p.push(blk(2, 2, -2, "kingdoms:granary"));
   return p;
 }
 function blacksmithBlueprint() {
@@ -4460,6 +4537,7 @@ function blacksmithBlueprint() {
   p.push(blk(2, 1, 0, "minecraft:smithing_table"));
   p.push(blk(-2, 1, 1, "minecraft:chest"));
   p.push(blk(1, 1, 0, "minecraft:sea_lantern"));
+  p.push(blk(0, 2, -1, "kingdoms:blacksmith"));
   return p;
 }
 function tradeStationBlueprint() {
@@ -4480,6 +4558,7 @@ function tradeStationBlueprint() {
   p.push(blk(2, 1, 0, "minecraft:lectern"));
   p.push(blk(0, 1, -1, "minecraft:sea_lantern"));
   for (let x = -3; x <= 3; x++) p.push(blk(x, 1, 3, "minecraft:iron_bars"));
+  p.push(blk(0, 2, -2, "kingdoms:trade_station"));
   return p;
 }
 function treasuryBlueprint() {
@@ -4508,6 +4587,7 @@ function treasuryBlueprint() {
   p.push(blk(0, 1, -2, "minecraft:gold_block"));
   p.push(blk(-1, 1, 0, "minecraft:chest"), blk(1, 1, 0, "minecraft:chest"));
   p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
+  p.push(blk(0, 2, -2, "kingdoms:treasury"));
   return p;
 }
 var BLUEPRINTS = {
@@ -4598,6 +4678,21 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       return;
     }
     registerTradeStation(village, block.location);
+  }
+  if (typeId === CUSTOM_BLOCKS.TRADE_POLE) {
+    const village = findVillageAt2(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "\xA7cNo village territory here. Claim a village first.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "\xA7cThis is not your village.");
+      return;
+    }
+    if (!village.tradePoles) village.tradePoles = [];
+    village.tradePoles.push({ id: generateId(), location: { x: block.location.x, y: block.location.y, z: block.location.z } });
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7a\u{1F682} Trade Pole placed in \xA7b${village.name}\xA7a. Chest minecarts arriving on nearby rails will auto-route: \xA7femerald\xA7a\u2192treasury, \xA7afood\xA7a\u2192granary, \xA7etroop tokens\xA7a\u2192barracks.`);
   }
   if (typeId === CUSTOM_BLOCKS.GRANARY) {
     const village = findVillageAt2(block.location);
@@ -4739,11 +4834,43 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
       }
     }
   }
+  if (typeId === CUSTOM_BLOCKS.TRADE_POLE) {
+    const village = findVillageAt2(blockLoc);
+    if (village && village.tradePoles) {
+      village.tradePoles = village.tradePoles.filter(
+        (p) => !(p.location.x === blockLoc.x && p.location.y === blockLoc.y && p.location.z === blockLoc.z)
+      );
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7eTrade pole removed from \xA7b${village.name}\xA7e.`);
+    }
+  }
+});
+world16.beforeEvents.playerPlaceBlock.subscribe((event) => {
+  const { player, permutationBeingPlaced, block } = event;
+  if (!player) return;
+  const typeId = permutationBeingPlaced?.type?.id ?? "";
+  if (typeId === CUSTOM_BLOCKS.TOWN_HALL) {
+    const inv = player.getComponent(EntityInventoryComponent8.componentId);
+    const container = inv?.container;
+    if (!container) { event.cancel = true; return; }
+    let cobbleCount = 0;
+    for (let i = 0; i < container.size; i++) {
+      const item = container.getItem(i);
+      if (item?.typeId === "minecraft:cobblestone") cobbleCount += item.amount;
+    }
+    if (cobbleCount < CLAIM_COST_COBBLESTONE) {
+      event.cancel = true;
+      system3.run(() => {
+        notifyPlayer(player.name, `\xA7cYou need \xA7b${CLAIM_COST_COBBLESTONE} cobblestone\xA7c to place a Town Hall and claim a village. (Have: ${cobbleCount})`);
+      });
+    }
+  }
 });
 system3.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
   tickTradeStations(tick);
+  tickTradePoles(tick);
   tickSieges(tick);
   tickBorders(tick);
   tickAutoDefense(tick);
@@ -4816,6 +4943,74 @@ world16.afterEvents.itemUse.subscribe((event) => {
   }
 });
 registerCommands();
+var KC_FIRST_SPAWN_PROP = "kc:first_spawned:";
+function hasFirstSpawned(playerName) {
+  try { return world16.getDynamicProperty(KC_FIRST_SPAWN_PROP + playerName) === true; } catch { return false; }
+}
+function markFirstSpawned(playerName) {
+  try { world16.setDynamicProperty(KC_FIRST_SPAWN_PROP + playerName, true); } catch {}
+}
+function buildStarterHouse(dim, ox, oy, oz) {
+  for (let x = 0; x < 5; x++) {
+    for (let y = 1; y <= 3; y++) {
+      for (let z = 0; z < 5; z++) {
+        if (x === 0 || x === 4 || z === 0 || z === 4) {
+          if (!(z === 4 && x >= 1 && x <= 3 && y <= 2)) {
+            try { dim.getBlock({ x: ox + x, y: oy + y, z: oz + z })?.setType("minecraft:cobblestone"); } catch {}
+          }
+        }
+      }
+    }
+  }
+  for (let x = 0; x < 5; x++)
+    for (let z = 0; z < 5; z++)
+      try { dim.getBlock({ x: ox + x, y: oy, z: oz + z })?.setType("minecraft:cobblestone"); } catch {}
+  for (let x = 0; x < 5; x++)
+    for (let z = 0; z < 5; z++)
+      try { dim.getBlock({ x: ox + x, y: oy + 4, z: oz + z })?.setType("minecraft:oak_planks"); } catch {}
+  try { dim.getBlock({ x: ox + 2, y: oy + 3, z: oz + 2 })?.setType("minecraft:sea_lantern"); } catch {}
+}
+function generateStarterVillage(player) {
+  const dim = player.dimension;
+  const px = Math.floor(player.location.x);
+  const py = Math.floor(player.location.y);
+  const pz = Math.floor(player.location.z);
+  buildStarterHouse(dim, px + 8, py, pz);
+  buildStarterHouse(dim, px - 13, py, pz + 5);
+  for (let i = 0; i < 3; i++) {
+    try {
+      const angle = (i / 3) * Math.PI * 2;
+      const r = 7;
+      dim.spawnEntity("minecraft:villager_v2", {
+        x: px + Math.cos(angle) * r,
+        y: py,
+        z: pz + Math.sin(angle) * r
+      });
+    } catch {}
+  }
+  notifyPlayer(player.name, "\xA7a\u{1F3E1} Welcome to Kingdoms & Conquest! A starter village has been built near you.");
+  notifyPlayer(player.name, "\xA7e  \u2022 Check your inventory: you have a \xA7bTown Hall\xA7e block + \xA7b10 cobblestone\xA7e.");
+  notifyPlayer(player.name, "\xA7e  \u2022 Place the \xA7bTown Hall\xA7e block near the 3 villagers to claim your kingdom!");
+  notifyPlayer(player.name, "\xA7e  \u2022 Run \xA7f/scriptevent kc:tutorial start\xA7e for a full guide.");
+}
+world16.afterEvents.playerSpawn.subscribe((event) => {
+  if (!event.initialSpawn) return;
+  const player = event.player;
+  if (hasFirstSpawned(player.name)) return;
+  markFirstSpawned(player.name);
+  system3.runTimeout(() => {
+    try {
+      for (const { id, count } of [
+        { id: "kingdoms:town_hall", count: 1 },
+        { id: "minecraft:cobblestone", count: 10 },
+        { id: "minecraft:bread", count: 8 }
+      ]) {
+        player.runCommand(`give @s ${id} ${count}`);
+      }
+      generateStarterVillage(player);
+    } catch {}
+  }, 60);
+});
 async function showClaimVillageForm(player, block) {
   const form = new ModalFormData().title("Claim Village").textField("Kingdom Name", "Enter your kingdom name...").textField("Village Name", "Enter a name for this village...");
   const response = await form.show(player);

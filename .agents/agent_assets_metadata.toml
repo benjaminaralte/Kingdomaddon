@@ -6,3 +6,9 @@ id = "HwrthQdhaV48nW7S75owj"
 uri = "file://artifacts/kingdoms-conquest/dist/kingdoms-conquest.zip"
 type = "unspecified"
 title = "Kingdoms & Conquest — Fixed (vanilla entity models, correct icon format)"
+
+[[outputs]]
+id = "5AwYpoMHTBUs73My5jQnS"
+uri = "file://KingdomsConquest_updated.zip"
+type = "unspecified"
+title = "KingdomsConquest Updated Addon"
