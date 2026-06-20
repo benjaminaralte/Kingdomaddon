@@ -158,7 +158,7 @@ var init_storage = __esm({
 
 
 // src/main.ts
-import { world as world16, system as system3, EntityInventoryComponent as EntityInventoryComponent8 } from "@minecraft/server";
+import { world as world16, system as system3, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
 import { ActionFormData, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/types/index.ts
@@ -177,6 +177,41 @@ var EMPTY_RESOURCE_STORAGE = {
   wood: 0,
   stone: 0,
   diamonds: 0
+};
+var MERCHANT_MATERIAL_MAP = {
+  "minecraft:iron_ingot": "iron",
+  "minecraft:gold_ingot": "gold",
+  "minecraft:diamond": "diamonds",
+  "minecraft:coal": "coal",
+  "minecraft:oak_planks": "wood",
+  "minecraft:cobblestone": "stone"
+};
+var RESOURCE_ITEM_IDS = {
+  iron: "minecraft:iron_ingot",
+  gold: "minecraft:gold_ingot",
+  diamonds: "minecraft:diamond",
+  coal: "minecraft:coal",
+  wood: "minecraft:oak_planks",
+  stone: "minecraft:cobblestone"
+};
+var ARMORY_WEAPON_ITEMS = new Set([
+  "minecraft:wooden_sword", "minecraft:stone_sword", "minecraft:iron_sword",
+  "minecraft:golden_sword", "minecraft:diamond_sword", "minecraft:netherite_sword",
+  "minecraft:bow", "minecraft:crossbow", "minecraft:iron_axe", "minecraft:diamond_axe",
+  "minecraft:netherite_axe", "minecraft:trident"
+]);
+var ARMORY_ARMOR_ITEMS = new Set([
+  "minecraft:leather_helmet", "minecraft:leather_chestplate", "minecraft:leather_leggings", "minecraft:leather_boots",
+  "minecraft:iron_helmet", "minecraft:iron_chestplate", "minecraft:iron_leggings", "minecraft:iron_boots",
+  "minecraft:golden_helmet", "minecraft:golden_chestplate", "minecraft:golden_leggings", "minecraft:golden_boots",
+  "minecraft:diamond_helmet", "minecraft:diamond_chestplate", "minecraft:diamond_leggings", "minecraft:diamond_boots",
+  "minecraft:netherite_helmet", "minecraft:netherite_chestplate", "minecraft:netherite_leggings", "minecraft:netherite_boots"
+]);
+var ALL_ARMORY_ITEMS = new Set([...ARMORY_WEAPON_ITEMS, ...ARMORY_ARMOR_ITEMS]);
+var FORGE_RECIPES = {
+  iron: { weaponItem: "minecraft:iron_sword", armorPiece: "minecraft:iron_chestplate", materialKey: "iron", weaponCost: 2, armorCost: 8 },
+  gold: { weaponItem: "minecraft:golden_sword", armorPiece: "minecraft:golden_chestplate", materialKey: "gold", weaponCost: 2, armorCost: 8 },
+  diamond: { weaponItem: "minecraft:diamond_sword", armorPiece: "minecraft:diamond_chestplate", materialKey: "diamonds", weaponCost: 3, armorCost: 10 }
 };
 var RESOURCE_LABELS = {
   iron: "Iron",
@@ -3357,6 +3392,7 @@ function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
   if (merchant.stock[itemTypeId] <= 0) {
     delete merchant.stock[itemTypeId];
   }
+  routeMerchantGoods(village, itemTypeId, buyAmount);
   const totalRemaining = Object.values(merchant.stock).reduce((a, b) => a + b, 0);
   if (totalRemaining <= 0) {
     removeMerchant(village, merchantEntityId);
@@ -3364,6 +3400,26 @@ function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
     saveVillage(village);
   }
   return true;
+}
+function routeMerchantGoods(village, itemTypeId, amount) {
+  const matKey = MERCHANT_MATERIAL_MAP[itemTypeId];
+  if (matKey) {
+    village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+    village.resourceStorage[matKey] = (village.resourceStorage[matKey] ?? 0) + amount;
+    notifyPlayer(village.owner, `\xA77Merchant delivered: ${amount}x ${itemTypeId.replace("minecraft:", "")} \u2192 \xA7bMaterial Storage`);
+    return;
+  }
+  if (FOOD_SELL_RATES?.find?.((e) => e.itemId === itemTypeId)) {
+    village.granaryItems ?? (village.granaryItems = {});
+    village.granaryItems[itemTypeId] = (village.granaryItems[itemTypeId] ?? 0) + amount;
+    notifyPlayer(village.owner, `\xA77Merchant delivered: ${amount}x ${itemTypeId.replace("minecraft:", "")} \u2192 \xA7aGranary`);
+    return;
+  }
+  if (ALL_ARMORY_ITEMS?.has?.(itemTypeId)) {
+    village.armoryItems ?? (village.armoryItems = {});
+    village.armoryItems[itemTypeId] = (village.armoryItems[itemTypeId] ?? 0) + amount;
+    notifyPlayer(village.owner, `\xA77Merchant delivered: ${amount}x ${itemTypeId.replace("minecraft:", "")} \u2192 \xA76Armory`);
+  }
 }
 function removeMerchant(village, merchantEntityId) {
   const dim = world12.getDimension(village.location.dimension);
@@ -4379,7 +4435,9 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:granary",
   "kingdoms:blacksmith",
   "kingdoms:trade_station",
-  "kingdoms:treasury"
+  "kingdoms:treasury",
+  "kingdoms:storage",
+  "kingdoms:armory"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -4469,7 +4527,6 @@ function barracksBlueprint() {
   p.push(blk(0, 1, -2, "minecraft:smithing_table"));
   for (let x = -3; x <= 3; x += 2) p.push(blk(x, 1, 1, "minecraft:red_carpet"));
   p.push(blk(0, 1, 2, "minecraft:sea_lantern"));
-  p.push(blk(2, 2, -2, "kingdoms:barracks"));
   return p;
 }
 function marketBlueprint() {
@@ -4498,7 +4555,6 @@ function marketBlueprint() {
   p.push(blk(-3, 1, 3, "minecraft:crafting_table"), blk(3, 1, 3, "minecraft:crafting_table"));
   p.push(blk(-4, 1, 0, "minecraft:barrel"), blk(4, 1, 0, "minecraft:barrel"));
   p.push(blk(0, 1, -4, "minecraft:barrel"), blk(0, 1, 4, "minecraft:barrel"));
-  p.push(blk(0, 2, -4, "kingdoms:market"));
   return p;
 }
 function granaryBlueprint() {
@@ -4519,7 +4575,6 @@ function granaryBlueprint() {
   p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
   p.push(blk(0, 1, -2, "minecraft:chest"));
   p.push(blk(0, 1, 0, "minecraft:sea_lantern"));
-  p.push(blk(2, 2, -2, "kingdoms:granary"));
   return p;
 }
 function blacksmithBlueprint() {
@@ -4544,7 +4599,6 @@ function blacksmithBlueprint() {
   p.push(blk(2, 1, 0, "minecraft:smithing_table"));
   p.push(blk(-2, 1, 1, "minecraft:chest"));
   p.push(blk(1, 1, 0, "minecraft:sea_lantern"));
-  p.push(blk(0, 2, -1, "kingdoms:blacksmith"));
   return p;
 }
 function tradeStationBlueprint() {
@@ -4565,7 +4619,6 @@ function tradeStationBlueprint() {
   p.push(blk(2, 1, 0, "minecraft:lectern"));
   p.push(blk(0, 1, -1, "minecraft:sea_lantern"));
   for (let x = -3; x <= 3; x++) p.push(blk(x, 1, 3, "minecraft:iron_bars"));
-  p.push(blk(0, 2, -2, "kingdoms:trade_station"));
   return p;
 }
 function treasuryBlueprint() {
@@ -4594,7 +4647,45 @@ function treasuryBlueprint() {
   p.push(blk(0, 1, -2, "minecraft:gold_block"));
   p.push(blk(-1, 1, 0, "minecraft:chest"), blk(1, 1, 0, "minecraft:chest"));
   p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
-  p.push(blk(0, 2, -2, "kingdoms:treasury"));
+  return p;
+}
+function storageBlueprint() {
+  const p = [];
+  p.push(...fill(-3, 1, -3, 3, 5, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:cobblestone"));
+  p.push(...fill(-3, 1, -3, 3, 4, -3, "minecraft:oak_log"));
+  p.push(...fill(-3, 1, -3, -3, 4, 3, "minecraft:oak_log"));
+  p.push(...fill(3, 1, -3, 3, 4, 3, "minecraft:oak_log"));
+  for (let x = -3; x <= 3; x++) for (let y = 1; y <= 4; y++) if (!(x >= -1 && x <= 1 && y <= 2)) p.push(blk(x, y, 3, "minecraft:oak_planks"));
+  for (let x = -2; x <= 2; x++) for (let y = 1; y <= 4; y++) p.push(blk(x, y, -3, "minecraft:oak_planks"));
+  for (let z = -2; z <= 2; z++) for (let y = 1; y <= 4; y++) p.push(blk(-3, y, z, "minecraft:oak_planks"), blk(3, y, z, "minecraft:oak_planks"));
+  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:oak_planks"));
+  p.push(blk(-2, 2, -3, "minecraft:glass"), blk(2, 2, -3, "minecraft:glass"));
+  p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
+  p.push(blk(-2, 1, -2, "minecraft:barrel"), blk(2, 1, -2, "minecraft:barrel"));
+  p.push(blk(-2, 1, 0, "minecraft:barrel"), blk(2, 1, 0, "minecraft:barrel"));
+  p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
+  p.push(blk(2, 1, 2, "minecraft:chest"));
+  p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
+  return p;
+}
+function armoryBlueprint() {
+  const p = [];
+  p.push(...fill(-6, 1, -2, 6, 6, 2, "minecraft:air"));
+  p.push(...fill(-6, 0, -2, 6, 0, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-6, 1, -2, 6, 5, -2, "minecraft:stone_bricks"));
+  p.push(...fill(-6, 1, -1, -6, 5, 1, "minecraft:stone_bricks"));
+  p.push(...fill(6, 1, -1, 6, 5, 1, "minecraft:stone_bricks"));
+  for (let x = -6; x <= 6; x++) for (let y = 1; y <= 5; y++) if (!(x >= -1 && x <= 1 && y <= 2)) p.push(blk(x, y, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-6, 6, -2, 6, 6, 2, "minecraft:stone_bricks"));
+  p.push(blk(-4, 3, -2, "minecraft:glass"), blk(-1, 3, -2, "minecraft:glass"), blk(2, 3, -2, "minecraft:glass"));
+  p.push(blk(-4, 3, 2, "minecraft:glass"), blk(-1, 3, 2, "minecraft:glass"), blk(2, 3, 2, "minecraft:glass"));
+  for (const ax of [-5, -3, -1, 1, 3, 5]) {
+    p.push(blk(ax, 1, -1, "minecraft:chiseled_stone_bricks"), blk(ax, 1, 1, "minecraft:chiseled_stone_bricks"));
+    p.push(blk(ax, 2, -1, "minecraft:iron_bars"), blk(ax, 2, 1, "minecraft:iron_bars"));
+  }
+  p.push(blk(-4, 5, 0, "minecraft:sea_lantern"), blk(0, 5, 0, "minecraft:sea_lantern"), blk(4, 5, 0, "minecraft:sea_lantern"));
+  p.push(blk(-5, 1, 0, "minecraft:chest"), blk(5, 1, 0, "minecraft:chest"));
   return p;
 }
 var BLUEPRINTS = {
@@ -4604,7 +4695,9 @@ var BLUEPRINTS = {
   "kingdoms:granary": granaryBlueprint,
   "kingdoms:blacksmith": blacksmithBlueprint,
   "kingdoms:trade_station": tradeStationBlueprint,
-  "kingdoms:treasury": treasuryBlueprint
+  "kingdoms:treasury": treasuryBlueprint,
+  "kingdoms:storage": storageBlueprint,
+  "kingdoms:armory": armoryBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -4637,8 +4730,29 @@ var CUSTOM_BLOCKS = {
   MARKET: "kingdoms:market",
   GRANARY: "kingdoms:granary",
   TREASURY_BLOCK: "kingdoms:treasury",
-  BLACKSMITH: "kingdoms:blacksmith"
+  BLACKSMITH: "kingdoms:blacksmith",
+  STORAGE: "kingdoms:storage",
+  ARMORY: "kingdoms:armory"
 };
+function destroyStructure(dimension, origin, blockTypeId) {
+  const blueprint = BLUEPRINTS[blockTypeId];
+  if (!blueprint) return;
+  const placements = blueprint();
+  for (const bp of placements) {
+    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
+    try {
+      dimension.getBlock({ x: origin.x + bp.x, y: origin.y + bp.y, z: origin.z + bp.z })?.setType("minecraft:air");
+    } catch {}
+  }
+}
+function dropItemsAtLoc(dimension, location, itemTypeId, amount) {
+  let remaining = amount;
+  while (remaining > 0) {
+    const stack = Math.min(remaining, 64);
+    try { dimension.spawnItem(new ItemStack6(itemTypeId, stack), location); } catch {}
+    remaining -= stack;
+  }
+}
 function findVillageAt2(location) {
   return getAllVillages().find(
     (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
@@ -4725,6 +4839,22 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       notifyPlayer(player.name, `\xA7aVillage Treasury registered for \xA7b${village.name}\xA7a.`);
     }
   }
+  if (typeId === CUSTOM_BLOCKS.STORAGE) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      village.storageLocation = block.location;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7aMaterial Storage registered for \xA7b${village.name}\xA7a. Hold a material and tap to deposit.`);
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.ARMORY) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      village.armoryLocation = block.location;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7aArmory registered for \xA7b${village.name}\xA7a. Hold a weapon or armor piece and tap to deposit.`);
+    }
+  }
   if (STRUCTURE_BLOCK_IDS.has(typeId)) {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
@@ -4766,6 +4896,53 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
       return;
     }
   }
+  if (typeId === CUSTOM_BLOCKS.STORAGE && itemStack) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      const matKey = MERCHANT_MATERIAL_MAP[itemStack.typeId];
+      if (matKey) {
+        const inv = player.getComponent(EntityInventoryComponent8.componentId);
+        const container = inv?.container;
+        if (container) {
+          let deposited = 0;
+          for (let i = 0; i < container.size; i++) {
+            const slot = container.getItem(i);
+            if (slot?.typeId === itemStack.typeId) { deposited += slot.amount; container.setItem(i, void 0); }
+          }
+          if (deposited > 0) {
+            village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+            village.resourceStorage[matKey] = (village.resourceStorage[matKey] ?? 0) + deposited;
+            saveVillage(village);
+            notifyPlayer(player.name, `\xA7aDeposited ${deposited}x ${itemStack.typeId.replace("minecraft:", "")} into \xA7b${village.name}\xA7a storage.`);
+          }
+          return;
+        }
+      }
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.ARMORY && itemStack) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      if (ALL_ARMORY_ITEMS.has(itemStack.typeId)) {
+        const inv = player.getComponent(EntityInventoryComponent8.componentId);
+        const container = inv?.container;
+        if (container) {
+          let deposited = 0;
+          for (let i = 0; i < container.size; i++) {
+            const slot = container.getItem(i);
+            if (slot?.typeId === itemStack.typeId) { deposited += slot.amount; container.setItem(i, void 0); }
+          }
+          if (deposited > 0) {
+            village.armoryItems ?? (village.armoryItems = {});
+            village.armoryItems[itemStack.typeId] = (village.armoryItems[itemStack.typeId] ?? 0) + deposited;
+            saveVillage(village);
+            notifyPlayer(player.name, `\xA7aDeposited ${deposited}x ${itemStack.typeId.replace("minecraft:", "")} into \xA7b${village.name}\xA7a armory.`);
+          }
+          return;
+        }
+      }
+    }
+  }
   if (!canOpenMenu(player.name)) return;
   switch (typeId) {
     case CUSTOM_BLOCKS.TOWN_HALL:
@@ -4788,6 +4965,12 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
       break;
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.STORAGE:
+      void showStorageMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.ARMORY:
+      void showArmoryMenu(player, block);
       break;
   }
 });
@@ -4834,8 +5017,18 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.granaryLocation) {
       const loc = village.granaryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = event.block.dimension;
+        const droppedItems = { ...village.granaryItems ?? {} };
+        system3.run(() => {
+          destroyStructure(dim, loc, "kingdoms:granary");
+          for (const [itemId, count] of Object.entries(droppedItems)) {
+            if (count > 0) dropItemsAtLoc(dim, loc, itemId, count);
+          }
+        });
         village.granaryLocation = void 0;
+        village.granaryItems = {};
         saveVillage(village);
+        notifyPlayer(player.name, `\xA7eGranary demolished \u2014 stored food dropped.`);
       }
     }
   }
@@ -4844,8 +5037,57 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.treasuryLocation) {
       const loc = village.treasuryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = event.block.dimension;
+        const emeralds = village.treasury ?? 0;
+        system3.run(() => {
+          destroyStructure(dim, loc, "kingdoms:treasury");
+          if (emeralds > 0) dropItemsAtLoc(dim, loc, "minecraft:emerald", emeralds);
+        });
+        village.treasury = 0;
         village.treasuryLocation = void 0;
         saveVillage(village);
+        notifyPlayer(player.name, `\xA7eTreasury demolished \u2014 ${emeralds} emerald(s) dropped.`);
+      }
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.STORAGE) {
+    const village = findVillageAt2(blockLoc);
+    if (village && village.storageLocation) {
+      const loc = village.storageLocation;
+      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = event.block.dimension;
+        const res = { ...village.resourceStorage ?? {} };
+        system3.run(() => {
+          destroyStructure(dim, loc, "kingdoms:storage");
+          for (const [key, count] of Object.entries(res)) {
+            const itemId = RESOURCE_ITEM_IDS[key];
+            if (itemId && count > 0) dropItemsAtLoc(dim, loc, itemId, count);
+          }
+        });
+        village.storageLocation = void 0;
+        village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE };
+        saveVillage(village);
+        notifyPlayer(player.name, `\xA7eMaterial Storage demolished \u2014 stored materials dropped.`);
+      }
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.ARMORY) {
+    const village = findVillageAt2(blockLoc);
+    if (village && village.armoryLocation) {
+      const loc = village.armoryLocation;
+      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = event.block.dimension;
+        const items = { ...village.armoryItems ?? {} };
+        system3.run(() => {
+          destroyStructure(dim, loc, "kingdoms:armory");
+          for (const [itemId, count] of Object.entries(items)) {
+            if (count > 0) dropItemsAtLoc(dim, loc, itemId, count);
+          }
+        });
+        village.armoryLocation = void 0;
+        village.armoryItems = {};
+        saveVillage(village);
+        notifyPlayer(player.name, `\xA7eArmory demolished \u2014 stored equipment dropped.`);
       }
     }
   }
@@ -5300,7 +5542,18 @@ async function showBlacksmithMenu(player, block) {
     return;
   }
   const summary = getBlacksmithSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons").button("Upgrade Armor").button("Close");
+  const res = village.resourceStorage ?? { ...EMPTY_RESOURCE_STORAGE };
+  const storageLine = `\n\xA77Storage: Iron=${res.iron} Gold=${res.gold} \u{1F48E}=${res.diamonds}`;
+  const form = new ActionFormData()
+    .title(`${village.name} \u2014 Blacksmith`)
+    .body(summary + storageLine)
+    .button("\u2B06 Upgrade Weapons")
+    .button("\u2B06 Upgrade Armor")
+    .button("\uD83D\uDD28 Bulk Forge Iron Sets")
+    .button("\uD83D\uDD28 Bulk Forge Diamond Sets")
+    .button("\uD83D\uDD27 Bulk Repair (4 Iron)")
+    .button("\u2694 Bulk Equip from Armory")
+    .button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5310,6 +5563,179 @@ async function showBlacksmithMenu(player, block) {
     case 1:
       upgradeArmor(player, village.id);
       break;
+    case 2:
+      bulkForge(player, village, "iron");
+      break;
+    case 3:
+      bulkForge(player, village, "diamond");
+      break;
+    case 4:
+      bulkRepair(player, village);
+      break;
+    case 5:
+      if (village.armoryLocation) {
+        await showArmoryEquipMenu(player, village);
+      } else {
+        notifyPlayer(player.name, "\xA7cNo Armory built in this village. Build one first.");
+      }
+      break;
+  }
+}
+function bulkForge(player, village, tier) {
+  const recipe = FORGE_RECIPES[tier];
+  if (!recipe) { notifyPlayer(player.name, "\xA7cUnknown tier."); return; }
+  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+  const res = village.resourceStorage;
+  const soldiers = Math.max(1, (village.soldiers?.cityGuards ?? 0) + (village.soldiers?.spearmen ?? 0) + (village.soldiers?.archers ?? 0) + (village.soldiers?.cavalry ?? 0));
+  const wCost = recipe.weaponCost * soldiers;
+  const aCost = recipe.armorCost * soldiers;
+  const mat = res[recipe.materialKey] ?? 0;
+  if (mat < wCost + aCost) {
+    notifyPlayer(player.name, `\xA7cNeed ${wCost + aCost} ${recipe.materialKey} to forge ${soldiers} set(s). Have: ${mat}.`);
+    return;
+  }
+  res[recipe.materialKey] -= wCost + aCost;
+  village.armoryItems ?? (village.armoryItems = {});
+  village.armoryItems[recipe.weaponItem] = (village.armoryItems[recipe.weaponItem] ?? 0) + soldiers;
+  village.armoryItems[recipe.armorPiece] = (village.armoryItems[recipe.armorPiece] ?? 0) + soldiers;
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7aForged ${soldiers} ${tier} weapon(s) and armor piece(s)! Check the Armory to equip soldiers.`);
+}
+function bulkRepair(player, village) {
+  const cost = 4;
+  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+  const res = village.resourceStorage;
+  if ((res.iron ?? 0) < cost) {
+    notifyPlayer(player.name, `\xA7cNeed ${cost} iron ingots to repair. Have: ${res.iron ?? 0}.`);
+    return;
+  }
+  res.iron -= cost;
+  saveVillage(village);
+  notifyPlayer(player.name, "\xA7aAll soldier equipment repaired! Soldiers fight at peak effectiveness.");
+}
+async function showStorageMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  if (!village || village.owner !== player.name) {
+    notifyPlayer(player.name, "\xA7cYou don't own this village.");
+    return;
+  }
+  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+  const res = village.resourceStorage;
+  const lines = Object.entries(RESOURCE_LABELS).map(([k, label]) => `${label}: ${res[k] ?? 0}`).join("\n");
+  const body = lines + "\n\n\xA77Hold a material and tap block to deposit all of that type.";
+  const withdrawable = Object.entries(res).filter(([, v]) => v > 0);
+  const form = new ActionFormData().title(`${village.name} \u2014 Material Storage`).body(body);
+  for (const [key] of withdrawable) form.button(`Withdraw 16x ${RESOURCE_LABELS[key] ?? key}`);
+  form.button("Close");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection < withdrawable.length) {
+    const [key] = withdrawable[response.selection];
+    const itemId = RESOURCE_ITEM_IDS[key];
+    const amount = Math.min(16, res[key]);
+    if (!itemId || amount <= 0) { notifyPlayer(player.name, "\xA7cNone in storage."); return; }
+    const inv = player.getComponent(EntityInventoryComponent8.componentId);
+    const container = inv?.container;
+    if (!container) return;
+    let given = 0;
+    for (let i = 0; i < container.size && given < amount; i++) {
+      const slot = container.getItem(i);
+      if (!slot) { const qty = Math.min(amount - given, 64); try { container.setItem(i, new ItemStack6(itemId, qty)); given += qty; } catch {} }
+    }
+    res[key] -= given;
+    saveVillage(village);
+    if (given > 0) notifyPlayer(player.name, `\xA7aWithdrew ${given}x ${RESOURCE_LABELS[key]} from storage.`);
+  }
+}
+async function showArmoryMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  if (!village || village.owner !== player.name) {
+    notifyPlayer(player.name, "\xA7cYou don't own this village.");
+    return;
+  }
+  village.armoryItems ?? (village.armoryItems = {});
+  const items = Object.entries(village.armoryItems).filter(([, v]) => v > 0);
+  const soldiers = (village.soldiers?.cityGuards ?? 0) + (village.soldiers?.spearmen ?? 0) + (village.soldiers?.archers ?? 0) + (village.soldiers?.cavalry ?? 0);
+  const bodyLines = items.length > 0 ? items.map(([id, cnt]) => `${id.replace("minecraft:", "")} \xD7${cnt}`).join("\n") : "\xA77Armory is empty.\nHold a weapon or armor piece and tap to deposit.";
+  const form = new ActionFormData()
+    .title(`${village.name} \u2014 Armory`)
+    .body(bodyLines + `\n\nSoldiers: ${soldiers}\n\xA77Hold a weapon/armor and tap block to deposit.`);
+  for (const [id] of items) form.button(`Withdraw 4x ${id.replace("minecraft:", "")}`);
+  form.button("\u2694 Equip Soldiers from Armory");
+  form.button("Close");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection < items.length) {
+    const [itemId] = items[response.selection];
+    const amount = Math.min(4, village.armoryItems[itemId] ?? 0);
+    if (amount <= 0) { notifyPlayer(player.name, "\xA7cNone in armory."); return; }
+    const inv = player.getComponent(EntityInventoryComponent8.componentId);
+    const container = inv?.container;
+    if (!container) return;
+    let given = 0;
+    for (let i = 0; i < container.size && given < amount; i++) {
+      const slot = container.getItem(i);
+      if (!slot) { const qty = Math.min(amount - given, 64); try { container.setItem(i, new ItemStack6(itemId, qty)); given += qty; } catch {} }
+    }
+    village.armoryItems[itemId] -= given;
+    saveVillage(village);
+    if (given > 0) notifyPlayer(player.name, `\xA7aWithdrew ${given}x ${itemId.replace("minecraft:", "")} from armory.`);
+  } else if (response.selection === items.length) {
+    await showArmoryEquipMenu(player, village);
+  }
+}
+async function showArmoryEquipMenu(player, village) {
+  village.armoryItems ?? (village.armoryItems = {});
+  const bsm = village.blacksmith ?? { weaponTier: "wood", armorTier: "leather" };
+  const soldiers = Math.max(1, (village.soldiers?.cityGuards ?? 0) + (village.soldiers?.spearmen ?? 0) + (village.soldiers?.archers ?? 0) + (village.soldiers?.cavalry ?? 0));
+  const availWeapons = WEAPON_TIERS.filter((t) => (village.armoryItems[`minecraft:${t}_sword`] ?? 0) + (village.armoryItems[`minecraft:${t}_axe`] ?? 0) > 0);
+  const availArmors = ARMOR_TIERS.filter((t) => (village.armoryItems[`minecraft:${t}_chestplate`] ?? 0) + (village.armoryItems[`minecraft:${t}_helmet`] ?? 0) > 0);
+  const body = `Current: \xA7aWeapons: ${bsm.weaponTier}\xA7r | \xA7aArmor: ${bsm.armorTier}\xA7r\n\nSoldiers: ${soldiers}\nSelect what to equip (1 weapon or 4 armor pieces per soldier):`;
+  const form = new ActionFormData().title("Equip Soldiers \u2014 Armory").body(body);
+  const options = [];
+  for (const t of availWeapons) {
+    const cnt = (village.armoryItems[`minecraft:${t}_sword`] ?? 0) + (village.armoryItems[`minecraft:${t}_axe`] ?? 0);
+    form.button(`\u2694 ${t.charAt(0).toUpperCase() + t.slice(1)} Weapons (${cnt} avail)`);
+    options.push({ type: "weapon", tier: t });
+  }
+  for (const t of availArmors) {
+    const cnt = (village.armoryItems[`minecraft:${t}_chestplate`] ?? 0) + (village.armoryItems[`minecraft:${t}_helmet`] ?? 0);
+    form.button(`\uD83D\uDEE1 ${t.charAt(0).toUpperCase() + t.slice(1)} Armor (${cnt} avail)`);
+    options.push({ type: "armor", tier: t });
+  }
+  form.button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0 || response.selection >= options.length) return;
+  const chosen = options[response.selection];
+  if (chosen.type === "weapon") {
+    const swordId = `minecraft:${chosen.tier}_sword`;
+    const axeId = `minecraft:${chosen.tier}_axe`;
+    const total = (village.armoryItems[swordId] ?? 0) + (village.armoryItems[axeId] ?? 0);
+    if (total < soldiers) { notifyPlayer(player.name, `\xA7cNeed ${soldiers} weapons, have ${total}.`); return; }
+    let need = soldiers;
+    const fromSword = Math.min(need, village.armoryItems[swordId] ?? 0);
+    village.armoryItems[swordId] = (village.armoryItems[swordId] ?? 0) - fromSword;
+    need -= fromSword;
+    if (need > 0) village.armoryItems[axeId] = (village.armoryItems[axeId] ?? 0) - need;
+    bsm.weaponTier = chosen.tier;
+    village.blacksmith = bsm;
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a weapons!`);
+  } else {
+    const piecesNeeded = soldiers * 4;
+    const totalArmor = Object.entries(village.armoryItems).filter(([id]) => id.includes(chosen.tier) && (id.includes("_helmet") || id.includes("_chestplate") || id.includes("_leggings") || id.includes("_boots"))).reduce((s, [, c]) => s + c, 0);
+    if (totalArmor < piecesNeeded) { notifyPlayer(player.name, `\xA7cNeed ${piecesNeeded} ${chosen.tier} armor pieces, have ${totalArmor}.`); return; }
+    let need2 = piecesNeeded;
+    for (const suffix of ["_helmet", "_chestplate", "_leggings", "_boots"]) {
+      const key = `minecraft:${chosen.tier}${suffix}`;
+      const take = Math.min(soldiers, village.armoryItems[key] ?? 0);
+      village.armoryItems[key] = (village.armoryItems[key] ?? 0) - take;
+      need2 -= take;
+    }
+    bsm.armorTier = chosen.tier;
+    village.blacksmith = bsm;
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a armor!`);
   }
 }
 async function showGranaryStorageMenu(player, block) {

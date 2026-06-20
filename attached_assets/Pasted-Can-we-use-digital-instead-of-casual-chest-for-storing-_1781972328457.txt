@@ -1,0 +1,20 @@
+Can we use digital instead of casual chest for storing resources like emerald in Treasury and Food in granary, by using the interactive block inside we can deposit emeral or food directly and is registered in the form of points , however withdrawing it gives it in the correct form inside the inventory.
+
+Also Destroying the block Destroys the whole structure by scanning its original block type and removing them completely, removing exactly the number of blocks, Tresury should drop the emeralds stored, Granary should drop the foods stored as well.
+
+Storage: Storage is for Storing diamonds, Ingots, etc the materials user for weapons and armors. It is stored digitally in the Block as well can withdraw and Deposit, bulk, manually. When block is destroyed all is dropped
+
+Armory:   for storing Weapons and armors, the building should be long and and contains decorative armors and weapons, like a real armory room, from the armory interactive block we can equip Armors and Weapons to soldiers in bulk and individually, also drops all resources if destroyed.
+
+Blacksmith: Blacksmith is for Forging and repairing armors, instead of using the vanilla minecraft armor tool the interactive menu should contain bulk forge, Bulk repair, bulk equip.
+
+The market : The market is for buying seeds, buying foods with emerald, Selling foods for Emerald, emerald goes to the treasury,  Food goes to granary.
+
+Travelling merchant: The merchant roaming and spawned outside the village once everyday, which can sense Merchant poles to find its way for quick and safe journey, The merchant after buying out it stock is quickly removed from the game, the merchant with bothing bought and something bought stays for 2 days.Goods bought from the merchant is transferred directly to Granary, Armory, based on the item type, he can also sell secret seeds and Tools from the list of bobs farming addon he accept only emerald for payment.
+
+There are duplicated spawn block in this addon see and remove the duplicate, 
+
+
+
+
+
