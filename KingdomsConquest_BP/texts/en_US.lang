@@ -33,6 +33,7 @@ item.kingdoms:wall_long_item.name=Long Stone Wall (10x5)
 item.kingdoms:wall_short_item.name=Short Stone Wall (5x5)
 
 item.kingdoms:recall_scroll.name=Recall Scroll
+item.kingdoms:formation_scroll.name=Strategic Formation Scroll
 
 item.kingdoms:guard_token.name=City Guard
 item.kingdoms:spearman_token.name=Spearman

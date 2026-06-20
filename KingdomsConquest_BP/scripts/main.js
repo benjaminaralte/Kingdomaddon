@@ -1465,6 +1465,12 @@ function pickupTroops(player, village, pickup) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
     return false;
   }
+  const setsNeeded = Math.ceil(total / 10);
+  const cost = setsNeeded * 10;
+  if (village.treasury < cost) {
+    notifyPlayer(player.name, `\xA7cNeed \xA7b${cost}\u{1F48E}\xA7c to withdraw ${total} soldiers (${setsNeeded} set${setsNeeded > 1 ? "s" : ""} \xD7 10\u{1F48E}). Treasury: ${village.treasury}\u{1F48E}.`);
+    return false;
+  }
   if (pickup.cityGuards > village.troops.cityGuards) {
     notifyPlayer(player.name, `\xA7cNot enough City Guards (have ${village.troops.cityGuards}).`);
     return false;
@@ -1507,6 +1513,7 @@ function pickupTroops(player, village, pickup) {
   village.troops.spearmen -= pickup.spearmen;
   village.troops.archers -= pickup.archers;
   village.troops.cavalry -= pickup.cavalry;
+  village.treasury -= cost;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
     let remaining = count;
@@ -1525,7 +1532,7 @@ function pickupTroops(player, village, pickup) {
     }
   }
   const summary = toGive.map(({ itemId, count }) => `${count} ${TROOP_TOKEN_MAP[itemId]?.label}`).join(", ");
-  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a. Right-click any token to deploy!`);
+  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a (\xA7c-${cost}\\u{1F48E}\xA7a). Right-click any token to deploy!`);
   return true;
 }
 function releaseTroops(player) {
@@ -4031,10 +4038,10 @@ var TRAINING_COSTS = {
   cavalry: { emeralds: 5, iron: 10, gold: 3 }
 };
 var TRAINING_TICKS = {
-  cityGuards: 1200,
-  spearmen: 1800,
-  archers: 1600,
-  cavalry: 2400
+  cityGuards: 400,
+  spearmen: 400,
+  archers: 400,
+  cavalry: 400
 };
 var TROOP_LABELS = {
   cityGuards: "City Guard",
@@ -5272,6 +5279,12 @@ world16.afterEvents.itemUse.subscribe((event) => {
     });
     return;
   }
+  if (itemId === "kingdoms:formation_scroll") {
+    system3.run(() => {
+      void cmdStratMap(player);
+    });
+    return;
+  }
   if (TROOP_TOKEN_MAP[itemId]) {
     system3.run(() => {
       releaseTroops(player);
@@ -5491,8 +5504,9 @@ Archers: ${carried.archers}  Cavalry: ${carried.cavalry}
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
-Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10)} set(s) avail`);
+Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}
+\xA77Withdraw cost: \xA7b10\u{1F48E} per 10 soldiers`
+  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops\n\xA77Cost: ${Math.ceil((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10) * 10}\u{1F48E} for ${t.cityGuards + t.spearmen + t.archers + t.cavalry} total`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)\n\xA77~20s per soldier`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10)} set(s) avail`).button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA77Free \u2014 recall troops to you").button("\xA7b\uD83D\uDCDC Get Formation Scroll\n\xA77Free \u2014 open Strategic Formation Map");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5529,6 +5543,36 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
     case 10:
       await showGetFormationSetForm(player, village);
       break;
+    case 11: {
+      const inv11 = player.getComponent(EntityInventoryComponent8.componentId);
+      const c11 = inv11?.container;
+      let gave11 = false;
+      if (c11) {
+        for (let i = 0; i < c11.size; i++) {
+          if (!c11.getItem(i)) {
+            try { c11.setItem(i, new ItemStack6("kingdoms:recall_scroll", 1)); gave11 = true; } catch {}
+            break;
+          }
+        }
+      }
+      notifyPlayer(player.name, gave11 ? "\xA7e\uD83D\uDD14 Recall Scroll given! Hold and right-click to recall all nearby troops to you." : "\xA7cInventory full \u2014 no space for Recall Scroll.");
+      break;
+    }
+    case 12: {
+      const inv12 = player.getComponent(EntityInventoryComponent8.componentId);
+      const c12 = inv12?.container;
+      let gave12 = false;
+      if (c12) {
+        for (let i = 0; i < c12.size; i++) {
+          if (!c12.getItem(i)) {
+            try { c12.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave12 = true; } catch {}
+            break;
+          }
+        }
+      }
+      notifyPlayer(player.name, gave12 ? "\xA7b\uD83D\uDCDC Formation Scroll given! Hold and right-click to open the Strategic Formation Map." : "\xA7cInventory full \u2014 no space for Formation Scroll.");
+      break;
+    }
   }
 }
 async function showPickUpTroopsForm(player, village) {
