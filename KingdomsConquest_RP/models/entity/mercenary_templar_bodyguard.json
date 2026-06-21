@@ -4,8 +4,8 @@
 		{
 			"description": {
 				"identifier": "geometry.templar_bodyguard",
-				"texture_width": 132,
-				"texture_height": 132,
+				"texture_width": 128,
+				"texture_height": 128,
 				"visible_bounds_width": 110,
 				"visible_bounds_height": 42,
 				"visible_bounds_offset": [0, 20, 0]
