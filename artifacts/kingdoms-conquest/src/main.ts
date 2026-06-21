@@ -426,7 +426,7 @@ world.afterEvents.itemStartUseOn.subscribe((event) => {
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt(block.location);
       if (wpVillage && wpVillage.waypointLocation) {
-        void showWaypointMenu(player);
+        void showWaypointMenu(player, wpVillage);
         if (pendingDiplomacyRequests.has(player.name)) {
           system.runTimeout(() => { void showPendingDiplomacyRequest(player); }, 40);
         }

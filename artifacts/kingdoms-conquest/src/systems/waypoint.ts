@@ -57,12 +57,100 @@ export function removeWaypoint(village: VillageData): void {
   notifyPlayer(village.owner, `§eWaypoint removed from §b${village.name}§e.`);
 }
 
-export async function showWaypointMenu(player: Player): Promise<void> {
+/** Move all items from the player's inventory into the waypoint chest.
+ *  Returns the number of items successfully deposited. */
+function depositAllToWaypointChest(player: Player, village: VillageData): void {
+  if (!village.waypointLocation) {
+    notifyPlayer(player.name, `§cNo waypoint chest found.`);
+    return;
+  }
+
+  const chestLoc = {
+    x: village.waypointLocation.x + 2,
+    y: village.waypointLocation.y + 1,
+    z: village.waypointLocation.z,
+  };
+
+  const dim = world.getDimension(village.location.dimension);
+  const chestBlock = dim.getBlock(chestLoc);
+  const chestInv = chestBlock?.getComponent("inventory");
+
+  if (!chestInv?.container) {
+    notifyPlayer(player.name, `§cWaypoint chest not found — make sure the structure has been built.`);
+    return;
+  }
+
+  const playerInv = player.getComponent("inventory");
+  if (!playerInv?.container) return;
+
+  const playerContainer = playerInv.container;
+  const chestContainer = chestInv.container;
+
+  let deposited = 0;
+  let noRoom = 0;
+
+  for (let i = 0; i < playerContainer.size; i++) {
+    const item = playerContainer.getItem(i);
+    if (!item) continue;
+
+    // Try to find a matching stack in chest to stack onto first
+    let placed = false;
+    for (let c = 0; c < chestContainer.size; c++) {
+      const existing = chestContainer.getItem(c);
+      if (
+        existing &&
+        existing.typeId === item.typeId &&
+        existing.amount < existing.maxAmount
+      ) {
+        const space = existing.maxAmount - existing.amount;
+        const toMove = Math.min(space, item.amount);
+        existing.amount += toMove;
+        chestContainer.setItem(c, existing);
+        if (toMove >= item.amount) {
+          playerContainer.setItem(i, undefined);
+          deposited++;
+          placed = true;
+          break;
+        } else {
+          item.amount -= toMove;
+        }
+      }
+    }
+    if (placed) continue;
+
+    // Find an empty slot
+    let foundSlot = false;
+    for (let c = 0; c < chestContainer.size; c++) {
+      if (!chestContainer.getItem(c)) {
+        chestContainer.setItem(c, item);
+        playerContainer.setItem(i, undefined);
+        deposited++;
+        foundSlot = true;
+        break;
+      }
+    }
+    if (!foundSlot) noRoom++;
+  }
+
+  if (deposited > 0 && noRoom === 0) {
+    notifyPlayer(player.name, `§a📦 All items deposited into the waypoint chest.`);
+  } else if (deposited > 0 && noRoom > 0) {
+    notifyPlayer(player.name, `§e📦 Deposited ${deposited} item(s). §c${noRoom} item(s) didn't fit — chest is full.`);
+  } else if (deposited === 0 && noRoom > 0) {
+    notifyPlayer(player.name, `§cChest is full — no items could be deposited.`);
+  } else {
+    notifyPlayer(player.name, `§7Your inventory is already empty.`);
+  }
+}
+
+export async function showWaypointMenu(player: Player, currentVillage?: VillageData): Promise<void> {
   const destinations = getAllVillages().filter(
     (v) => v.owner === player.name && v.waypointLocation
   );
 
-  if (destinations.length === 0) {
+  const hasChest = !!(currentVillage?.waypointLocation);
+
+  if (destinations.length === 0 && !hasChest) {
     notifyPlayer(
       player.name,
       `§cNo waypoints found. Place a §bVillage Waypoint§c block inside your village first.`
@@ -73,8 +161,13 @@ export async function showWaypointMenu(player: Player): Promise<void> {
   const form = new ActionFormData()
     .title("§b✦ Village Waypoints")
     .body(
-      `§7${destinations.length} waypoint(s) registered.\n§fSelect a destination to teleport to:`
+      `§7${destinations.length} waypoint(s) registered.\n§fSelect a destination to teleport to, or deposit your items:`
     );
+
+  // Deposit All button — always first if we're at a waypoint
+  if (hasChest) {
+    form.button(`§6📦 Deposit All to Chest\n§7Sweep your inventory into the chest`);
+  }
 
   for (const v of destinations) {
     const loc = v.waypointLocation!;
@@ -84,9 +177,22 @@ export async function showWaypointMenu(player: Player): Promise<void> {
 
   const response = await form.show(player);
   if (response.canceled || response.selection === undefined) return;
-  if (response.selection >= destinations.length) return;
 
-  const dest = destinations[response.selection];
+  let selection = response.selection;
+
+  // Deposit All was chosen
+  if (hasChest) {
+    if (selection === 0) {
+      depositAllToWaypointChest(player, currentVillage!);
+      return;
+    }
+    selection -= 1; // shift index past the deposit button
+  }
+
+  // Cancel button
+  if (selection >= destinations.length) return;
+
+  const dest = destinations[selection];
   const loc = dest.waypointLocation!;
 
   const inventory = player.getComponent("inventory");
