@@ -5,16 +5,30 @@
       "identifier": "kingdoms:spearman",
       "min_engine_version": "1.16.0",
       "materials": {
-        "default": "entity_alphatest"
+        "villager": "entity_alphatest"
       },
       "textures": {
-        "default": "textures/entity/spearman"
+        "default": "textures/piki/vd/entity/villager_fighter"
       },
       "geometry": {
-        "default": "geometry.zombie"
+        "default": "geometry.piki_villagedefense.villager"
+      },
+      "animations": {
+        "idle": "animation.piki_villagedefense.villager.idle",
+        "walk": "animation.piki_villagedefense.villager.walk",
+        "run": "animation.piki_villagedefense.villager.run",
+        "attack": "animation.piki_villagedefense.villager.attack"
+      },
+      "scripts": {
+        "animate": [
+          { "run": "query.modified_move_speed >= 0.34" },
+          { "walk": "query.modified_move_speed >= 0.1 && query.modified_move_speed < 0.34" },
+          { "attack": "query.is_attacking" },
+          "idle"
+        ]
       },
       "render_controllers": [
-        "controller.render.default"
+        "controller.render.kingdoms.soldier"
       ],
       "spawn_egg": {
         "texture": "spearman_spawn_egg",

@@ -1,0 +1,30 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "kingdoms:structure_hub",
+      "runtime_identifier": "minecraft:pig",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": ["kingdoms_hub", "inanimate"]
+      },
+      "minecraft:health": { "value": 32767, "max": 32767 },
+      "minecraft:collision_box": { "width": 0.5, "height": 0.5 },
+      "minecraft:physics": {},
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:nameable": {},
+      "minecraft:fire_immune": true,
+      "minecraft:damage_sensor": {
+        "triggers": [{ "cause": "all", "deals_damage": false }]
+      },
+      "minecraft:behavior.float": { "priority": 0 }
+    }
+  }
+}

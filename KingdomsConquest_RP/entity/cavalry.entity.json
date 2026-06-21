@@ -4,10 +4,24 @@
     "description": {
       "identifier": "kingdoms:cavalry",
       "min_engine_version": "1.16.0",
-      "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/horse/horse_brown" },
-      "geometry": { "default": "geometry.horse.v2" },
-      "render_controllers": [ "controller.render.horse" ]
+      "materials": { "villager": "entity_alphatest" },
+      "textures": { "default": "textures/piki/vd/entity/villager_warrior" },
+      "geometry": { "default": "geometry.piki_villagedefense.villager" },
+      "animations": {
+        "idle": "animation.piki_villagedefense.villager.idle",
+        "walk": "animation.piki_villagedefense.villager.walk",
+        "run": "animation.piki_villagedefense.villager.run",
+        "attack": "animation.piki_villagedefense.villager.attack"
+      },
+      "scripts": {
+        "animate": [
+          { "run": "query.modified_move_speed >= 0.34" },
+          { "walk": "query.modified_move_speed >= 0.1 && query.modified_move_speed < 0.34" },
+          { "attack": "query.is_attacking" },
+          "idle"
+        ]
+      },
+      "render_controllers": [ "controller.render.kingdoms.soldier" ]
     }
   }
 }

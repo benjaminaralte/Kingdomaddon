@@ -4,10 +4,26 @@
     "description": {
       "identifier": "kingdoms:archer",
       "min_engine_version": "1.16.0",
-      "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/skeleton/skeleton" },
-      "geometry": { "default": "geometry.skeleton" },
-      "render_controllers": [ "controller.render.default" ]
+      "materials": { "villager": "entity_alphatest" },
+      "textures": { "default": "textures/piki/vd/entity/villager_archer" },
+      "geometry": { "default": "geometry.piki_villagedefense.villager" },
+      "animations": {
+        "idle": "animation.piki_villagedefense.villager.idle",
+        "walk": "animation.piki_villagedefense.villager.walk",
+        "run": "animation.piki_villagedefense.villager.run",
+        "attack": "animation.piki_villagedefense.villager.attack",
+        "charge_bow": "animation.piki_villagedefense.villager.charge_bow",
+        "shoot_bow": "animation.piki_villagedefense.villager.shoot_bow"
+      },
+      "scripts": {
+        "animate": [
+          { "run": "query.modified_move_speed >= 0.34" },
+          { "walk": "query.modified_move_speed >= 0.1 && query.modified_move_speed < 0.34" },
+          { "attack": "query.is_attacking" },
+          "idle"
+        ]
+      },
+      "render_controllers": [ "controller.render.kingdoms.soldier" ]
     }
   }
 }

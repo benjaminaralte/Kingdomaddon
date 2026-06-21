@@ -3263,11 +3263,11 @@ var MERCHANT_STOCK_TEMPLATES = {
     "minecraft:apple": 48
   },
   bobsFarm: {
-    "bobs_farming:tomato_seeds": 16,
-    "bobs_farming:corn_seeds": 12,
-    "bobs_farming:strawberry_seeds": 10,
-    "bobs_farming:cranberry_seeds": 8,
-    "bobs_farming:pineapple_seeds": 4
+    "twb_farm:garlic": 16,
+    "twb_farm:onion": 12,
+    "twb_farm:rice": 12,
+    "twb_farm:broccoli": 10,
+    "twb_farm:pineapple": 6
   }
 };
 var SEED_SHOP = [
@@ -3278,16 +3278,16 @@ var SEED_SHOP = [
   { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
   { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
   { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 },
-  { itemId: "bobs_farming:tomato_seeds", label: "\xA72Tomato Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "bobs_farming:rice_seeds", label: "\xA72Rice Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "bobs_farming:corn_seeds", label: "\xA72Corn Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 3 },
-  { itemId: "bobs_farming:onion_seeds", label: "\xA72Onion Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "bobs_farming:strawberry_seeds", label: "\xA72Strawberry Seeds \xA77[Bob's]", quantityPerPurchase: 6, emeraldCost: 3 },
-  { itemId: "bobs_farming:lettuce_seeds", label: "\xA72Lettuce Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "bobs_farming:cucumber_seeds", label: "\xA72Cucumber Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "bobs_farming:garlic_seeds", label: "\xA72Garlic Seeds \xA77[Bob's]", quantityPerPurchase: 6, emeraldCost: 2 },
-  { itemId: "bobs_farming:cranberry_seeds", label: "\xA72Cranberry Seeds \xA77[Bob's]", quantityPerPurchase: 6, emeraldCost: 4 },
-  { itemId: "bobs_farming:pineapple_seeds", label: "\xA72Pineapple Seeds \xA77[Bob's]", quantityPerPurchase: 4, emeraldCost: 5 }
+  { itemId: "twb_farm:garlic", label: "\xA72Garlic \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
+  { itemId: "twb_farm:onion", label: "\xA72Onion \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
+  { itemId: "twb_farm:rice", label: "\xA72Rice \xA77[Bob's Farm]", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:broccoli", label: "\xA72Broccoli \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
+  { itemId: "twb_farm:cauliflower", label: "\xA72Cauliflower \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 3 },
+  { itemId: "twb_farm:chili", label: "\xA72Chili \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 3 },
+  { itemId: "twb_farm:eggplant", label: "\xA72Eggplant \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
+  { itemId: "twb_farm:leek", label: "\xA72Leek \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
+  { itemId: "twb_farm:grape", label: "\xA72Grape \xA77[Bob's Farm]", quantityPerPurchase: 8, emeraldCost: 3 },
+  { itemId: "twb_farm:pineapple", label: "\xA72Pineapple \xA77[Bob's Farm]", quantityPerPurchase: 4, emeraldCost: 5 }
 ];
 var FOOD_SELL_RATES = [
   { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 8, minBatch: 16 },
@@ -3303,16 +3303,16 @@ var FOOD_SELL_RATES = [
   { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 3, minBatch: 8 },
   { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 3, minBatch: 8 },
   { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 },
-  { itemId: "bobs_farming:tomato", label: "Tomato [Bob's]", itemsPerEmerald: 6, minBatch: 12 },
-  { itemId: "bobs_farming:rice", label: "Rice [Bob's]", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "bobs_farming:corn", label: "Corn [Bob's]", itemsPerEmerald: 5, minBatch: 12 },
-  { itemId: "bobs_farming:onion", label: "Onion [Bob's]", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "bobs_farming:strawberry", label: "Strawberry [Bob's]", itemsPerEmerald: 5, minBatch: 12 },
-  { itemId: "bobs_farming:lettuce", label: "Lettuce [Bob's]", itemsPerEmerald: 6, minBatch: 16 },
-  { itemId: "bobs_farming:cucumber", label: "Cucumber [Bob's]", itemsPerEmerald: 6, minBatch: 12 },
-  { itemId: "bobs_farming:garlic", label: "Garlic [Bob's]", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "bobs_farming:cranberry", label: "Cranberry [Bob's]", itemsPerEmerald: 4, minBatch: 12 },
-  { itemId: "bobs_farming:pineapple", label: "Pineapple [Bob's]", itemsPerEmerald: 3, minBatch: 8 }
+  { itemId: "twb_farm:garlic", label: "Garlic [Bob's Farm]", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "twb_farm:onion", label: "Onion [Bob's Farm]", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "twb_farm:rice", label: "Rice [Bob's Farm]", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "twb_farm:broccoli", label: "Broccoli [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "twb_farm:cauliflower", label: "Cauliflower [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "twb_farm:chili", label: "Chili [Bob's Farm]", itemsPerEmerald: 5, minBatch: 12 },
+  { itemId: "twb_farm:eggplant", label: "Eggplant [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "twb_farm:leek", label: "Leek [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "twb_farm:grape", label: "Grape [Bob's Farm]", itemsPerEmerald: 5, minBatch: 12 },
+  { itemId: "twb_farm:pineapple", label: "Pineapple [Bob's Farm]", itemsPerEmerald: 3, minBatch: 8 }
 ];
 function getMaxMerchants(village) {
   return Math.floor(village.marketLevel * 3 + village.population / 8);
@@ -4912,6 +4912,72 @@ function findVillageAt2(location) {
     (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
   );
 }
+var STRUCT_DISPLAY_NAMES = {
+  "kingdoms:town_hall": "\u{1F3DB} Town Hall",
+  "kingdoms:barracks": "\u2694\uFE0F Barracks",
+  "kingdoms:market": "\u{1F3EA} Market",
+  "kingdoms:blacksmith": "\u{1F528} Blacksmith",
+  "kingdoms:granary": "\u{1F33E} Granary",
+  "kingdoms:treasury": "\u{1F4B8} Treasury",
+  "kingdoms:trade_station": "\u{1F682} Trade Station",
+  "kingdoms:storage": "\u{1F4E6} Storage",
+  "kingdoms:armory": "\u{1F6E1}\uFE0F Armory"
+};
+var STRUCT_MENU_KEYS = {
+  "kingdoms:town_hall": "town_hall",
+  "kingdoms:barracks": "barracks",
+  "kingdoms:market": "market",
+  "kingdoms:blacksmith": "blacksmith",
+  "kingdoms:granary": "granary",
+  "kingdoms:treasury": "treasury",
+  "kingdoms:trade_station": "trade_station",
+  "kingdoms:storage": "storage",
+  "kingdoms:armory": "armory"
+};
+function spawnStructureHub(block, structKey) {
+  try {
+    const loc = block.location;
+    const dimId = block.dimension.id;
+    removeStructureHub(loc);
+    const hub = world16.getDimension(dimId).spawnEntity("kingdoms:structure_hub", { x: loc.x + 0.5, y: loc.y, z: loc.z + 0.5 });
+    hub.nameTag = "\xA76\u25B6 " + (STRUCT_DISPLAY_NAMES[block.typeId] ?? structKey);
+    hub.setDynamicProperty("kc:structure_type", structKey);
+    hub.setDynamicProperty("kc:block_loc", JSON.stringify({ x: loc.x, y: loc.y, z: loc.z, dimension: dimId }));
+    world16.setDynamicProperty("kc:hub:" + loc.x + "," + loc.y + "," + loc.z, hub.id);
+  } catch {}
+}
+function removeStructureHub(loc) {
+  try {
+    const key = "kc:hub:" + loc.x + "," + loc.y + "," + loc.z;
+    world16.setDynamicProperty(key, void 0);
+    for (const dimId of ["overworld", "nether", "the_end"]) {
+      try {
+        const hubs = world16.getDimension(dimId).getEntities({ type: "kingdoms:structure_hub" });
+        for (const h of hubs) {
+          try {
+            const ls = h.getDynamicProperty("kc:block_loc");
+            if (!ls) continue;
+            const l = JSON.parse(ls);
+            if (l.x === loc.x && l.y === loc.y && l.z === loc.z) { h.remove(); return; }
+          } catch {}
+        }
+      } catch {}
+    }
+  } catch {}
+}
+function openStructureMenu(player, structKey, block) {
+  switch (structKey) {
+    case "town_hall": void showTownHallMenu(player, block); break;
+    case "barracks": void showBarracksMenu(player, block); break;
+    case "market": void showMarketMenu(player, block); break;
+    case "blacksmith": void showBlacksmithMenu(player, block); break;
+    case "granary": void showGranaryStorageMenu(player, block); break;
+    case "treasury": void showTreasuryBlockMenu(player, block); break;
+    case "trade_station": void showTradeStationMenu(player, block); break;
+    case "storage": void showStorageMenu(player, block); break;
+    case "armory": void showArmoryMenu(player, block); break;
+  }
+}
 world16.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
@@ -5017,6 +5083,9 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       generateStructure(dimension, origin, typeId);
     });
   }
+  if (STRUCT_MENU_KEYS[typeId]) {
+    system3.run(() => { try { spawnStructureHub(block, STRUCT_MENU_KEYS[typeId]); } catch {} });
+  }
 });
 var MENU_COOLDOWN_TICKS = 10;
 var lastMenuTick = /* @__PURE__ */ new Map();
@@ -5027,6 +5096,27 @@ function canOpenMenu(playerName) {
   lastMenuTick.set(playerName, tick);
   return true;
 }
+world16.afterEvents.playerInteractWithEntity.subscribe((event) => {
+  const { player, target } = event;
+  if (!target || target.typeId !== "kingdoms:structure_hub") return;
+  const structKey = target.getDynamicProperty("kc:structure_type");
+  if (!structKey || !canOpenMenu(player.name)) return;
+  try {
+    const bLocStr = target.getDynamicProperty("kc:block_loc");
+    if (!bLocStr) return;
+    const bl = JSON.parse(bLocStr);
+    const block = world16.getDimension(bl.dimension ?? "overworld").getBlock(bl);
+    if (!block) return;
+    openStructureMenu(player, structKey, block);
+  } catch {}
+});
+world16.afterEvents.playerInteractWithBlock.subscribe((event) => {
+  const { player, block } = event;
+  if (!player || !block) return;
+  const structKey = STRUCT_MENU_KEYS[block.typeId];
+  if (!structKey || !canOpenMenu(player.name)) return;
+  openStructureMenu(player, structKey, block);
+});
 world16.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
@@ -5254,6 +5344,9 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
       saveVillage(village);
       notifyPlayer(player.name, `\xA7eTrade pole removed from \xA7b${village.name}\xA7e.`);
     }
+  }
+  if (STRUCT_MENU_KEYS[typeId]) {
+    removeStructureHub(blockLoc);
   }
 });
 world16.beforeEvents.playerPlaceBlock.subscribe((event) => {
@@ -6083,16 +6176,16 @@ async function showFoodSellMenu(player, village) {
 }
 async function showBobsFarmingShopMenu(player, village) {
   const BOB_SEEDS = [
-    { itemId: "bobs_farming:tomato_seeds", label: "Tomato Seeds", qty: 8, cost: 2 },
-    { itemId: "bobs_farming:rice_seeds", label: "Rice Seeds", qty: 8, cost: 2 },
-    { itemId: "bobs_farming:corn_seeds", label: "Corn Seeds", qty: 8, cost: 3 },
-    { itemId: "bobs_farming:onion_seeds", label: "Onion Seeds", qty: 8, cost: 2 },
-    { itemId: "bobs_farming:strawberry_seeds", label: "Strawberry Seeds", qty: 6, cost: 3 },
-    { itemId: "bobs_farming:lettuce_seeds", label: "Lettuce Seeds", qty: 8, cost: 2 },
-    { itemId: "bobs_farming:cucumber_seeds", label: "Cucumber Seeds", qty: 8, cost: 2 },
-    { itemId: "bobs_farming:garlic_seeds", label: "Garlic Seeds", qty: 6, cost: 2 },
-    { itemId: "bobs_farming:cranberry_seeds", label: "Cranberry Seeds", qty: 6, cost: 4 },
-    { itemId: "bobs_farming:pineapple_seeds", label: "Pineapple Seeds", qty: 4, cost: 5 }
+    { itemId: "twb_farm:garlic", label: "Garlic", qty: 6, cost: 2 },
+    { itemId: "twb_farm:onion", label: "Onion", qty: 6, cost: 2 },
+    { itemId: "twb_farm:rice", label: "Rice", qty: 8, cost: 2 },
+    { itemId: "twb_farm:broccoli", label: "Broccoli", qty: 6, cost: 2 },
+    { itemId: "twb_farm:cauliflower", label: "Cauliflower", qty: 6, cost: 3 },
+    { itemId: "twb_farm:chili", label: "Chili", qty: 6, cost: 3 },
+    { itemId: "twb_farm:eggplant", label: "Eggplant", qty: 6, cost: 2 },
+    { itemId: "twb_farm:leek", label: "Leek", qty: 6, cost: 2 },
+    { itemId: "twb_farm:grape", label: "Grape", qty: 8, cost: 3 },
+    { itemId: "twb_farm:pineapple", label: "Pineapple", qty: 4, cost: 5 }
   ];
   const form = new ActionFormData()
     .title(`${village.name} \u2014 \u{1F33F} Bob's Farming`)

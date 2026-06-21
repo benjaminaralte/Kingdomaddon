@@ -1,0 +1,13 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:structure_hub",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/structure_hub" },
+      "geometry": { "default": "geometry.pig.v1.9" },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}
