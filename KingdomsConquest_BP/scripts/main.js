@@ -1884,6 +1884,55 @@ function releaseTroops(player) {
   notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
   return true;
 }
+function deploySingleToken(player, itemId) {
+  const info = TROOP_TOKEN_MAP[itemId];
+  if (!info) return;
+  const inv = player.getComponent(EntityInventoryComponent3.componentId);
+  if (!inv?.container) return;
+  const container = inv.container;
+  let consumed = false;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== itemId) continue;
+    if (slot.amount > 1) {
+      const updated = new ItemStack2(slot.typeId, slot.amount - 1);
+      container.setItem(i, updated);
+    } else {
+      container.setItem(i, void 0);
+    }
+    consumed = true;
+    break;
+  }
+  if (!consumed) return;
+  const loc = player.location;
+  const dim = player.dimension;
+  const angle = Math.random() * Math.PI * 2;
+  try {
+    const entity = dim.spawnEntity(info.entityId, {
+      x: loc.x + Math.cos(angle) * 2,
+      y: loc.y,
+      z: loc.z + Math.sin(angle) * 2
+    });
+    entity.nameTag = `${player.name}'s ${info.label}`;
+    entity.setDynamicProperty("kc:owner", player.name);
+    notifyPlayer(player.name, `\xA7c\u2694 Deployed 1x \xA7f${info.label}\xA7c! Right-click token again for more.`);
+  } catch {
+    notifyPlayer(player.name, "\xA7cCould not deploy troop (chunk not loaded).");
+    const inv2 = player.getComponent(EntityInventoryComponent3.componentId);
+    if (inv2?.container) {
+      let placed = false;
+      for (let i = 0; i < inv2.container.size; i++) {
+        const s = inv2.container.getItem(i);
+        if (s?.typeId === itemId) {
+          const updated = new ItemStack2(itemId, s.amount + 1);
+          inv2.container.setItem(i, updated);
+          placed = true; break;
+        }
+        if (!s && !placed) { inv2.container.setItem(i, new ItemStack2(itemId, 1)); placed = true; }
+      }
+    }
+  }
+}
 var ENTITY_TO_TOKEN = {
   "kingdoms:city_guard": "kingdoms:guard_token",
   "kingdoms:spearman": "kingdoms:spearman_token",
@@ -3786,46 +3835,56 @@ function tickTradeCartMovement() {
 }
 function spawnMerchant(village) {
   const dim = world12.getDimension(village.location.dimension);
-  const loc = village.townHallLocation;
+  const marketLoc = village.tradeStationLocation ?? village.townHallLocation;
   const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
   const templateKey = templates[Math.floor(Math.random() * templates.length)];
   const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
   const angle = Math.random() * Math.PI * 2;
-  const distance2 = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
+  const spawnDist = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
+  const spawnX = marketLoc.x + Math.cos(angle) * spawnDist;
+  const spawnZ = marketLoc.z + Math.sin(angle) * spawnDist;
   try {
-    const entity = dim.spawnEntity("kingdoms:merchant", {
-      x: loc.x + Math.cos(angle) * distance2,
-      y: loc.y,
-      z: loc.z + Math.sin(angle) * distance2
-    });
+    const entity = dim.spawnEntity("kingdoms:merchant", { x: spawnX, y: marketLoc.y, z: spawnZ });
     const merchantData = {
       entityId: entity.id,
       stock,
       destinationVillageId: village.id,
-      currentPoleIndex: 0
+      currentPoleIndex: 0,
+      arrived: false,
+      lastNotifyDist: -1
     };
     entity.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
     entity.setDynamicProperty("kc:village_id", village.id);
-    entity.nameTag = `\xA76Merchant \xA77[${village.name}]`;
+    const hasMarket = !!village.tradeStationLocation;
+    entity.nameTag = `\xA76Merchant \xA77[\u2192 ${village.name}${hasMarket ? " Market" : ""}]`;
     village.activeMerchants.push(merchantData);
     saveVillage(village);
     notifyPlayer(
       village.owner,
-      `\xA76A merchant has set out for \xA7b${village.name}\xA76! (${Math.round(distance2)} blocks away, Stock: ${Object.keys(stock).length} types)`
+      `\xA76\uD83D\uDED2 A travelling merchant has set out for \xA7b${village.name}\xA76's ${hasMarket ? "market" : "town hall"}! (${Math.round(spawnDist)} blocks away \u2014 Stock: ${Object.keys(stock).length} types)`
     );
   } catch {
   }
 }
 function tickMerchantMovement(village) {
   const dim = world12.getDimension(village.location.dimension);
-  const poles = village.tradePoles;
-  const townHall = village.townHallLocation;
+  const poles = village.tradePoles ?? [];
+  const finalDest = village.tradeStationLocation ?? village.townHallLocation;
+  const destLabel = village.tradeStationLocation ? "market" : "town hall";
   let changed = false;
   for (const merchantData of village.activeMerchants) {
     try {
       const entities = dim.getEntities({ type: "kingdoms:merchant" });
       const entity = entities.find((e) => e.id === merchantData.entityId);
       if (!entity) continue;
+      if (merchantData.arrived) {
+        const dx0 = finalDest.x - entity.location.x;
+        const dz0 = finalDest.z - entity.location.z;
+        if (Math.sqrt(dx0 * dx0 + dz0 * dz0) > MERCHANT_ARRIVE_RADIUS * 3) {
+          entity.teleport({ x: finalDest.x, y: finalDest.y, z: finalDest.z }, { keepVelocity: false });
+        }
+        continue;
+      }
       const loc = entity.location;
       let target;
       let onPole = false;
@@ -3833,7 +3892,7 @@ function tickMerchantMovement(village) {
         target = poles[merchantData.currentPoleIndex].location;
         onPole = true;
       } else {
-        target = townHall;
+        target = finalDest;
       }
       const dx = target.x - loc.x;
       const dz = target.z - loc.z;
@@ -3842,8 +3901,29 @@ function tickMerchantMovement(village) {
         if (onPole) {
           merchantData.currentPoleIndex++;
           changed = true;
+        } else {
+          merchantData.arrived = true;
+          changed = true;
+          entity.nameTag = `\xA76Merchant \xA77[${village.name} Market]`;
+          notifyPlayer(village.owner, `\xA76\uD83D\uDED2 A merchant has arrived at \xA7b${village.name}\xA76's ${destLabel} safely! Ready to trade.`);
+          entity.teleport({ x: finalDest.x, y: finalDest.y, z: finalDest.z }, { keepVelocity: false });
         }
         continue;
+      }
+      const dxFinal = finalDest.x - loc.x;
+      const dzFinal = finalDest.z - loc.z;
+      const distToFinal = Math.sqrt(dxFinal * dxFinal + dzFinal * dzFinal);
+      const notifyBucket = Math.floor(distToFinal / 30);
+      if (merchantData.lastNotifyDist === void 0 || merchantData.lastNotifyDist === -1) merchantData.lastNotifyDist = notifyBucket + 99;
+      if (notifyBucket < merchantData.lastNotifyDist) {
+        merchantData.lastNotifyDist = notifyBucket;
+        changed = true;
+        if (distToFinal < 25) {
+          notifyPlayer(village.owner, `\xA76\uD83D\uDED2 Merchant is approaching \xA7b${village.name}\xA76's ${destLabel}! (~${Math.round(distToFinal)}m away)`);
+        } else if (Math.random() < 0.35) {
+          const poleInfo = onPole ? ` \xA77(following trade road)` : "";
+          notifyPlayer(village.owner, `\xA77\uD83D\uDED2 Merchant en route to \xA7b${village.name}\xA77 ${destLabel}${poleInfo} \u2014 ${Math.round(distToFinal)}m remaining.`);
+        }
       }
       const ratio = MERCHANT_MOVE_SPEED / dist2D;
       entity.teleport(
@@ -3854,11 +3934,23 @@ function tickMerchantMovement(village) {
         const hostiles = dim.getEntities({ location: loc, maxDistance: MERCHANT_DANGER_RADIUS, families: ["monster"] });
         if (hostiles.length > 0) {
           entity.applyDamage(2);
-          if (Math.random() < 0.04) {
-            notifyPlayer(village.owner, `\xA7c\u26A0 A merchant heading to \xA7b${village.name}\xA7c is under mob attack! (${Math.round(dist2D)} blocks out)`);
+          if (Math.random() < 0.06) {
+            notifyPlayer(village.owner, `\xA7c\u26A0 MERCHANT UNDER ATTACK! Heading to \xA7b${village.name}\xA7c ${destLabel} \u2014 ${Math.round(distToFinal)}m away! Send guards!`);
           }
         }
       } catch {
+      }
+      if (onPole) {
+        try {
+          const nearbyGuards = dim.getEntities({ location: loc, maxDistance: 20, type: "kingdoms:city_guard" });
+          for (const guard of nearbyGuards) {
+            const guardOwner = guard.getDynamicProperty("kc:owner");
+            if (guardOwner === village.owner || guard.getDynamicProperty("kc:village_id") === village.id) {
+              const guardHostiles = dim.getEntities({ location: guard.location, maxDistance: 16, families: ["monster"] });
+              for (const h of guardHostiles) { try { guard.target = h; } catch {} }
+            }
+          }
+        } catch {}
       }
     } catch {
     }
@@ -6684,7 +6776,7 @@ system3.runInterval(() => {
     } catch {}
   }
 }, 6e3);
-// Intercept vanilla wandering_trader + trader_llama — replace with kingdoms entities
+// Intercept vanilla wandering_trader + trader_llama — replace with kingdoms travelling merchant
 world16.afterEvents.entitySpawn.subscribe((event) => {
   const entity = event.entity;
   if (!entity) return;
@@ -6694,8 +6786,38 @@ world16.afterEvents.entitySpawn.subscribe((event) => {
     system3.run(() => {
       try {
         entity.remove();
+        const nearestVillage = getAllVillages()
+          .filter((v) => v.location.dimension === dim.id)
+          .sort((a, b) => {
+            const da = (a.townHallLocation.x - loc.x) ** 2 + (a.townHallLocation.z - loc.z) ** 2;
+            const db = (b.townHallLocation.x - loc.x) ** 2 + (b.townHallLocation.z - loc.z) ** 2;
+            return da - db;
+          })[0];
         const m = dim.spawnEntity("kingdoms:merchant", loc);
-        m.nameTag = "\xA76Travelling Merchant";
+        if (nearestVillage) {
+          const dest = nearestVillage.tradeStationLocation ?? nearestVillage.townHallLocation;
+          const destLabel = nearestVillage.tradeStationLocation ? "Market" : "Town Hall";
+          m.nameTag = `\xA76Travelling Merchant \xA77[\u2192 ${nearestVillage.name} ${destLabel}]`;
+          const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
+          const stock = { ...MERCHANT_STOCK_TEMPLATES[templates[Math.floor(Math.random() * templates.length)]] };
+          const merchantData = {
+            entityId: m.id,
+            stock,
+            destinationVillageId: nearestVillage.id,
+            currentPoleIndex: 0,
+            arrived: false,
+            lastNotifyDist: -1
+          };
+          m.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
+          m.setDynamicProperty("kc:village_id", nearestVillage.id);
+          nearestVillage.activeMerchants.push(merchantData);
+          saveVillage(nearestVillage);
+          if (nearestVillage.owner) {
+            notifyPlayer(nearestVillage.owner, `\xA76\uD83D\uDED2 A travelling merchant has appeared and is heading to \xA7b${nearestVillage.name}\xA76's ${destLabel.toLowerCase()}!`);
+          }
+        } else {
+          m.nameTag = "\xA76Travelling Merchant";
+        }
         const cartAngle = Math.random() * Math.PI * 2;
         const cart = dim.spawnEntity("kingdoms:trade_cart", {
           x: loc.x + Math.cos(cartAngle) * 2.5,
@@ -6785,7 +6907,7 @@ world16.afterEvents.itemUse.subscribe((event) => {
   }
   if (TROOP_TOKEN_MAP[itemId]) {
     system3.run(() => {
-      releaseTroops(player);
+      deploySingleToken(player, itemId);
     });
   }
 });
