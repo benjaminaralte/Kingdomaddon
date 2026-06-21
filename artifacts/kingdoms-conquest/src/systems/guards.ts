@@ -196,6 +196,48 @@ export function refreshAllGuards(): void {
   }
 }
 
+const POLE_RETURN_THRESHOLD = 18;
+
+export function enforceGuardPositions(): void {
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    const dim = world.getDimension(village.location.dimension);
+    for (const pole of village.guardPoles) {
+      if (pole.entityIds.length === 0) continue;
+      const entityType = GUARD_ENTITY_MAP[pole.troopType];
+      if (!entityType) continue;
+
+      const stillPresent: string[] = [];
+      try {
+        const nearby = dim.getEntities({
+          type: entityType,
+          location: pole.location,
+          maxDistance: POLE_RETURN_THRESHOLD + 32,
+        });
+        for (const eid of pole.entityIds) {
+          const entity = nearby.find((e) => e.id === eid);
+          if (!entity) continue;
+          stillPresent.push(eid);
+          const dx = entity.location.x - pole.location.x;
+          const dz = entity.location.z - pole.location.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > POLE_RETURN_THRESHOLD) {
+            try {
+              entity.teleport({
+                x: pole.location.x + (Math.random() * 4 - 2),
+                y: pole.location.y,
+                z: pole.location.z + (Math.random() * 4 - 2),
+              });
+            } catch { /* chunk not loaded */ }
+          }
+        }
+      } catch { /* chunk not loaded */ }
+
+      pole.entityIds = stillPresent;
+    }
+  }
+}
+
 export function recallGuardsFromPole(village: VillageData, poleId: string): void {
   const pole = village.guardPoles.find((p) => p.id === poleId);
   if (!pole) return;

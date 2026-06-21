@@ -58,6 +58,7 @@ import { tickBorders } from "./systems/border.js";
 import { tickAutoDefense } from "./systems/autoDefense.js";
 import {
   refreshAllGuards,
+  enforceGuardPositions,
   registerGuardPole,
   removeGuardPole,
 } from "./systems/guards.js";
@@ -91,6 +92,7 @@ import {
   recallNearbyTroops,
   countTroopTokens,
   TROOP_TOKEN_MAP,
+  type TroopPickup,
 } from "./systems/deployTroops.js";
 import type { GuardPoleType } from "./types/index.js";
 import { generateStructure, STRUCTURE_BLOCK_IDS } from "./systems/structureBuilder.js";
@@ -306,6 +308,7 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     const village = findVillageAt(block.location);
     if (village && village.owner === player.name) {
       village.granaryLocation = block.location;
+      village.hasGranary = true;
       saveVillage(village);
       notifyPlayer(player.name, `§aGranary registered for §b${village.name}§a.`);
     }
@@ -315,6 +318,7 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     const village = findVillageAt(block.location);
     if (village && village.owner === player.name) {
       village.treasuryLocation = block.location;
+      village.hasTreasury = true;
       saveVillage(village);
       notifyPlayer(player.name, `§aVillage Treasury registered for §b${village.name}§a.`);
     }
@@ -361,6 +365,23 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
       if (checkThreeWool(typeId, block.location, block.dimension)) {
         void triggerWoolDiplomacy(player, woolVillage, typeId === "minecraft:black_wool");
       }
+    }
+  }
+
+  // Barracks placement prereq: requires Granary and Treasury already built
+  if (typeId === CUSTOM_BLOCKS.BARRACKS) {
+    const bVillage = findVillageAt(block.location);
+    if (!bVillage || bVillage.owner !== player.name) {
+      notifyPlayer(player.name, "§cClaim a village first before building a Barracks.");
+      return;
+    }
+    if (!bVillage.hasGranary) {
+      notifyPlayer(player.name, "§cBarracks requires a Granary to be built in this village first.");
+      return;
+    }
+    if (!bVillage.hasTreasury) {
+      notifyPlayer(player.name, "§cBarracks requires a Treasury to be built in this village first.");
+      return;
     }
   }
 
@@ -581,6 +602,10 @@ system.runInterval(() => {
 }, 12000);
 
 system.runInterval(() => {
+  enforceGuardPositions();
+}, 600);
+
+system.runInterval(() => {
   for (const village of getAllVillages()) {
     updateHousingCapacity(village.id);
   }
@@ -782,7 +807,7 @@ async function showBarracksMenu(
     .title(`${village.name} — Barracks Lv${village.barracksLevel}`)
     .body(
       `§7── Stationed ──\n` +
-      `Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n` +
+      `City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n` +
       `Archers: ${t.archers}  Cavalry: ${t.cavalry}\n` +
       `${hkLine}\n` +
       `${eliteLine}\n\n` +
@@ -792,35 +817,21 @@ async function showBarracksMenu(
       `Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}\n\n` +
       `§7── Training Queue (${queueCount}/10) ──\n` +
       `${queueSummary}\n\n` +
-      `Treasury: ${village.treasury}💎  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
+      `Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
     )
-    .button("Recruit City Guard (8💎)")
-    .button("Recruit Spearman (12💎)")
-    .button("Recruit Archer (12💎)")
-    .button("Recruit Cavalry (20💎)")
-    .button(hkLocked ? "🔒 Heavy Knight (needs Lv3 Barracks)" : "⚔ Recruit Heavy Knight (35💎)")
-    .button("Disband 1 Guard")
-    .button("Disband 1 Heavy Knight")
-    .button(`Upgrade Barracks (${village.barracksLevel * 15}💎)`)
-    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} available)`)
+    .button(`🪖 Train Troops (queue: ${queueCount}/10)\n§7Select troop type and quantity`)
+    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`)
     .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)")
-    .button(`🪖 Train Troops (queue: ${queueCount}/10)`);
+    .button(`⬆ Upgrade Barracks (${village.barracksLevel * 15} emeralds)`);
 
   const response = await form.show(player);
   if (response.canceled) return;
 
   switch (response.selection) {
-    case 0: recruitTroop(village, "cityGuards", 1); break;
-    case 1: recruitTroop(village, "spearmen", 1); break;
-    case 2: recruitTroop(village, "archers", 1); break;
-    case 3: recruitTroop(village, "cavalry", 1); break;
-    case 4: recruitTroop(village, "heavyKnight", 1); break;
-    case 5: disbandTroop(village, "cityGuards", 1); break;
-    case 6: disbandTroop(village, "heavyKnight", 1); break;
-    case 7: upgradeBarracks(village); break;
-    case 8: await showPickUpTroopsForm(player, village); break;
-    case 9: await showReturnTroopsForm(player, village); break;
-    case 10: await showTrainTroopsForm(player, village); break;
+    case 0: await showTrainTroopsForm(player, village); break;
+    case 1: await showPickUpTroopsForm(player, village); break;
+    case 2: await showReturnTroopsForm(player, village); break;
+    case 3: upgradeBarracks(village); break;
   }
 }
 
@@ -840,28 +851,33 @@ async function showPickUpTroopsForm(
     return;
   }
 
-  const form = new ModalFormData()
-    .title(`⚔ Pick Up Troops — ${village.name}`)
-    .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0)
-    .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0)
-    .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0)
-    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0)
-    .slider(`Heavy Knights (${hk} available)`, 0, Math.max(hk, 1), 1, 0)
-    .slider(`Samurai (${sm2} available)`, 0, Math.max(sm2, 1), 1, 0)
-    .slider(`Mercenary Lancers (${ml2} available)`, 0, Math.max(ml2, 1), 1, 0)
-    .slider(`Legionaries (${lg2} available)`, 0, Math.max(lg2, 1), 1, 0);
+  type TroopEntry = { key: keyof TroopPickup; label: string; count: number };
+  const entries: TroopEntry[] = ([
+    { key: "cityGuards",       label: "City Guards",      count: t.cityGuards },
+    { key: "spearmen",         label: "Spearmen",          count: t.spearmen  },
+    { key: "archers",          label: "Archers",           count: t.archers   },
+    { key: "cavalry",          label: "Cavalry",           count: t.cavalry   },
+    { key: "heavyKnight",      label: "Heavy Knights",     count: hk          },
+    { key: "samurai",          label: "Samurai",           count: sm2         },
+    { key: "mercenaryLancer",  label: "Mercenary Lancers", count: ml2         },
+    { key: "legionary",        label: "Legionaries",       count: lg2         },
+  ] as TroopEntry[]).filter((e) => e.count > 0);
+
+  const form = new ModalFormData().title(`⚔ Pick Up Troops — ${village.name}`);
+  for (const e of entries) {
+    form.slider(`${e.label} (${e.count} stationed)`, 0, e.count, 1, 0);
+  }
 
   const response = await form.show(player);
   if (response.canceled) return;
 
-  const [guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues as number[];
-  pickupTroops(player, village, {
-    cityGuards: guards, spearmen, archers, cavalry,
-    heavyKnight: heavyKnight ?? 0,
-    samurai: samurai ?? 0,
-    mercenaryLancer: mercenaryLancer ?? 0,
-    legionary: legionary ?? 0,
-  });
+  const values = response.formValues as number[];
+  const pickup: TroopPickup = {
+    cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0,
+    heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0,
+  };
+  entries.forEach((e, i) => { pickup[e.key] = values[i] ?? 0; });
+  pickupTroops(player, village, pickup);
 }
 
 async function showReturnTroopsForm(
@@ -934,9 +950,9 @@ async function showTrainTroopsForm(
   const makeCostLine = (type: TroopType) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
-    const parts = [`${c.emeralds}💎`, `${c.iron} iron`];
+    const parts = [`${c.emeralds} emeralds`, `${c.iron} iron`];
     if (c.gold > 0) parts.push(`${c.gold} gold`);
-    if (c.diamonds > 0) parts.push(`${c.diamonds} 💠`);
+    if (c.diamonds > 0) parts.push(`${c.diamonds} diamonds`);
     return `${parts.join(", ")} | ~${secs}s/unit`;
   };
 
@@ -1234,19 +1250,41 @@ async function showGranaryDepositMenu(
 ): Promise<void> {
   const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
 
-  const form = new ActionFormData()
-    .title(`Deposit Food — ${village.name}`)
-    .body("Select a food type to deposit 16 of from your inventory:");
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return;
+  const container = inv.container;
 
-  for (const item of foodItems) {
-    form.button(item.replace("minecraft:", ""));
+  const inventoryCounts: Record<string, number> = {};
+  for (let i = 0; i < container.size; i++) {
+    const item = container.getItem(i);
+    if (!item) continue;
+    if (foodItems.includes(item.typeId)) {
+      inventoryCounts[item.typeId] = (inventoryCounts[item.typeId] ?? 0) + item.amount;
+    }
   }
-  form.button("Cancel");
+
+  const available = foodItems.filter((id) => (inventoryCounts[id] ?? 0) > 0);
+
+  if (available.length === 0) {
+    notifyPlayer(player.name, "§cYou have no food in your inventory to deposit.");
+    return;
+  }
+
+  const form = new ModalFormData().title(`Deposit Food — ${village.name}`);
+  for (const id of available) {
+    const count = inventoryCounts[id]!;
+    const label = id.replace("minecraft:", "");
+    form.slider(`${label} (you have ${count})`, 0, count, 1, count);
+  }
 
   const response = await form.show(player);
-  if (response.canceled || response.selection === undefined || response.selection >= foodItems.length) return;
+  if (response.canceled || response.formValues == null) return;
 
-  depositPlayerItemsToGranary(player, village, foodItems[response.selection], 16);
+  const values = response.formValues as number[];
+  available.forEach((id, i) => {
+    const amt = values[i] ?? 0;
+    if (amt > 0) depositPlayerItemsToGranary(player, village, id, amt);
+  });
 }
 
 async function showTreasuryBlockMenu(

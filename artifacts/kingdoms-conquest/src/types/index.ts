@@ -162,6 +162,8 @@ export interface VillageData {
   waypointLocation?: Vec3;
   waypointEntityId?: string;
   hasCastle?: boolean;
+  hasGranary?: boolean;
+  hasTreasury?: boolean;
 }
 
 export interface KingdomData {

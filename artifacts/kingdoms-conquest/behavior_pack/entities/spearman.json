@@ -27,13 +27,33 @@
       "minecraft:loot": { "table": "loot_tables/entities/guard.json" },
       "minecraft:behavior.float": { "priority": 0 },
       "minecraft:behavior.melee_attack": { "priority": 3, "speed_multiplier": 1.0 },
+      "minecraft:behavior.defend_village_target": {
+        "priority": 1,
+        "must_reach": true,
+        "attack_owner": false
+      },
       "minecraft:behavior.nearest_attackable_target": {
         "priority": 2,
         "must_see": true,
+        "reselect_targets": true,
         "within_radius": 16.0,
-        "entity_types": [{ "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_bandit" }, "max_dist": 16 }]
+        "entity_types": [
+          {
+            "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_bandit" },
+            "max_dist": 16
+          },
+          {
+            "filters": { "test": "is_family", "subject": "other", "value": "monster" },
+            "max_dist": 16
+          }
+        ]
       },
-      "minecraft:behavior.random_stroll": { "priority": 7, "speed_multiplier": 0.8, "xz_dist": 16, "y_dist": 3 }
+      "minecraft:behavior.random_stroll": {
+        "priority": 7,
+        "speed_multiplier": 0.8,
+        "xz_dist": 4,
+        "y_dist": 2
+      }
     }
   }
 }

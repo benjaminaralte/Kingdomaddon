@@ -3,7 +3,7 @@
   "minecraft:entity": {
     "description": {
       "identifier": "kingdoms:war_horse",
-      "runtime_identifier": "minecraft:horse",
+      "runtime_identifier": "minecraft:skeleton_horse",
       "is_spawnable": false,
       "is_summonable": true,
       "is_experimental": false

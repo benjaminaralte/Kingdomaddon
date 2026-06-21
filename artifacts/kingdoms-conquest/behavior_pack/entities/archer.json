@@ -31,16 +31,34 @@
         "attack_interval_max": 2.0,
         "attack_radius": 15.0
       },
-      "minecraft:shooter": {
-        "def": "minecraft:arrow"
+      "minecraft:shooter": { "def": "minecraft:arrow" },
+      "minecraft:behavior.defend_village_target": {
+        "priority": 1,
+        "must_reach": true,
+        "attack_owner": false
       },
       "minecraft:behavior.nearest_attackable_target": {
         "priority": 2,
         "must_see": true,
+        "reselect_targets": true,
         "within_radius": 20.0,
-        "entity_types": [{ "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_bandit" }, "max_dist": 20 }]
+        "entity_types": [
+          {
+            "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_bandit" },
+            "max_dist": 20
+          },
+          {
+            "filters": { "test": "is_family", "subject": "other", "value": "monster" },
+            "max_dist": 20
+          }
+        ]
       },
-      "minecraft:behavior.random_stroll": { "priority": 7, "speed_multiplier": 0.8, "xz_dist": 16, "y_dist": 3 }
+      "minecraft:behavior.random_stroll": {
+        "priority": 7,
+        "speed_multiplier": 0.8,
+        "xz_dist": 4,
+        "y_dist": 2
+      }
     }
   }
 }

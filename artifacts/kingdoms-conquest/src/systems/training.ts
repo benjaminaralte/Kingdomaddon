@@ -51,16 +51,16 @@ export function canAffordTraining(village: VillageData, troopType: TroopType, co
   const rs = village.resourceStorage;
 
   if (village.treasury < cost.emeralds * count) {
-    return `§cNeed §f${cost.emeralds * count}💎§c emeralds (treasury: §f${village.treasury}§c).`;
+    return `§cNeed §f${cost.emeralds * count} emeralds§c in treasury (have §f${village.treasury}§c).`;
   }
   if (rs.iron < cost.iron * count) {
-    return `§cNeed §f${cost.iron * count}§c iron (have §f${rs.iron}§c).`;
+    return `§cNeed §f${cost.iron * count} iron§c in storage (have §f${rs.iron}§c).`;
   }
   if (cost.gold > 0 && rs.gold < cost.gold * count) {
-    return `§cNeed §f${cost.gold * count}§c gold (have §f${rs.gold}§c).`;
+    return `§cNeed §f${cost.gold * count} gold§c in storage (have §f${rs.gold}§c).`;
   }
   if (cost.diamonds > 0 && rs.diamonds < cost.diamonds * count) {
-    return `§cNeed §f${cost.diamonds * count}§c diamonds (have §f${rs.diamonds}§c).`;
+    return `§cNeed §f${cost.diamonds * count} diamonds§c in storage (have §f${rs.diamonds}§c).`;
   }
   return null;
 }
@@ -121,10 +121,10 @@ export function queueTraining(
 
   const label = TROOP_LABELS[troopType];
   const costStr = [
-    `${cost.emeralds * count}💎`,
+    `${cost.emeralds * count} emeralds`,
     cost.iron * count > 0 ? `${cost.iron * count} iron` : "",
     cost.gold * count > 0 ? `${cost.gold * count} gold` : "",
-    cost.diamonds * count > 0 ? `${cost.diamonds * count} 💠` : "",
+    cost.diamonds * count > 0 ? `${cost.diamonds * count} diamonds` : "",
   ].filter(Boolean).join(", ");
 
   const secRemaining = Math.ceil((job.completeTick - currentTick) / 20);
