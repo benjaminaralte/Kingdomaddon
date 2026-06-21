@@ -1,0 +1,17 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.kingdoms.bow_greeting": {
+      "loop": true,
+      "blend_weight": 1.0,
+      "bones": {
+        "body": {
+          "rotation": [35, 0, 0]
+        },
+        "head": {
+          "rotation": [-25, 0, 0]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+    "format_version": "1.10.0",
+    "animation_controllers": {
+        "controller.animation.got_swordman": {
+            "initial_state": "root",
+            "states": {
+                "root": {
+                    "animations": [
+                        "bobing"
+                    ],
+                    "blend_transition": 0.2,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "attacking": "variable.attack_time > 0.0"
+                        },
+                        {
+                            "walking": "query.ground_speed >= 0.05"
+                        }
+                    ]
+                },
+                "walking": {
+                    "animations": [
+                        "move"
+                    ],
+                    "blend_transition": 0.15,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 || query.is_in_water"
+                        },
+                        {
+                            "attacking": "variable.attack_time > 0.0"
+                        }
+                    ]
+                },
+                "attacking": {
+                    "animations": [
+                        "attack"
+                    ],
+                    "blend_transition": 0.2,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "root": "query.any_animation_finished"
+                        },
+                        {
+                            "walking": "query.ground_speed >= 0.05 && variable.attack_time < 0.0"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

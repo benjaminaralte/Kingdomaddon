@@ -9,6 +9,7 @@ export const STRUCTURE_BLOCK_IDS = new Set([
   "kingdoms:trade_station",
   "kingdoms:treasury",
   "kingdoms:waypoint",
+  "kingdoms:castle",
 ]);
 
 type BP = { x: number; y: number; z: number; b: string };
@@ -372,6 +373,91 @@ function waypointBlueprint(): BP[] {
 
 // ─── PUBLIC API ───────────────────────────────────────────────────────────────
 
+function castleBlueprint(): BP[] {
+  const p: BP[] = [];
+  const sb = "minecraft:stone_bricks";
+  const cracked = "minecraft:cracked_stone_bricks";
+  const moss = "minecraft:mossy_stone_bricks";
+
+  // ── Outer walls: 15x15 ring, y=1 to y=5 ──
+  p.push(...ring(-7, -7, 7, 7, 1, 5, sb));
+
+  // ── Crenellations on outer wall top ──
+  for (let x = -6; x <= 6; x += 2) {
+    p.push(blk(x,  6, -7, sb));
+    p.push(blk(x,  6,  7, sb));
+  }
+  for (let z = -5; z <= 5; z += 2) {
+    p.push(blk(-7, 6, z, sb));
+    p.push(blk( 7, 6, z, sb));
+  }
+
+  // ── Gate opening in south outer wall (z=7) ──
+  for (let gx = -1; gx <= 1; gx++) {
+    p.push(blk(gx, 1, 7, "minecraft:air"));
+    p.push(blk(gx, 2, 7, "minecraft:air"));
+    p.push(blk(gx, 3, 7, "minecraft:air"));
+  }
+
+  // ── Cobblestone courtyard floor ──
+  p.push(...fill(-6, 0, -6, 6, 0, 6, "minecraft:cobblestone"));
+
+  // ── 4 Corner towers: 3x3 base, y=1 to y=10 ──
+  for (const [cx, cz] of [[-7, -7], [7, -7], [-7, 7], [7, 7]] as [number, number][]) {
+    p.push(...fill(cx - 1, 1, cz - 1, cx + 1, 10, cz + 1, sb));
+    // Hollow core
+    p.push(...fill(cx, 2, cz, cx, 9, cz, "minecraft:air"));
+    // Cracked detail on lower half
+    p.push(blk(cx - 1, 1, cz,      cracked));
+    p.push(blk(cx + 1, 1, cz,      cracked));
+    p.push(blk(cx,     1, cz - 1,  cracked));
+    p.push(blk(cx,     1, cz + 1,  cracked));
+    // Crenellations
+    p.push(blk(cx - 1, 11, cz - 1, sb));
+    p.push(blk(cx + 1, 11, cz - 1, sb));
+    p.push(blk(cx - 1, 11, cz + 1, sb));
+    p.push(blk(cx + 1, 11, cz + 1, sb));
+  }
+
+  // ── Central keep: 7x7, y=1 to y=8 ──
+  p.push(...ring(-3, -3, 3, 3, 1, 8, sb));
+  // Keep floor
+  p.push(...fill(-2, 0, -2, 2, 0, 2, sb));
+  // Mossy accent at keep base
+  for (let x = -3; x <= 3; x++) {
+    p.push(blk(x,  1, -3, moss));
+    p.push(blk(x,  1,  3, moss));
+  }
+  for (let z = -2; z <= 2; z++) {
+    p.push(blk(-3, 1, z, moss));
+    p.push(blk( 3, 1, z, moss));
+  }
+  // Keep gate (south face opening)
+  p.push(blk(0, 1, 3, "minecraft:air"));
+  p.push(blk(0, 2, 3, "minecraft:air"));
+  p.push(blk(1, 1, 3, "minecraft:air"));
+  p.push(blk(1, 2, 3, "minecraft:air"));
+  p.push(blk(-1, 1, 3, "minecraft:air"));
+  p.push(blk(-1, 2, 3, "minecraft:air"));
+  // Keep crenellations
+  for (let x = -3; x <= 3; x += 2) {
+    p.push(blk(x, 9, -3, sb));
+    p.push(blk(x, 9,  3, sb));
+  }
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-3, 9, z, sb));
+    p.push(blk( 3, 9, z, sb));
+  }
+  // Flagpole atop keep
+  p.push(blk(0, 9,  0, "minecraft:oak_fence"));
+  p.push(blk(0, 10, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 11, 0, "minecraft:oak_fence"));
+  p.push(blk(1, 11, 0, "minecraft:red_wool"));
+  p.push(blk(1, 10, 0, "minecraft:red_wool"));
+
+  return p;
+}
+
 const BLUEPRINTS: Record<string, () => BP[]> = {
   "kingdoms:town_hall":    townHallBlueprint,
   "kingdoms:barracks":     barracksBlueprint,
@@ -381,6 +467,7 @@ const BLUEPRINTS: Record<string, () => BP[]> = {
   "kingdoms:trade_station": tradeStationBlueprint,
   "kingdoms:treasury":     treasuryBlueprint,
   "kingdoms:waypoint":     waypointBlueprint,
+  "kingdoms:castle":       castleBlueprint,
 };
 
 /**

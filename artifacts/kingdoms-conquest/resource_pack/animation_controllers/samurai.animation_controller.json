@@ -1,0 +1,115 @@
+{
+    "format_version": "1.10.0",
+    "animation_controllers": {
+        "controller.animation.pn_samurai.setup": {
+            "initial_state": "root",
+            "states": {
+                "root": {
+                    "animations": [
+                        "bobing"
+                    ],
+                    "blend_transition": 0.2,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "walking_target": "query.ground_speed >= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "attacking": "query.has_target && variable.attack_time > 0.0"
+                        }
+                    ]
+                },
+                "walking": {
+                    "animations": [
+                        "move"
+                    ],
+                    "blend_transition": 0.15,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 && !query.has_target"
+                        },
+                        {
+                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "walking_target": "query.ground_speed >= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "attacking": "query.has_target && variable.attack_time > 0.0"
+                        }
+                    ]
+                },
+                "walking_target": {
+                    "animations": [
+                        "move_target"
+                    ],
+                    "blend_transition": 0.15,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 && !query.has_target"
+                        },
+                        {
+                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "attacking": "query.has_target && variable.attack_time > 0.0"
+                        }
+                    ]
+                },
+                "targeting": {
+                    "animations": [
+                        "target"
+                    ],
+                    "blend_transition": 0.15,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 && !query.has_target"
+                        },
+                        {
+                            "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "walking_target": "query.ground_speed >= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "attacking": "query.has_target && variable.attack_time > 0.0"
+                        }
+                    ]
+                },
+                "attacking": {
+                    "animations": [
+                        "attack"
+                    ],
+                    "blend_transition": 0.4,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        {
+                            "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 && !query.has_target"
+                        },
+                        {
+                            "walking_target": "query.ground_speed >= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        },
+                        {
+                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

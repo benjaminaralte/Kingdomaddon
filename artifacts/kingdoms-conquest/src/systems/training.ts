@@ -10,28 +10,39 @@ export interface TrainingCost {
 }
 
 export const TRAINING_COSTS: Record<TroopType, TrainingCost> = {
-  cityGuards:  { emeralds: 4,  iron: 8,  gold: 0,  diamonds: 0 },
-  spearmen:    { emeralds: 6,  iron: 12, gold: 0,  diamonds: 0 },
-  archers:     { emeralds: 6,  iron: 10, gold: 4,  diamonds: 0 },
-  cavalry:     { emeralds: 12, iron: 18, gold: 6,  diamonds: 0 },
-  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 },
+  cityGuards:      { emeralds: 4,  iron: 8,  gold: 0,  diamonds: 0  },
+  spearmen:        { emeralds: 6,  iron: 12, gold: 0,  diamonds: 0  },
+  archers:         { emeralds: 6,  iron: 10, gold: 4,  diamonds: 0  },
+  cavalry:         { emeralds: 12, iron: 18, gold: 6,  diamonds: 0  },
+  heavyKnight:     { emeralds: 20, iron: 25, gold: 10, diamonds: 5  },
+  samurai:         { emeralds: 40, iron: 30, gold: 15, diamonds: 10 },
+  mercenaryLancer: { emeralds: 35, iron: 25, gold: 12, diamonds: 8  },
+  legionary:       { emeralds: 35, iron: 25, gold: 12, diamonds: 8  },
 };
 
 export const TRAINING_TICKS: Record<TroopType, number> = {
-  cityGuards:  1200,
-  spearmen:    1800,
-  archers:     1600,
-  cavalry:     2400,
-  heavyKnight: 6000,
+  cityGuards:      1200,
+  spearmen:        1800,
+  archers:         1600,
+  cavalry:         2400,
+  heavyKnight:     6000,
+  samurai:         9000,
+  mercenaryLancer: 8000,
+  legionary:       8000,
 };
 
 export const TROOP_LABELS: Record<TroopType, string> = {
-  cityGuards:  "City Guard",
-  spearmen:    "Spearman",
-  archers:     "Archer",
-  cavalry:     "Cavalry",
-  heavyKnight: "Heavy Knight",
+  cityGuards:      "City Guard",
+  spearmen:        "Spearman",
+  archers:         "Archer",
+  cavalry:         "Cavalry",
+  heavyKnight:     "Heavy Knight",
+  samurai:         "Samurai",
+  mercenaryLancer: "Mercenary Lancer",
+  legionary:       "Legionary",
 };
+
+export const ELITE_TROOP_TYPES: TroopType[] = ["samurai", "mercenaryLancer", "legionary"];
 
 const MAX_QUEUE_SIZE = 10;
 
@@ -58,7 +69,8 @@ export function queueTraining(
   village: VillageData,
   troopType: TroopType,
   count: number,
-  currentTick: number
+  currentTick: number,
+  playerVillageCount = 0
 ): boolean {
   if (village.trainingQueue.length >= MAX_QUEUE_SIZE) {
     notifyPlayer(village.owner, `§cTraining queue is full (max ${MAX_QUEUE_SIZE} jobs).`);
@@ -68,6 +80,17 @@ export function queueTraining(
   if (troopType === "heavyKnight" && village.barracksLevel < 3) {
     notifyPlayer(village.owner, `§cHeavy Knights require §bBarracks Level 3+§c (currently Lv${village.barracksLevel}).`);
     return false;
+  }
+
+  if (ELITE_TROOP_TYPES.includes(troopType)) {
+    if (!village.hasCastle) {
+      notifyPlayer(village.owner, `§cElite troops require a §bCastle§c built in this village.`);
+      return false;
+    }
+    if (playerVillageCount < 3) {
+      notifyPlayer(village.owner, `§cElite troops require §boccupation of 3 villages§c (you have §f${playerVillageCount}§c).`);
+      return false;
+    }
   }
 
   const err = canAffordTraining(village, troopType, count);
@@ -117,7 +140,7 @@ export function tickTraining(village: VillageData, currentTick: number): void {
 
   for (const job of village.trainingQueue) {
     if (currentTick >= job.completeTick) {
-      village.troops[job.troopType] += job.count;
+      village.troops[job.troopType] = (village.troops[job.troopType] ?? 0) + job.count;
       const label = TROOP_LABELS[job.troopType];
       notifyPlayer(village.owner, `§a🪖 §f${job.count} ${label}§a finished training and joined §b${village.name}§a's garrison!`);
       changed = true;

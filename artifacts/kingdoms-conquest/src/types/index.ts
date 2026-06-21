@@ -8,7 +8,15 @@ export interface Vec3WithDim extends Vec3 {
   dimension: string;
 }
 
-export type TroopType = "cityGuards" | "spearmen" | "archers" | "cavalry" | "heavyKnight";
+export type TroopType =
+  | "cityGuards"
+  | "spearmen"
+  | "archers"
+  | "cavalry"
+  | "heavyKnight"
+  | "samurai"
+  | "mercenaryLancer"
+  | "legionary";
 
 export interface TroopData {
   cityGuards: number;
@@ -16,6 +24,9 @@ export interface TroopData {
   archers: number;
   cavalry: number;
   heavyKnight: number;
+  samurai: number;
+  mercenaryLancer: number;
+  legionary: number;
 }
 
 export interface WorkerAssignments {
@@ -150,6 +161,7 @@ export interface VillageData {
   armory?: Partial<Record<ArmoryItemKey, number>>;
   waypointLocation?: Vec3;
   waypointEntityId?: string;
+  hasCastle?: boolean;
 }
 
 export interface KingdomData {
@@ -180,11 +192,14 @@ export const WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "nether
 export const ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"] as const;
 
 export const TROOP_WAGES: Record<TroopType, number> = {
-  cityGuards: 2,
-  spearmen:   3,
-  archers:    3,
-  cavalry:    5,
-  heavyKnight: 8,
+  cityGuards:      2,
+  spearmen:        3,
+  archers:         3,
+  cavalry:         5,
+  heavyKnight:     8,
+  samurai:         12,
+  mercenaryLancer: 10,
+  legionary:       10,
 };
 
 export const EMPTY_RESOURCE_STORAGE: ResourceStorage = {

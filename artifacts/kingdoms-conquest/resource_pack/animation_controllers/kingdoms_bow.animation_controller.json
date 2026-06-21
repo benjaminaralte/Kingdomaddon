@@ -1,0 +1,21 @@
+{
+  "format_version": "1.10.0",
+  "animation_controllers": {
+    "controller.animation.kingdoms.bow": {
+      "initial_state": "standing",
+      "states": {
+        "standing": {
+          "transitions": [
+            { "bowing": "query.distance_from_camera < 4.0" }
+          ]
+        },
+        "bowing": {
+          "animations": ["bow_greeting"],
+          "transitions": [
+            { "standing": "query.distance_from_camera >= 4.0" }
+          ]
+        }
+      }
+    }
+  }
+}
