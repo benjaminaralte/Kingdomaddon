@@ -1,4 +1,4 @@
-import { world, system, EntityInventoryComponent } from "@minecraft/server";
+import { world, system, EntityInventoryComponent, ItemStack } from "@minecraft/server";
 import { ActionFormData, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 import type { VillageData, KingdomData, MerchantData, ResourceStorage, TroopType } from "./types/index.js";
 import { RESOURCE_LABELS } from "./types/index.js";
@@ -687,7 +687,8 @@ async function showTownHallMenu(
       .button("Diplomacy")
       .button("Send Reinforcements")
       .button("Merchants")
-      .button("Rename Village");
+      .button("Rename Village")
+      .button("🏪 Shop");
   } else {
     form.button("Close");
   }
@@ -702,7 +703,46 @@ async function showTownHallMenu(
     case 3: await showReinforcementsMenu(player, village.id); break;
     case 4: await showActiveMerchantsMenu(player, village); break;
     case 5: await showRenameForm(player, village.id); break;
+    case 6: await showTownHallShop(player, village); break;
   }
+}
+
+async function showTownHallShop(
+  player: import("@minecraft/server").Player,
+  village: VillageData
+): Promise<void> {
+  const WAYPOINT_COST = 30;
+
+  const form = new ActionFormData()
+    .title(`🏪 Town Hall Shop — ${village.name}`)
+    .body(
+      `§7Treasury: §f${village.treasury}💎\n\n` +
+      `Purchase items using your village treasury.`
+    )
+    .button(`🗺 Village Waypoint\n§7${WAYPOINT_COST}💎 — place to set a fast-travel point`)
+    .button("Back");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection !== 0) return;
+
+  if (village.treasury < WAYPOINT_COST) {
+    notifyPlayer(player.name, `§cNot enough treasury funds. Need ${WAYPOINT_COST}💎, have ${village.treasury}💎.`);
+    return;
+  }
+
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return;
+
+  const waypointItem = new ItemStack("kingdoms:waypoint", 1);
+  const added = inv.container.addItem(waypointItem);
+  if (added) {
+    notifyPlayer(player.name, "§cYour inventory is full. Make room first.");
+    return;
+  }
+
+  village.treasury -= WAYPOINT_COST;
+  saveVillage(village);
+  notifyPlayer(player.name, `§a🗺 Village Waypoint purchased! Place it inside your village to activate.`);
 }
 
 async function showBarracksMenu(
