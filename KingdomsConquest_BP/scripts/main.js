@@ -6107,148 +6107,157 @@ function barnBlueprint() {
   return p;
 }
 
-// ── Farm Plot Blueprints (3 random designs) ────────────────────────────────
+// ── Farm Plot Blueprints (large, open, ready-to-plant) ─────────────────────
 function farmPlotBlueprintWheat() {
   const p = [];
-  // Clear volume
-  p.push(...fill(-5, 1, -4, 8, 5, 6, "minecraft:air"));
-  // === WHEAT FARM PLOT ===
-  // Farmland with water channel (5 wide x 6 deep per plot, 2 plots)
-  p.push(...fill(-5, 0, -4, 3, 0, 5, "minecraft:farmland")); // left plot
-  p.push(...fill(-5, 1, -4, 3, 1, 5, "minecraft:wheat")); // wheat crops (grown)
-  p.push(...fill(-1, 0, -4, -1, 0, 5, "minecraft:water")); // irrigation channel L
-  p.push(...fill(-1, 1, -4, -1, 1, 5, "minecraft:air")); // clear water surface
-  p.push(...fill( 1, 0, -4,  1, 0, 5, "minecraft:water")); // irrigation channel R
-  p.push(...fill( 1, 1, -4,  1, 1, 5, "minecraft:air"));
-  // Fence perimeter
-  p.push(...fill(-5, 1, -5, 8, 1, -5, "minecraft:oak_fence")); // north fence
-  p.push(...fill(-5, 1,  6, 8, 1,  6, "minecraft:oak_fence")); // south fence
-  p.push(...fill(-5, 1, -4, -5, 1,  5, "minecraft:oak_fence")); // west fence
-  p.push(...fill( 8, 1, -4,  8, 1,  5, "minecraft:oak_fence")); // east fence
-  // Fence gate (south side, center)
-  p.push(blk(-1, 1, 6, "minecraft:air"), blk(0, 1, 6, "minecraft:air")); // gate opening
-  // === TOOL SHED (east side, 5x4x4) ===
-  p.push(...fill(4, 0, -4, 8, 0, 1, "minecraft:oak_planks")); // shed foundation
-  p.push(...fill(4, 1, -4, 8, 4, -4, "minecraft:oak_planks")); // shed north wall
-  p.push(...fill(4, 1,  1, 8, 4,  1, "minecraft:oak_planks")); // shed south wall
-  p.push(...fill(4, 1, -3, 4, 4,  0, "minecraft:oak_planks")); // shed west wall
-  p.push(...fill(8, 1, -3, 8, 4,  0, "minecraft:oak_planks")); // shed east wall
-  p.push(blk(6, 1, 1, "minecraft:air"), blk(6, 2, 1, "minecraft:air")); // shed door
-  p.push(blk(6, 3, -4, "minecraft:glass"), blk(6, 3, 1, "minecraft:glass")); // windows
-  p.push(blk(4, 3, -2, "minecraft:glass"), blk(8, 3, -2, "minecraft:glass"));
-  p.push(...fill(4, 5, -4, 8, 5, 1, "minecraft:oak_planks")); // shed roof
-  // Shed interior
-  p.push(blk(5, 1, -3, "minecraft:chest"), blk(6, 1, -3, "minecraft:chest")); // tool storage
-  p.push(blk(7, 1, -3, "minecraft:barrel")); // seed barrel
-  p.push(blk(5, 1, 0, "minecraft:crafting_table")); // workbench
-  p.push(blk(7, 1, 0, "minecraft:composter")); // composter
-  p.push(blk(6, 4, -2, "minecraft:lantern")); // shed lantern
-  // Corner fence posts (tall oak fence pillars)
-  for (const [fx, fz] of [[-5,-5],[-5,6],[8,-5],[8,6]]) {
-    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"));
-  }
+  // Clear a tall volume first
+  p.push(...fill(-12, 1, -12, 22, 6, 22, "minecraft:air"));
+  // === LARGE FARM PLOT A (20 wide x 20 deep) ===
+  // Outer fence perimeter
+  p.push(...fill(-12, 1, -12, 22, 1, -12, "minecraft:oak_fence")); // N
+  p.push(...fill(-12, 1,  22, 22, 1,  22, "minecraft:oak_fence")); // S
+  p.push(...fill(-12, 1, -11, -12, 1, 21, "minecraft:oak_fence")); // W
+  p.push(...fill( 22, 1, -11,  22, 1, 21, "minecraft:oak_fence")); // E
+  // Corner pillars
+  for (const [fx, fz] of [[-12,-12],[-12,22],[22,-12],[22,22]])
+    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
+  // Gate opening south side
+  p.push(blk(4, 1, 22, "minecraft:air"), blk(5, 1, 22, "minecraft:air"));
+  // === 4 LARGE PLANTING STRIPS (each 9 wide x 20 long) with water channels ===
+  // Strip 1 (columns x=-11..x=-3)
+  p.push(...fill(-11, 0, -11, -3, 0, 21, "minecraft:farmland"));
+  p.push(blk(-7, 0, -11, "minecraft:water")); // irrigation source (buried)
+  for (let z = -10; z <= 21; z += 4) p.push(blk(-7, 0, z, "minecraft:water"));
+  p.push(...fill(-7, 1, -11, -7, 1, 21, "minecraft:air")); // air above water
+  // Strip 2 (columns x=-1..x=7)
+  p.push(...fill(-1, 0, -11, 7, 0, 21, "minecraft:farmland"));
+  p.push(blk(3, 0, -11, "minecraft:water"));
+  for (let z = -10; z <= 21; z += 4) p.push(blk(3, 0, z, "minecraft:water"));
+  p.push(...fill(3, 1, -11, 3, 1, 21, "minecraft:air"));
+  // Strip 3 (columns x=9..x=17)
+  p.push(...fill(9, 0, -11, 17, 0, 21, "minecraft:farmland"));
+  p.push(blk(13, 0, -11, "minecraft:water"));
+  for (let z = -10; z <= 21; z += 4) p.push(blk(13, 0, z, "minecraft:water"));
+  p.push(...fill(13, 1, -11, 13, 1, 21, "minecraft:air"));
+  // Divider paths (dirt paths between strips)
+  p.push(...fill(-2, 0, -11, -2, 0, 21, "minecraft:dirt_path")); // between strip 1 & 2
+  p.push(...fill( 8, 0, -11,  8, 0, 21, "minecraft:dirt_path")); // between strip 2 & 3
+  // North & South edge paths
+  p.push(...fill(-11, 0, -12, 21, 0, -12, "minecraft:dirt_path"));
+  p.push(...fill(-11, 0,  22, 21, 0,  22, "minecraft:dirt_path"));
+  // === TOOL SHED (east side, 5x4) ===
+  p.push(...fill(19, 0, -11, 21, 0, -5, "minecraft:oak_planks")); // floor
+  p.push(...fill(19, 1, -11, 21, 3, -11, "minecraft:oak_planks")); // N wall
+  p.push(...fill(19, 1, -5,  21, 3,  -5, "minecraft:oak_planks")); // S wall
+  p.push(...fill(19, 1, -10, 19, 3,  -6, "minecraft:oak_planks")); // W wall
+  p.push(...fill(21, 1, -10, 21, 3,  -6, "minecraft:oak_planks")); // E wall
+  p.push(blk(20, 1, -5, "minecraft:air"), blk(20, 2, -5, "minecraft:air")); // door
+  p.push(...fill(19, 4, -11, 21, 4, -5, "minecraft:oak_planks")); // roof
+  p.push(blk(19, 1, -10, "minecraft:chest"), blk(19, 1, -9, "minecraft:barrel")); // storage
+  p.push(blk(19, 1, -7, "minecraft:composter"), blk(19, 1, -6, "minecraft:crafting_table"));
+  p.push(blk(20, 3, -8, "minecraft:lantern"));
   return p;
 }
 function farmPlotBlueprintMixed() {
   const p = [];
   // Clear volume
-  p.push(...fill(-6, 1, -5, 7, 5, 7, "minecraft:air"));
-  // === MIXED CROP FARM (4 plots, different crops) ===
-  // Plot 1: Carrots (NW)
-  p.push(...fill(-5, 0, -4, -2, 0, 0, "minecraft:farmland"));
-  p.push(...fill(-5, 1, -4, -2, 1, 0, "minecraft:carrots")); // fully grown carrots
-  // Plot 2: Potatoes (NE)
-  p.push(...fill( 0, 0, -4,  3, 0, 0, "minecraft:farmland"));
-  p.push(...fill( 0, 1, -4,  3, 1, 0, "minecraft:potatoes")); // fully grown potatoes
-  // Plot 3: Wheat (SW)
-  p.push(...fill(-5, 0,  2, -2, 0, 6, "minecraft:farmland"));
-  p.push(...fill(-5, 1,  2, -2, 1, 6, "minecraft:wheat"));
-  // Plot 4: Beetroot (SE)
-  p.push(...fill( 0, 0,  2,  3, 0, 6, "minecraft:farmland"));
-  p.push(...fill( 0, 1,  2,  3, 1, 6, "minecraft:beetroot"));
-  // Center water source
-  p.push(blk(-1, 0, 1, "minecraft:water"), blk(-1, 1, 1, "minecraft:air"));
-  p.push(blk( 4, 0, 1, "minecraft:water"), blk( 4, 1, 1, "minecraft:air"));
-  p.push(...fill(-5, 0, 1, 3, 0, 1, "minecraft:water")); // center irrigation row
-  p.push(...fill(-5, 1, 1, 3, 1, 1, "minecraft:air"));
-  // Outer fence
-  p.push(...fill(-6, 1, -5, 5, 1, -5, "minecraft:oak_fence")); // north
-  p.push(...fill(-6, 1,  7, 5, 1,  7, "minecraft:oak_fence")); // south
-  p.push(...fill(-6, 1, -4, -6, 1,  6, "minecraft:oak_fence")); // west
-  p.push(...fill( 5, 1, -4,  5, 1,  6, "minecraft:oak_fence")); // east
-  // Gate opening south center
-  p.push(blk(-1, 1, 7, "minecraft:air"), blk(0, 1, 7, "minecraft:air"));
-  // Corner pillars
-  for (const [fx, fz] of [[-6,-5],[-6,7],[5,-5],[5,7]])
-    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"));
-  // === TOOL SHED (east side) ===
-  p.push(...fill(5, 0, -5, 7, 0, 2, "minecraft:birch_planks"));
-  p.push(...fill(5, 1, -5, 7, 3, -5, "minecraft:birch_planks")); // north wall
-  p.push(...fill(5, 1,  2, 7, 3,  2, "minecraft:birch_planks")); // south wall
-  p.push(...fill(5, 1, -4, 5, 3,  1, "minecraft:birch_planks")); // west wall
-  p.push(...fill(7, 1, -4, 7, 3,  1, "minecraft:birch_planks")); // east wall
-  p.push(blk(6, 1, 2, "minecraft:air"), blk(6, 2, 2, "minecraft:air")); // shed door
-  p.push(blk(6, 3, -5, "minecraft:glass")); // window
-  p.push(...fill(5, 4, -5, 7, 4, 2, "minecraft:birch_planks")); // roof
-  // Shed interior
-  p.push(blk(5, 1, -4, "minecraft:chest"), blk(6, 1, -4, "minecraft:chest")); // storage
-  p.push(blk(7, 1, -3, "minecraft:barrel")); // seed barrel
-  p.push(blk(5, 1,  1, "minecraft:composter")); // compost
-  p.push(blk(6, 3, -2, "minecraft:lantern")); // lighting
+  p.push(...fill(-12, 1, -12, 22, 6, 22, "minecraft:air"));
+  // Fence perimeter
+  p.push(...fill(-12, 1, -12, 22, 1, -12, "minecraft:oak_fence")); // N
+  p.push(...fill(-12, 1,  22, 22, 1,  22, "minecraft:oak_fence")); // S
+  p.push(...fill(-12, 1, -11, -12, 1, 21, "minecraft:oak_fence")); // W
+  p.push(...fill( 22, 1, -11,  22, 1, 21, "minecraft:oak_fence")); // E
+  for (const [fx, fz] of [[-12,-12],[-12,22],[22,-12],[22,22]])
+    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
+  p.push(blk(4, 1, 22, "minecraft:air"), blk(5, 1, 22, "minecraft:air")); // gate
+  // === 4 QUARTER PLOTS (each 10x10, separated by paths + water) ===
+  // NW plot
+  p.push(...fill(-11, 0, -11, -2, 0, -2, "minecraft:farmland"));
+  p.push(blk(-6, 0, -11, "minecraft:water")); // N channel source
+  for (let z = -10; z <= -2; z += 3) p.push(blk(-6, 0, z, "minecraft:water"));
+  p.push(...fill(-6, 1, -11, -6, 1, -2, "minecraft:air"));
+  // NE plot
+  p.push(...fill(1, 0, -11, 10, 0, -2, "minecraft:farmland"));
+  p.push(blk(5, 0, -11, "minecraft:water"));
+  for (let z = -10; z <= -2; z += 3) p.push(blk(5, 0, z, "minecraft:water"));
+  p.push(...fill(5, 1, -11, 5, 1, -2, "minecraft:air"));
+  // SW plot
+  p.push(...fill(-11, 0, 2, -2, 0, 21, "minecraft:farmland"));
+  p.push(blk(-6, 0, 2, "minecraft:water"));
+  for (let z = 3; z <= 21; z += 3) p.push(blk(-6, 0, z, "minecraft:water"));
+  p.push(...fill(-6, 1, 2, -6, 1, 21, "minecraft:air"));
+  // SE plot
+  p.push(...fill(1, 0, 2, 10, 0, 21, "minecraft:farmland"));
+  p.push(blk(5, 0, 2, "minecraft:water"));
+  for (let z = 3; z <= 21; z += 3) p.push(blk(5, 0, z, "minecraft:water"));
+  p.push(...fill(5, 1, 2, 5, 1, 21, "minecraft:air"));
+  // Center cross paths
+  p.push(...fill(-11, 0, -1, 21, 0, 0, "minecraft:dirt_path")); // EW center path
+  p.push(...fill(-1, 0, -11, 0, 0, 21, "minecraft:dirt_path")); // NS center path
+  // Center water junction
+  p.push(blk(-1, 0, -1, "minecraft:water"), blk(-1, 0, 0, "minecraft:water"), blk(0, 0, -1, "minecraft:water"), blk(0, 0, 0, "minecraft:water"));
+  // === TOOL SHED east side ===
+  p.push(...fill(12, 0, -11, 21, 0, -5, "minecraft:birch_planks"));
+  p.push(...fill(12, 1, -11, 21, 3, -11, "minecraft:birch_planks"));
+  p.push(...fill(12, 1, -5,  21, 3,  -5, "minecraft:birch_planks"));
+  p.push(...fill(12, 1, -10, 12, 3, -6, "minecraft:birch_planks"));
+  p.push(...fill(21, 1, -10, 21, 3, -6, "minecraft:birch_planks"));
+  p.push(blk(16, 1, -5, "minecraft:air"), blk(16, 2, -5, "minecraft:air"));
+  p.push(...fill(12, 4, -11, 21, 4, -5, "minecraft:birch_planks"));
+  p.push(blk(12, 1, -10, "minecraft:chest"), blk(12, 1, -9, "minecraft:barrel"), blk(12, 1, -8, "minecraft:composter"));
+  p.push(blk(16, 3, -8, "minecraft:lantern"));
   return p;
 }
 function farmPlotBlueprintPlantation() {
   const p = [];
-  // Clear volume
-  p.push(...fill(-7, 1, -6, 10, 6, 9, "minecraft:air"));
-  // === LARGE PLANTATION (4 large plots) ===
-  // NW wheat
-  p.push(...fill(-6, 0, -5, -1, 0, 1, "minecraft:farmland"));
-  p.push(...fill(-6, 1, -5, -1, 1, 1, "minecraft:wheat"));
-  // NE carrots
-  p.push(...fill( 1, 0, -5,  6, 0, 1, "minecraft:farmland"));
-  p.push(...fill( 1, 1, -5,  6, 1, 1, "minecraft:carrots"));
-  // SW potatoes
-  p.push(...fill(-6, 0,  3, -1, 0, 7, "minecraft:farmland"));
-  p.push(...fill(-6, 1,  3, -1, 1, 7, "minecraft:potatoes"));
-  // SE beetroot
-  p.push(...fill( 1, 0,  3,  6, 0, 7, "minecraft:farmland"));
-  p.push(...fill( 1, 1,  3,  6, 1, 7, "minecraft:beetroot"));
-  // Central irrigation cross
-  p.push(...fill(-6, 0, 2, 6, 0, 2, "minecraft:water")); // EW channel
-  p.push(...fill(-6, 1, 2, 6, 1, 2, "minecraft:air"));
-  p.push(...fill(0, 0, -5, 0, 0, 7, "minecraft:water")); // NS channel
-  p.push(...fill(0, 1, -5, 0, 1, 7, "minecraft:air"));
-  // Outer fence perimeter
-  p.push(...fill(-7, 1, -6, 8, 1, -6, "minecraft:oak_fence")); // north
-  p.push(...fill(-7, 1,  9, 8, 1,  9, "minecraft:oak_fence")); // south
-  p.push(...fill(-7, 1, -5, -7, 1,  8, "minecraft:oak_fence")); // west
-  p.push(...fill( 8, 1, -5,  8, 1,  8, "minecraft:oak_fence")); // east
-  p.push(blk(-1, 1, 9, "minecraft:air"), blk(0, 1, 9, "minecraft:air")); // gate S
-  // Corner pillars
-  for (const [fx, fz] of [[-7,-6],[-7,9],[8,-6],[8,9]])
+  // Clear a large volume
+  p.push(...fill(-14, 1, -14, 24, 7, 24, "minecraft:air"));
+  // Fence perimeter (extra large plantation)
+  p.push(...fill(-14, 1, -14, 24, 1, -14, "minecraft:oak_fence")); // N
+  p.push(...fill(-14, 1,  24, 24, 1,  24, "minecraft:oak_fence")); // S
+  p.push(...fill(-14, 1, -13, -14, 1, 23, "minecraft:oak_fence")); // W
+  p.push(...fill( 24, 1, -13,  24, 1, 23, "minecraft:oak_fence")); // E
+  for (const [fx, fz] of [[-14,-14],[-14,24],[24,-14],[24,24]])
     p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
-  // Scarecrow (hay bale + pumpkin look)
-  p.push(blk(-3, 1, 4, "minecraft:oak_fence"), blk(-3, 2, 4, "minecraft:hay_block"), blk(-3, 3, 4, "minecraft:carved_pumpkin"));
-  p.push(blk( 3, 1, -3, "minecraft:oak_fence"), blk(3, 2, -3, "minecraft:hay_block"), blk(3, 3, -3, "minecraft:carved_pumpkin"));
-  // === STORAGE BARN (east side, 5x8 footprint) ===
-  p.push(...fill(8, 0, -6, 10, 0, 8, "minecraft:oak_planks")); // barn foundation
-  // Barn walls (spruce planks)
-  p.push(...fill(8, 1, -6, 10, 5, -6, "minecraft:spruce_planks")); // N wall
-  p.push(...fill(8, 1,  8, 10, 5,  8, "minecraft:spruce_planks")); // S wall
-  p.push(...fill(8, 1, -5, 8, 5,  7, "minecraft:spruce_planks")); // W wall
-  p.push(...fill(10,1, -5, 10, 5, 7, "minecraft:spruce_planks")); // E wall
-  p.push(blk(9, 1, 8, "minecraft:air"), blk(9, 2, 8, "minecraft:air")); // barn door S
-  p.push(blk(9, 3, -6, "minecraft:glass"), blk(9, 3, 8, "minecraft:glass")); // windows
-  // Barn roof (pyramid)
-  p.push(...fill(8, 6, -6, 10, 6, 8, "minecraft:spruce_planks"));
-  p.push(...fill(9, 7, -5, 9, 7, 7, "minecraft:spruce_planks"));
-  // Barn interior
-  p.push(blk(8, 1, -5, "minecraft:barrel"), blk(8, 2, -5, "minecraft:barrel")); // barrel stack
-  p.push(blk(8, 1, -3, "minecraft:chest"), blk(8, 1, -2, "minecraft:chest")); // storage
-  p.push(blk(8, 1,  5, "minecraft:hay_block"), blk(8, 1, 6, "minecraft:hay_block")); // hay storage
-  p.push(blk(10,1, -4, "minecraft:barrel"), blk(10, 1, -3, "minecraft:barrel"));
-  p.push(blk(9, 5, 1, "minecraft:lantern")); // barn lantern
+  // Gate south center
+  p.push(blk(4, 1, 24, "minecraft:air"), blk(5, 1, 24, "minecraft:air"));
+  // === 6 LARGE PLANTING STRIPS (each ~6 wide x 38 long) ===
+  const strips = [-13, -6, 1, 8, 15, 19]; // x starts of each strip (width ~5)
+  const waterCols = [-10, -3, 4, 11, 17]; // x of water channel in each strip
+  for (let s = 0; s < 5; s++) {
+    const x0 = strips[s]; const x1 = strips[s + 1] - 2; const wx = waterCols[s];
+    p.push(...fill(x0, 0, -13, x1, 0, 23, "minecraft:farmland"));
+    p.push(blk(wx, 0, -13, "minecraft:water"));
+    for (let z = -12; z <= 23; z += 4) p.push(blk(wx, 0, z, "minecraft:water"));
+    p.push(...fill(wx, 1, -13, wx, 1, 23, "minecraft:air"));
+    // Dirt path dividers between strips
+    if (s < 4) {
+      const px = strips[s + 1] - 1;
+      p.push(...fill(px, 0, -13, px, 0, 23, "minecraft:dirt_path"));
+    }
+  }
+  // North & south edge paths
+  p.push(...fill(-13, 0, -14, 23, 0, -14, "minecraft:dirt_path"));
+  p.push(...fill(-13, 0,  24, 23, 0,  24, "minecraft:dirt_path"));
+  // Scarecrows
+  p.push(blk(-8, 1, 6, "minecraft:oak_fence"), blk(-8, 2, 6, "minecraft:hay_block"), blk(-8, 3, 6, "minecraft:carved_pumpkin"));
+  p.push(blk( 6, 1, -5, "minecraft:oak_fence"), blk(6, 2, -5, "minecraft:hay_block"), blk(6, 3, -5, "minecraft:carved_pumpkin"));
+  p.push(blk(16, 1, 15, "minecraft:oak_fence"), blk(16, 2, 15, "minecraft:hay_block"), blk(16, 3, 15, "minecraft:carved_pumpkin"));
+  // === STORAGE BARN (east corner, 6x12 footprint) ===
+  p.push(...fill(20, 0, -13, 23, 0, 5, "minecraft:spruce_planks")); // floor
+  p.push(...fill(20, 1, -13, 23, 5, -13, "minecraft:spruce_planks")); // N wall
+  p.push(...fill(20, 1,  5,  23, 5,   5, "minecraft:spruce_planks")); // S wall
+  p.push(...fill(20, 1, -12, 20, 5,   4, "minecraft:spruce_planks")); // W wall
+  p.push(...fill(23, 1, -12, 23, 5,   4, "minecraft:spruce_planks")); // E wall
+  p.push(blk(21, 1, 5, "minecraft:air"), blk(21, 2, 5, "minecraft:air")); // door
+  p.push(blk(21, 3, -13, "minecraft:glass"), blk(21, 3, 5, "minecraft:glass")); // windows
+  p.push(blk(20, 3, -5, "minecraft:glass"), blk(23, 3, -5, "minecraft:glass"));
+  p.push(...fill(20, 6, -13, 23, 6, 5, "minecraft:spruce_planks")); // roof
+  p.push(blk(20, 1, -12, "minecraft:barrel"), blk(20, 2, -12, "minecraft:barrel"));
+  p.push(blk(20, 1, -10, "minecraft:chest"), blk(20, 1, -9, "minecraft:chest"));
+  p.push(blk(20, 1, 3, "minecraft:hay_block"), blk(20, 1, 4, "minecraft:hay_block"));
+  p.push(blk(23, 1, -11, "minecraft:barrel"), blk(23, 1, -10, "minecraft:barrel"));
+  p.push(blk(21, 5, -4, "minecraft:lantern"));
   return p;
 }
 function farmPlotBlueprint() {
@@ -6641,30 +6650,6 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
       return;
     }
   }
-  if (typeId === CUSTOM_BLOCKS.STORAGE && itemStack) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      const matKey = MERCHANT_MATERIAL_MAP[itemStack.typeId];
-      if (matKey) {
-        const inv = player.getComponent(EntityInventoryComponent8.componentId);
-        const container = inv?.container;
-        if (container) {
-          let deposited = 0;
-          for (let i = 0; i < container.size; i++) {
-            const slot = container.getItem(i);
-            if (slot?.typeId === itemStack.typeId) { deposited += slot.amount; container.setItem(i, void 0); }
-          }
-          if (deposited > 0) {
-            village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-            village.resourceStorage[matKey] = (village.resourceStorage[matKey] ?? 0) + deposited;
-            saveVillage(village);
-            notifyPlayer(player.name, `\xA7aDeposited ${deposited}x ${itemStack.typeId.replace("minecraft:", "")} into \xA7b${village.name}\xA7a storage.`);
-          }
-          return;
-        }
-      }
-    }
-  }
   if (typeId === CUSTOM_BLOCKS.ARMORY && itemStack) {
     const village = findVillageAt2(block.location);
     if (village && village.owner === player.name) {
@@ -6765,7 +6750,6 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         const dim = event.block.dimension;
         const droppedItems = { ...village.granaryItems ?? {} };
         system3.run(() => {
-          destroyStructure(dim, loc, "kingdoms:granary");
           for (const [itemId, count] of Object.entries(droppedItems)) {
             if (count > 0) dropItemsAtLoc(dim, loc, itemId, count);
           }
@@ -6773,7 +6757,7 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         village.granaryLocation = void 0;
         village.granaryItems = {};
         saveVillage(village);
-        notifyPlayer(player.name, `\xA7eGranary demolished \u2014 stored food dropped.`);
+        notifyPlayer(player.name, `\xA7eGranary removed \u2014 stored food dropped.`);
       }
     }
   }
@@ -6785,13 +6769,12 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         const dim = event.block.dimension;
         const emeralds = village.treasury ?? 0;
         system3.run(() => {
-          destroyStructure(dim, loc, "kingdoms:treasury");
           if (emeralds > 0) dropItemsAtLoc(dim, loc, "minecraft:emerald", emeralds);
         });
         village.treasury = 0;
         village.treasuryLocation = void 0;
         saveVillage(village);
-        notifyPlayer(player.name, `\xA7eTreasury demolished \u2014 ${emeralds} emerald(s) dropped.`);
+        notifyPlayer(player.name, `\xA7eTreasury removed \u2014 ${emeralds} emerald(s) dropped.`);
       }
     }
   }
@@ -6803,7 +6786,6 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         const dim = event.block.dimension;
         const res = { ...village.resourceStorage ?? {} };
         system3.run(() => {
-          destroyStructure(dim, loc, "kingdoms:storage");
           for (const [key, count] of Object.entries(res)) {
             const itemId = RESOURCE_ITEM_IDS[key];
             if (itemId && count > 0) dropItemsAtLoc(dim, loc, itemId, count);
@@ -6812,7 +6794,7 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         village.storageLocation = void 0;
         village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE };
         saveVillage(village);
-        notifyPlayer(player.name, `\xA7eMaterial Storage demolished \u2014 stored materials dropped.`);
+        notifyPlayer(player.name, `\xA7eMaterial Storage removed \u2014 stored materials dropped.`);
       }
     }
   }
@@ -6824,7 +6806,6 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         const dim = event.block.dimension;
         const items = { ...village.armoryItems ?? {} };
         system3.run(() => {
-          destroyStructure(dim, loc, "kingdoms:armory");
           for (const [itemId, count] of Object.entries(items)) {
             if (count > 0) dropItemsAtLoc(dim, loc, itemId, count);
           }
@@ -6832,7 +6813,7 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
         village.armoryLocation = void 0;
         village.armoryItems = {};
         saveVillage(village);
-        notifyPlayer(player.name, `\xA7eArmory demolished \u2014 stored equipment dropped.`);
+        notifyPlayer(player.name, `\xA7eArmory removed \u2014 stored equipment dropped.`);
       }
     }
   }
@@ -7319,6 +7300,19 @@ world16.afterEvents.itemUse.subscribe((event) => {
     });
   }
 });
+world16.afterEvents.itemUseOn.subscribe((event) => {
+  const player = event.source;
+  if (!player) return;
+  const itemId = event.itemStack?.typeId;
+  if (!itemId) return;
+  if (itemId === "kingdoms:formation_scroll") {
+    system3.run(() => { void cmdStratMap(player); });
+    return;
+  }
+  if (TROOP_TOKEN_MAP[itemId]) {
+    system3.run(() => { deploySingleToken(player, itemId); });
+  }
+});
 registerCommands();
 var guardGreetCooldown = /* @__PURE__ */ new Map();
 system3.runInterval(() => {
@@ -7489,6 +7483,7 @@ async function showTownHallMenu(player, block) {
       await showRenameForm(player, village.id);
       break;
     case 3:
+      await new Promise((r) => system3.runTimeout(r, 3));
       await showBuildingShopMenu(player, village);
       break;
   }
@@ -7598,34 +7593,32 @@ ${queueSummary}
 
 Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}
 \xA77Withdraw cost: \xA7b10\u{1F48E} per 10 soldiers`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Recruit Samurai (15\u{1F48E})").button("Recruit Heavy Knight (15\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops\n\xA77Cost: ${Math.ceil((t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)) / 10) * 10}\u{1F48E} for ${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)} total`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)\n\xA77~20s per soldier`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)) / 10)} set(s) avail`).button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA77Free \u2014 recall troops to you");
+  );
+  form.button("Recruit City Guard (5\u{1F48E} each)");
+  form.button("Recruit Spearman (8\u{1F48E} each)");
+  form.button("Recruit Archer (8\u{1F48E} each)");
+  form.button("Recruit Cavalry (12\u{1F48E} each)");
+  form.button("Recruit Samurai (15\u{1F48E} each)");
+  form.button("Recruit Heavy Knight (15\u{1F48E} each)");
+  form.button("Disband Guards");
+  form.button("Disband Spearmen");
+  form.button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`);
+  form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)} total stationed`);
+  form.button(carriedTotal > 0 ? `\u{1F3F9} Return Troops (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
+  form.button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
+  form.button(`\xA76\u{1F5FA} Get Formation Set x10`);
+  form.button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA775\u{1F48E} from inventory");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
-    case 0:
-      recruitTroop(village, "cityGuards", 1);
-      break;
-    case 1:
-      recruitTroop(village, "spearmen", 1);
-      break;
-    case 2:
-      recruitTroop(village, "archers", 1);
-      break;
-    case 3:
-      recruitTroop(village, "cavalry", 1);
-      break;
-    case 4:
-      recruitTroop(village, "samurai", 1);
-      break;
-    case 5:
-      recruitTroop(village, "heavyKnights", 1);
-      break;
-    case 6:
-      disbandTroop(village, "cityGuards", 1);
-      break;
-    case 7:
-      disbandTroop(village, "spearmen", 1);
-      break;
+    case 0: await showRecruitSlider(player, village, "cityGuards", "City Guard", 5); break;
+    case 1: await showRecruitSlider(player, village, "spearmen", "Spearman", 8); break;
+    case 2: await showRecruitSlider(player, village, "archers", "Archer", 8); break;
+    case 3: await showRecruitSlider(player, village, "cavalry", "Cavalry", 12); break;
+    case 4: await showRecruitSlider(player, village, "samurai", "Samurai", 15); break;
+    case 5: await showRecruitSlider(player, village, "heavyKnights", "Heavy Knight", 15); break;
+    case 6: await showDisbandSlider(player, village, "cityGuards", "City Guards"); break;
+    case 7: await showDisbandSlider(player, village, "spearmen", "Spearmen"); break;
     case 8:
       upgradeBarracks(village);
       break;
@@ -7644,19 +7637,59 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
     case 13: {
       const inv11 = player.getComponent(EntityInventoryComponent8.componentId);
       const c11 = inv11?.container;
-      let gave11 = false;
-      if (c11) {
-        for (let i = 0; i < c11.size; i++) {
-          if (!c11.getItem(i)) {
-            try { c11.setItem(i, new ItemStack6("kingdoms:recall_scroll", 1)); gave11 = true; } catch {}
-            break;
-          }
-        }
+      if (!c11) break;
+      const recallCost = 5;
+      let emeralds11 = 0;
+      for (let i = 0; i < c11.size; i++) { const s = c11.getItem(i); if (s?.typeId === "minecraft:emerald") emeralds11 += s.amount; }
+      if (emeralds11 < recallCost) {
+        notifyPlayer(player.name, `\xA7cNeed ${recallCost}\u{1F48E} in your inventory to buy a Recall Scroll. Have: ${emeralds11}.`);
+        break;
       }
-      notifyPlayer(player.name, gave11 ? "\xA7e\uD83D\uDD14 Recall Scroll given! Hold and right-click to recall all nearby troops to you." : "\xA7cInventory full \u2014 no space for Recall Scroll.");
+      let rem11 = recallCost;
+      for (let i = 0; i < c11.size && rem11 > 0; i++) {
+        const s = c11.getItem(i);
+        if (s?.typeId !== "minecraft:emerald") continue;
+        const take = Math.min(s.amount, rem11); rem11 -= take;
+        if (take >= s.amount) c11.setItem(i, void 0);
+        else { s.amount -= take; c11.setItem(i, s); }
+      }
+      let gave11 = false;
+      for (let i = 0; i < c11.size; i++) {
+        if (!c11.getItem(i)) { try { c11.setItem(i, new ItemStack6("kingdoms:recall_scroll", 1)); gave11 = true; } catch {} break; }
+      }
+      notifyPlayer(player.name, gave11 ? `\xA7e\uD83D\uDD14 Recall Scroll purchased for ${recallCost}\u{1F48E}! Right-click to recall nearby troops.` : "\xA7cInventory full \u2014 no space for Recall Scroll. Emeralds refunded.");
+      if (!gave11) dropItemsAtLoc(player.dimension, player.location, "minecraft:emerald", recallCost);
       break;
     }
   }
+}
+async function showRecruitSlider(player, village, troopKey, label, costPer) {
+  const maxAfford = Math.floor(village.treasury / costPer);
+  if (maxAfford <= 0) {
+    notifyPlayer(player.name, `\xA7cNot enough treasury emeralds to recruit ${label}. Need ${costPer}\u{1F48E} each.`);
+    return;
+  }
+  const maxRecruit = Math.min(maxAfford, 50);
+  const form = new ModalFormData()
+    .title(`Recruit ${label}`)
+    .slider(`How many ${label}s? (${costPer}\u{1F48E} each, treasury: ${village.treasury}\u{1F48E})`, 1, maxRecruit, 1, 1);
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  const qty = resp.formValues[0];
+  for (let i = 0; i < qty; i++) recruitTroop(village, troopKey, 1);
+  notifyPlayer(player.name, `\xA7aRecruited ${qty}x ${label}. Treasury: ${village.treasury}\u{1F48E}`);
+}
+async function showDisbandSlider(player, village, troopKey, label) {
+  const available = village.troops[troopKey] ?? 0;
+  if (available <= 0) { notifyPlayer(player.name, `\xA7cNo ${label} to disband.`); return; }
+  const form = new ModalFormData()
+    .title(`Disband ${label}`)
+    .slider(`How many ${label} to disband?`, 1, available, 1, 1);
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  const qty = resp.formValues[0];
+  for (let i = 0; i < qty; i++) disbandTroop(village, troopKey, 1);
+  notifyPlayer(player.name, `\xA7eDisbanded ${qty}x ${label}.`);
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
@@ -7890,18 +7923,7 @@ async function showBlacksmithMenu(player, block) {
   const summary = getBlacksmithSummary(village);
   const res = village.resourceStorage ?? { ...EMPTY_RESOURCE_STORAGE };
   const storageLine = `\n\xA77Storage: Iron=${res.iron} Gold=${res.gold} \u{1F48E}=${res.diamonds}`;
-  const hasScroll = (() => {
-    const inv = player.getComponent(EntityInventoryComponent8.componentId);
-    if (!inv?.container) return false;
-    for (let i = 0; i < inv.container.size; i++) {
-      const slot = inv.container.getItem(i);
-      if (slot?.typeId === "kingdoms:formation_scroll") return true;
-    }
-    return false;
-  })();
-  const scrollLabel = hasScroll
-    ? "\xA77\uD83D\uDCDC Formation Scroll\n\xA77(already in inventory)"
-    : "\xA7b\uD83D\uDCDC Get Formation Scroll\n\xA77Permanent \u2014 open Strategic Map anytime";
+  const scrollLabel = "\xA7b\uD83D\uDCDC Buy Formation Scroll\n\xA7715\u{1F48E} from inventory \u2014 opens Strategic Map";
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Blacksmith`)
     .body(summary + storageLine)
@@ -7939,24 +7961,32 @@ async function showBlacksmithMenu(player, block) {
       }
       break;
     case 6: {
-      if (hasScroll) {
-        notifyPlayer(player.name, "\xA7eYou already have a Formation Scroll in your inventory.");
-        break;
-      }
       const inv6 = player.getComponent(EntityInventoryComponent8.componentId);
       const c6 = inv6?.container;
+      if (!c6) break;
+      const scrollCost = 15;
+      let em6 = 0;
+      for (let i = 0; i < c6.size; i++) { const s = c6.getItem(i); if (s?.typeId === "minecraft:emerald") em6 += s.amount; }
+      if (em6 < scrollCost) {
+        notifyPlayer(player.name, `\xA7cNeed ${scrollCost}\u{1F48E} in your inventory to buy a Formation Scroll. Have: ${em6}.`);
+        break;
+      }
+      let rem6 = scrollCost;
+      for (let i = 0; i < c6.size && rem6 > 0; i++) {
+        const s = c6.getItem(i);
+        if (s?.typeId !== "minecraft:emerald") continue;
+        const take = Math.min(s.amount, rem6); rem6 -= take;
+        if (take >= s.amount) c6.setItem(i, void 0);
+        else { s.amount -= take; c6.setItem(i, s); }
+      }
       let gave6 = false;
-      if (c6) {
-        for (let i = 0; i < c6.size; i++) {
-          if (!c6.getItem(i)) {
-            try { c6.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave6 = true; } catch {}
-            break;
-          }
-        }
+      for (let i = 0; i < c6.size; i++) {
+        if (!c6.getItem(i)) { try { c6.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave6 = true; } catch {} break; }
       }
       notifyPlayer(player.name, gave6
-        ? "\xA7b\uD83D\uDCDC Formation Scroll obtained! Right-click anytime to open the Strategic Formation Map."
-        : "\xA7cInventory full \u2014 free up a slot and try again.");
+        ? `\xA7b\uD83D\uDCDC Formation Scroll purchased for ${scrollCost}\u{1F48E}! Right-click to open the Strategic Map.`
+        : "\xA7cInventory full \u2014 free up a slot. Emeralds refunded.");
+      if (!gave6) dropItemsAtLoc(player.dimension, player.location, "minecraft:emerald", scrollCost);
       break;
     }
   }
@@ -8002,30 +8032,96 @@ async function showStorageMenu(player, block) {
   village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
   const res = village.resourceStorage;
   const lines = Object.entries(RESOURCE_LABELS).map(([k, label]) => `${label}: ${res[k] ?? 0}`).join("\n");
-  const body = lines + "\n\n\xA77Hold a material and tap block to deposit all of that type.";
-  const withdrawable = Object.entries(res).filter(([, v]) => v > 0);
-  const form = new ActionFormData().title(`${village.name} \u2014 Material Storage`).body(body);
-  for (const [key] of withdrawable) form.button(`Withdraw 16x ${RESOURCE_LABELS[key] ?? key}`);
-  form.button("Close");
+  const form = new ActionFormData()
+    .title(`${village.name} \u2014 Material Storage`)
+    .body(lines + "\n\n\xA77Use Deposit or Withdraw buttons below:")
+    .button("\xA7a\u2795 Deposit Materials")
+    .button("\xA7e\u2796 Withdraw Materials")
+    .button("Close");
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0) return;
-  if (response.selection < withdrawable.length) {
-    const [key] = withdrawable[response.selection];
-    const itemId = RESOURCE_ITEM_IDS[key];
-    const amount = Math.min(16, res[key]);
-    if (!itemId || amount <= 0) { notifyPlayer(player.name, "\xA7cNone in storage."); return; }
-    const inv = player.getComponent(EntityInventoryComponent8.componentId);
-    const container = inv?.container;
-    if (!container) return;
-    let given = 0;
-    for (let i = 0; i < container.size && given < amount; i++) {
-      const slot = container.getItem(i);
-      if (!slot) { const qty = Math.min(amount - given, 64); try { container.setItem(i, new ItemStack6(itemId, qty)); given += qty; } catch {} }
-    }
-    res[key] -= given;
-    saveVillage(village);
-    if (given > 0) notifyPlayer(player.name, `\xA7aWithdrew ${given}x ${RESOURCE_LABELS[key]} from storage.`);
+  if (response.canceled || response.selection === void 0 || response.selection === 2) return;
+  if (response.selection === 0) {
+    await showStorageDepositSlider(player, village);
+  } else if (response.selection === 1) {
+    await showStorageWithdrawSlider(player, village);
   }
+}
+async function showStorageDepositSlider(player, village) {
+  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const container = inv?.container;
+  if (!container) return;
+  const available = {};
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    const key = MERCHANT_MATERIAL_MAP[slot.typeId];
+    if (key) available[key] = (available[key] ?? 0) + slot.amount;
+  }
+  const depositable = Object.entries(available).filter(([, v]) => v > 0);
+  if (depositable.length === 0) { notifyPlayer(player.name, "\xA7cNo storable materials in your inventory."); return; }
+  const matOpts = depositable.map(([k, v]) => `${RESOURCE_LABELS[k]} (have ${v})`);
+  const matForm = new ActionFormData().title("Deposit \u2014 Choose Material").body("Select which material to deposit:");
+  for (const opt of matOpts) matForm.button(opt);
+  matForm.button("Cancel");
+  const matResp = await matForm.show(player);
+  if (matResp.canceled || matResp.selection === void 0 || matResp.selection >= depositable.length) return;
+  const [key, maxAmt] = depositable[matResp.selection];
+  const sliderForm = new ModalFormData()
+    .title(`Deposit ${RESOURCE_LABELS[key]}`)
+    .slider(`Amount to deposit (have ${maxAmt}):`, 1, maxAmt, 1, maxAmt);
+  const sliderResp = await sliderForm.show(player);
+  if (sliderResp.canceled) return;
+  const qty = sliderResp.formValues[0];
+  const itemId = RESOURCE_ITEM_IDS[key];
+  if (!itemId) return;
+  let remaining = qty;
+  for (let i = 0; i < container.size && remaining > 0; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId !== itemId) continue;
+    const take = Math.min(slot.amount, remaining); remaining -= take;
+    if (take >= slot.amount) container.setItem(i, void 0);
+    else { slot.amount -= take; container.setItem(i, slot); }
+  }
+  const deposited = qty - remaining;
+  village.resourceStorage[key] = (village.resourceStorage[key] ?? 0) + deposited;
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7aDeposited ${deposited}x ${RESOURCE_LABELS[key]} into storage.`);
+}
+async function showStorageWithdrawSlider(player, village) {
+  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+  const res = village.resourceStorage;
+  const withdrawable = Object.entries(res).filter(([, v]) => v > 0);
+  if (withdrawable.length === 0) { notifyPlayer(player.name, "\xA7cStorage is empty."); return; }
+  const matForm = new ActionFormData().title("Withdraw \u2014 Choose Material").body("Select which material to withdraw:");
+  for (const [k, v] of withdrawable) matForm.button(`${RESOURCE_LABELS[k]} (${v} in storage)`);
+  matForm.button("Cancel");
+  const matResp = await matForm.show(player);
+  if (matResp.canceled || matResp.selection === void 0 || matResp.selection >= withdrawable.length) return;
+  const [key, maxAmt] = withdrawable[matResp.selection];
+  const sliderForm = new ModalFormData()
+    .title(`Withdraw ${RESOURCE_LABELS[key]}`)
+    .slider(`Amount to withdraw (${maxAmt} in storage):`, 1, maxAmt, 1, Math.min(16, maxAmt));
+  const sliderResp = await sliderForm.show(player);
+  if (sliderResp.canceled) return;
+  const qty = sliderResp.formValues[0];
+  const itemId = RESOURCE_ITEM_IDS[key];
+  if (!itemId) return;
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const container = inv?.container;
+  if (!container) return;
+  let given = 0;
+  for (let i = 0; i < container.size && given < qty; i++) {
+    const slot = container.getItem(i);
+    if (!slot) { const toGive = Math.min(qty - given, 64); try { container.setItem(i, new ItemStack6(itemId, toGive)); given += toGive; } catch {} }
+  }
+  res[key] = Math.max(0, (res[key] ?? 0) - given);
+  saveVillage(village);
+  if (given > 0) notifyPlayer(player.name, `\xA7aWithdrew ${given}x ${RESOURCE_LABELS[key]} from storage.`);
+  else notifyPlayer(player.name, "\xA7cInventory full \u2014 could not withdraw.");
+  if (given > 0 && given < qty) notifyPlayer(player.name, `\xA7eInventory partially full. Only ${given}/${qty} withdrawn.`);
+}
+function _storageMenuOld_unused() {
 }
 async function showArmoryMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -8137,13 +8233,13 @@ Farmers: ${village.workers.farmers}  Daily: +${prod}/-${cons}
 Shortage: ${village.foodShortageStage}/4`
   );
   const withdrawable = [];
-  for (const [item] of items) {
-    form.button(`Withdraw 8x ${item.replace("minecraft:", "")}`);
-    withdrawable.push(item);
+  for (const [item, count] of items) {
+    form.button(`Withdraw from Granary\n\xA77${item.replace("minecraft:", "")} (${count} stored)`);
+    withdrawable.push({ item, count });
   }
   const fwLevel = village.fieldWorkerLevel ?? 0;
   const fwBtn = fwLevel >= 5 ? `\u{1F9D1}\u200D\u{1F33E} Field Workers Lv5 (maxed)` : `\u2B06 Upgrade Field Workers Lv${fwLevel}\u2192${fwLevel + 1} (20\u{1F48E})`;
-  form.button("Deposit Food from Inventory");
+  form.button("\xA7a\u2795 Deposit Food from Inventory");
   form.button(fieldBtn);
   form.button("\u{1F4E6} View Field Storage");
   form.button(fwBtn);
@@ -8151,7 +8247,13 @@ Shortage: ${village.foodShortageStage}/4`
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
   if (response.selection < withdrawable.length) {
-    withdrawFromGranary(player, village, withdrawable[response.selection], 8);
+    const { item, count } = withdrawable[response.selection];
+    const sliderForm = new ModalFormData()
+      .title(`Withdraw ${item.replace("minecraft:", "")}`)
+      .slider(`How many to withdraw? (${count} stored)`, 1, count, 1, Math.min(16, count));
+    const sliderResp = await sliderForm.show(player);
+    if (sliderResp.canceled) return;
+    withdrawFromGranary(player, village, item, sliderResp.formValues[0]);
   } else if (response.selection === withdrawable.length) {
     await showGranaryDepositMenu(player, village);
   } else if (response.selection === withdrawable.length + 1) {
@@ -8165,14 +8267,31 @@ Shortage: ${village.foodShortageStage}/4`
 }
 async function showGranaryDepositMenu(player, village) {
   const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
-  const form = new ActionFormData().title(`Deposit Food \u2014 ${village.name}`).body("Select a food type to deposit 16 of from your inventory:");
-  for (const item of foodItems) {
-    form.button(item.replace("minecraft:", ""));
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const container = inv?.container;
+  const inInventory = {};
+  if (container) {
+    for (let i = 0; i < container.size; i++) {
+      const slot = container.getItem(i);
+      if (slot && foodItems.includes(slot.typeId)) inInventory[slot.typeId] = (inInventory[slot.typeId] ?? 0) + slot.amount;
+    }
   }
+  const available = foodItems.filter((k) => (inInventory[k] ?? 0) > 0);
+  if (available.length === 0) { notifyPlayer(player.name, "\xA7cNo depositable food in your inventory."); return; }
+  const form = new ActionFormData().title(`Deposit Food \u2014 ${village.name}`).body("Select a food type to deposit:");
+  for (const item of available) form.button(`${item.replace("minecraft:", "")} (have ${inInventory[item]})`);
   form.button("Cancel");
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0 || response.selection >= foodItems.length) return;
-  depositPlayerItemsToGranary(player, village, foodItems[response.selection], 16);
+  if (response.canceled || response.selection === void 0 || response.selection >= available.length) return;
+  const chosen = available[response.selection];
+  const maxAmt = inInventory[chosen] ?? 0;
+  if (maxAmt <= 0) return;
+  const sliderForm = new ModalFormData()
+    .title(`Deposit ${chosen.replace("minecraft:", "")}`)
+    .slider(`How many to deposit? (have ${maxAmt})`, 1, maxAmt, 1, maxAmt);
+  const sliderResp = await sliderForm.show(player);
+  if (sliderResp.canceled) return;
+  depositPlayerItemsToGranary(player, village, chosen, sliderResp.formValues[0]);
 }
 async function showTreasuryBlockMenu(player, block) {
   const village = findVillageAt2(block.location);
