@@ -4333,9 +4333,11 @@ var TROOP_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
-  cavalry: "kingdoms:cavalry"
+  cavalry: "kingdoms:cavalry",
+  samurai: "kingdoms:samurai",
+  heavyKnights: "kingdoms:heavy_knight"
 };
-var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry"];
+var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry", "samurai", "heavyKnights"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
   const _adPlayers = world14.getPlayers();
@@ -4349,10 +4351,11 @@ function tickAutoDefense(currentTick) {
     scanVillageThreat(village, currentTick, _adPlayers, _adKingdoms);
   }
 }
+var MOB_DEPLOY_THRESHOLD = 5;
 function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  let threatCount = 0;
+  let mobCount = 0;
   let playerRaider = null;
   try {
     const hostiles = dim.getEntities({
@@ -4360,9 +4363,8 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
       maxDistance: VILLAGE_CLAIM_RADIUS,
       families: ["monster"]
     });
-    threatCount += hostiles.length;
-  } catch {
-  }
+    mobCount = hostiles.length;
+  } catch {}
   const _scanPlayers = cachedPlayers ?? world14.getPlayers();
   for (const p of _scanPlayers) {
     if (p.name === village.owner) continue;
@@ -4370,7 +4372,6 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
     if (!theirKingdom) continue;
     if (!areAtWar(village.kingdomId, theirKingdom.id)) continue;
     if (distance(p.location, center) <= VILLAGE_CLAIM_RADIUS) {
-      threatCount++;
       if (!playerRaider) playerRaider = p.name;
     }
   }
@@ -4382,15 +4383,19 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
       lastRaidNotify.set(key, currentTick);
     }
   }
-  if (threatCount === 0) {
+  const shouldDefend = playerRaider !== null || mobCount > MOB_DEPLOY_THRESHOLD;
+  if (!shouldDefend) {
     recallAutoDispatched(village);
     return;
   }
-  const key = `${village.id}:mob`;
-  const last = lastRaidNotify.get(key) ?? 0;
-  if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
-    notifyAlert(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
-    lastRaidNotify.set(key, currentTick);
+  const threatCount = mobCount + (playerRaider ? 1 : 0);
+  if (mobCount > MOB_DEPLOY_THRESHOLD) {
+    const key = `${village.id}:mob`;
+    const last = lastRaidNotify.get(key) ?? 0;
+    if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
+      notifyAlert(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${mobCount} mob${mobCount > 1 ? "s" : ""} inside village radius \u2014 deploying defenders!)`);
+      lastRaidNotify.set(key, currentTick);
+    }
   }
   dispatchTroops(village, threatCount);
 }
@@ -4410,18 +4415,30 @@ function countAutoDispatched(village) {
   return count;
 }
 function dispatchTroops(village, threatCount) {
-  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalBarracks = Object.values(village.troops).reduce((s, v) => s + (v ?? 0), 0);
   if (totalBarracks <= 0) return;
-  const alreadyOut = countAutoDispatched(village);
-  const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
-  if (needed <= 0) return;
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
+  let polesCleared = false;
+  for (const pole of (village.guardPoles ?? [])) {
+    if (pole.entityIds && pole.entityIds.length > 0) {
+      despawnPoleGuards(village, pole);
+      polesCleared = true;
+    }
+  }
+  const alreadyOut = countAutoDispatched(village);
+  const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
+  if (needed <= 0) {
+    if (polesCleared) saveVillage(village);
+    return;
+  }
   let dispatched = 0;
   for (const troopType of TROOP_PRIORITY) {
     if (dispatched >= needed) break;
-    if (village.troops[troopType] <= 0) continue;
-    const toSend = Math.min(village.troops[troopType], needed - dispatched);
+    const inBarracks = (village.troops[troopType] ?? 0) - (village.guardPoles ?? []).filter(p => p.troopType === troopType).reduce((s, p) => s + (p.assignedGuards ?? 0), 0);
+    const avail = Math.max(0, inBarracks);
+    if (avail <= 0) continue;
+    const toSend = Math.min(avail, needed - dispatched);
     village.troops[troopType] -= toSend;
     for (let i = 0; i < toSend; i++) {
       try {
@@ -4436,19 +4453,20 @@ function dispatchTroops(village, threatCount) {
         entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType);
         entity.nameTag = `\u2694 [${village.name}]`;
         dispatched++;
-      } catch {
-      }
+      } catch {}
     }
   }
-  if (dispatched > 0) {
+  if (dispatched > 0 || polesCleared) {
     saveVillage(village);
-    notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} auto-dispatched to defend \xA7b${village.name}\xA7e!`);
+    if (dispatched > 0) {
+      notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} deployed from barracks to defend \xA7b${village.name}\xA7e!${polesCleared ? " Guard pole soldiers have left their posts to assist." : ""}`);
+    }
   }
 }
 function recallAutoDispatched(village) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  const survivors = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  const survivors = {};
   let recalled = 0;
   for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP)) {
     try {
@@ -4457,21 +4475,39 @@ function recallAutoDispatched(village) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
         const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;
         survivors[tt] = (survivors[tt] ?? 0) + 1;
-        try {
-          e.remove();
-        } catch {
-        }
+        try { e.remove(); } catch {}
         recalled++;
       }
-    } catch {
-    }
+    } catch {}
   }
+  const polesNeedingRestore = (village.guardPoles ?? []).filter(p => p.assignedGuards > 0 && p.entityIds.length === 0);
   if (recalled > 0) {
     for (const [tt, count] of Object.entries(survivors)) {
-      village.troops[tt] += count;
+      village.troops[tt] = (village.troops[tt] ?? 0) + count;
     }
+  }
+  if (polesNeedingRestore.length > 0) {
+    const troopTotals = {};
+    for (const [tt] of Object.entries(TROOP_ENTITY_MAP)) {
+      troopTotals[tt] = village.troops[tt] ?? 0;
+    }
+    for (const pole of polesNeedingRestore) {
+      const tt = pole.troopType;
+      const alreadyClaimed = (village.guardPoles ?? []).filter(p => p !== pole && p.troopType === tt).reduce((s, p) => s + (p.assignedGuards ?? 0), 0);
+      const canHave = Math.max(0, (troopTotals[tt] ?? 0) - alreadyClaimed);
+      pole.assignedGuards = Math.min(pole.assignedGuards, canHave);
+      if (pole.assignedGuards > 0) {
+        try { spawnPoleGuards(village, pole); } catch {}
+      }
+    }
+  }
+  if (recalled > 0 || polesNeedingRestore.length > 0) {
     saveVillage(village);
-    notifyPlayer(village.owner, `\xA7a\u2705 Attack repelled! \xA7f${recalled}\xA7a troop${recalled > 1 ? "s" : ""} returned to \xA7b${village.name}\xA7a barracks.`);
+    if (recalled > 0) {
+      notifyPlayer(village.owner, `\xA7a\u2705 Threat cleared! \xA7f${recalled}\xA7a troop${recalled > 1 ? "s" : ""} returned to \xA7b${village.name}\xA7a barracks.${polesNeedingRestore.length > 0 ? " Guard pole soldiers have returned to their posts." : ""}`);
+    } else if (polesNeedingRestore.length > 0) {
+      notifyPlayer(village.owner, `\xA7a\u2705 Threat cleared! Guard pole soldiers have returned to their posts at \xA7b${village.name}\xA7a.`);
+    }
   }
 }
 
