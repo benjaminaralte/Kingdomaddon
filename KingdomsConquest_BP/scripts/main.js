@@ -4352,6 +4352,7 @@ function tickAutoDefense(currentTick) {
   }
 }
 var MOB_DEPLOY_THRESHOLD = 5;
+var MOB_SECOND_WAVE_THRESHOLD = 8;
 function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
@@ -4383,13 +4384,12 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
       lastRaidNotify.set(key, currentTick);
     }
   }
-  const shouldDefend = playerRaider !== null || mobCount > MOB_DEPLOY_THRESHOLD;
+  const shouldDefend = playerRaider !== null || mobCount >= MOB_DEPLOY_THRESHOLD;
   if (!shouldDefend) {
     recallAutoDispatched(village);
     return;
   }
-  const threatCount = mobCount + (playerRaider ? 1 : 0);
-  if (mobCount > MOB_DEPLOY_THRESHOLD) {
+  if (mobCount >= MOB_DEPLOY_THRESHOLD) {
     const key = `${village.id}:mob`;
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
@@ -4397,7 +4397,7 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
       lastRaidNotify.set(key, currentTick);
     }
   }
-  dispatchTroops(village, threatCount);
+  dispatchTroops(village, mobCount, playerRaider !== null);
 }
 function countAutoDispatched(village) {
   const dim = world14.getDimension(village.location.dimension);
@@ -4414,7 +4414,7 @@ function countAutoDispatched(village) {
   }
   return count;
 }
-function dispatchTroops(village, threatCount) {
+function dispatchTroops(village, mobCount, hasPlayerRaider) {
   const totalBarracks = Object.values(village.troops).reduce((s, v) => s + (v ?? 0), 0);
   if (totalBarracks <= 0) return;
   const dim = world14.getDimension(village.location.dimension);
@@ -4427,20 +4427,37 @@ function dispatchTroops(village, threatCount) {
     }
   }
   const alreadyOut = countAutoDispatched(village);
-  const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
+  const WAVE_SIZE = 10;
+  let wavesNeeded = 0;
+  if (mobCount >= MOB_DEPLOY_THRESHOLD) wavesNeeded = 1;
+  if (mobCount > MOB_SECOND_WAVE_THRESHOLD) wavesNeeded = 2;
+  if (hasPlayerRaider && wavesNeeded < 1) wavesNeeded = 1;
+  const targetOut = Math.min(wavesNeeded * WAVE_SIZE, totalBarracks);
+  const needed = targetOut - alreadyOut;
   if (needed <= 0) {
     if (polesCleared) saveVillage(village);
     return;
   }
-  let dispatched = 0;
+  const availablePool = [];
   for (const troopType of TROOP_PRIORITY) {
-    if (dispatched >= needed) break;
     const inBarracks = (village.troops[troopType] ?? 0) - (village.guardPoles ?? []).filter(p => p.troopType === troopType).reduce((s, p) => s + (p.assignedGuards ?? 0), 0);
-    const avail = Math.max(0, inBarracks);
-    if (avail <= 0) continue;
-    const toSend = Math.min(avail, needed - dispatched);
-    village.troops[troopType] -= toSend;
-    for (let i = 0; i < toSend; i++) {
+    for (let i = 0; i < Math.max(0, inBarracks); i++) {
+      availablePool.push(troopType);
+    }
+  }
+  for (let i = availablePool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availablePool[i], availablePool[j]] = [availablePool[j], availablePool[i]];
+  }
+  const toDispatch = availablePool.slice(0, needed);
+  const dispatchCounts = {};
+  for (const t of toDispatch) {
+    dispatchCounts[t] = (dispatchCounts[t] ?? 0) + 1;
+  }
+  let dispatched = 0;
+  for (const [troopType, count] of Object.entries(dispatchCounts)) {
+    village.troops[troopType] -= count;
+    for (let i = 0; i < count; i++) {
       try {
         const angle = Math.random() * Math.PI * 2;
         const r = 6 + Math.random() * 12;
@@ -4459,7 +4476,8 @@ function dispatchTroops(village, threatCount) {
   if (dispatched > 0 || polesCleared) {
     saveVillage(village);
     if (dispatched > 0) {
-      notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} deployed from barracks to defend \xA7b${village.name}\xA7e!${polesCleared ? " Guard pole soldiers have left their posts to assist." : ""}`);
+      const waveLabel = wavesNeeded === 2 ? " (2nd wave!)" : "";
+      notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} deployed from barracks to defend \xA7b${village.name}\xA7e${waveLabel}!${polesCleared ? " Guard pole soldiers have left their posts to assist." : ""}`);
     }
   }
 }
