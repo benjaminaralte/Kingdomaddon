@@ -4621,6 +4621,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:tower",
   "kingdoms:wall_long",
   "kingdoms:wall_short",
+  "kingdoms:wall_tall",
+  "kingdoms:stone_gate",
   "kingdoms:house",
   "kingdoms:fence_enclosure",
   "kingdoms:barn"
@@ -4962,6 +4964,71 @@ function wallShortBlueprint() {
   p.push(blk(0, 3, 0, "minecraft:torch"));
   return p;
 }
+
+// ── Tall Stone Wall (5 wide × 10 tall, same z-depth as other walls) ─────────
+function wallTallBlueprint() {
+  const p = [];
+  p.push(...fill(-2, 1, -1, 2, 11, 1, "minecraft:air"));
+  p.push(...fill(-2, 0, -1, 2, 0, 1, "minecraft:stone_bricks")); // foundation
+  p.push(...fill(-2, 1, -1, 2, 9, 1, "minecraft:stone_bricks")); // wall body
+  // Battlements at y=10 (same alternating pattern as wallShortBlueprint)
+  for (let x = -2; x <= 2; x++) {
+    if ((x + 2) % 2 === 0) {
+      p.push(blk(x, 10, -1, "minecraft:stone_bricks"), blk(x, 10, 0, "minecraft:stone_bricks"), blk(x, 10, 1, "minecraft:stone_bricks"));
+    }
+  }
+  // Torches at mid-height on inner face
+  p.push(blk(-2, 5, 0, "minecraft:torch"), blk(0, 5, 0, "minecraft:torch"), blk(2, 5, 0, "minecraft:torch"));
+  return p;
+}
+
+// ── Stone Gate (9 wide, joinable with all wall types — same z-depth) ─────────
+// Placing tip: gate left end (x=-4) should align with the end of an adjacent wall.
+// e.g., place gate origin 9 blocks past a wall_long origin (gap-free join).
+function stoneGateBlueprint() {
+  const p = [];
+  // Clear volume
+  p.push(...fill(-4, 1, -1, 4, 9, 1, "minecraft:air"));
+  // Foundation across full width
+  p.push(...fill(-4, 0, -1, 4, 0, 1, "minecraft:stone_bricks"));
+  // ── Left tower (x=-4 to -3, y=1-7) ─────────────────────────────────────
+  p.push(...fill(-4, 1, -1, -3, 7, 1, "minecraft:stone_bricks"));
+  // ── Right tower (x=3 to 4, y=1-7) ──────────────────────────────────────
+  p.push(...fill(3, 1, -1, 4, 7, 1, "minecraft:stone_bricks"));
+  // ── Left inner pillar (x=-2, y=1-4) matches wall_long height ───────────
+  p.push(...fill(-2, 1, -1, -2, 4, 1, "minecraft:stone_bricks"));
+  // ── Right inner pillar (x=2, y=1-4) ────────────────────────────────────
+  p.push(...fill(2, 1, -1, 2, 4, 1, "minecraft:stone_bricks"));
+  // ── Gate arch lintel (y=5, x=-2 to +2, full z-depth) ───────────────────
+  p.push(...fill(-2, 5, -1, 2, 5, 1, "minecraft:stone_bricks"));
+  // ── Wall walk on top of arch (y=6, x=-2 to +2) ──────────────────────────
+  p.push(...fill(-2, 6, -1, 2, 6, 1, "minecraft:stone_bricks"));
+  // ── Crenelation / battlements on arch walk (y=7, alternating) ───────────
+  for (let x = -2; x <= 2; x++) {
+    if (x % 2 === 0) {
+      p.push(blk(x, 7, -1, "minecraft:stone_bricks"), blk(x, 7, 1, "minecraft:stone_bricks"));
+    }
+  }
+  // ── Tower battlements (y=8, alternating) ────────────────────────────────
+  for (const tx of [-4, -3, 3, 4]) {
+    p.push(blk(tx, 8, -1, "minecraft:stone_bricks"), blk(tx, 8, 1, "minecraft:stone_bricks"));
+    if (tx === -3 || tx === 3) p.push(blk(tx, 8, 0, "minecraft:stone_bricks"));
+  }
+  // ── Iron-bar portcullis in gateway arch (y=3-5 at z=0, above head-height) ─
+  // Hangs from the arch lintel — decorative, allows passage at y=1-2
+  for (let y = 3; y <= 5; y++) {
+    p.push(blk(-1, y, 0, "minecraft:iron_bars"));
+    p.push(blk(0, y, 0, "minecraft:iron_bars"));
+    p.push(blk(1, y, 0, "minecraft:iron_bars"));
+  }
+  // ── Torches on inner tower faces ────────────────────────────────────────
+  p.push(blk(-3, 4, 0, "minecraft:torch"), blk(3, 4, 0, "minecraft:torch"));
+  // ── Arrow slits on tower outer faces (glass) ────────────────────────────
+  p.push(blk(-4, 4, 0, "minecraft:glass"), blk(4, 4, 0, "minecraft:glass"));
+  // ── Sea lantern on arch walk ceiling (y=6, center) ──────────────────────
+  p.push(blk(0, 6, 0, "minecraft:sea_lantern"));
+  return p;
+}
 // ── House blueprints (3 random designs, each with 2-3 beds) ────────────────
 function houseBlueprintCottage() {
   const p = [];
@@ -5141,6 +5208,8 @@ var BLUEPRINTS = {
   "kingdoms:tower": towerBlueprint,
   "kingdoms:wall_long": wallLongBlueprint,
   "kingdoms:wall_short": wallShortBlueprint,
+  "kingdoms:wall_tall": wallTallBlueprint,
+  "kingdoms:stone_gate": stoneGateBlueprint,
   "kingdoms:house": houseBlueprint,
   "kingdoms:fence_enclosure": fenceEnclosureBlueprint,
   "kingdoms:barn": barnBlueprint
@@ -5215,6 +5284,7 @@ var STRUCT_DISPLAY_NAMES = {
   "kingdoms:granary": "\u{1F33E} Granary",
   "kingdoms:treasury": "\u{1F4B8} Treasury",
   "kingdoms:trade_station": "\u{1F682} Trade Station",
+  "kingdoms:trade_pole": "\u{1F682} Trade Pole",
   "kingdoms:storage": "\u{1F4E6} Storage",
   "kingdoms:armory": "\u{1F6E1}\uFE0F Armory"
 };
@@ -5226,6 +5296,7 @@ var STRUCT_MENU_KEYS = {
   "kingdoms:granary": "granary",
   "kingdoms:treasury": "treasury",
   "kingdoms:trade_station": "trade_station",
+  "kingdoms:trade_pole": "trade_pole",
   "kingdoms:storage": "storage",
   "kingdoms:armory": "armory"
 };
@@ -5269,6 +5340,7 @@ function openStructureMenu(player, structKey, block) {
     case "granary": void showGranaryStorageMenu(player, block); break;
     case "treasury": void showTreasuryBlockMenu(player, block); break;
     case "trade_station": void showTradeStationMenu(player, block); break;
+    case "trade_pole": void showTradePoleMenu(player, block); break;
     case "storage": void showStorageMenu(player, block); break;
     case "armory": void showArmoryMenu(player, block); break;
   }
@@ -6208,7 +6280,9 @@ var SHOP_ITEMS = [
   { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", cost: 60, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:tower_item", label: "Watch Tower", desc: "Tall stone tower for defense and visibility", cost: 40, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:wall_long_item", label: "Long Stone Wall (10x5)", desc: "Wide defensive wall with battlements", cost: 20, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", cost: 12, costItem: "minecraft:emerald", prereq: true }
+  { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", cost: 12, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:wall_tall_item", label: "\uD83E\uDDF1 Tall Stone Wall (5x10)", desc: "5-wide wall, 10 blocks tall — matches short wall z-depth for seamless joining", cost: 18, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:stone_gate_item", label: "\uD83D\uDEAA Stone Gate", desc: "9-wide gate with towers, arch & portcullis bars — joints with all wall types", cost: 35, costItem: "minecraft:emerald", prereq: true }
 ];
 async function showBuildingShopMenu(player, village) {
   const hasInfra = !!(village.granaryLocation && village.treasuryLocation);
@@ -7041,6 +7115,46 @@ Village Treasury: ${village.treasury}\u{1F48E}`).button("Buy Iron \xD78 (8\u{1F4
     case 3:
       tradeMerchant(village, entityId, "minecraft:bread", 16);
       break;
+  }
+}
+async function showTradePoleMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  if (!village) {
+    notifyPlayer(player.name, "\xA7cNo village here. Claim a village first.");
+    return;
+  }
+  const isOwner = village.owner === player.name;
+  const poleCount = village.tradePoles?.length ?? 0;
+  const form = new ActionFormData()
+    .title(`${village.name} \u2014 Trade Pole`)
+    .body(
+      `\xA77Village:\xA7f ${village.name}\n\xA77Trade Poles:\xA7f ${poleCount}\n\xA77Detection radius:\xA7f ${TRADE_POLE_DETECT_RADIUS} blocks\n\n` +
+      `\xA7fChest minecarts arriving within ${TRADE_POLE_DETECT_RADIUS} blocks are auto-delivered:\n` +
+      `\xA7e Emeralds\xA7f \u2192 Treasury\n\xA7e Food\xA7f \u2192 Granary\n\xA7e Troop tokens\xA7f \u2192 Barracks\n\xA7e Resources\xA7f \u2192 Storage\n\n` +
+      `\xA7aCart is spawned 8 blocks away so you can load it safely.\n\xA7ePush it along rails toward the destination pole!`
+    );
+  if (isOwner) {
+    form.button("\xA7a\u{1F682} Spawn Minecart with Chest\n\xA77Spawns 8 blocks away \u2014 load then push!");
+  }
+  form.button("\xA77Close");
+  const response = await form.show(player);
+  if (response.canceled) return;
+  if (!isOwner || response.selection !== 0) return;
+  try {
+    const poleLoc = block.location;
+    const dim = block.dimension;
+    const spawnDist = TRADE_POLE_DETECT_RADIUS + 3;
+    const spawnX = poleLoc.x + 0.5;
+    const spawnY = poleLoc.y + 1;
+    const spawnZ = poleLoc.z - spawnDist + 0.5;
+    const cart = dim.spawnEntity("minecraft:chest_minecart", { x: spawnX, y: spawnY, z: spawnZ });
+    cart.nameTag = `\xA76\u{1F4E6} ${village.name} \u2014 Load me then push!`;
+    notifyPlayer(
+      player.name,
+      `\xA7a\u{1F682} Chest minecart spawned \xA7b${spawnDist} blocks north\xA7a of the trade pole!\n\xA7eLoad your supplies, then push it along the rails toward the destination.`
+    );
+  } catch {
+    notifyPlayer(player.name, "\xA7cCould not spawn minecart \u2014 is the area loaded?");
   }
 }
 async function showTradeStationMenu(player, block) {
