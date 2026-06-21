@@ -4623,6 +4623,7 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:wall_short",
   "kingdoms:wall_tall",
   "kingdoms:stone_gate",
+  "kingdoms:king_castle",
   "kingdoms:house",
   "kingdoms:fence_enclosure",
   "kingdoms:barn"
@@ -4982,6 +4983,178 @@ function wallTallBlueprint() {
   return p;
 }
 
+// ── King's Castle (25×21 grand keep, two floors, four towers, throne hall) ───
+// Origin block = throne room floor centre.
+// Interior access to upper floor: place a ladder on the north interior wall.
+function kingCastleBlueprint() {
+  const p = [];
+
+  // === CLEAR VOLUME (26w × 21d × 23h) ===
+  p.push(...fill(-12, 1, -10, 12, 23, 10, "minecraft:air"));
+
+  // === FOUNDATION ===
+  p.push(...fill(-12, 0, -10, 12, 0, 10, "minecraft:stone_bricks"));
+
+  // === FULL PERIMETER OUTER WALLS (y=1-14, 1-block thick) ===
+  p.push(...fill(-12, 1, -10, 12, 14, -10, "minecraft:stone_bricks")); // North
+  p.push(...fill(-12, 1,  10, 12, 14,  10, "minecraft:stone_bricks")); // South
+  p.push(...fill(-12, 1,  -9, -12, 14,  9, "minecraft:stone_bricks")); // West
+  p.push(...fill( 12, 1,  -9,  12, 14,  9, "minecraft:stone_bricks")); // East
+
+  // === MAIN GATE OPENING (south wall, 5 wide × 4 tall) ===
+  p.push(...fill(-2, 1, 10, 2, 4, 10, "minecraft:air"));
+  // Iron bar portcullis hanging over gate arch (y=5)
+  for (let x = -2; x <= 2; x++) p.push(blk(x, 5, 10, "minecraft:iron_bars"));
+
+  // === CORNER TOWERS (4×4, y=1-20, tower core hollow y=1-18) ===
+  for (const [tx, tz] of [[-12,-10], [9,-10], [-12,7], [9,7]]) {
+    p.push(...fill(tx, 1, tz, tx+3, 20, tz+3, "minecraft:stone_bricks"));
+    p.push(...fill(tx+1, 1, tz+1, tx+2, 18, tz+2, "minecraft:air")); // hollow core
+    // Arrow slit windows on outer faces
+    p.push(blk(tx+1, 6, tz, "minecraft:glass"), blk(tx+2, 6, tz, "minecraft:glass"));
+    p.push(blk(tx, 6, tz+1, "minecraft:glass"), blk(tx, 6, tz+2, "minecraft:glass"));
+    p.push(blk(tx+1, 13, tz, "minecraft:glass"), blk(tx+2, 13, tz, "minecraft:glass"));
+    p.push(blk(tx, 13, tz+1, "minecraft:glass"), blk(tx, 13, tz+2, "minecraft:glass"));
+  }
+  // Tower battlements (y=21, alternating merlons)
+  for (const [tx, tz] of [[-12,-10],[9,-10],[-12,7],[9,7]]) {
+    for (let dx = 0; dx <= 3; dx++) {
+      for (let dz = 0; dz <= 3; dz++) {
+        if ((dx + dz) % 2 === 0) p.push(blk(tx+dx, 21, tz+dz, "minecraft:stone_bricks"));
+      }
+    }
+  }
+
+  // === MAIN WALL BATTLEMENTS (y=15, alternating merlons) ===
+  for (let x = -12; x <= 12; x += 2) {
+    p.push(blk(x, 15, -10, "minecraft:stone_bricks")); // North
+    p.push(blk(x, 15,  10, "minecraft:stone_bricks")); // South
+  }
+  for (let z = -9; z <= 9; z += 2) {
+    p.push(blk(-12, 15, z, "minecraft:stone_bricks")); // West
+    p.push(blk( 12, 15, z, "minecraft:stone_bricks")); // East
+  }
+
+  // === MAIN WALL WINDOWS (ground level & upper level) ===
+  // North wall
+  for (const wx of [-7, -4, 4, 7]) {
+    p.push(blk(wx, 5, -10, "minecraft:glass"), blk(wx, 6, -10, "minecraft:glass"));
+    p.push(blk(wx, 11, -10, "minecraft:glass"), blk(wx, 12, -10, "minecraft:glass"));
+  }
+  // West / East walls
+  for (const wz of [-5, 0, 5]) {
+    p.push(blk(-12, 5, wz, "minecraft:glass"), blk(-12, 6, wz, "minecraft:glass"));
+    p.push(blk(-12, 11, wz, "minecraft:glass"), blk(-12, 12, wz, "minecraft:glass"));
+    p.push(blk(12, 5, wz, "minecraft:glass"), blk(12, 6, wz, "minecraft:glass"));
+    p.push(blk(12, 11, wz, "minecraft:glass"), blk(12, 12, wz, "minecraft:glass"));
+  }
+
+  // === 2ND FLOOR PLATFORM (y=9, dark oak planks ceiling/floor) ===
+  p.push(...fill(-11, 9, -9, 11, 9, 9, "minecraft:dark_oak_planks"));
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GROUND FLOOR INTERIOR (y=1 – 8)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Interior floor (stone bricks border, polished andesite main hall)
+  p.push(...fill(-11, 1, -9, 11, 1, 9, "minecraft:stone_bricks"));
+  p.push(...fill( -8, 1, -8,  8, 1, 8, "minecraft:polished_andesite"));
+  // Red carpet aisle (gate → throne, z-axis)
+  p.push(...fill(-1, 1, -9, 1, 1, 9, "minecraft:red_carpet"));
+
+  // === THRONE (north end, z=-8 to -9) ===
+  p.push(...fill(-3, 1, -9, 3, 1, -8, "minecraft:obsidian")); // throne dais
+  p.push(blk(0, 2, -9, "minecraft:gold_block")); // throne seat
+  p.push(blk(-2, 2, -9, "minecraft:obsidian"), blk(2, 2, -9, "minecraft:obsidian")); // armrests
+  p.push(blk(-2, 3, -9, "minecraft:gold_block"), blk(0, 3, -9, "minecraft:gold_block"), blk(2, 3, -9, "minecraft:gold_block")); // throne back rail
+  p.push(blk( 0, 4, -9, "minecraft:gold_block")); // throne crown peak
+  p.push(blk(0, 2, -8, "minecraft:lectern")); // royal lectern
+  p.push(blk(-1, 1, -8, "minecraft:obsidian"), blk(1, 1, -8, "minecraft:obsidian")); // dais step accent
+  p.push(blk(0, 8, -7, "minecraft:bell")); // ceremonial bell above throne
+
+  // === INTERIOR COLUMNS (stripped dark oak, y=2-8) ===
+  for (const [cx, cz] of [[-7,-7],[7,-7],[-7,0],[7,0],[-7,7],[7,7]]) {
+    p.push(...fill(cx, 2, cz, cx, 8, cz, "minecraft:stripped_dark_oak_log"));
+  }
+
+  // === BANQUET TABLES (oak planks at y=2, flanking the aisle) ===
+  p.push(...fill(-7, 2, -5, -3, 2, 5, "minecraft:oak_planks")); // West table
+  p.push(...fill( 3, 2, -5,  7, 2, 5, "minecraft:oak_planks")); // East table
+  // Barrel chairs around tables
+  for (let z = -4; z <= 4; z += 2) {
+    p.push(blk(-8, 1, z, "minecraft:barrel"), blk(-2, 1, z, "minecraft:barrel")); // west table
+    p.push(blk( 2, 1, z, "minecraft:barrel"), blk( 8, 1, z, "minecraft:barrel")); // east table
+  }
+  // Table centrepiece lanterns
+  p.push(blk(-5, 3, -3, "minecraft:lantern"), blk(-5, 3, 0, "minecraft:sea_lantern"), blk(-5, 3, 3, "minecraft:lantern"));
+  p.push(blk( 5, 3, -3, "minecraft:lantern"), blk( 5, 3, 0, "minecraft:sea_lantern"), blk( 5, 3, 3, "minecraft:lantern"));
+
+  // === BOOKSHELVES (inner north wall, flanking throne) ===
+  p.push(...fill(-11, 2, -8, -9, 5, -5, "minecraft:bookshelf")); // NW shelves
+  p.push(...fill(  9, 2, -8, 11, 5, -5, "minecraft:bookshelf")); // NE shelves
+  p.push(...fill(-11, 2,  3, -9, 5,  6, "minecraft:bookshelf")); // SW shelves
+  p.push(...fill(  9, 2,  3, 11, 5,  6, "minecraft:bookshelf")); // SE shelves
+
+  // === FIREPLACE (west wall, centre) ===
+  p.push(...fill(-12, 2, -1, -11, 6, 1, "minecraft:stone_bricks")); // chimney stack
+  p.push(blk(-12, 1, 0, "minecraft:netherrack")); // hearth
+  p.push(blk(-12, 2, -1, "minecraft:stone_bricks"), blk(-12, 2, 1, "minecraft:stone_bricks")); // hearth wings
+
+  // === EAST WING — trophy / store ===
+  p.push(blk(12, 1, -5, "minecraft:gold_block"), blk(12, 1, 5, "minecraft:gold_block")); // trophy pedestals
+  p.push(blk(12, 2, -5, "minecraft:chest"), blk(12, 2, 5, "minecraft:chest")); // chests on pedestals
+  p.push(blk(10, 1, 7, "minecraft:brewing_stand")); // court alchemist stand
+
+  // === ENTRANCE STORAGE (south corners) ===
+  p.push(blk(-9, 1, 8, "minecraft:chest"), blk(-8, 1, 8, "minecraft:chest"));
+  p.push(blk( 8, 1, 8, "minecraft:chest"), blk( 9, 1, 8, "minecraft:chest"));
+  p.push(blk(-10, 1, 6, "minecraft:crafting_table")); // entrance crafting station
+
+  // === GROUND FLOOR CHANDELIERS (sea lanterns at y=8) ===
+  p.push(blk( 0, 8, -4, "minecraft:sea_lantern"), blk( 0, 8, 0, "minecraft:sea_lantern"), blk( 0, 8, 4, "minecraft:sea_lantern"));
+  p.push(blk(-5, 8, -4, "minecraft:sea_lantern"), blk(-5, 8, 4, "minecraft:sea_lantern"));
+  p.push(blk( 5, 8, -4, "minecraft:sea_lantern"), blk( 5, 8, 4, "minecraft:sea_lantern"));
+  p.push(blk(-9, 8,  0, "minecraft:lantern"), blk( 9, 8, 0, "minecraft:lantern")); // side hall lanterns
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // UPPER FLOOR (y=10 – 14)
+  // ─────────────────────────────────────────────────────────────────────────
+  p.push(...fill(-11, 10, -9, 11, 14, 9, "minecraft:air")); // clear upper interior
+
+  // Upper carpet runner
+  p.push(...fill(-1, 10, -8, 1, 10, 8, "minecraft:red_carpet"));
+  p.push(...fill(-4, 10, -8, 4, 10, -4, "minecraft:red_carpet")); // royal wing carpet
+
+  // === ROYAL CHAMBERS (north side) ===
+  p.push(blk( 0, 11, -7, "minecraft:white_bed")); // royal bed
+  p.push(blk(-3, 11, -7, "minecraft:chest"), blk(3, 11, -7, "minecraft:chest")); // royal chests
+  p.push(blk(-5, 11, -5, "minecraft:enchanting_table")); // enchanting
+  p.push(blk( 5, 11, -5, "minecraft:brewing_stand")); // brewing
+  p.push(blk(-5, 11, -3, "minecraft:crafting_table")); // royal crafting
+  p.push(blk( 5, 11, -3, "minecraft:chest")); // supplies
+  p.push(...fill(-9, 11, -8, -6, 13, -8, "minecraft:bookshelf")); // N bookshelves
+  p.push(...fill( 6, 11, -8,  9, 13, -8, "minecraft:bookshelf"));
+
+  // === PARTITION WALL separating chambers from south lounge ===
+  p.push(...fill(-9, 11, -2, -4, 13, -2, "minecraft:stone_bricks"));
+  p.push(...fill( 4, 11, -2,  9, 13, -2, "minecraft:stone_bricks"));
+  p.push(...fill(-1, 11, -2,  1, 13, -2, "minecraft:air")); // doorway
+
+  // === UPPER LOUNGE / BALCONY AREA (south) ===
+  p.push(blk(-6, 11, 4, "minecraft:barrel"), blk(6, 11, 4, "minecraft:barrel")); // lounge seating
+  p.push(blk(-4, 11, 6, "minecraft:chest"), blk(4, 11, 6, "minecraft:chest")); // upper storage
+  p.push(blk( 0, 11, 7, "minecraft:lectern")); // balcony overlook lectern
+  p.push(...fill(-9, 11, 3, -6, 13, 3, "minecraft:bookshelf")); // south bookshelves
+  p.push(...fill( 6, 11, 3,  9, 13, 3, "minecraft:bookshelf"));
+
+  // === UPPER FLOOR CHANDELIERS ===
+  p.push(blk( 0, 14, -5, "minecraft:sea_lantern"), blk( 0, 14, 3, "minecraft:sea_lantern"));
+  p.push(blk(-5, 14, -5, "minecraft:sea_lantern"), blk(5, 14, -5, "minecraft:sea_lantern"));
+  p.push(blk(-5, 14,  3, "minecraft:sea_lantern"), blk(5, 14,  3, "minecraft:sea_lantern"));
+
+  return p;
+}
+
 // ── Stone Gate (9 wide, joinable with all wall types — same z-depth) ─────────
 // Placing tip: gate left end (x=-4) should align with the end of an adjacent wall.
 // e.g., place gate origin 9 blocks past a wall_long origin (gap-free join).
@@ -5051,9 +5224,13 @@ function houseBlueprintCottage() {
   p.push(...fill(-2, 1, -1, 2, 1, 2, "minecraft:oak_planks"));
   // 2 beds
   p.push(blk( 1, 1, 1, "minecraft:white_bed"), blk(-1, 1, 1, "minecraft:white_bed"));
-  // Furniture
+  // Furniture & storage
   p.push(blk(-2, 1, -1, "minecraft:crafting_table"));
+  p.push(blk( 2, 1, -1, "minecraft:furnace")); // cooking
+  p.push(blk(-2, 1,  2, "minecraft:chest")); // personal chest
+  p.push(blk( 2, 1,  2, "minecraft:barrel")); // food barrel
   p.push(blk( 0, 4,  0, "minecraft:torch"));
+  p.push(blk(-2, 3, 1, "minecraft:torch"), blk(2, 3, 1, "minecraft:torch")); // wall torches
   return p;
 }
 function houseBlueprintStone() {
@@ -5077,8 +5254,12 @@ function houseBlueprintStone() {
   p.push(...fill(-3, 1, -2, 3, 1, 2, "minecraft:cobblestone"));
   // 3 beds
   p.push(blk(-2, 1, 1, "minecraft:white_bed"), blk(0, 1, 1, "minecraft:white_bed"), blk(2, 1, 1, "minecraft:white_bed"));
-  // Furniture
+  // Furniture & storage
   p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
+  p.push(blk(-3, 1, -1, "minecraft:furnace")); // cooking area
+  p.push(blk( 3, 1, -1, "minecraft:crafting_table")); // workstation
+  p.push(blk(-3, 1,  0, "minecraft:barrel")); // food storage
+  p.push(blk(-3, 2, -2, "minecraft:bookshelf"), blk(3, 2, -2, "minecraft:bookshelf")); // shelving above chests
   p.push(blk( 0, 5,  0, "minecraft:sea_lantern"));
   return p;
 }
@@ -5101,9 +5282,14 @@ function houseBlueprintFarmhouse() {
   p.push(...fill(-3, 1, -1, 2, 1, 2, "minecraft:birch_planks"));
   // 2 beds
   p.push(blk(1, 1, 1, "minecraft:white_bed"), blk(2, 1, 1, "minecraft:white_bed"));
-  // Furniture
-  p.push(blk(-3, 1, -1, "minecraft:barrel"));
+  // Furniture & storage
+  p.push(blk(-3, 1, -1, "minecraft:barrel")); // food barrel
+  p.push(blk(-3, 1,  0, "minecraft:chest")); // personal chest
+  p.push(blk(-3, 1,  1, "minecraft:furnace")); // cooking
+  p.push(blk( 2, 1, -1, "minecraft:crafting_table")); // workbench
+  p.push(blk(-3, 2,  2, "minecraft:composter")); // compost bin (farm theme)
   p.push(blk( 0, 4,  0, "minecraft:lantern"));
+  p.push(blk(-3, 3, -1, "minecraft:torch"), blk(2, 3, 1, "minecraft:torch")); // wall torches
   return p;
 }
 function houseBlueprint() {
@@ -5210,6 +5396,7 @@ var BLUEPRINTS = {
   "kingdoms:wall_short": wallShortBlueprint,
   "kingdoms:wall_tall": wallTallBlueprint,
   "kingdoms:stone_gate": stoneGateBlueprint,
+  "kingdoms:king_castle": kingCastleBlueprint,
   "kingdoms:house": houseBlueprint,
   "kingdoms:fence_enclosure": fenceEnclosureBlueprint,
   "kingdoms:barn": barnBlueprint
@@ -5286,7 +5473,8 @@ var STRUCT_DISPLAY_NAMES = {
   "kingdoms:trade_station": "\u{1F682} Trade Station",
   "kingdoms:trade_pole": "\u{1F682} Trade Pole",
   "kingdoms:storage": "\u{1F4E6} Storage",
-  "kingdoms:armory": "\u{1F6E1}\uFE0F Armory"
+  "kingdoms:armory": "\u{1F6E1}\uFE0F Armory",
+  "kingdoms:king_castle": "\u{1F451} King's Castle"
 };
 var STRUCT_MENU_KEYS = {
   "kingdoms:town_hall": "town_hall",
@@ -5298,7 +5486,8 @@ var STRUCT_MENU_KEYS = {
   "kingdoms:trade_station": "trade_station",
   "kingdoms:trade_pole": "trade_pole",
   "kingdoms:storage": "storage",
-  "kingdoms:armory": "armory"
+  "kingdoms:armory": "armory",
+  "kingdoms:king_castle": "king_castle"
 };
 function spawnStructureHub(block, structKey) {
   try {
@@ -5343,6 +5532,7 @@ function openStructureMenu(player, structKey, block) {
     case "trade_pole": void showTradePoleMenu(player, block); break;
     case "storage": void showStorageMenu(player, block); break;
     case "armory": void showArmoryMenu(player, block); break;
+    case "king_castle": void showKingCastleMenu(player, block); break;
   }
 }
 world16.afterEvents.playerPlaceBlock.subscribe((event) => {
@@ -6282,7 +6472,8 @@ var SHOP_ITEMS = [
   { id: "kingdoms:wall_long_item", label: "Long Stone Wall (10x5)", desc: "Wide defensive wall with battlements", cost: 20, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", cost: 12, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:wall_tall_item", label: "\uD83E\uDDF1 Tall Stone Wall (5x10)", desc: "5-wide wall, 10 blocks tall — matches short wall z-depth for seamless joining", cost: 18, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:stone_gate_item", label: "\uD83D\uDEAA Stone Gate", desc: "9-wide gate with towers, arch & portcullis bars — joints with all wall types", cost: 35, costItem: "minecraft:emerald", prereq: true }
+  { id: "kingdoms:stone_gate_item", label: "\uD83D\uDEAA Stone Gate", desc: "9-wide gate with towers, arch & portcullis bars — joints with all wall types", cost: 35, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:king_castle_item", label: "\uD83D\uDC51 King's Castle", desc: "Grand two-story keep with throne hall, royal chambers, 4 towers & world leaderboard", cost: 200, costItem: "minecraft:emerald", prereq: true }
 ];
 async function showBuildingShopMenu(player, village) {
   const hasInfra = !!(village.granaryLocation && village.treasuryLocation);
@@ -7117,6 +7308,59 @@ Village Treasury: ${village.treasury}\u{1F48E}`).button("Buy Iron \xD78 (8\u{1F4
       break;
   }
 }
+// ── Rail validator — scans a cube around location for any rail block ─────────
+function hasNearbyRail(dimension, location, radius) {
+  if (radius === void 0) radius = 8;
+  const railTypes = new Set([
+    "minecraft:rail", "minecraft:powered_rail",
+    "minecraft:detector_rail", "minecraft:activator_rail"
+  ]);
+  const cx = Math.floor(location.x), cy = Math.floor(location.y), cz = Math.floor(location.z);
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        try {
+          const b = dimension.getBlock({ x: cx + dx, y: cy + dy, z: cz + dz });
+          if (b && railTypes.has(b.typeId)) return true;
+        } catch {}
+      }
+    }
+  }
+  return false;
+}
+
+// ── Power / leaderboard helpers ───────────────────────────────────────────────
+function calcKingdomPower(ownerName) {
+  let power = 0;
+  for (const v of getAllVillages().filter((v2) => v2.owner === ownerName)) {
+    power += 200; // base per village
+    power += (v.population ?? 0) * 3;
+    power += (v.prosperity ?? 0) * 2;
+    power += (v.troops?.cityGuards ?? 0) * 5;
+    power += (v.troops?.spearmen ?? 0) * 10;
+    power += (v.troops?.archers ?? 0) * 10;
+    power += (v.troops?.cavalry ?? 0) * 20;
+    power += Math.min(v.treasury ?? 0, 2000);
+    power += Math.floor((v.foodStorage ?? 0) * 0.2);
+    const armory = v.armoryItems ?? {};
+    power += Object.values(armory).reduce((s, n) => s + (n ?? 0), 0) * 2;
+    power += (v.tradePoles?.length ?? 0) * 20;
+    power += (v.guardPoles?.length ?? 0) * 10;
+  }
+  return Math.round(power);
+}
+function buildKingdomLeaderboard() {
+  const ownerVillages = new Map();
+  for (const v of getAllVillages()) {
+    if (!v.owner) continue;
+    ownerVillages.set(v.owner, (ownerVillages.get(v.owner) ?? 0) + 1);
+  }
+  return [...ownerVillages.keys()]
+    .map((name) => ({ name, villages: ownerVillages.get(name), power: calcKingdomPower(name) }))
+    .sort((a, b) => b.power - a.power)
+    .slice(0, 10);
+}
+
 async function showTradePoleMenu(player, block) {
   const village = findVillageAt2(block.location);
   if (!village) {
@@ -7125,16 +7369,24 @@ async function showTradePoleMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const poleCount = village.tradePoles?.length ?? 0;
+  const spawnDist = TRADE_POLE_DETECT_RADIUS + 3;
+  const railsFound = hasNearbyRail(block.dimension, block.location);
+  const railStatus = railsFound
+    ? "\xA7aRails detected nearby \u2014 cart will be ready to push!"
+    : "\xA7c\u26A0 No rails within 8 blocks! Place rails before spawning.";
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Trade Pole`)
     .body(
       `\xA77Village:\xA7f ${village.name}\n\xA77Trade Poles:\xA7f ${poleCount}\n\xA77Detection radius:\xA7f ${TRADE_POLE_DETECT_RADIUS} blocks\n\n` +
-      `\xA7fChest minecarts arriving within ${TRADE_POLE_DETECT_RADIUS} blocks are auto-delivered:\n` +
-      `\xA7e Emeralds\xA7f \u2192 Treasury\n\xA7e Food\xA7f \u2192 Granary\n\xA7e Troop tokens\xA7f \u2192 Barracks\n\xA7e Resources\xA7f \u2192 Storage\n\n` +
-      `\xA7aCart is spawned 8 blocks away so you can load it safely.\n\xA7ePush it along rails toward the destination pole!`
+      `\xA7fAuto-delivery routing (arriving carts):\n` +
+      `\xA7e Emeralds \xA7f\u2192 Treasury\n\xA7e Food \xA7f\u2192 Granary\n\xA7e Troop tokens \xA7f\u2192 Barracks\n\xA7e Resources \xA7f\u2192 Storage\n\n` +
+      railStatus + `\n\xA7eCarts spawn ${spawnDist} blocks north \u2014 load then push!`
     );
   if (isOwner) {
-    form.button("\xA7a\u{1F682} Spawn Minecart with Chest\n\xA77Spawns 8 blocks away \u2014 load then push!");
+    const btnLabel = railsFound
+      ? `\xA7a\u{1F682} Spawn Minecart with Chest\n\xA77Spawns ${spawnDist} blocks away \u2014 load then push!`
+      : `\xA7e\u{1F682} Spawn Minecart with Chest\n\xA7c\u26A0 No rails detected \u2014 spawn anyway?`;
+    form.button(btnLabel);
   }
   form.button("\xA77Close");
   const response = await form.show(player);
@@ -7143,19 +7395,114 @@ async function showTradePoleMenu(player, block) {
   try {
     const poleLoc = block.location;
     const dim = block.dimension;
-    const spawnDist = TRADE_POLE_DETECT_RADIUS + 3;
-    const spawnX = poleLoc.x + 0.5;
-    const spawnY = poleLoc.y + 1;
-    const spawnZ = poleLoc.z - spawnDist + 0.5;
-    const cart = dim.spawnEntity("minecraft:chest_minecart", { x: spawnX, y: spawnY, z: spawnZ });
+    const cart = dim.spawnEntity("minecraft:chest_minecart", {
+      x: poleLoc.x + 0.5,
+      y: poleLoc.y + 1,
+      z: poleLoc.z - spawnDist + 0.5
+    });
     cart.nameTag = `\xA76\u{1F4E6} ${village.name} \u2014 Load me then push!`;
-    notifyPlayer(
-      player.name,
-      `\xA7a\u{1F682} Chest minecart spawned \xA7b${spawnDist} blocks north\xA7a of the trade pole!\n\xA7eLoad your supplies, then push it along the rails toward the destination.`
-    );
+    const msg = railsFound
+      ? `\xA7a\u{1F682} Cart spawned ${spawnDist} blocks north! Load supplies then push toward destination.`
+      : `\xA7e\u{1F682} Cart spawned! \xA7cNo rails nearby \u2014 lay track before pushing.`;
+    notifyPlayer(player.name, msg);
   } catch {
     notifyPlayer(player.name, "\xA7cCould not spawn minecart \u2014 is the area loaded?");
   }
+}
+
+// ── King's Castle menu ────────────────────────────────────────────────────────
+async function showKingCastleMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  const isOwner = village?.owner === player.name;
+  const leaderboard = buildKingdomLeaderboard();
+  const myRank = leaderboard.findIndex((r) => r.name === player.name);
+  const myPower = myRank >= 0 ? leaderboard[myRank].power : calcKingdomPower(player.name);
+  const rankText = myRank >= 0
+    ? `\xA7eRank #${myRank + 1}\xA7f with \xA7e${myPower.toLocaleString()} power`
+    : `\xA77No villages yet \u2014 conquer land to rank up!`;
+  const form = new ActionFormData()
+    .title("\u{1F451} King\u2019s Castle \u2014 Kingdom Registry")
+    .body(
+      `\xA76\xA7l${village?.name ?? "The Realm"}\xA7r\u2019s Castle\n\n` +
+      `${rankText}\n\n` +
+      `\xA77Power is earned from:\n` +
+      `\xA77\u2022 Villages owned (200 ea)\n` +
+      `\xA77\u2022 Troops (5\u201320 power ea)\n` +
+      `\xA77\u2022 Treasury emeralds & food\n` +
+      `\xA77\u2022 Population & prosperity\n` +
+      `\xA77\u2022 Trade poles & guard poles\n` +
+      `\xA77\u2022 Armory equipment\n\n` +
+      `\xA7aTip: Place a ladder on the north interior wall to reach the Royal Chambers above.`
+    );
+  form.button("\xA7e\u{1F4CA} World Kingdom Leaderboard");
+  if (isOwner) form.button("\xA7b\u{1F3F0} My Kingdom Overview");
+  form.button("\xA77Close");
+  const response = await form.show(player);
+  if (response.canceled) return;
+  if (response.selection === 0) {
+    void showLeaderboardMenu(player, leaderboard);
+  } else if (isOwner && response.selection === 1) {
+    void showKingdomOverviewMenu(player, village, leaderboard);
+  }
+}
+
+async function showLeaderboardMenu(player, leaderboard) {
+  const MEDALS = ["\xA7e\uD83E\uDD47", "\xA77\uD83E\uDD48", "\xA76\uD83E\uDD49", "\xA7f4.", "\xA7f5.", "\xA7f6.", "\xA7f7.", "\xA7f8.", "\xA7f9.", "\xA7f10."];
+  let body = "\xA76\xA7l\u2694 World Kingdom Power Rankings \u2694\xA7r\n\xA77Calculated from villages, troops, treasury & more\n\n";
+  if (leaderboard.length === 0) {
+    body += "\xA7cNo kingdoms registered yet.\nClaim a village to appear on the leaderboard!";
+  } else {
+    for (let i = 0; i < leaderboard.length; i++) {
+      const r = leaderboard[i];
+      body += `${MEDALS[i] ?? `\xA7f${i + 1}.`} \xA7f${r.name}\n`;
+      body += `\xA77   Power: \xA7e${r.power.toLocaleString()}\xA77 | Villages: \xA7a${r.villages}\n\n`;
+    }
+  }
+  const myRank = leaderboard.findIndex((r) => r.name === player.name);
+  if (myRank >= 0) {
+    body += `\xA7a\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n`;
+    body += `\xA7aYou are ranked \xA7e#${myRank + 1}\xA7a with \xA7e${leaderboard[myRank].power.toLocaleString()} power\xA7a.`;
+  } else {
+    body += `\xA77You have no villages. Conquer or claim territory to rank up!`;
+  }
+  const form = new ActionFormData()
+    .title("\xA7e\u{1F4CA} Kingdom Leaderboard")
+    .body(body)
+    .button("\xA77Close");
+  await form.show(player);
+}
+
+async function showKingdomOverviewMenu(player, village, leaderboard) {
+  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const myRank = leaderboard.findIndex((r) => r.name === player.name);
+  const myPower = myRank >= 0 ? leaderboard[myRank].power : calcKingdomPower(player.name);
+  let soldiers = 0, totalTreasury = 0, totalPop = 0, totalProsperity = 0;
+  for (const v of myVillages) {
+    const t = v.troops ?? {};
+    soldiers += (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0);
+    totalTreasury += v.treasury ?? 0;
+    totalPop += v.population ?? 0;
+    totalProsperity += v.prosperity ?? 0;
+  }
+  const avgProsperity = myVillages.length > 0 ? Math.round(totalProsperity / myVillages.length) : 0;
+  const body =
+    `\xA76\xA7l${player.name}\u2019s Kingdom\xA7r\n\n` +
+    `\xA7e\u26A1 Power: \xA7f${myPower.toLocaleString()} \xA77(Rank \xA7e#${myRank >= 0 ? myRank + 1 : "Unranked"}\xA77)\n\n` +
+    `\xA77Domains: \xA7f${myVillages.length}\n` +
+    `\xA77Population: \xA7f${totalPop}\n` +
+    `\xA77Army: \xA7f${soldiers} troops\n` +
+    `\xA77Treasury: \xA7f${totalTreasury} \xA77emeralds\n` +
+    `\xA77Avg Prosperity: \xA7f${avgProsperity}\n\n` +
+    `\xA77Power Breakdown:\n` +
+    `\xA77  Villages: \xA7e+${myVillages.length * 200}\n` +
+    `\xA77  Population: \xA7e+${totalPop * 3}\n` +
+    `\xA77  Treasury: \xA7e+${Math.min(totalTreasury, 2000)}\n` +
+    `\xA77  Prosperity: \xA7e+${avgProsperity * 2 * myVillages.length}`;
+  const form = new ActionFormData()
+    .title(`\u{1F451} Kingdom of ${player.name}`)
+    .body(body)
+    .button("\xA77Close");
+  await form.show(player);
 }
 async function showTradeStationMenu(player, block) {
   const village = findVillageAt2(block.location);
