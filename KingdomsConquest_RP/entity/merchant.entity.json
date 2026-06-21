@@ -9,11 +9,12 @@
       "geometry": { "default": "geometry.humanoid" },
       "animations": {
         "walk": "animation.humanoid.walk",
-        "idle": "animation.humanoid.base_pose"
+        "idle": "animation.humanoid.base_pose",
+        "move": "controller.animation.humanoid.move"
       },
-      "animation_controllers": [
-        { "root": "controller.animation.humanoid.move" }
-      ],
+      "scripts": {
+        "animate": [ "move" ]
+      },
       "render_controllers": [ "controller.render.default" ]
     }
   }

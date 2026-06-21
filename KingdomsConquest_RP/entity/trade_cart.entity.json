@@ -10,11 +10,12 @@
       "animations": {
         "walk": "animation.llama.walk",
         "idle": "animation.llama.idle",
-        "chest": "animation.llama.chest"
+        "chest": "animation.llama.chest",
+        "move": "controller.animation.llama.general"
       },
-      "animation_controllers": [
-        { "root": "controller.animation.llama.general" }
-      ],
+      "scripts": {
+        "animate": [ "move" ]
+      },
       "render_controllers": [ "controller.render.llama" ]
     }
   }

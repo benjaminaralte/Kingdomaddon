@@ -6,7 +6,7 @@
       "min_engine_version": "1.16.0",
       "materials": { "default": "entity_alphatest" },
       "textures": { "default": "textures/entity/structure_hub" },
-      "geometry": { "default": "geometry.pig.v1.9" },
+      "geometry": { "default": "geometry.pig" },
       "render_controllers": [ "controller.render.default" ]
     }
   }
