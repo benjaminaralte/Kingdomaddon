@@ -5,7 +5,7 @@
       "identifier": "kingdoms:samurai",
       "materials": { "default": "skeleton" },
       "textures": {
-        "var0": "textures/entity/pn_samurai_naginata",
+        "var0": "textures/entity/pn_samurai",
         "var1": "textures/entity/pn_samurai_naginata"
       },
       "geometry": { "default": "geometry.samurai_naginata" },
@@ -13,11 +13,11 @@
         "animate": ["setup", "look_at_target"]
       },
       "animations": {
-        "attack":        "animation.samurai.naginata_attack",
-        "bobing":        "animation.samurai.idle_naginata",
+        "attack":        "animation.samurai.sword_attack",
+        "bobing":        "animation.samurai.idle",
         "setup":         "controller.animation.pn_samurai.setup",
-        "move":          "animation.samurai.move_naginata",
-        "move_target":   "animation.samurai.naginata_move_target",
+        "move":          "animation.samurai.move",
+        "move_target":   "animation.samurai.sword_move_target",
         "target":        "animation.samurai.sword_stay_target",
         "look_at_target": "animation.common.look_at_target"
       },

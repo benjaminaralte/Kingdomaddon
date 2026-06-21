@@ -27,7 +27,7 @@
             },
             "part_visibility": [
                 {
-                    "spear": true
+                    "spear": "query.variant == 1"
                 }
             ]
         }
