@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "emerald"
+          "default": "kingdoms_market"
         }
       },
       "minecraft:block_placer": {

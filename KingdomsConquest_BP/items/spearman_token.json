@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "iron_sword"
+          "default": "kingdoms_spearman_token"
         }
       },
       "minecraft:max_stack_size": 64

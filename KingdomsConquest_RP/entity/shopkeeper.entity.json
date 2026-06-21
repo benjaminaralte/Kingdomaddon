@@ -5,7 +5,7 @@
       "identifier": "kingdoms:shopkeeper",
       "min_engine_version": "1.16.0",
       "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/villager2/profession/farmer" },
+      "textures": { "default": "textures/entity/shopkeeper" },
       "geometry": { "default": "geometry.humanoid.custom" },
       "animations": {
         "walk": "animation.humanoid.walk",

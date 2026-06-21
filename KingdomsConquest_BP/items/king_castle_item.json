@@ -3,12 +3,22 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:king_castle_item",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "King's Castle" },
-      "minecraft:icon": { "textures": { "default": "chiseled_stone_bricks" } },
-      "minecraft:block_placer": { "block": "kingdoms:king_castle" },
+      "minecraft:display_name": {
+        "value": "King's Castle"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_king_castle"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:king_castle"
+      },
       "minecraft:max_stack_size": 1
     }
   }

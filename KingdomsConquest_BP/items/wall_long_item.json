@@ -3,12 +3,22 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:wall_long_item",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "Long Stone Wall (10x5)" },
-      "minecraft:icon": { "textures": { "default": "stone_bricks" } },
-      "minecraft:block_placer": { "block": "kingdoms:wall_long" },
+      "minecraft:display_name": {
+        "value": "Long Stone Wall (10x5)"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_wall_long"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:wall_long"
+      },
       "minecraft:max_stack_size": 4
     }
   }

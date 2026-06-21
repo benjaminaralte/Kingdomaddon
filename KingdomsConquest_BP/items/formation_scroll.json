@@ -3,11 +3,19 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:formation_scroll",
-      "menu_category": { "category": "items" }
+      "menu_category": {
+        "category": "items"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "Strategic Formation Scroll" },
-      "minecraft:icon": { "textures": { "default": "paper" } },
+      "minecraft:display_name": {
+        "value": "Strategic Formation Scroll"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_formation_scroll"
+        }
+      },
       "minecraft:max_stack_size": 1
     }
   }

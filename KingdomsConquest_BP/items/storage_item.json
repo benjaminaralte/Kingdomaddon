@@ -3,12 +3,22 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:storage_item",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "Material Storage" },
-      "minecraft:icon": { "textures": { "default": "barrel_top" } },
-      "minecraft:block_placer": { "block": "kingdoms:storage" },
+      "minecraft:display_name": {
+        "value": "Material Storage"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_storage"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:storage"
+      },
       "minecraft:max_stack_size": 1
     }
   }

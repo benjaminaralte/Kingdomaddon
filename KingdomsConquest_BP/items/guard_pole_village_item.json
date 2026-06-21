@@ -13,7 +13,7 @@
       },
       "minecraft:icon": {
         "textures": {
-          "default": "stick"
+          "default": "kingdoms_guard_pole_village"
         }
       },
       "minecraft:block_placer": {

@@ -3,12 +3,22 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:armory_item",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "Armory" },
-      "minecraft:icon": { "textures": { "default": "iron_chestplate" } },
-      "minecraft:block_placer": { "block": "kingdoms:armory" },
+      "minecraft:display_name": {
+        "value": "Armory"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_armory"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:armory"
+      },
       "minecraft:max_stack_size": 1
     }
   }

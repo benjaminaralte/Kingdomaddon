@@ -3,12 +3,22 @@
   "minecraft:item": {
     "description": {
       "identifier": "kingdoms:house_item",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:display_name": { "value": "House" },
-      "minecraft:icon": { "textures": { "default": "oak_planks" } },
-      "minecraft:block_placer": { "block": "kingdoms:house" },
+      "minecraft:display_name": {
+        "value": "House"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_house"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:house"
+      },
       "minecraft:max_stack_size": 1
     }
   }

@@ -16,7 +16,7 @@
       "scripts": {
         "animate": [ "move" ]
       },
-      "render_controllers": [ "controller.render.llama" ]
+      "render_controllers": [ "controller.render.kingdoms.trade_cart" ]
     }
   }
 }
