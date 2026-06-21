@@ -1,3 +1,3 @@
 - [Bob's Farming namespace](bobs-farming-namespace.md) — addon uses twb_farm: not bobs_farming:; items are crop items (no separate _seeds IDs)
-- [VD soldier textures](vd-soldier-textures.md) — Village Defense geometry/anim IDs and material key for KC soldier RP entities
+- [GP soldier textures](gp-soldier-textures.md) — Guard & Patrol RP asset IDs now used for all KC soldier RP entities (replaced VD)
 - [Structure hub entity](structure-hub-entity.md) — invisible pig entity trick to reopen structure GUI after first use

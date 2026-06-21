@@ -5,30 +5,30 @@
       "identifier": "kingdoms:cavalry",
       "min_engine_version": "1.16.0",
       "materials": {
-        "villager": "entity_alphatest"
+        "default": "skeleton"
       },
       "textures": {
-        "default": "textures/piki/vd/entity/villager_warrior"
+        "var0": "textures/entity/pn_viking_axeman",
+        "var1": "textures/entity/pn_viking_axeman"
       },
       "geometry": {
-        "default": "geometry.piki_villagedefense.villager"
-      },
-      "animations": {
-        "idle": "animation.piki_villagedefense.villager.idle",
-        "walk": "animation.piki_villagedefense.villager.walk",
-        "run": "animation.piki_villagedefense.villager.run",
-        "attack": "animation.piki_villagedefense.villager.attack"
+        "default": "geometry.viking_axeman"
       },
       "scripts": {
         "animate": [
-          { "run": "query.modified_move_speed >= 0.34" },
-          { "walk": "query.modified_move_speed >= 0.1 && query.modified_move_speed < 0.34" },
-          { "attack": "query.is_attacking" },
-          "idle"
+          "setup"
         ]
       },
+      "animations": {
+        "attack":      "animation.mercenary_viking_axe.attack",
+        "bobing":      "animation.mercenary_viking_axe.idle",
+        "setup":       "controller.animation.pn_roman.setup",
+        "move":        "animation.mercenary_viking_axe.move",
+        "move_target": "animation.mercenary_viking_axe.move_target",
+        "target":      "animation.mercenary_viking_axe.stay_target"
+      },
       "render_controllers": [
-        "controller.render.kingdoms.soldier"
+        "controller.render.mercenary_pn.viking"
       ],
       "spawn_egg": {
         "texture": "cavalry_spawn_egg",

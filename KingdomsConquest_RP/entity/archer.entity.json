@@ -4,26 +4,36 @@
     "description": {
       "identifier": "kingdoms:archer",
       "min_engine_version": "1.16.0",
-      "materials": { "villager": "entity_alphatest" },
-      "textures": { "default": "textures/piki/vd/entity/villager_archer" },
-      "geometry": { "default": "geometry.piki_villagedefense.villager" },
-      "animations": {
-        "idle": "animation.piki_villagedefense.villager.idle",
-        "walk": "animation.piki_villagedefense.villager.walk",
-        "run": "animation.piki_villagedefense.villager.run",
-        "attack": "animation.piki_villagedefense.villager.attack",
-        "charge_bow": "animation.piki_villagedefense.villager.charge_bow",
-        "shoot_bow": "animation.piki_villagedefense.villager.shoot_bow"
+      "materials": {
+        "default": "skeleton"
+      },
+      "textures": {
+        "var0": "textures/entity/pn_roman",
+        "var1": "textures/entity/pn_roman"
+      },
+      "geometry": {
+        "default": "geometry.mercenary_roman_bow"
       },
       "scripts": {
         "animate": [
-          { "run": "query.modified_move_speed >= 0.34" },
-          { "walk": "query.modified_move_speed >= 0.1 && query.modified_move_speed < 0.34" },
-          { "attack": "query.is_attacking" },
-          "idle"
+          "setup"
         ]
       },
-      "render_controllers": [ "controller.render.kingdoms.soldier" ]
+      "animations": {
+        "attack":      "animation.roman_bowman.attack",
+        "bobing":      "animation.roman_bowman.idle",
+        "setup":       "controller.animation.got_troop2",
+        "move":        "animation.roman_bowman.move",
+        "move_target": "animation.roman_bowman.move_target",
+        "target":      "animation.roman_bowman.target"
+      },
+      "render_controllers": [
+        "controller.render.got1"
+      ],
+      "spawn_egg": {
+        "texture": "archer_spawn_egg",
+        "texture_index": 0
+      }
     }
   }
 }

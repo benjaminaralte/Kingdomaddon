@@ -5,30 +5,30 @@
       "identifier": "kingdoms:spearman",
       "min_engine_version": "1.16.0",
       "materials": {
-        "villager": "entity_alphatest"
+        "default": "skeleton"
       },
       "textures": {
-        "default": "textures/piki/vd/entity/villager_fighter"
+        "var0": "textures/entity/pn_roman",
+        "var1": "textures/entity/pn_roman"
       },
       "geometry": {
-        "default": "geometry.piki_villagedefense.villager"
-      },
-      "animations": {
-        "idle": "animation.piki_villagedefense.villager.idle",
-        "walk": "animation.piki_villagedefense.villager.walk",
-        "run": "animation.piki_villagedefense.villager.run",
-        "attack": "animation.piki_villagedefense.villager.attack"
+        "default": "geometry.mercenary_roman_spear"
       },
       "scripts": {
         "animate": [
-          { "run": "query.modified_move_speed >= 0.34" },
-          { "walk": "query.modified_move_speed >= 0.1 && query.modified_move_speed < 0.34" },
-          { "attack": "query.is_attacking" },
-          "idle"
+          "setup"
         ]
       },
+      "animations": {
+        "attack":      "animation.roman_spearman.attack",
+        "bobing":      "animation.roman_spearman.idle",
+        "setup":       "controller.animation.pn_roman.setup",
+        "move":        "animation.roman_spearman.move",
+        "move_target": "animation.roman_spearman.move_target",
+        "target":      "animation.roman_spearman.stay_target"
+      },
       "render_controllers": [
-        "controller.render.kingdoms.soldier"
+        "controller.render.mercenary_pn.sword"
       ],
       "spawn_egg": {
         "texture": "spearman_spawn_egg",
