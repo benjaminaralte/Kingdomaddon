@@ -4,7 +4,7 @@
     "name": "Kingdoms & Conquest",
     "description": "Transform Minecraft villages into living kingdoms. Grow populations, manage economies, build armies, and conquer territories.",
     "uuid": "a7f3c2d1-e8b4-4f9a-b5c6-d0e1f2a3b4c5",
-    "version": [1, 0, 0],
+    "version": [1, 4, 0],
     "min_engine_version": [1, 21, 0]
   },
   "modules": [
@@ -12,14 +12,14 @@
       "description": "Kingdoms & Conquest Behavior Data",
       "type": "data",
       "uuid": "b8e4d3c2-f9a5-4e0b-c6d7-e1f2a3b4c5d6",
-      "version": [1, 0, 0]
+      "version": [1, 4, 0]
     },
     {
       "description": "Kingdoms & Conquest Scripts",
       "language": "javascript",
       "type": "script",
       "uuid": "c9f5e4d3-a0b6-4f1c-d7e8-f2a3b4c5d6e7",
-      "version": [1, 0, 0],
+      "version": [1, 4, 0],
       "entry": "scripts/main.js"
     }
   ],

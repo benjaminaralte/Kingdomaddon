@@ -23,3 +23,9 @@ id = "IiwYz-osqaaY86RNYno60"
 uri = "file://artifacts/kingdoms-conquest/dist/kingdoms-conquest-v2.zip"
 type = "unspecified"
 title = "kingdoms-conquest.mcaddon"
+
+[[outputs]]
+id = "yzkxHRGQj7WgEQzsoHgMM"
+uri = "file://KingdomsConquest_v1.4.0.zip"
+type = "unspecified"
+title = "Kingdoms & Conquest v1.4.0.mcaddon"
