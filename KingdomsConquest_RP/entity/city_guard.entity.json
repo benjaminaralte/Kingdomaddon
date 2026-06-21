@@ -8,8 +8,8 @@
         "default": "skeleton"
       },
       "textures": {
-        "var0": "textures/entity/pn_templar_swordman",
-        "var1": "textures/entity/pn_templar_swordman"
+        "var0": "textures/entity/city_guard",
+        "var1": "textures/entity/city_guard"
       },
       "geometry": {
         "default": "geometry.templar_footman"

@@ -5110,7 +5110,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:king_castle",
   "kingdoms:house",
   "kingdoms:fence_enclosure",
-  "kingdoms:barn"
+  "kingdoms:barn",
+  "kingdoms:farm_plot"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -6280,7 +6281,7 @@ function generateStructure(dimension, origin, blockTypeId) {
   if (!blueprint) return;
   const placements = blueprint();
   for (const bp of placements) {
-    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
+    if (bp.x === 0 && bp.z === 0 && bp.y <= 1) continue;
     try {
       const loc = {
         x: origin.x + bp.x,
@@ -6363,13 +6364,30 @@ var STRUCT_MENU_KEYS = {
   "kingdoms:armory": "armory",
   "kingdoms:king_castle": "king_castle"
 };
+var STRUCT_HUB_OFFSETS = {
+  "king_castle": { x: 0, y: 2, z: 11 },
+  "barracks":    { x: 0, y: 1, z: 6 },
+  "market":      { x: 0, y: 1, z: 5 },
+  "blacksmith":  { x: 0, y: 1, z: 4 },
+  "trade_station": { x: 0, y: 1, z: 4 },
+  "armory":      { x: 0, y: 1, z: 4 },
+  "granary":     { x: 0, y: 1, z: 3 },
+  "treasury":    { x: 0, y: 1, z: 3 },
+  "storage":     { x: 0, y: 1, z: 4 },
+  "town_hall":   { x: 0, y: 1, z: 4 }
+};
 function spawnStructureHub(block, structKey) {
   try {
     const loc = block.location;
     const dimId = block.dimension.id;
     removeStructureHub(loc);
-    const hub = world16.getDimension(dimId).spawnEntity("kingdoms:structure_hub", { x: loc.x + 0.5, y: loc.y, z: loc.z + 0.5 });
-    hub.nameTag = "\xA76\u25B6 " + (STRUCT_DISPLAY_NAMES[block.typeId] ?? structKey);
+    const off = STRUCT_HUB_OFFSETS[structKey] ?? { x: 0, y: 1, z: 0 };
+    const hub = world16.getDimension(dimId).spawnEntity("kingdoms:structure_hub", {
+      x: loc.x + off.x + 0.5,
+      y: loc.y + off.y,
+      z: loc.z + off.z + 0.5
+    });
+    hub.nameTag = "\xA76\u25B6 " + (STRUCT_DISPLAY_NAMES[block.typeId] ?? structKey) + "\n\xA7e\u25C6 Tap to open menu";
     hub.setDynamicProperty("kc:structure_type", structKey);
     hub.setDynamicProperty("kc:block_loc", JSON.stringify({ x: loc.x, y: loc.y, z: loc.z, dimension: dimId }));
     world16.setDynamicProperty("kc:hub:" + loc.x + "," + loc.y + "," + loc.z, hub.id);
@@ -7302,6 +7320,22 @@ world16.afterEvents.itemUse.subscribe((event) => {
   }
 });
 registerCommands();
+var guardGreetCooldown = /* @__PURE__ */ new Map();
+system3.runInterval(() => {
+  try {
+    for (const player of world16.getAllPlayers()) {
+      const guards = player.dimension.getEntities({ type: "kingdoms:city_guard", maxDistance: 4, location: player.location });
+      if (guards.length > 0) {
+        const now = getCurrentTick();
+        const last = guardGreetCooldown.get(player.name) ?? 0;
+        if (now - last > 300) {
+          guardGreetCooldown.set(player.name, now);
+          player.sendMessage("\xA76\uD83D\uDC51 \xA7o\"Your Majesty!\"\xA7r");
+        }
+      }
+    }
+  } catch {}
+}, 60);
 var KC_FIRST_SPAWN_PROP = "kc:first_spawned:";
 function hasFirstSpawned(playerName) {
   try { return world16.getDynamicProperty(KC_FIRST_SPAWN_PROP + playerName) === true; } catch { return false; }

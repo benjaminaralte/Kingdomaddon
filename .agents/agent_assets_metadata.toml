@@ -35,3 +35,9 @@ id = "pKTAcP4Rj9islkNXmQPgd"
 uri = "file://KingdomsConquest_v1.4.0_full.zip"
 type = "unspecified"
 title = "KingdomsConquest_v1.4.0.mcaddon (rename .zip → .mcaddon after download)"
+
+[[outputs]]
+id = "GFPA7qGi-unnqh7qiHEif"
+uri = "file://KingdomsConquest_v1.5.0_full.zip"
+type = "unspecified"
+title = "KingdomsConquest v1.5.0 — Download (rename to .mcaddon)"
