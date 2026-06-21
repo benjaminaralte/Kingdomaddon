@@ -3,40 +3,63 @@
   "minecraft:entity": {
     "description": {
       "identifier": "kingdoms:trade_cart",
+      "runtime_identifier": "minecraft:pig",
       "is_spawnable": false,
       "is_summonable": true,
       "is_experimental": false
     },
     "components": {
       "minecraft:type_family": {
-        "family": ["kingdoms_cart", "inanimate"]
+        "family": ["kingdoms_cart", "mob"]
       },
       "minecraft:collision_box": {
-        "width": 1.0,
-        "height": 1.0
+        "width": 0.9,
+        "height": 1.2
       },
       "minecraft:health": {
-        "value": 30,
-        "max": 30
+        "value": 40,
+        "max": 40
       },
       "minecraft:movement": {
-        "value": 0.15
+        "value": 0.22
       },
       "minecraft:navigation.walk": {
         "can_path_over_water": false,
         "avoid_water": true,
-        "avoid_damage_blocks": false
+        "avoid_damage_blocks": true,
+        "can_open_doors": false
       },
       "minecraft:movement.basic": {},
+      "minecraft:jump.static": {},
       "minecraft:physics": {},
       "minecraft:pushable": {
-        "is_pushable": false,
+        "is_pushable": true,
         "is_pushable_by_piston": false
       },
       "minecraft:nameable": {},
       "minecraft:fire_immune": false,
       "minecraft:loot": {
         "table": "loot_tables/entities/trade_cart.json"
+      },
+      "minecraft:despawn": {
+        "despawn_from_distance": {
+          "min_distance": 32,
+          "max_distance": 128
+        }
+      },
+      "minecraft:behavior.float": { "priority": 0 },
+      "minecraft:behavior.random_stroll": {
+        "priority": 8,
+        "speed_multiplier": 0.6,
+        "xz_dist": 6,
+        "y_dist": 2
+      },
+      "minecraft:behavior.look_at_player": {
+        "priority": 9,
+        "look_distance": 5.0
+      },
+      "minecraft:behavior.random_look_around": {
+        "priority": 10
       }
     }
   }

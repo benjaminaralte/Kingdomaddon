@@ -5,8 +5,15 @@
       "identifier": "kingdoms:merchant",
       "min_engine_version": "1.16.0",
       "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/villager2/villager2" },
-      "geometry": { "default": "geometry.villager.v2" },
+      "textures": { "default": "textures/entity/wandering_trader" },
+      "geometry": { "default": "geometry.humanoid" },
+      "animations": {
+        "walk": "animation.humanoid.walk",
+        "idle": "animation.humanoid.base_pose"
+      },
+      "animation_controllers": [
+        { "root": "controller.animation.humanoid.move" }
+      ],
       "render_controllers": [ "controller.render.default" ]
     }
   }

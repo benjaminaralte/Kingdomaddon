@@ -70,6 +70,12 @@
     },
     "bandit_spawn_egg": {
       "textures": "textures/items/bandit_spawn_egg"
+    },
+    "kingdoms_village_spawner": {
+      "textures": "textures/items/village_spawner_tex"
+    },
+    "kingdoms_trade_cart": {
+      "textures": "textures/items/trade_cart_tex"
     }
   }
 }

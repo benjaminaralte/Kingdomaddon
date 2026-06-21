@@ -5,9 +5,17 @@
       "identifier": "kingdoms:trade_cart",
       "min_engine_version": "1.16.0",
       "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/minecart" },
-      "geometry": { "default": "geometry.minecart" },
-      "render_controllers": [ "controller.render.minecart" ]
+      "textures": { "default": "textures/entity/llama/llama_creamy" },
+      "geometry": { "default": "geometry.llama" },
+      "animations": {
+        "walk": "animation.llama.walk",
+        "idle": "animation.llama.idle",
+        "chest": "animation.llama.chest"
+      },
+      "animation_controllers": [
+        { "root": "controller.animation.llama.general" }
+      ],
+      "render_controllers": [ "controller.render.llama" ]
     }
   }
 }

@@ -40,8 +40,10 @@ item.kingdoms:spearman_token.name=Spearman
 item.kingdoms:archer_token.name=Archer
 item.kingdoms:cavalry_token.name=Cavalry
 
-entity.kingdoms:merchant.name=Merchant
+entity.kingdoms:merchant.name=Travelling Merchant
 entity.kingdoms:trade_cart.name=Trade Cart
+
+item.kingdoms:village_spawner.name=Village Spawner
 entity.kingdoms:city_guard.name=City Guard
 entity.kingdoms:spearman.name=Spearman
 entity.kingdoms:archer.name=Archer

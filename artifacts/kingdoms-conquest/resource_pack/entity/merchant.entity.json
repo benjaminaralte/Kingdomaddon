@@ -8,11 +8,18 @@
         "default": "entity_alphatest"
       },
       "textures": {
-        "default": "textures/entity/city_guard"
+        "default": "textures/entity/wandering_trader"
       },
       "geometry": {
-        "default": "geometry.villager.v2"
+        "default": "geometry.humanoid"
       },
+      "animations": {
+        "walk": "animation.humanoid.walk",
+        "idle": "animation.humanoid.base_pose"
+      },
+      "animation_controllers": [
+        { "root": "controller.animation.humanoid.move" }
+      ],
       "render_controllers": [
         "controller.render.default"
       ]

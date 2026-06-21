@@ -8,13 +8,21 @@
         "default": "entity_alphatest"
       },
       "textures": {
-        "default": "textures/entity/minecart"
+        "default": "textures/entity/llama/llama_creamy"
       },
       "geometry": {
-        "default": "geometry.minecart"
+        "default": "geometry.llama"
       },
+      "animations": {
+        "walk": "animation.llama.walk",
+        "idle": "animation.llama.idle",
+        "chest": "animation.llama.chest"
+      },
+      "animation_controllers": [
+        { "root": "controller.animation.llama.general" }
+      ],
       "render_controllers": [
-        "controller.render.minecart"
+        "controller.render.llama"
       ]
     }
   }

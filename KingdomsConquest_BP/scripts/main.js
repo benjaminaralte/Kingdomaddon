@@ -3261,6 +3261,13 @@ var MERCHANT_STOCK_TEMPLATES = {
     "minecraft:bread": 64,
     "minecraft:cooked_beef": 32,
     "minecraft:apple": 48
+  },
+  bobsFarm: {
+    "bobs_farming:tomato_seeds": 16,
+    "bobs_farming:corn_seeds": 12,
+    "bobs_farming:strawberry_seeds": 10,
+    "bobs_farming:cranberry_seeds": 8,
+    "bobs_farming:pineapple_seeds": 4
   }
 };
 var SEED_SHOP = [
@@ -3270,7 +3277,17 @@ var SEED_SHOP = [
   { itemId: "minecraft:beetroot_seeds", label: "Beetroot Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
   { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
   { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 }
+  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 },
+  { itemId: "bobs_farming:tomato_seeds", label: "\xA72Tomato Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "bobs_farming:rice_seeds", label: "\xA72Rice Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "bobs_farming:corn_seeds", label: "\xA72Corn Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 3 },
+  { itemId: "bobs_farming:onion_seeds", label: "\xA72Onion Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "bobs_farming:strawberry_seeds", label: "\xA72Strawberry Seeds \xA77[Bob's]", quantityPerPurchase: 6, emeraldCost: 3 },
+  { itemId: "bobs_farming:lettuce_seeds", label: "\xA72Lettuce Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "bobs_farming:cucumber_seeds", label: "\xA72Cucumber Seeds \xA77[Bob's]", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "bobs_farming:garlic_seeds", label: "\xA72Garlic Seeds \xA77[Bob's]", quantityPerPurchase: 6, emeraldCost: 2 },
+  { itemId: "bobs_farming:cranberry_seeds", label: "\xA72Cranberry Seeds \xA77[Bob's]", quantityPerPurchase: 6, emeraldCost: 4 },
+  { itemId: "bobs_farming:pineapple_seeds", label: "\xA72Pineapple Seeds \xA77[Bob's]", quantityPerPurchase: 4, emeraldCost: 5 }
 ];
 var FOOD_SELL_RATES = [
   { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 8, minBatch: 16 },
@@ -3285,7 +3302,17 @@ var FOOD_SELL_RATES = [
   { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 3, minBatch: 8 },
   { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 3, minBatch: 8 },
   { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 }
+  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 },
+  { itemId: "bobs_farming:tomato", label: "Tomato [Bob's]", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "bobs_farming:rice", label: "Rice [Bob's]", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "bobs_farming:corn", label: "Corn [Bob's]", itemsPerEmerald: 5, minBatch: 12 },
+  { itemId: "bobs_farming:onion", label: "Onion [Bob's]", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "bobs_farming:strawberry", label: "Strawberry [Bob's]", itemsPerEmerald: 5, minBatch: 12 },
+  { itemId: "bobs_farming:lettuce", label: "Lettuce [Bob's]", itemsPerEmerald: 6, minBatch: 16 },
+  { itemId: "bobs_farming:cucumber", label: "Cucumber [Bob's]", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "bobs_farming:garlic", label: "Garlic [Bob's]", itemsPerEmerald: 8, minBatch: 16 },
+  { itemId: "bobs_farming:cranberry", label: "Cranberry [Bob's]", itemsPerEmerald: 4, minBatch: 12 },
+  { itemId: "bobs_farming:pineapple", label: "Pineapple [Bob's]", itemsPerEmerald: 3, minBatch: 8 }
 ];
 function getMaxMerchants(village) {
   return Math.floor(village.marketLevel * 3 + village.population / 8);
@@ -3303,6 +3330,45 @@ function tickAllMerchantMovement() {
   for (const village of getAllVillages()) {
     if (village.activeMerchants.length === 0) continue;
     tickMerchantMovement(village);
+  }
+}
+var TRADE_CART_FOLLOW_DIST = 3.5;
+var TRADE_CART_SPEED = 0.2;
+var TRADE_CART_ABANDON_DIST = 200;
+function tickTradeCartMovement() {
+  for (const dimId of ["overworld", "nether", "the_end"]) {
+    try {
+      const dim = world16.getDimension(dimId);
+      const carts = dim.getEntities({ type: "kingdoms:trade_cart" });
+      if (carts.length === 0) continue;
+      const merchants = dim.getEntities({ type: "kingdoms:merchant" });
+      for (const cart of carts) {
+        try {
+          if (merchants.length === 0) continue;
+          let nearest = null;
+          let nearestDist = TRADE_CART_ABANDON_DIST;
+          const merchantId = cart.getDynamicProperty("kc:merchant_id");
+          for (const m of merchants) {
+            const dx2 = m.location.x - cart.location.x;
+            const dz2 = m.location.z - cart.location.z;
+            const dist = Math.sqrt(dx2 * dx2 + dz2 * dz2);
+            if (merchantId && m.id === merchantId) { nearest = m; nearestDist = dist; break; }
+            if (dist < nearestDist) { nearestDist = dist; nearest = m; }
+          }
+          if (!nearest) continue;
+          if (nearestDist <= TRADE_CART_FOLLOW_DIST) continue;
+          const dx = nearest.location.x - cart.location.x;
+          const dz = nearest.location.z - cart.location.z;
+          const d2d = Math.sqrt(dx * dx + dz * dz);
+          if (d2d < 0.1) continue;
+          const ratio = TRADE_CART_SPEED / d2d;
+          cart.teleport(
+            { x: cart.location.x + dx * ratio, y: nearest.location.y, z: cart.location.z + dz * ratio },
+            { dimension: dim }
+          );
+        } catch {}
+      }
+    } catch {}
   }
 }
 function spawnMerchant(village) {
@@ -5415,6 +5481,7 @@ system3.runInterval(() => {
   }
   tickAllMerchantsSpawn(tick);
   tickAllMerchantMovement();
+  tickTradeCartMovement();
   tickWorldLife(tick);
 }, 20);
 system3.runInterval(() => {
@@ -5433,7 +5500,7 @@ system3.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
-// World merchant spawner — independent of villages, spawns travelling merchants near players
+// World merchant spawner — independent of villages, spawns travelling merchants + trade carts near players
 system3.runInterval(() => {
   const players = world16.getAllPlayers();
   for (const player of players) {
@@ -5444,28 +5511,51 @@ system3.runInterval(() => {
       if (nearby.length >= 3) continue;
       const angle = Math.random() * Math.PI * 2;
       const d = 60 + Math.random() * 80;
-      const m = dim.spawnEntity("kingdoms:merchant", {
-        x: player.location.x + Math.cos(angle) * d,
-        y: player.location.y,
-        z: player.location.z + Math.sin(angle) * d
-      });
+      const mx = player.location.x + Math.cos(angle) * d;
+      const mz = player.location.z + Math.sin(angle) * d;
+      const m = dim.spawnEntity("kingdoms:merchant", { x: mx, y: player.location.y, z: mz });
       m.nameTag = "\xA76Travelling Merchant";
+      const cartCount = 1 + Math.floor(Math.random() * 2);
+      for (let ci = 0; ci < cartCount; ci++) {
+        const ca = (ci / cartCount) * Math.PI * 2;
+        try {
+          const cart = dim.spawnEntity("kingdoms:trade_cart", {
+            x: mx + Math.cos(ca) * 3,
+            y: player.location.y,
+            z: mz + Math.sin(ca) * 3
+          });
+          cart.nameTag = "\xA77Trade Cart";
+          cart.setDynamicProperty("kc:merchant_id", m.id);
+        } catch {}
+      }
     } catch {}
   }
 }, 6e3);
-// Intercept vanilla wandering_trader — replace with kingdoms:merchant
+// Intercept vanilla wandering_trader + trader_llama — replace with kingdoms entities
 world16.afterEvents.entitySpawn.subscribe((event) => {
   const entity = event.entity;
-  if (!entity || entity.typeId !== "minecraft:wandering_trader") return;
-  const loc = { x: entity.location.x, y: entity.location.y, z: entity.location.z };
-  const dim = entity.dimension;
-  system3.run(() => {
-    try {
-      entity.remove();
-      const m = dim.spawnEntity("kingdoms:merchant", loc);
-      m.nameTag = "\xA76Travelling Merchant";
-    } catch {}
-  });
+  if (!entity) return;
+  if (entity.typeId === "minecraft:wandering_trader") {
+    const loc = { x: entity.location.x, y: entity.location.y, z: entity.location.z };
+    const dim = entity.dimension;
+    system3.run(() => {
+      try {
+        entity.remove();
+        const m = dim.spawnEntity("kingdoms:merchant", loc);
+        m.nameTag = "\xA76Travelling Merchant";
+        const cartAngle = Math.random() * Math.PI * 2;
+        const cart = dim.spawnEntity("kingdoms:trade_cart", {
+          x: loc.x + Math.cos(cartAngle) * 2.5,
+          y: loc.y,
+          z: loc.z + Math.sin(cartAngle) * 2.5
+        });
+        cart.nameTag = "\xA77Trade Cart";
+        cart.setDynamicProperty("kc:merchant_id", m.id);
+      } catch {}
+    });
+  } else if (entity.typeId === "minecraft:trader_llama") {
+    system3.run(() => { try { entity.remove(); } catch {} });
+  }
 });
 world16.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
@@ -5510,6 +5600,33 @@ world16.afterEvents.itemUse.subscribe((event) => {
   if (itemId === "kingdoms:formation_scroll") {
     system3.run(() => {
       void cmdStratMap(player);
+    });
+    return;
+  }
+  if (itemId === "kingdoms:village_spawner") {
+    system3.run(async () => {
+      const form = new ActionFormData().title("\xA76\u{1F3D9} Village Spawner").body("Select what to build near you:\n\n\xA76Big City\xA7r: Walled city, 6 stone buildings, 12 villagers, large farm\n\xA7aSmall Village\xA7r: 2 wooden houses, 4 villagers, small farm").button("\xA76\u{1F3D9} Spawn Big City").button("\xA7a\u{1F3E0} Spawn Small Village").button("Cancel");
+      const resp = await form.show(player);
+      if (resp.canceled || resp.selection === 2) return;
+      const size = resp.selection === 0 ? "city" : "village";
+      const d = size === "city" ? 80 : 50;
+      const ang = Math.random() * Math.PI * 2;
+      const anchor = { x: player.location.x + Math.cos(ang) * d, y: player.location.y, z: player.location.z + Math.sin(ang) * d };
+      const dim2 = world16.getDimension(player.dimension.id);
+      spawnNpcVillage(dim2, anchor, size);
+      notifyPlayer(player.name, `\xA7a\u2714 ${size === "city" ? "\xA76City" : "\xA7aVillage"}\xA7a spawning \xA7b~${Math.round(d)}\xA7a blocks away!`);
+      try {
+        const inv2 = player.getComponent("minecraft:inventory");
+        if (inv2?.container) {
+          const si = player.selectedSlotIndex;
+          const it = inv2.container.getItem(si);
+          if (it && it.typeId === "kingdoms:village_spawner") {
+            it.amount -= 1;
+            if (it.amount <= 0) inv2.container.setItem(si, void 0);
+            else inv2.container.setItem(si, it);
+          }
+        }
+      } catch {}
     });
     return;
   }
@@ -5902,7 +6019,7 @@ ${merchantList}
 
 \xA77Tip: hold food and right-click granary to deposit instantly.
 \xA77Hold emeralds and right-click treasury to deposit instantly.`
-  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("Close");
+  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("\u{1F33F} Bob's Farming Seeds").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5920,6 +6037,9 @@ ${merchantList}
       break;
     case 4:
       sellFood(village, 10);
+      break;
+    case 5:
+      await showBobsFarmingShopMenu(player, village);
       break;
   }
 }
@@ -5960,6 +6080,53 @@ async function showFoodSellMenu(player, village) {
   if (batchResp.canceled || batchResp.formValues === void 0) return;
   const batches = batchResp.formValues[0];
   sellFoodBulk(player, village, entry, batches);
+}
+async function showBobsFarmingShopMenu(player, village) {
+  const BOB_SEEDS = [
+    { itemId: "bobs_farming:tomato_seeds", label: "Tomato Seeds", qty: 8, cost: 2 },
+    { itemId: "bobs_farming:rice_seeds", label: "Rice Seeds", qty: 8, cost: 2 },
+    { itemId: "bobs_farming:corn_seeds", label: "Corn Seeds", qty: 8, cost: 3 },
+    { itemId: "bobs_farming:onion_seeds", label: "Onion Seeds", qty: 8, cost: 2 },
+    { itemId: "bobs_farming:strawberry_seeds", label: "Strawberry Seeds", qty: 6, cost: 3 },
+    { itemId: "bobs_farming:lettuce_seeds", label: "Lettuce Seeds", qty: 8, cost: 2 },
+    { itemId: "bobs_farming:cucumber_seeds", label: "Cucumber Seeds", qty: 8, cost: 2 },
+    { itemId: "bobs_farming:garlic_seeds", label: "Garlic Seeds", qty: 6, cost: 2 },
+    { itemId: "bobs_farming:cranberry_seeds", label: "Cranberry Seeds", qty: 6, cost: 4 },
+    { itemId: "bobs_farming:pineapple_seeds", label: "Pineapple Seeds", qty: 4, cost: 5 }
+  ];
+  const form = new ActionFormData()
+    .title(`${village.name} \u2014 \u{1F33F} Bob's Farming`)
+    .body(`\xA7aBuy Bob's Farming seeds with treasury emeralds.\n\xA77Treasury: \xA76${village.treasury}\u{1F48E}\n\xA7cRequires Bob's Farming addon to be installed.`);
+  for (const s of BOB_SEEDS) {
+    form.button(`${s.label} \xD7${s.qty}  [${s.cost}\u{1F48E}]`);
+  }
+  form.button("Back");
+  const resp = await form.show(player);
+  if (resp.canceled || resp.selection === void 0 || resp.selection >= BOB_SEEDS.length) return;
+  const seed = BOB_SEEDS[resp.selection];
+  if (village.treasury < seed.cost) {
+    notifyPlayer(player.name, `\xA7cNeed \xA76${seed.cost}\u{1F48E}\xA7c but treasury has \xA76${village.treasury}\u{1F48E}`);
+    return;
+  }
+  try {
+    const inv = player.getComponent("minecraft:inventory");
+    const container = inv?.container;
+    if (!container) return;
+    let placed = false;
+    for (let i2 = 0; i2 < container.size; i2++) {
+      if (!container.getItem(i2)) {
+        container.setItem(i2, new ItemStack6(seed.itemId, seed.qty));
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) { notifyPlayer(player.name, "\xA7cInventory full! Make room first."); return; }
+    village.treasury -= seed.cost;
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7aBought \xA7b${seed.qty}\xD7${seed.label}\xA7a for \xA76${seed.cost}\u{1F48E}`);
+  } catch (e2) {
+    notifyPlayer(player.name, `\xA7cFailed to give item \u2014 ensure Bob's Farming addon is active. (${e2?.message ?? ""})`);
+  }
 }
 async function showBlacksmithMenu(player, block) {
   const village = findVillageAt2(block.location);
