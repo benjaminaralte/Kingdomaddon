@@ -6558,7 +6558,7 @@ ${queueSummary}
 
 Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}
 \xA77Withdraw cost: \xA7b10\u{1F48E} per 10 soldiers`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops\n\xA77Cost: ${Math.ceil((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10) * 10}\u{1F48E} for ${t.cityGuards + t.spearmen + t.archers + t.cavalry} total`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)\n\xA77~20s per soldier`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10)} set(s) avail`).button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA77Free \u2014 recall troops to you").button("\xA7b\uD83D\uDCDC Get Formation Scroll\n\xA77Free \u2014 open Strategic Formation Map");
+  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops\n\xA77Cost: ${Math.ceil((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10) * 10}\u{1F48E} for ${t.cityGuards + t.spearmen + t.archers + t.cavalry} total`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)\n\xA77~20s per soldier`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10)} set(s) avail`).button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA77Free \u2014 recall troops to you");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6608,21 +6608,6 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
         }
       }
       notifyPlayer(player.name, gave11 ? "\xA7e\uD83D\uDD14 Recall Scroll given! Hold and right-click to recall all nearby troops to you." : "\xA7cInventory full \u2014 no space for Recall Scroll.");
-      break;
-    }
-    case 12: {
-      const inv12 = player.getComponent(EntityInventoryComponent8.componentId);
-      const c12 = inv12?.container;
-      let gave12 = false;
-      if (c12) {
-        for (let i = 0; i < c12.size; i++) {
-          if (!c12.getItem(i)) {
-            try { c12.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave12 = true; } catch {}
-            break;
-          }
-        }
-      }
-      notifyPlayer(player.name, gave12 ? "\xA7b\uD83D\uDCDC Formation Scroll given! Hold and right-click to open the Strategic Formation Map." : "\xA7cInventory full \u2014 no space for Formation Scroll.");
       break;
     }
   }
@@ -6850,6 +6835,18 @@ async function showBlacksmithMenu(player, block) {
   const summary = getBlacksmithSummary(village);
   const res = village.resourceStorage ?? { ...EMPTY_RESOURCE_STORAGE };
   const storageLine = `\n\xA77Storage: Iron=${res.iron} Gold=${res.gold} \u{1F48E}=${res.diamonds}`;
+  const hasScroll = (() => {
+    const inv = player.getComponent(EntityInventoryComponent8.componentId);
+    if (!inv?.container) return false;
+    for (let i = 0; i < inv.container.size; i++) {
+      const slot = inv.container.getItem(i);
+      if (slot?.typeId === "kingdoms:formation_scroll") return true;
+    }
+    return false;
+  })();
+  const scrollLabel = hasScroll
+    ? "\xA77\uD83D\uDCDC Formation Scroll\n\xA77(already in inventory)"
+    : "\xA7b\uD83D\uDCDC Get Formation Scroll\n\xA77Permanent \u2014 open Strategic Map anytime";
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Blacksmith`)
     .body(summary + storageLine)
@@ -6859,6 +6856,7 @@ async function showBlacksmithMenu(player, block) {
     .button("\uD83D\uDD28 Bulk Forge Diamond Sets")
     .button("\uD83D\uDD27 Bulk Repair (4 Iron)")
     .button("\u2694 Bulk Equip from Armory")
+    .button(scrollLabel)
     .button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
@@ -6885,6 +6883,27 @@ async function showBlacksmithMenu(player, block) {
         notifyPlayer(player.name, "\xA7cNo Armory built in this village. Build one first.");
       }
       break;
+    case 6: {
+      if (hasScroll) {
+        notifyPlayer(player.name, "\xA7eYou already have a Formation Scroll in your inventory.");
+        break;
+      }
+      const inv6 = player.getComponent(EntityInventoryComponent8.componentId);
+      const c6 = inv6?.container;
+      let gave6 = false;
+      if (c6) {
+        for (let i = 0; i < c6.size; i++) {
+          if (!c6.getItem(i)) {
+            try { c6.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave6 = true; } catch {}
+            break;
+          }
+        }
+      }
+      notifyPlayer(player.name, gave6
+        ? "\xA7b\uD83D\uDCDC Formation Scroll obtained! Right-click anytime to open the Strategic Formation Map."
+        : "\xA7cInventory full \u2014 free up a slot and try again.");
+      break;
+    }
   }
 }
 function bulkForge(player, village, tier) {
