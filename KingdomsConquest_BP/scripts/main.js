@@ -63,12 +63,18 @@ function deleteVillage(id) {
   reg.villageIds = reg.villageIds.filter((v) => v !== id);
   saveRegistry(reg);
 }
+var _vcTick = -1;
+var _vcCache = null;
 function getAllVillages() {
+  const tick = getCurrentTick();
+  if (tick === _vcTick && _vcCache !== null) return _vcCache;
   const reg = getRegistry();
-  return reg.villageIds.flatMap((id) => {
+  _vcCache = reg.villageIds.flatMap((id) => {
     const v = getVillage(id);
     return v ? [v] : [];
   });
+  _vcTick = tick;
+  return _vcCache;
 }
 function getVillageByOwner(playerName) {
   return getAllVillages().filter((v) => v.owner === playerName);
@@ -3421,7 +3427,11 @@ function tickAllMerchantMovement() {
 var TRADE_CART_FOLLOW_DIST = 3.5;
 var TRADE_CART_SPEED = 0.2;
 var TRADE_CART_ABANDON_DIST = 200;
+var _lastCartTick = -4;
 function tickTradeCartMovement() {
+  const _ctick = getCurrentTick();
+  if (_ctick - _lastCartTick < 4) return;
+  _lastCartTick = _ctick;
   for (const dimId of ["overworld", "nether", "the_end"]) {
     try {
       const dim = world16.getDimension(dimId);
@@ -4299,12 +4309,18 @@ var TROOP_ENTITY_MAP = {
 var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
+  const _adPlayers = world14.getPlayers();
+  const _adKingdoms = new Map();
+  for (const _p of _adPlayers) {
+    const _k = getKingdomOf(_p.name);
+    if (_k) _adKingdoms.set(_p.name, _k);
+  }
   for (const village of getAllVillages()) {
     if (!village.owner) continue;
-    scanVillageThreat(village, currentTick);
+    scanVillageThreat(village, currentTick, _adPlayers, _adKingdoms);
   }
 }
-function scanVillageThreat(village, currentTick) {
+function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
   let threatCount = 0;
@@ -4318,9 +4334,10 @@ function scanVillageThreat(village, currentTick) {
     threatCount += hostiles.length;
   } catch {
   }
-  for (const p of world14.getPlayers()) {
+  const _scanPlayers = cachedPlayers ?? world14.getPlayers();
+  for (const p of _scanPlayers) {
     if (p.name === village.owner) continue;
-    const theirKingdom = getKingdomOf(p.name);
+    const theirKingdom = cachedKingdoms ? cachedKingdoms.get(p.name) : getKingdomOf(p.name);
     if (!theirKingdom) continue;
     if (!areAtWar(village.kingdomId, theirKingdom.id)) continue;
     if (distance(p.location, center) <= VILLAGE_CLAIM_RADIUS) {
@@ -4340,13 +4357,11 @@ function scanVillageThreat(village, currentTick) {
     recallAutoDispatched(village);
     return;
   }
-  if (threatCount > 0) {
-    const key = `${village.id}:mob`;
-    const last = lastRaidNotify.get(key) ?? 0;
-    if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
-      notifyAlert(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
-      lastRaidNotify.set(key, currentTick);
-    }
+  const key = `${village.id}:mob`;
+  const last = lastRaidNotify.get(key) ?? 0;
+  if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
+    notifyAlert(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
+    lastRaidNotify.set(key, currentTick);
   }
   dispatchTroops(village, threatCount);
 }
@@ -6136,8 +6151,8 @@ function tickWorldLife(currentTick) {
   const players = world16.getAllPlayers();
   for (const player of players) {
     const loc = player.location;
-    const dimId = player.dimension.id;
-    const dim = world16.getDimension(dimId);
+    const dim = player.dimension;
+    const dimId = dim.id;
     const angle = Math.random() * Math.PI * 2;
     const dist = WORLD_GEN_DIST_MIN + Math.random() * (WORLD_GEN_DIST_MAX - WORLD_GEN_DIST_MIN);
     const cx = loc.x + Math.cos(angle) * dist;
@@ -6196,6 +6211,10 @@ system3.runInterval(() => {
 }, 24e3);
 system3.runInterval(() => {
   refreshAllGuards();
+  const _pruneTick = getCurrentTick();
+  for (const [key, alertTick] of lastAlertedThreat) {
+    if (_pruneTick - alertTick > 36e3) lastAlertedThreat.delete(key);
+  }
 }, 12e3);
 system3.runInterval(() => {
   for (const village of getAllVillages()) {
@@ -6208,7 +6227,7 @@ system3.runInterval(() => {
   for (const player of players) {
     if (Math.random() > 0.5) continue;
     try {
-      const dim = world16.getDimension(player.dimension.id);
+      const dim = player.dimension;
       const nearby = dim.getEntities({ type: "kingdoms:merchant", location: player.location, maxDistance: 150 });
       if (nearby.length >= 3) continue;
       const angle = Math.random() * Math.PI * 2;
@@ -8155,7 +8174,15 @@ async function executeStratRaid(player, center, targetVillage, isMobMode) {
 
 // Tick watcher: reset formation if player moves 30+ blocks from saved position
 system3.runInterval(() => {
+  const _onlinePlayers = new Set(world16.getPlayers().map((pl) => pl.name));
   for (const [playerName, preset] of stratFormations) {
+    if (!_onlinePlayers.has(playerName)) {
+      stratFormations.delete(playerName);
+      for (const [eid] of stratMarkerEntities) {
+        if (eid.startsWith(playerName + ":")) stratMarkerEntities.delete(eid);
+      }
+      continue;
+    }
     if (!preset.savedAt) continue;
     const p = world16.getPlayers().find((pl) => pl.name === playerName);
     if (!p) continue;
