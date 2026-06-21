@@ -89,6 +89,23 @@ export async function showWaypointMenu(player: Player): Promise<void> {
   const dest = destinations[response.selection];
   const loc = dest.waypointLocation!;
 
+  const inventory = player.getComponent("inventory");
+  if (inventory?.container) {
+    const container = inventory.container;
+    let hasItems = false;
+    for (let i = 0; i < container.size; i++) {
+      const item = container.getItem(i);
+      if (item) { hasItems = true; break; }
+    }
+    if (hasItems) {
+      notifyPlayer(
+        player.name,
+        `§c✦ Waypoint travel requires an empty inventory! Use the §bchest§c beside the waypoint to store your items first.`
+      );
+      return;
+    }
+  }
+
   try {
     const dim = world.getDimension(dest.location.dimension);
     player.teleport(

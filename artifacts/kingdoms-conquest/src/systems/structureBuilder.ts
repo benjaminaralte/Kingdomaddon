@@ -364,6 +364,9 @@ function waypointBlueprint(): BP[] {
   // Sea lanterns at base corners y=0
   p.push(blk(-1, 0, -1, "minecraft:sea_lantern"), blk(1, 0, -1, "minecraft:sea_lantern"));
   p.push(blk(-1, 0,  1, "minecraft:sea_lantern"), blk(1, 0,  1, "minecraft:sea_lantern"));
+  // Chest beside obelisk for players to empty inventory before travelling
+  p.push(blk(2, 0, 0, "minecraft:smooth_stone")); // foundation block for chest
+  p.push(blk(2, 1, 0, "minecraft:chest"));
   return p;
 }
 
