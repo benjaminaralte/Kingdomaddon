@@ -21,7 +21,7 @@
         "target":        "animation.samurai.sword_stay_target",
         "look_at_target": "animation.common.look_at_target"
       },
-      "render_controllers": ["controller.render.mercenary_pn.sword"],
+      "render_controllers": ["controller.render.kingdoms.samurai"],
       "spawn_egg": {
         "texture": "city_guard_spawn_egg",
         "texture_index": 0
