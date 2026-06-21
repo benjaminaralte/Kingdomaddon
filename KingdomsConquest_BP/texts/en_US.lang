@@ -15,6 +15,9 @@ tile.kingdoms:armory.name=Armory
 tile.kingdoms:tower.name=Watch Tower
 tile.kingdoms:wall_long.name=Long Stone Wall
 tile.kingdoms:wall_short.name=Short Stone Wall
+tile.kingdoms:house.name=House
+tile.kingdoms:fence_enclosure.name=Livestock Pen
+tile.kingdoms:barn.name=Barn
 
 item.kingdoms:town_hall_item.name=Town Hall
 item.kingdoms:treasury_item.name=Treasury
@@ -31,6 +34,9 @@ item.kingdoms:armory_item.name=Armory
 item.kingdoms:tower_item.name=Watch Tower
 item.kingdoms:wall_long_item.name=Long Stone Wall (10x5)
 item.kingdoms:wall_short_item.name=Short Stone Wall (5x5)
+item.kingdoms:house_item.name=House (2-3 Beds)
+item.kingdoms:fence_enclosure_item.name=Livestock Pen
+item.kingdoms:barn_item.name=Barn
 
 item.kingdoms:recall_scroll.name=Recall Scroll
 item.kingdoms:formation_scroll.name=Strategic Formation Scroll
@@ -42,6 +48,7 @@ item.kingdoms:cavalry_token.name=Cavalry
 
 entity.kingdoms:merchant.name=Travelling Merchant
 entity.kingdoms:trade_cart.name=Trade Cart
+entity.kingdoms:shopkeeper.name=Market Shopkeeper
 
 item.kingdoms:village_spawner.name=Village Spawner
 entity.kingdoms:city_guard.name=City Guard

@@ -1,0 +1,20 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:shopkeeper",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/villager2/profession/farmer" },
+      "geometry": { "default": "geometry.humanoid.custom" },
+      "animations": {
+        "walk": "animation.humanoid.walk",
+        "idle": "animation.humanoid.base_pose"
+      },
+      "animation_controllers": [
+        { "root": "controller.animation.humanoid.move" }
+      ],
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}

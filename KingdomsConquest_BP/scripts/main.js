@@ -447,12 +447,17 @@ function withdrawFromGranary(player, village, itemTypeId, amount) {
       remaining -= give;
     }
   }
-  if (remaining > 0) {
-    notifyPlayer(player.name, "\xA7cInventory full.");
+  const actuallyGiven = amount - remaining;
+  if (actuallyGiven <= 0) {
+    notifyPlayer(player.name, "\xA7cInventory full \u2014 nothing withdrawn.");
     return false;
   }
-  removeFromGranary(village, itemTypeId, amount);
-  notifyPlayer(player.name, `\xA7aWithdrew ${amount}x ${itemTypeId.replace("minecraft:", "")} from \xA7b${village.name}\xA7a granary.`);
+  removeFromGranary(village, itemTypeId, actuallyGiven);
+  if (remaining > 0) {
+    notifyPlayer(player.name, `\xA7eInventory partially full \u2014 withdrew ${actuallyGiven}x ${itemTypeId.replace("minecraft:", "")} from \xA7b${village.name}\xA7e granary.`);
+    return false;
+  }
+  notifyPlayer(player.name, `\xA7aWithdrew ${actuallyGiven}x ${itemTypeId.replace("minecraft:", "")} from \xA7b${village.name}\xA7a granary.`);
   return true;
 }
 function depositPlayerItemsToGranary(player, village, itemTypeId, amount) {
@@ -760,6 +765,7 @@ function collapseKingdom(kingdomId) {
     if (village) {
       village.kingdomId = "";
       village.owner = "";
+      saveVillage(village);
     }
   }
   deleteKingdom(kingdomId);
@@ -991,10 +997,12 @@ function updateHousingCapacity(villageId) {
   let beds = 0;
   for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 4) {
     for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 4) {
-      try {
-        const block = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
-        if (block && block.typeId.includes("bed")) beds++;
-      } catch {
+      for (let dy = -5; dy <= 10; dy++) {
+        try {
+          const block = dim.getBlock({ x: loc.x + dx, y: loc.y + dy, z: loc.z + dz });
+          if (block && block.typeId.includes("bed")) beds++;
+        } catch {
+        }
       }
     }
   }
@@ -2333,6 +2341,12 @@ function handleKcCommand(player, subcommand, args) {
     case "raid":
       void cmdStratMap(player);
       break;
+    case "repair":
+      cmdRepair(player);
+      break;
+    case "reset":
+      cmdReset(player);
+      break;
     default:
       notifyPlayer(player.name, `\xA7cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -2341,6 +2355,8 @@ function showHelp(player) {
   const lines = [
     "\xA7b=== Kingdoms & Conquest Commands ===\xA7r",
     "\xA7e/scriptevent kc:help\xA7r \u2014 this list",
+    "\xA7e/scriptevent kc:repair\xA7r \u2014 \xA7afix broken/negative village data (safe to run anytime)\xA7r",
+    "\xA7c/scriptevent kc:reset\xA7r \u2014 \xA7cDELETE ALL addon data (irreversible!)\xA7r",
     "\xA7e/scriptevent kc:tutorial\xA7r \u2014 \xA7aIN-GAME TUTORIAL (start here!)\xA7r",
     "\xA7e/scriptevent kc:status\xA7r \u2014 your villages & kingdom",
     "\xA7e/scriptevent kc:kingdom\xA7r \u2014 full kingdom overview",
@@ -2368,6 +2384,64 @@ function showHelp(player) {
     "\xA77Troop types: cityGuards, spearmen, archers, cavalry"
   ];
   for (const line of lines) notifyPlayer(player.name, line);
+}
+function cmdRepair(player) {
+  if (!player.isOp()) {
+    notifyPlayer(player.name, "\xA7cOnly operators can run kc:repair.");
+    return;
+  }
+  notifyPlayer(player.name, "\xA7eRunning village data repair\u2026");
+  const villages = getAllVillages();
+  let fixed = 0;
+  for (const v of villages) {
+    let dirty = false;
+    // Fix negative numeric fields
+    for (const key of ["population", "foodStorage", "treasury", "housingCapacity", "marketLevel", "foodShortageStage"]) {
+      if (typeof v[key] !== "number" || v[key] < 0) {
+        v[key] = Math.max(0, typeof v[key] === "number" ? v[key] : 0);
+        dirty = true;
+      }
+    }
+    // Ensure nested objects exist
+    if (!v.workers || typeof v.workers !== "object") { v.workers = { farmers: 0, builders: 0 }; dirty = true; }
+    if (!v.troops || typeof v.troops !== "object") { v.troops = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 }; dirty = true; }
+    if (!Array.isArray(v.allies)) { v.allies = []; dirty = true; }
+    if (!Array.isArray(v.villageIds)) { v.villageIds = []; dirty = true; }
+    // Ensure population >= 1 if village exists
+    if (v.population < 1) { v.population = 1; dirty = true; }
+    // Sync lastPopulationDay
+    if (typeof v.lastPopulationDay !== "number") { v.lastPopulationDay = v.lastDayProcessed ?? getCurrentDay(); dirty = true; }
+    if (dirty) { saveVillage(v); fixed++; }
+  }
+  const kingdoms = getAllKingdoms();
+  let kFixed = 0;
+  for (const k of kingdoms) {
+    let dirty = false;
+    if (!Array.isArray(k.villageIds)) { k.villageIds = []; dirty = true; }
+    if (!Array.isArray(k.members)) { k.members = []; dirty = true; }
+    if (dirty) { saveKingdom(k); kFixed++; }
+  }
+  notifyPlayer(player.name, `\xA7aRepair complete: fixed ${fixed}/${villages.length} villages, ${kFixed}/${kingdoms.length} kingdoms.`);
+}
+function cmdReset(player) {
+  if (!player.isOp()) {
+    notifyPlayer(player.name, "\xA7cOnly operators can run kc:reset.");
+    return;
+  }
+  notifyPlayer(player.name, "\xA7c\u26A0 Deleting ALL Kingdoms & Conquest data\u2026");
+  const villages = getAllVillages();
+  for (const v of villages) {
+    try { deleteVillage(v.id); } catch {}
+  }
+  const kingdoms = getAllKingdoms();
+  for (const k of kingdoms) {
+    try { deleteKingdom(k.id); } catch {}
+  }
+  try {
+    const camps = getAllBanditCamps ? getAllBanditCamps() : [];
+    for (const c of camps) { try { deleteBanditCamp(c.id); } catch {} }
+  } catch {}
+  notifyPlayer(player.name, "\xA7aAll addon data has been reset. The world is a blank slate again.");
 }
 function showMyStatus(player) {
   const myVillages = getAllVillages().filter((v) => v.owner === player.name);
@@ -3119,12 +3193,24 @@ var GROWTH_CHANCE = 0.6;
 var MORTALITY_CHANCE = 0.4;
 var HOUSING_UNIT_SIZE = 5;
 function tickPopulation(village) {
-  if (daysSince(village.lastDayProcessed) < POPULATION_GROWTH_INTERVAL_DAYS) return;
+  const popDay = village.lastPopulationDay ?? village.lastDayProcessed ?? 0;
+  if (daysSince(popDay) < POPULATION_GROWTH_INTERVAL_DAYS) return;
+  village.lastPopulationDay = getCurrentDay();
   if (village.foodShortageStage >= 4) {
     handlePopulationDecline(village);
+    saveVillage(village);
     return;
   }
   if (village.foodShortageStage >= 2) {
+    saveVillage(village);
+    return;
+  }
+  const bedCapacity = village.housingCapacity ?? 0;
+  if (bedCapacity <= village.population) {
+    if (village.population < MAX_VILLAGE_POPULATION && village.owner) {
+      notifyPlayer(village.owner, `\xA7e\uD83D\uDECF \xA7b${village.name}\xA7e needs more \xA7bhouse beds\xA7e to grow! Buy a \xA7bHouse\xA7e from the Building Shop.`);
+    }
+    saveVillage(village);
     return;
   }
   const canGrow = village.population < MAX_VILLAGE_POPULATION && village.foodStorage > 10;
@@ -3135,8 +3221,8 @@ function tickPopulation(village) {
       Math.floor(village.population * 0.3)
     );
     notifyPlayer(village.owner, `\xA7aNew villager in \xA7b${village.name}\xA7a! Population: ${village.population}/${MAX_VILLAGE_POPULATION}`);
-    checkAndGrowStructures(village);
   }
+  saveVillage(village);
   spawnVillagerEntity(village);
 }
 function handlePopulationDecline(village) {
@@ -4534,7 +4620,10 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:armory",
   "kingdoms:tower",
   "kingdoms:wall_long",
-  "kingdoms:wall_short"
+  "kingdoms:wall_short",
+  "kingdoms:house",
+  "kingdoms:fence_enclosure",
+  "kingdoms:barn"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -4597,33 +4686,70 @@ function townHallBlueprint() {
 }
 function barracksBlueprint() {
   const p = [];
-  p.push(...fill(-4, 1, -3, 4, 5, 3, "minecraft:air"));
-  p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:cobblestone"));
-  p.push(...fill(-4, 1, -3, 4, 4, -3, "minecraft:stone_bricks"));
-  p.push(...fill(4, 1, -2, 4, 4, 2, "minecraft:stone_bricks"));
-  p.push(...fill(-4, 1, -2, -4, 4, 2, "minecraft:stone_bricks"));
-  for (let x = -4; x <= 4; x++)
-    for (let y = 1; y <= 4; y++)
-      if (!(x >= -1 && x <= 1 && y <= 2))
-        p.push(blk(x, y, 3, "minecraft:stone_bricks"));
-  for (const wx of [-3, 0, 3]) {
-    p.push(blk(wx, 3, -3, "minecraft:glass"));
-    p.push(blk(wx, 3, 3, "minecraft:glass"));
+  // Clear a generous volume for the castle
+  p.push(...fill(-8, 1, -8, 8, 13, 8, "minecraft:air"));
+  // Foundation
+  p.push(...fill(-8, 0, -8, 8, 0, 8, "minecraft:stone_bricks"));
+  // Four main walls (8 high, stone bricks)
+  p.push(...fill(-8, 1, -8, 8, 8, -8, "minecraft:stone_bricks")); // north
+  p.push(...fill(-8, 1,  8, 8, 8,  8, "minecraft:stone_bricks")); // south
+  p.push(...fill(-8, 1, -7, -8, 8,  7, "minecraft:stone_bricks")); // west
+  p.push(...fill( 8, 1, -7,  8, 8,  7, "minecraft:stone_bricks")); // east
+  // Gate opening south wall (x=-2..+2, y=1..5)
+  for (let x = -2; x <= 2; x++) for (let y = 1; y <= 5; y++) p.push(blk(x, y, 8, "minecraft:air"));
+  // Battlements top (y=9, alternating merlons)
+  for (let x = -8; x <= 8; x += 2) {
+    p.push(blk(x, 9, -8, "minecraft:stone_bricks"));
+    p.push(blk(x, 9,  8, "minecraft:stone_bricks"));
   }
-  p.push(blk(-4, 3, 0, "minecraft:glass"), blk(4, 3, 0, "minecraft:glass"));
-  p.push(...fill(-4, 5, -3, 4, 5, 3, "minecraft:stone_bricks"));
-  for (let x = -4; x <= 4; x += 2) {
-    p.push(blk(x, 6, -3, "minecraft:stone_bricks"));
-    p.push(blk(x, 6, 3, "minecraft:stone_bricks"));
+  for (let z = -6; z <= 6; z += 2) {
+    p.push(blk(-8, 9, z, "minecraft:stone_bricks"));
+    p.push(blk( 8, 9, z, "minecraft:stone_bricks"));
   }
-  for (let z = -2; z <= 2; z += 2) {
-    p.push(blk(-4, 6, z, "minecraft:stone_bricks"));
-    p.push(blk(4, 6, z, "minecraft:stone_bricks"));
+  // Corner towers (3x3 outer shell, y=1..11, hollow centre)
+  for (const [cx, cz] of [[-8, -8], [-8, 8], [8, -8], [8, 8]]) {
+    for (let tx = cx - 1; tx <= cx + 1; tx++) {
+      for (let tz = cz - 1; tz <= cz + 1; tz++) {
+        if (tx === cx && tz === cz) continue; // hollow centre
+        for (let ty = 1; ty <= 11; ty++) p.push(blk(tx, ty, tz, "minecraft:stone_bricks"));
+      }
+    }
+    // Tower battlements at y=12
+    for (let tx = cx - 1; tx <= cx + 1; tx++) {
+      for (let tz = cz - 1; tz <= cz + 1; tz++) {
+        if ((tx + tz + 40) % 2 === 0) p.push(blk(tx, 12, tz, "minecraft:stone_bricks"));
+      }
+    }
+    // Tower light
+    p.push(blk(cx, 2, cz, "minecraft:sea_lantern"));
   }
-  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
-  p.push(blk(0, 1, -2, "minecraft:smithing_table"));
-  for (let x = -3; x <= 3; x += 2) p.push(blk(x, 1, 1, "minecraft:red_carpet"));
-  p.push(blk(0, 1, 2, "minecraft:sea_lantern"));
+  // Interior floor
+  p.push(...fill(-7, 1, -7, 7, 1, 7, "minecraft:cobblestone"));
+  // Training carpet
+  p.push(...fill(-4, 1, -3, 4, 1, 3, "minecraft:red_carpet"));
+  // Equipment wall (north interior side)
+  p.push(blk(-5, 1, -6, "minecraft:chest"), blk(-3, 1, -6, "minecraft:chest"));
+  p.push(blk( 3, 1, -6, "minecraft:chest"), blk( 5, 1, -6, "minecraft:chest"));
+  p.push(blk( 0, 1, -6, "minecraft:anvil"));
+  p.push(blk(-2, 1, -6, "minecraft:smithing_table"));
+  p.push(blk( 2, 1, -6, "minecraft:smithing_table"));
+  // Weapon racks (iron bars)
+  for (let x = -5; x <= 5; x += 2) {
+    p.push(blk(x, 1, 5, "minecraft:iron_bars"));
+    p.push(blk(x, 2, 5, "minecraft:iron_bars"));
+  }
+  // Windows in walls
+  for (const wx of [-4, 0, 4]) {
+    p.push(blk(wx, 4, -8, "minecraft:glass"), blk(wx, 6, -8, "minecraft:glass"));
+    p.push(blk(wx, 4,  8, "minecraft:glass"));
+  }
+  p.push(blk(-8, 4, -4, "minecraft:glass"), blk(-8, 4, 0, "minecraft:glass"), blk(-8, 4, 4, "minecraft:glass"));
+  p.push(blk( 8, 4, -4, "minecraft:glass"), blk( 8, 4, 0, "minecraft:glass"), blk( 8, 4, 4, "minecraft:glass"));
+  // Interior lighting
+  p.push(blk( 0, 8, 0, "minecraft:sea_lantern"));
+  p.push(blk(-5, 5, -7, "minecraft:torch"), blk(5, 5, -7, "minecraft:torch"));
+  p.push(blk(-7, 5,  0, "minecraft:torch"), blk(7, 5,  0, "minecraft:torch"));
+  p.push(blk(-5, 5,  7, "minecraft:torch"), blk(5, 5,  7, "minecraft:torch"));
   return p;
 }
 function marketBlueprint() {
@@ -4836,6 +4962,172 @@ function wallShortBlueprint() {
   p.push(blk(0, 3, 0, "minecraft:torch"));
   return p;
 }
+// ── House blueprints (3 random designs, each with 2-3 beds) ────────────────
+function houseBlueprintCottage() {
+  const p = [];
+  p.push(...fill(-3, 1, -2, 3, 7, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -2, 3, 0, 3, "minecraft:cobblestone"));
+  for (const [cx, cz] of [[-3,-2],[-3,3],[3,-2],[3,3]])
+    p.push(...fill(cx, 1, cz, cx, 4, cz, "minecraft:oak_log"));
+  p.push(...fill(-2, 1, -2, 2, 4, -2, "minecraft:oak_planks")); // back wall
+  p.push(...fill(-2, 1,  3, 2, 4,  3, "minecraft:oak_planks")); // front wall
+  p.push(...fill(-3, 1, -1, -3, 4,  2, "minecraft:oak_planks")); // left
+  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:oak_planks")); // right
+  p.push(blk(0, 1, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air")); // door
+  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(1, 3, -2, "minecraft:glass"));
+  p.push(blk(-2, 3,  1, "minecraft:glass"), blk(2, 3,  1, "minecraft:glass"));
+  // Stepped pyramid roof (oak planks)
+  p.push(...fill(-3, 5, -2, 3, 5, 3, "minecraft:oak_planks"));
+  p.push(...fill(-2, 6, -1, 2, 6, 2, "minecraft:oak_planks"));
+  p.push(...fill(-1, 7,  0, 1, 7, 1, "minecraft:oak_planks"));
+  // Interior floor
+  p.push(...fill(-2, 1, -1, 2, 1, 2, "minecraft:oak_planks"));
+  // 2 beds
+  p.push(blk( 1, 1, 1, "minecraft:white_bed"), blk(-1, 1, 1, "minecraft:white_bed"));
+  // Furniture
+  p.push(blk(-2, 1, -1, "minecraft:crafting_table"));
+  p.push(blk( 0, 4,  0, "minecraft:torch"));
+  return p;
+}
+function houseBlueprintStone() {
+  const p = [];
+  p.push(...fill(-4, 1, -3, 4, 8, 3, "minecraft:air"));
+  p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:cobblestone"));
+  // Stone brick walls
+  p.push(...fill(-4, 1, -3, 4, 5, -3, "minecraft:stone_bricks"));
+  p.push(...fill(-4, 1,  3, 4, 5,  3, "minecraft:stone_bricks"));
+  p.push(...fill(-4, 1, -2, -4, 5,  2, "minecraft:stone_bricks"));
+  p.push(...fill( 4, 1, -2,  4, 5,  2, "minecraft:stone_bricks"));
+  p.push(blk(0, 1, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air")); // door
+  p.push(blk(-2, 3, -3, "minecraft:glass"), blk(2, 3, -3, "minecraft:glass"));
+  p.push(blk(-2, 3,  3, "minecraft:glass"), blk(2, 3,  3, "minecraft:glass"));
+  p.push(blk(-4, 3,  0, "minecraft:glass"), blk(4, 3,  0, "minecraft:glass"));
+  // Flat stone roof
+  p.push(...fill(-4, 6, -3, 4, 6, 3, "minecraft:stone_bricks"));
+  p.push(...fill(-3, 7, -2, 3, 7, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-2, 8, -1, 2, 8, 1, "minecraft:stone_bricks"));
+  // Interior floor
+  p.push(...fill(-3, 1, -2, 3, 1, 2, "minecraft:cobblestone"));
+  // 3 beds
+  p.push(blk(-2, 1, 1, "minecraft:white_bed"), blk(0, 1, 1, "minecraft:white_bed"), blk(2, 1, 1, "minecraft:white_bed"));
+  // Furniture
+  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
+  p.push(blk( 0, 5,  0, "minecraft:sea_lantern"));
+  return p;
+}
+function houseBlueprintFarmhouse() {
+  const p = [];
+  p.push(...fill(-4, 1, -2, 3, 6, 3, "minecraft:air"));
+  p.push(...fill(-4, 0, -2, 3, 0, 3, "minecraft:cobblestone"));
+  // Birch plank walls
+  p.push(...fill(-4, 1, -2, 3, 4, -2, "minecraft:birch_planks"));
+  p.push(...fill(-4, 1,  3, 3, 4,  3, "minecraft:birch_planks"));
+  p.push(...fill(-4, 1, -1, -4, 4,  2, "minecraft:birch_planks"));
+  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:birch_planks"));
+  p.push(blk(0, 1, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air")); // door
+  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(1, 3, -2, "minecraft:glass"));
+  p.push(blk( 2, 3,  1, "minecraft:glass"));
+  // Gabled planks roof
+  p.push(...fill(-4, 5, -2, 3, 5, 3, "minecraft:birch_planks"));
+  p.push(...fill(-3, 6, -1, 2, 6, 2, "minecraft:birch_planks"));
+  // Interior floor
+  p.push(...fill(-3, 1, -1, 2, 1, 2, "minecraft:birch_planks"));
+  // 2 beds
+  p.push(blk(1, 1, 1, "minecraft:white_bed"), blk(2, 1, 1, "minecraft:white_bed"));
+  // Furniture
+  p.push(blk(-3, 1, -1, "minecraft:barrel"));
+  p.push(blk( 0, 4,  0, "minecraft:lantern"));
+  return p;
+}
+function houseBlueprint() {
+  const design = Math.floor(Math.random() * 3);
+  if (design === 0) return houseBlueprintCottage();
+  if (design === 1) return houseBlueprintStone();
+  return houseBlueprintFarmhouse();
+}
+
+// ── Livestock Pen (large fenced enclosure) ─────────────────────────────────
+function fenceEnclosureBlueprint() {
+  const p = [];
+  p.push(...fill(-10, 1, -10, 10, 4, 10, "minecraft:air"));
+  p.push(...fill(-9, 0, -9, 9, 0, 9, "minecraft:dirt")); // interior floor
+  // Perimeter fence posts (oak log, 3 tall) then fence between
+  for (const [cx, cz] of [[-10,-10],[-10,10],[10,-10],[10,10]])
+    p.push(...fill(cx, 1, cz, cx, 3, cz, "minecraft:oak_log"));
+  // North and south fence runs
+  for (let x = -9; x <= 9; x++) {
+    p.push(blk(x, 1, -10, "minecraft:oak_fence"), blk(x, 2, -10, "minecraft:oak_fence"));
+    p.push(blk(x, 1,  10, "minecraft:oak_fence"), blk(x, 2,  10, "minecraft:oak_fence"));
+  }
+  // West and east fence runs
+  for (let z = -9; z <= 9; z++) {
+    p.push(blk(-10, 1, z, "minecraft:oak_fence"), blk(-10, 2, z, "minecraft:oak_fence"));
+    p.push(blk( 10, 1, z, "minecraft:oak_fence"), blk( 10, 2, z, "minecraft:oak_fence"));
+  }
+  // Fence gate on south wall (3 wide opening)
+  p.push(blk(-1, 1, 10, "minecraft:fence_gate"), blk(0, 1, 10, "minecraft:fence_gate"), blk(1, 1, 10, "minecraft:fence_gate"));
+  p.push(blk(-1, 2, 10, "minecraft:air"), blk(0, 2, 10, "minecraft:air"), blk(1, 2, 10, "minecraft:air"));
+  // Interior: hay bales as feed stations
+  p.push(blk(-8, 1, -8, "minecraft:hay_block"), blk(-7, 1, -8, "minecraft:hay_block"));
+  p.push(blk( 8, 1, -8, "minecraft:hay_block"), blk( 7, 1, -8, "minecraft:hay_block"));
+  // Water troughs (cauldrons)
+  p.push(blk(-1, 1, -7, "minecraft:cauldron"), blk(0, 1, -7, "minecraft:cauldron"), blk(1, 1, -7, "minecraft:cauldron"));
+  // Composter for feed
+  p.push(blk(0, 1, 8, "minecraft:composter"));
+  return p;
+}
+
+// ── Barn (large multi-purpose cattle building) ─────────────────────────────
+function barnBlueprint() {
+  const p = [];
+  p.push(...fill(-6, 1, -4, 6, 10, 4, "minecraft:air"));
+  p.push(...fill(-6, 0, -4, 6, 0, 4, "minecraft:cobblestone"));
+  // Frame posts (dark oak log)
+  for (const cx of [-6, -3, 0, 3, 6]) {
+    p.push(...fill(cx, 1, -4, cx, 6, -4, "minecraft:dark_oak_log"));
+    p.push(...fill(cx, 1,  4, cx, 6,  4, "minecraft:dark_oak_log"));
+  }
+  // Back and front walls (oak planks between posts)
+  p.push(...fill(-5, 1, -4, 5, 5, -4, "minecraft:oak_planks"));
+  p.push(...fill(-5, 1,  4, 5, 5,  4, "minecraft:oak_planks"));
+  // Side walls (west and east)
+  for (let z = -3; z <= 3; z++) {
+    for (let y = 1; y <= 5; y++) {
+      p.push(blk(-6, y, z, "minecraft:oak_planks"));
+      p.push(blk( 6, y, z, "minecraft:oak_planks"));
+    }
+  }
+  // Wide barn-door opening on front (x=-2..+2, y=1..4)
+  for (let x = -2; x <= 2; x++) for (let y = 1; y <= 4; y++) p.push(blk(x, y, 4, "minecraft:air"));
+  // Windows
+  p.push(blk(-4, 4, -4, "minecraft:glass"), blk(4, 4, -4, "minecraft:glass"));
+  p.push(blk(-4, 4,  4, "minecraft:glass"), blk(4, 4,  4, "minecraft:glass"));
+  p.push(blk(-6, 4,  0, "minecraft:glass"), blk(6, 4,  0, "minecraft:glass"));
+  // Hay-block roof (layered pyramid)
+  p.push(...fill(-6, 7, -4, 6, 7, 4, "minecraft:hay_block"));
+  p.push(...fill(-5, 8, -3, 5, 8, 3, "minecraft:hay_block"));
+  p.push(...fill(-4, 9, -2, 4, 9, 2, "minecraft:hay_block"));
+  p.push(...fill(-3,10, -1, 3,10, 1, "minecraft:hay_block"));
+  // Interior dirt floor
+  p.push(...fill(-5, 1, -3, 5, 1, 3, "minecraft:dirt"));
+  // Stall hay bales (corners)
+  p.push(blk(-4, 1, -3, "minecraft:hay_block"), blk(-4, 2, -3, "minecraft:hay_block"));
+  p.push(blk( 4, 1, -3, "minecraft:hay_block"), blk( 4, 2, -3, "minecraft:hay_block"));
+  p.push(blk(-4, 1,  2, "minecraft:hay_block"), blk(-4, 2,  2, "minecraft:hay_block"));
+  p.push(blk( 4, 1,  2, "minecraft:hay_block"), blk( 4, 2,  2, "minecraft:hay_block"));
+  // Stall dividers (fence)
+  p.push(blk(-2, 1, 0, "minecraft:oak_fence"), blk(-2, 2, 0, "minecraft:oak_fence"));
+  p.push(blk( 2, 1, 0, "minecraft:oak_fence"), blk( 2, 2, 0, "minecraft:oak_fence"));
+  // Water troughs
+  p.push(blk(-3, 1, 0, "minecraft:cauldron"), blk(3, 1, 0, "minecraft:cauldron"));
+  // Storage chests
+  p.push(blk(-5, 1, -3, "minecraft:chest"), blk(5, 1, -3, "minecraft:chest"));
+  // Lighting
+  p.push(blk(0, 6, 0, "minecraft:sea_lantern"));
+  p.push(blk(-4, 5, 0, "minecraft:torch"), blk(4, 5, 0, "minecraft:torch"));
+  return p;
+}
+
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
   "kingdoms:barracks": barracksBlueprint,
@@ -4848,7 +5140,10 @@ var BLUEPRINTS = {
   "kingdoms:armory": armoryBlueprint,
   "kingdoms:tower": towerBlueprint,
   "kingdoms:wall_long": wallLongBlueprint,
-  "kingdoms:wall_short": wallShortBlueprint
+  "kingdoms:wall_short": wallShortBlueprint,
+  "kingdoms:house": houseBlueprint,
+  "kingdoms:fence_enclosure": fenceEnclosureBlueprint,
+  "kingdoms:barn": barnBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -5075,18 +5370,49 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       notifyPlayer(player.name, `\xA7aArmory registered for \xA7b${village.name}\xA7a. Hold a weapon or armor piece and tap to deposit.`);
     }
   }
+  if (typeId === CUSTOM_BLOCKS.MARKET) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      spawnMarketShopkeepers(village, block.location, block.dimension.id);
+    }
+  }
   if (STRUCTURE_BLOCK_IDS.has(typeId)) {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
-    notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace("_", " ")}\xA77\u2026`);
+    const dimId = block.dimension.id;
+    notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}\xA77\u2026`);
     system3.run(() => {
       generateStructure(dimension, origin, typeId);
+      if (typeId === "kingdoms:house") {
+        const v2 = findVillageAt2(origin);
+        if (v2) system3.runTimeout(() => updateHousingCapacity(v2.id), 10);
+      }
     });
   }
   if (STRUCT_MENU_KEYS[typeId]) {
     system3.run(() => { try { spawnStructureHub(block, STRUCT_MENU_KEYS[typeId]); } catch {} });
   }
 });
+function spawnMarketShopkeepers(village, marketLoc, dimId) {
+  try {
+    if (!Array.isArray(village.marketShopkeeperIds)) village.marketShopkeeperIds = [];
+    const dim = world16.getDimension(dimId);
+    const angles = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3];
+    for (let i = 0; i < 3; i++) {
+      const angle = angles[i];
+      const sx = marketLoc.x + 0.5 + Math.cos(angle) * 3;
+      const sz = marketLoc.z + 0.5 + Math.sin(angle) * 3;
+      try {
+        const shopkeeper = dim.spawnEntity("kingdoms:shopkeeper", { x: sx, y: marketLoc.y + 1, z: sz });
+        shopkeeper.nameTag = "\xA76\u{1F6CD} Market Shopkeeper";
+        shopkeeper.setDynamicProperty("kc:village_id", village.id);
+        shopkeeper.setDynamicProperty("kc:market_loc", JSON.stringify({ x: marketLoc.x, y: marketLoc.y, z: marketLoc.z, dimension: dimId }));
+        village.marketShopkeeperIds.push(shopkeeper.id);
+      } catch {}
+    }
+    saveVillage(village);
+  } catch {}
+}
 var MENU_COOLDOWN_TICKS = 10;
 var lastMenuTick = /* @__PURE__ */ new Map();
 function canOpenMenu(playerName) {
@@ -5098,7 +5424,28 @@ function canOpenMenu(playerName) {
 }
 world16.afterEvents.playerInteractWithEntity.subscribe((event) => {
   const { player, target } = event;
-  if (!target || target.typeId !== "kingdoms:structure_hub") return;
+  if (!target) return;
+  if (target.typeId === "kingdoms:shopkeeper") {
+    if (!canOpenMenu(player.name)) return;
+    system3.run(async () => {
+      try {
+        const mLocStr = target.getDynamicProperty("kc:market_loc");
+        if (!mLocStr) {
+          notifyPlayer(player.name, "\xA7cThis shopkeeper has no market location.");
+          return;
+        }
+        const ml = JSON.parse(mLocStr);
+        const block = world16.getDimension(ml.dimension ?? "overworld").getBlock(ml);
+        if (!block) {
+          notifyPlayer(player.name, "\xA7cCould not find the market block.");
+          return;
+        }
+        await showMarketMenu(player, block);
+      } catch {}
+    });
+    return;
+  }
+  if (target.typeId !== "kingdoms:structure_hub") return;
   const structKey = target.getDynamicProperty("kc:structure_type");
   if (!structKey || !canOpenMenu(player.name)) return;
   try {
@@ -5849,11 +6196,13 @@ async function showTownHallMenu(player, block) {
 var SHOP_ITEMS = [
   { id: "kingdoms:granary_item", label: "Granary", desc: "Stores food, enables market income & soldiers", cost: 20, costItem: "minecraft:chest", prereq: false },
   { id: "kingdoms:treasury_item", label: "Treasury", desc: "Stores emeralds, enables all village income", cost: 30, costItem: "minecraft:chest", prereq: false },
-  { id: "kingdoms:barracks_item", label: "Barracks", desc: "Train and manage your soldiers", cost: 50, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:house_item", label: "\uD83C\uDFE0 House (2-3 Beds)", desc: "Residential house with beds \u2014 required for population growth!", cost: 25, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:barracks_item", label: "Barracks", desc: "Train and manage your soldiers (stone castle)", cost: 50, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:market_item", label: "Market", desc: "Generates passive income from food trade", cost: 40, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:blacksmith_item", label: "Blacksmith", desc: "Forge and upgrade soldier weapons and armor", cost: 35, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:storage_item", label: "Material Storage", desc: "Warehouse for iron, gold, diamond, coal, wood, stone", cost: 30, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", cost: 45, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:barn_item", label: "\uD83D\uDC04 Barn", desc: "Large barn for cattle and multipurpose livestock storage", cost: 40, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", cost: 5, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", cost: 10, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", cost: 60, costItem: "minecraft:emerald", prereq: true },
@@ -6112,7 +6461,7 @@ ${merchantList}
 
 \xA77Tip: hold food and right-click granary to deposit instantly.
 \xA77Hold emeralds and right-click treasury to deposit instantly.`
-  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("\u{1F33F} Bob's Farming Seeds").button("Close");
+  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("\u{1F33F} Bob's Farming Seeds").button("\uD83D\uDC04 Livestock Pen\n\xA7730\u{1F48E} \u2014 large fenced enclosure").button("\uD83D\uDED6 Barn\n\xA7740\u{1F48E} \u2014 multipurpose cattle barn").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6133,6 +6482,12 @@ ${merchantList}
       break;
     case 5:
       await showBobsFarmingShopMenu(player, village);
+      break;
+    case 6:
+      purchaseBuilding(player, village, { id: "kingdoms:fence_enclosure_item", label: "Livestock Pen", cost: 30, costItem: "minecraft:emerald" });
+      break;
+    case 7:
+      purchaseBuilding(player, village, { id: "kingdoms:barn_item", label: "Barn", cost: 40, costItem: "minecraft:emerald" });
       break;
   }
 }
