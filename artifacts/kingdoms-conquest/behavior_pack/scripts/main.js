@@ -151,7 +151,7 @@ var init_storage = __esm({
 });
 
 // src/main.ts
-import { world as world17, system as system3, EntityInventoryComponent as EntityInventoryComponent8 } from "@minecraft/server";
+import { world as world18, system as system5, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
 import { ActionFormData as ActionFormData2, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/types/index.ts
@@ -162,7 +162,10 @@ var TROOP_WAGES = {
   spearmen: 3,
   archers: 3,
   cavalry: 5,
-  heavyKnight: 8
+  heavyKnight: 8,
+  samurai: 12,
+  mercenaryLancer: 10,
+  legionary: 10
 };
 var EMPTY_RESOURCE_STORAGE = {
   iron: 0,
@@ -681,7 +684,7 @@ function autoHarvestAllVillages() {
 
 // src/systems/commands.ts
 init_storage();
-import { system as system2 } from "@minecraft/server";
+import { system as system3 } from "@minecraft/server";
 
 // src/systems/village.ts
 import { world as world6, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
@@ -1481,16 +1484,38 @@ function notifyVillageUnderSiege(villageId) {
 
 // src/systems/deployTroops.ts
 init_storage();
-import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
+import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3, system as system2 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
   "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
   "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
   "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
   "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" },
-  "kingdoms:heavy_knight_token": { troopType: "heavyKnight", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" }
+  "kingdoms:heavy_knight_token": { troopType: "heavyKnight", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" },
+  "kingdoms:samurai_token": { troopType: "samurai", entityId: "kingdoms:samurai", label: "Samurai" },
+  "kingdoms:mercenary_lancer_token": { troopType: "mercenaryLancer", entityId: "kingdoms:mercenary_lancer", label: "Mercenary Lancer" },
+  "kingdoms:legionary_token": { troopType: "legionary", entityId: "kingdoms:legionary", label: "Legionary" }
 };
+var MOUNTED_ENTITIES = /* @__PURE__ */ new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer"]);
+var _horseCounter = 0;
+function spawnMountedUnit(dim, entityId, offset) {
+  const tag = `kc_wh_${_horseCounter++}`;
+  const horse = dim.spawnEntity("kingdoms:war_horse", offset);
+  horse.addTag(tag);
+  const rider = dim.spawnEntity(entityId, offset);
+  system2.runTimeout(() => {
+    try {
+      rider.runCommandAsync(`ride @s start_riding @e[tag=${tag},c=1]`);
+    } catch {
+    }
+    try {
+      horse.removeTag(tag);
+    } catch {
+    }
+  }, 10);
+  return rider;
+}
 function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + pickup.heavyKnight;
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + pickup.heavyKnight + pickup.samurai + pickup.mercenaryLancer + pickup.legionary;
   if (total <= 0) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
     return false;
@@ -1515,6 +1540,18 @@ function pickupTroops(player, village, pickup) {
     notifyPlayer(player.name, `\xA7cNot enough Heavy Knights (have ${village.troops.heavyKnight ?? 0}).`);
     return false;
   }
+  if (pickup.samurai > (village.troops.samurai ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Samurai (have ${village.troops.samurai ?? 0}).`);
+    return false;
+  }
+  if (pickup.mercenaryLancer > (village.troops.mercenaryLancer ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Mercenary Lancers (have ${village.troops.mercenaryLancer ?? 0}).`);
+    return false;
+  }
+  if (pickup.legionary > (village.troops.legionary ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Legionaries (have ${village.troops.legionary ?? 0}).`);
+    return false;
+  }
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
   if (!inv?.container) {
     notifyPlayer(player.name, "\xA7cInventory unavailable.");
@@ -1526,7 +1563,10 @@ function pickupTroops(player, village, pickup) {
     { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
     { itemId: "kingdoms:archer_token", count: pickup.archers },
     { itemId: "kingdoms:cavalry_token", count: pickup.cavalry },
-    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnight }
+    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnight },
+    { itemId: "kingdoms:samurai_token", count: pickup.samurai },
+    { itemId: "kingdoms:mercenary_lancer_token", count: pickup.mercenaryLancer },
+    { itemId: "kingdoms:legionary_token", count: pickup.legionary }
   ].filter((t) => t.count > 0);
   let slotsNeeded = 0;
   for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
@@ -1543,6 +1583,9 @@ function pickupTroops(player, village, pickup) {
   village.troops.archers -= pickup.archers;
   village.troops.cavalry -= pickup.cavalry;
   village.troops.heavyKnight = (village.troops.heavyKnight ?? 0) - pickup.heavyKnight;
+  village.troops.samurai = (village.troops.samurai ?? 0) - pickup.samurai;
+  village.troops.mercenaryLancer = (village.troops.mercenaryLancer ?? 0) - pickup.mercenaryLancer;
+  village.troops.legionary = (village.troops.legionary ?? 0) - pickup.legionary;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
     let remaining = count;
@@ -1598,7 +1641,12 @@ function releaseTroops(player) {
           y: loc.y,
           z: loc.z + (Math.random() * 4 - 2)
         };
-        const entity = dim.spawnEntity(info.entityId, offset);
+        let entity;
+        if (MOUNTED_ENTITIES.has(info.entityId)) {
+          entity = spawnMountedUnit(dim, info.entityId, offset);
+        } else {
+          entity = dim.spawnEntity(info.entityId, offset);
+        }
         entity.nameTag = `${player.name}'s ${info.label}`;
         entity.setDynamicProperty("kc:owner", player.name);
         spawned++;
@@ -1619,7 +1667,10 @@ var ENTITY_TO_TOKEN = {
   "kingdoms:spearman": "kingdoms:spearman_token",
   "kingdoms:archer": "kingdoms:archer_token",
   "kingdoms:cavalry": "kingdoms:cavalry_token",
-  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token"
+  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token",
+  "kingdoms:samurai": "kingdoms:samurai_token",
+  "kingdoms:mercenary_lancer": "kingdoms:mercenary_lancer_token",
+  "kingdoms:legionary": "kingdoms:legionary_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
@@ -1687,7 +1738,10 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
     "kingdoms:spearman": "spearmen",
     "kingdoms:archer": "archers",
     "kingdoms:cavalry": "cavalry",
-    "kingdoms:heavy_knight": "heavyKnight"
+    "kingdoms:heavy_knight": "heavyKnight",
+    "kingdoms:samurai": "samurai",
+    "kingdoms:mercenary_lancer": "mercenaryLancer",
+    "kingdoms:legionary": "legionary"
   };
   const loc = village.townHallLocation;
   let total = 0;
@@ -1696,7 +1750,7 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
       const entities = dimension.getEntities({ type: entityType, location: loc, maxDistance: 64 });
       for (const entity of entities) {
         if (entity.getDynamicProperty("kc:owner") === attackerName) {
-          village.troops[troopType]++;
+          village.troops[troopType] = (village.troops[troopType] ?? 0) + 1;
           total++;
           try {
             entity.remove();
@@ -1712,7 +1766,16 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
 }
 function countTroopTokens(player) {
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
-  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 };
+  const result = {
+    cityGuards: 0,
+    spearmen: 0,
+    archers: 0,
+    cavalry: 0,
+    heavyKnight: 0,
+    samurai: 0,
+    mercenaryLancer: 0,
+    legionary: 0
+  };
   if (!inv?.container) return result;
   const container = inv.container;
   for (let i = 0; i < container.size; i++) {
@@ -2350,7 +2413,7 @@ Iron: \xA7f${rs.iron}\xA77  Gold: \xA7f${rs.gold}\xA77  Diamonds: \xA7f${rs.diam
 // src/systems/commands.ts
 var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry"];
 function registerCommands() {
-  system2.afterEvents.scriptEventReceive.subscribe(
+  system3.afterEvents.scriptEventReceive.subscribe(
     (event) => {
       const player = event.sourceEntity;
       if (!player || typeof player.name !== "string") return;
@@ -4079,22 +4142,32 @@ var TRAINING_COSTS = {
   spearmen: { emeralds: 6, iron: 12, gold: 0, diamonds: 0 },
   archers: { emeralds: 6, iron: 10, gold: 4, diamonds: 0 },
   cavalry: { emeralds: 12, iron: 18, gold: 6, diamonds: 0 },
-  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 }
+  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 },
+  samurai: { emeralds: 40, iron: 30, gold: 15, diamonds: 10 },
+  mercenaryLancer: { emeralds: 35, iron: 25, gold: 12, diamonds: 8 },
+  legionary: { emeralds: 35, iron: 25, gold: 12, diamonds: 8 }
 };
 var TRAINING_TICKS = {
   cityGuards: 1200,
   spearmen: 1800,
   archers: 1600,
   cavalry: 2400,
-  heavyKnight: 6e3
+  heavyKnight: 6e3,
+  samurai: 9e3,
+  mercenaryLancer: 8e3,
+  legionary: 8e3
 };
 var TROOP_LABELS = {
   cityGuards: "City Guard",
   spearmen: "Spearman",
   archers: "Archer",
   cavalry: "Cavalry",
-  heavyKnight: "Heavy Knight"
+  heavyKnight: "Heavy Knight",
+  samurai: "Samurai",
+  mercenaryLancer: "Mercenary Lancer",
+  legionary: "Legionary"
 };
+var ELITE_TROOP_TYPES = ["samurai", "mercenaryLancer", "legionary"];
 var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
   const cost = TRAINING_COSTS[troopType];
@@ -4113,7 +4186,7 @@ function canAffordTraining(village, troopType, count) {
   }
   return null;
 }
-function queueTraining(village, troopType, count, currentTick) {
+function queueTraining(village, troopType, count, currentTick, playerVillageCount = 0) {
   if (village.trainingQueue.length >= MAX_QUEUE_SIZE) {
     notifyPlayer(village.owner, `\xA7cTraining queue is full (max ${MAX_QUEUE_SIZE} jobs).`);
     return false;
@@ -4121,6 +4194,16 @@ function queueTraining(village, troopType, count, currentTick) {
   if (troopType === "heavyKnight" && village.barracksLevel < 3) {
     notifyPlayer(village.owner, `\xA7cHeavy Knights require \xA7bBarracks Level 3+\xA7c (currently Lv${village.barracksLevel}).`);
     return false;
+  }
+  if (ELITE_TROOP_TYPES.includes(troopType)) {
+    if (!village.hasCastle) {
+      notifyPlayer(village.owner, `\xA7cElite troops require a \xA7bCastle\xA7c built in this village.`);
+      return false;
+    }
+    if (playerVillageCount < 3) {
+      notifyPlayer(village.owner, `\xA7cElite troops require \xA7boccupation of 3 villages\xA7c (you have \xA7f${playerVillageCount}\xA7c).`);
+      return false;
+    }
   }
   const err = canAffordTraining(village, troopType, count);
   if (err) {
@@ -4158,7 +4241,7 @@ function tickTraining(village, currentTick) {
   const remaining = [];
   for (const job of village.trainingQueue) {
     if (currentTick >= job.completeTick) {
-      village.troops[job.troopType] += job.count;
+      village.troops[job.troopType] = (village.troops[job.troopType] ?? 0) + job.count;
       const label = TROOP_LABELS[job.troopType];
       notifyPlayer(village.owner, `\xA7a\u{1FA96} \xA7f${job.count} ${label}\xA7a finished training and joined \xA7b${village.name}\xA7a's garrison!`);
       changed = true;
@@ -4518,7 +4601,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:blacksmith",
   "kingdoms:trade_station",
   "kingdoms:treasury",
-  "kingdoms:waypoint"
+  "kingdoms:waypoint",
+  "kingdoms:castle"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -4740,6 +4824,71 @@ function waypointBlueprint() {
   p.push(blk(0, 5, 0, "minecraft:glowstone"));
   p.push(blk(-1, 0, -1, "minecraft:sea_lantern"), blk(1, 0, -1, "minecraft:sea_lantern"));
   p.push(blk(-1, 0, 1, "minecraft:sea_lantern"), blk(1, 0, 1, "minecraft:sea_lantern"));
+  p.push(blk(2, 0, 0, "minecraft:smooth_stone"));
+  p.push(blk(2, 1, 0, "minecraft:chest"));
+  return p;
+}
+function castleBlueprint() {
+  const p = [];
+  const sb = "minecraft:stone_bricks";
+  const cracked = "minecraft:cracked_stone_bricks";
+  const moss = "minecraft:mossy_stone_bricks";
+  p.push(...ring(-7, -7, 7, 7, 1, 5, sb));
+  for (let x = -6; x <= 6; x += 2) {
+    p.push(blk(x, 6, -7, sb));
+    p.push(blk(x, 6, 7, sb));
+  }
+  for (let z = -5; z <= 5; z += 2) {
+    p.push(blk(-7, 6, z, sb));
+    p.push(blk(7, 6, z, sb));
+  }
+  for (let gx = -1; gx <= 1; gx++) {
+    p.push(blk(gx, 1, 7, "minecraft:air"));
+    p.push(blk(gx, 2, 7, "minecraft:air"));
+    p.push(blk(gx, 3, 7, "minecraft:air"));
+  }
+  p.push(...fill(-6, 0, -6, 6, 0, 6, "minecraft:cobblestone"));
+  for (const [cx, cz] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) {
+    p.push(...fill(cx - 1, 1, cz - 1, cx + 1, 10, cz + 1, sb));
+    p.push(...fill(cx, 2, cz, cx, 9, cz, "minecraft:air"));
+    p.push(blk(cx - 1, 1, cz, cracked));
+    p.push(blk(cx + 1, 1, cz, cracked));
+    p.push(blk(cx, 1, cz - 1, cracked));
+    p.push(blk(cx, 1, cz + 1, cracked));
+    p.push(blk(cx - 1, 11, cz - 1, sb));
+    p.push(blk(cx + 1, 11, cz - 1, sb));
+    p.push(blk(cx - 1, 11, cz + 1, sb));
+    p.push(blk(cx + 1, 11, cz + 1, sb));
+  }
+  p.push(...ring(-3, -3, 3, 3, 1, 8, sb));
+  p.push(...fill(-2, 0, -2, 2, 0, 2, sb));
+  for (let x = -3; x <= 3; x++) {
+    p.push(blk(x, 1, -3, moss));
+    p.push(blk(x, 1, 3, moss));
+  }
+  for (let z = -2; z <= 2; z++) {
+    p.push(blk(-3, 1, z, moss));
+    p.push(blk(3, 1, z, moss));
+  }
+  p.push(blk(0, 1, 3, "minecraft:air"));
+  p.push(blk(0, 2, 3, "minecraft:air"));
+  p.push(blk(1, 1, 3, "minecraft:air"));
+  p.push(blk(1, 2, 3, "minecraft:air"));
+  p.push(blk(-1, 1, 3, "minecraft:air"));
+  p.push(blk(-1, 2, 3, "minecraft:air"));
+  for (let x = -3; x <= 3; x += 2) {
+    p.push(blk(x, 9, -3, sb));
+    p.push(blk(x, 9, 3, sb));
+  }
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-3, 9, z, sb));
+    p.push(blk(3, 9, z, sb));
+  }
+  p.push(blk(0, 9, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 10, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 11, 0, "minecraft:oak_fence"));
+  p.push(blk(1, 11, 0, "minecraft:red_wool"));
+  p.push(blk(1, 10, 0, "minecraft:red_wool"));
   return p;
 }
 var BLUEPRINTS = {
@@ -4750,7 +4899,8 @@ var BLUEPRINTS = {
   "kingdoms:blacksmith": blacksmithBlueprint,
   "kingdoms:trade_station": tradeStationBlueprint,
   "kingdoms:treasury": treasuryBlueprint,
-  "kingdoms:waypoint": waypointBlueprint
+  "kingdoms:waypoint": waypointBlueprint,
+  "kingdoms:castle": castleBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -4823,11 +4973,146 @@ function removeWaypoint(village) {
   saveVillage(village);
   notifyPlayer(village.owner, `\xA7eWaypoint removed from \xA7b${village.name}\xA7e.`);
 }
-async function showWaypointMenu(player) {
+function depositAllToWaypointChest(player, village) {
+  if (!village.waypointLocation) {
+    notifyPlayer(player.name, `\xA7cNo waypoint chest found.`);
+    return;
+  }
+  const chestLoc = {
+    x: village.waypointLocation.x + 2,
+    y: village.waypointLocation.y + 1,
+    z: village.waypointLocation.z
+  };
+  const dim = world16.getDimension(village.location.dimension);
+  const chestBlock = dim.getBlock(chestLoc);
+  const chestInv = chestBlock?.getComponent("inventory");
+  if (!chestInv?.container) {
+    notifyPlayer(player.name, `\xA7cWaypoint chest not found \u2014 make sure the structure has been built.`);
+    return;
+  }
+  const playerInv = player.getComponent("inventory");
+  if (!playerInv?.container) return;
+  const playerContainer = playerInv.container;
+  const chestContainer = chestInv.container;
+  let deposited = 0;
+  let noRoom = 0;
+  for (let i = 0; i < playerContainer.size; i++) {
+    const item = playerContainer.getItem(i);
+    if (!item) continue;
+    let placed = false;
+    for (let c = 0; c < chestContainer.size; c++) {
+      const existing = chestContainer.getItem(c);
+      if (existing && existing.typeId === item.typeId && existing.amount < existing.maxAmount) {
+        const space = existing.maxAmount - existing.amount;
+        const toMove = Math.min(space, item.amount);
+        existing.amount += toMove;
+        chestContainer.setItem(c, existing);
+        if (toMove >= item.amount) {
+          playerContainer.setItem(i, void 0);
+          deposited++;
+          placed = true;
+          break;
+        } else {
+          item.amount -= toMove;
+        }
+      }
+    }
+    if (placed) continue;
+    let foundSlot = false;
+    for (let c = 0; c < chestContainer.size; c++) {
+      if (!chestContainer.getItem(c)) {
+        chestContainer.setItem(c, item);
+        playerContainer.setItem(i, void 0);
+        deposited++;
+        foundSlot = true;
+        break;
+      }
+    }
+    if (!foundSlot) noRoom++;
+  }
+  if (deposited > 0 && noRoom === 0) {
+    notifyPlayer(player.name, `\xA7a\u{1F4E6} All items deposited into the waypoint chest.`);
+  } else if (deposited > 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7e\u{1F4E6} Deposited ${deposited} item(s). \xA7c${noRoom} item(s) didn't fit \u2014 chest is full.`);
+  } else if (deposited === 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7cChest is full \u2014 no items could be deposited.`);
+  } else {
+    notifyPlayer(player.name, `\xA77Your inventory is already empty.`);
+  }
+}
+function collectAllFromWaypointChest(player, village) {
+  if (!village.waypointLocation) {
+    notifyPlayer(player.name, `\xA7cNo waypoint chest found.`);
+    return;
+  }
+  const chestLoc = {
+    x: village.waypointLocation.x + 2,
+    y: village.waypointLocation.y + 1,
+    z: village.waypointLocation.z
+  };
+  const dim = world16.getDimension(village.location.dimension);
+  const chestBlock = dim.getBlock(chestLoc);
+  const chestInv = chestBlock?.getComponent("inventory");
+  if (!chestInv?.container) {
+    notifyPlayer(player.name, `\xA7cWaypoint chest not found \u2014 make sure the structure has been built.`);
+    return;
+  }
+  const playerInv = player.getComponent("inventory");
+  if (!playerInv?.container) return;
+  const playerContainer = playerInv.container;
+  const chestContainer = chestInv.container;
+  let collected = 0;
+  let noRoom = 0;
+  for (let c = 0; c < chestContainer.size; c++) {
+    const item = chestContainer.getItem(c);
+    if (!item) continue;
+    let placed = false;
+    for (let i = 0; i < playerContainer.size; i++) {
+      const existing = playerContainer.getItem(i);
+      if (existing && existing.typeId === item.typeId && existing.amount < existing.maxAmount) {
+        const space = existing.maxAmount - existing.amount;
+        const toMove = Math.min(space, item.amount);
+        existing.amount += toMove;
+        playerContainer.setItem(i, existing);
+        if (toMove >= item.amount) {
+          chestContainer.setItem(c, void 0);
+          collected++;
+          placed = true;
+          break;
+        } else {
+          item.amount -= toMove;
+        }
+      }
+    }
+    if (placed) continue;
+    let foundSlot = false;
+    for (let i = 0; i < playerContainer.size; i++) {
+      if (!playerContainer.getItem(i)) {
+        playerContainer.setItem(i, item);
+        chestContainer.setItem(c, void 0);
+        collected++;
+        foundSlot = true;
+        break;
+      }
+    }
+    if (!foundSlot) noRoom++;
+  }
+  if (collected > 0 && noRoom === 0) {
+    notifyPlayer(player.name, `\xA7a\u{1F4E6} All items collected from the waypoint chest.`);
+  } else if (collected > 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7e\u{1F4E6} Collected ${collected} item(s). \xA7c${noRoom} item(s) didn't fit \u2014 your inventory is full.`);
+  } else if (collected === 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7cInventory is full \u2014 no items could be collected.`);
+  } else {
+    notifyPlayer(player.name, `\xA77The chest is already empty.`);
+  }
+}
+async function showWaypointMenu(player, currentVillage) {
   const destinations = getAllVillages().filter(
     (v) => v.owner === player.name && v.waypointLocation
   );
-  if (destinations.length === 0) {
+  const hasChest = !!currentVillage?.waypointLocation;
+  if (destinations.length === 0 && !hasChest) {
     notifyPlayer(
       player.name,
       `\xA7cNo waypoints found. Place a \xA7bVillage Waypoint\xA7c block inside your village first.`
@@ -4836,8 +5121,14 @@ async function showWaypointMenu(player) {
   }
   const form = new ActionFormData().title("\xA7b\u2726 Village Waypoints").body(
     `\xA77${destinations.length} waypoint(s) registered.
-\xA7fSelect a destination to teleport to:`
+\xA7fSelect a destination to teleport to, or manage the chest:`
   );
+  if (hasChest) {
+    form.button(`\xA76\u{1F4E6} Deposit All to Chest
+\xA77Sweep your inventory into the chest`);
+    form.button(`\xA7a\u{1F4E5} Collect All from Chest
+\xA77Pull everything back into your inventory`);
+  }
   for (const v of destinations) {
     const loc2 = v.waypointLocation;
     form.button(`\xA7b${v.name}
@@ -4846,9 +5137,40 @@ async function showWaypointMenu(player) {
   form.button("\xA77Cancel");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  if (response.selection >= destinations.length) return;
-  const dest = destinations[response.selection];
+  let selection = response.selection;
+  if (hasChest) {
+    if (selection === 0) {
+      depositAllToWaypointChest(player, currentVillage);
+      return;
+    }
+    if (selection === 1) {
+      collectAllFromWaypointChest(player, currentVillage);
+      return;
+    }
+    selection -= 2;
+  }
+  if (selection >= destinations.length) return;
+  const dest = destinations[selection];
   const loc = dest.waypointLocation;
+  const inventory = player.getComponent("inventory");
+  if (inventory?.container) {
+    const container = inventory.container;
+    let hasItems = false;
+    for (let i = 0; i < container.size; i++) {
+      const item = container.getItem(i);
+      if (item) {
+        hasItems = true;
+        break;
+      }
+    }
+    if (hasItems) {
+      notifyPlayer(
+        player.name,
+        `\xA7c\u2726 Waypoint travel requires an empty inventory! Use the \xA7bchest\xA7c beside the waypoint to store your items first.`
+      );
+      return;
+    }
+  }
   try {
     const dim = world16.getDimension(dest.location.dimension);
     player.teleport(
@@ -4859,6 +5181,43 @@ async function showWaypointMenu(player) {
   } catch {
     notifyPlayer(player.name, `\xA7cTeleport failed \u2014 chunk may not be loaded.`);
   }
+}
+
+// src/systems/villagerBow.ts
+import { world as world17, system as system4 } from "@minecraft/server";
+var VILLAGER_TYPES = ["minecraft:villager_v2", "minecraft:villager"];
+var CHECK_INTERVAL_TICKS = 40;
+var BOW_ANIM = "animation.kingdoms.bow_greeting";
+var BOW_DURATION = 2.5;
+var BOW_RADIUS = 4;
+function startVillagerBowSystem() {
+  system4.runInterval(() => {
+    try {
+      for (const player of world17.getAllPlayers()) {
+        const dim = player.dimension;
+        const loc = player.location;
+        for (const type of VILLAGER_TYPES) {
+          try {
+            const nearby = dim.getEntities({
+              type,
+              location: loc,
+              maxDistance: BOW_RADIUS
+            });
+            for (const entity of nearby) {
+              try {
+                entity.runCommandAsync(
+                  `playanimation @s ${BOW_ANIM} false ${BOW_DURATION}`
+                );
+              } catch {
+              }
+            }
+          } catch {
+          }
+        }
+      }
+    } catch {
+    }
+  }, CHECK_INTERVAL_TICKS);
 }
 
 // src/main.ts
@@ -4898,7 +5257,7 @@ This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king})
     const resp = await form.show(player);
     if (resp.selection === 0) {
       declareWar(myKingdom.id, enemyKingdom.id);
-      for (const p of world17.getPlayers()) {
+      for (const p of world18.getPlayers()) {
         notifyPlayer(p.name, `\xA7c\u2694 WAR DECLARED! \xA7f${player.name} \xA77(${myKingdom.name}) \xA7chas declared war on \xA7b${enemyKingdom.name}\xA7c!`);
       }
     }
@@ -4927,7 +5286,7 @@ This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king})
   });
   notifyPlayer(player.name, `\xA7a${label} sent to \xA7b${enemyKingdom.name}\xA7a (${enemyKingdom.king}). Awaiting response...`);
   notifyPlayer(enemyKingdom.king, `\xA7e\u{1F4DC} \xA7b${myKingdom.name}\xA7e sent a \xA7f${label}\xA7e. Interact with any waypoint or use /scriptevent kc:diplomacy to respond.`);
-  const targetOnline = world17.getPlayers().find((p) => p.name === enemyKingdom.king);
+  const targetOnline = world18.getPlayers().find((p) => p.name === enemyKingdom.king);
   if (targetOnline) void showPendingDiplomacyRequest(targetOnline);
 }
 async function showPendingDiplomacyRequest(player) {
@@ -4979,14 +5338,15 @@ var CUSTOM_BLOCKS = {
   MARKET: "kingdoms:market",
   GRANARY: "kingdoms:granary",
   TREASURY_BLOCK: "kingdoms:treasury",
-  BLACKSMITH: "kingdoms:blacksmith"
+  BLACKSMITH: "kingdoms:blacksmith",
+  CASTLE: "kingdoms:castle"
 };
 function findVillageAt2(location) {
   return getAllVillages().find(
     (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
   );
 }
-world17.afterEvents.playerPlaceBlock.subscribe((event) => {
+world18.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
   const typeId = block.typeId;
@@ -5056,6 +5416,24 @@ world17.afterEvents.playerPlaceBlock.subscribe((event) => {
     }
     registerWaypoint(village, block.location);
   }
+  if (typeId === CUSTOM_BLOCKS.CASTLE) {
+    const village = findVillageAt2(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "\xA7cNo village territory here. Claim a village first.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "\xA7cThis is not your village.");
+      return;
+    }
+    if (village.hasCastle) {
+      notifyPlayer(player.name, `\xA7c\xA7b${village.name}\xA7c already has a Castle.`);
+      return;
+    }
+    village.hasCastle = true;
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7a\u{1F3F0} Castle established in \xA7b${village.name}\xA7a! Elite troops are now available.`);
+  }
   if (typeId === "minecraft:black_wool" || typeId === "minecraft:white_wool") {
     const woolVillage = findVillageAt2(block.location);
     if (woolVillage && woolVillage.owner && woolVillage.owner !== player.name) {
@@ -5068,7 +5446,7 @@ world17.afterEvents.playerPlaceBlock.subscribe((event) => {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
     notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}\xA77\u2026`);
-    system3.run(() => {
+    system5.run(() => {
       generateStructure(dimension, origin, typeId);
     });
   }
@@ -5082,7 +5460,7 @@ function canOpenMenu(playerName) {
   lastMenuTick.set(playerName, tick);
   return true;
 }
-world17.afterEvents.itemStartUseOn.subscribe((event) => {
+world18.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
   const itemStack = event.itemStack;
@@ -5131,9 +5509,9 @@ world17.afterEvents.itemStartUseOn.subscribe((event) => {
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt2(block.location);
       if (wpVillage && wpVillage.waypointLocation) {
-        void showWaypointMenu(player);
+        void showWaypointMenu(player, wpVillage);
         if (pendingDiplomacyRequests.has(player.name)) {
-          system3.runTimeout(() => {
+          system5.runTimeout(() => {
             void showPendingDiplomacyRequest(player);
           }, 40);
         }
@@ -5142,7 +5520,7 @@ world17.afterEvents.itemStartUseOn.subscribe((event) => {
     }
   }
 });
-world17.afterEvents.playerBreakBlock.subscribe((event) => {
+world18.afterEvents.playerBreakBlock.subscribe((event) => {
   const { player } = event;
   if (!player) return;
   const typeId = event.brokenBlockPermutation.type.id;
@@ -5210,15 +5588,16 @@ world17.afterEvents.playerBreakBlock.subscribe((event) => {
     }
   }
 });
-world17.afterEvents.playerJoin.subscribe((event) => {
+world18.afterEvents.playerJoin.subscribe((event) => {
   const playerName = event.playerName;
   if (!pendingDiplomacyRequests.has(playerName)) return;
-  system3.runTimeout(() => {
-    const player = world17.getPlayers().find((p) => p.name === playerName);
+  system5.runTimeout(() => {
+    const player = world18.getPlayers().find((p) => p.name === playerName);
     if (player) void showPendingDiplomacyRequest(player);
   }, 100);
 });
-system3.runInterval(() => {
+startVillagerBowSystem();
+system5.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
   tickTradeStations(tick);
@@ -5231,7 +5610,7 @@ system3.runInterval(() => {
   tickAllMerchantsSpawn(tick);
   tickAllMerchantMovement();
 }, 20);
-system3.runInterval(() => {
+system5.runInterval(() => {
   processAllFood();
   processAllWages();
   processAllPopulation();
@@ -5240,15 +5619,15 @@ system3.runInterval(() => {
   autoHarvestAllVillages();
   checkDailyCrisisAlerts();
 }, 24e3);
-system3.runInterval(() => {
+system5.runInterval(() => {
   refreshAllGuards();
 }, 12e3);
-system3.runInterval(() => {
+system5.runInterval(() => {
   for (const village of getAllVillages()) {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
-world17.beforeEvents.playerBreakBlock.subscribe((event) => {
+world18.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;
   const permutation = block.permutation;
@@ -5263,9 +5642,9 @@ world17.beforeEvents.playerBreakBlock.subscribe((event) => {
   const blockAge = age;
   const loc = { x: block.location.x, y: block.location.y, z: block.location.z };
   const dimId = player.dimension.id;
-  system3.run(() => {
+  system5.run(() => {
     try {
-      const dim = world17.getDimension(dimId);
+      const dim = world18.getDimension(dimId);
       const freshBlock = dim.getBlock(loc);
       if (!freshBlock) return;
       const freshAge = freshBlock.permutation.getState("age");
@@ -5277,19 +5656,19 @@ world17.beforeEvents.playerBreakBlock.subscribe((event) => {
     }
   });
 });
-world17.afterEvents.itemUse.subscribe((event) => {
+world18.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   if (!player) return;
   const itemId = event.itemStack?.typeId;
   if (!itemId) return;
   if (itemId === "kingdoms:recall_scroll") {
-    system3.run(() => {
+    system5.run(() => {
       recallNearbyTroops(player);
     });
     return;
   }
   if (TROOP_TOKEN_MAP[itemId]) {
-    system3.run(() => {
+    system5.run(() => {
       releaseTroops(player);
     });
   }
@@ -5313,7 +5692,7 @@ async function showTownHallMenu(player, block) {
   const summary = getVillageSummary(village);
   const form = new ActionFormData2().title(`${village.name} \u2014 Town Hall`).body(summary);
   if (isOwner) {
-    form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village");
+    form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village").button("\u{1F3EA} Shop");
   } else {
     form.button("Close");
   }
@@ -5338,7 +5717,36 @@ async function showTownHallMenu(player, block) {
     case 5:
       await showRenameForm(player, village.id);
       break;
+    case 6:
+      await showTownHallShop(player, village);
+      break;
   }
+}
+async function showTownHallShop(player, village) {
+  const WAYPOINT_COST = 30;
+  const form = new ActionFormData2().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(
+    `\xA77Treasury: \xA7f${village.treasury}\u{1F48E}
+
+Purchase items using your village treasury.`
+  ).button(`\u{1F5FA} Village Waypoint
+\xA77${WAYPOINT_COST}\u{1F48E} \u2014 place to set a fast-travel point`).button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection !== 0) return;
+  if (village.treasury < WAYPOINT_COST) {
+    notifyPlayer(player.name, `\xA7cNot enough treasury funds. Need ${WAYPOINT_COST}\u{1F48E}, have ${village.treasury}\u{1F48E}.`);
+    return;
+  }
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  if (!inv?.container) return;
+  const waypointItem = new ItemStack6("kingdoms:waypoint", 1);
+  const added = inv.container.addItem(waypointItem);
+  if (added) {
+    notifyPlayer(player.name, "\xA7cYour inventory is full. Make room first.");
+    return;
+  }
+  village.treasury -= WAYPOINT_COST;
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7a\u{1F5FA} Village Waypoint purchased! Place it inside your village to activate.`);
 }
 async function showBarracksMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -5348,29 +5756,36 @@ async function showBarracksMenu(player, block) {
   }
   const t = village.troops;
   const hk = t.heavyKnight ?? 0;
+  const sm = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const lg = t.legionary ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0);
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0) + (carried.samurai ?? 0) + (carried.mercenaryLancer ?? 0) + (carried.legionary ?? 0);
   const tick = getCurrentTick();
   const queueSummary = getTrainingQueueSummary(village, tick);
   const queueCount = village.trainingQueue?.length ?? 0;
   const rs = village.resourceStorage;
   const hkLocked = village.barracksLevel < 3;
+  const castleBuilt = village.hasCastle ?? false;
   const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
+  const eliteLine = castleBuilt ? `\xA76Samurai: ${sm}  Lancer: ${ml}  Legionary: ${lg}` : `\xA77Elite Troops: \xA7c\u{1F512} needs Castle`;
   const form = new ActionFormData2().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
 Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
 Archers: ${t.archers}  Cavalry: ${t.cavalry}
 ${hkLine}
+${eliteLine}
 
 \xA77\u2500\u2500 Carried in Inventory \u2500\u2500
 Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}
 Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}
+Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}
 
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
 Treasury: ${village.treasury}\u{1F48E}  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
-  ).button("Recruit City Guard (8\u{1F48E})").button("Recruit Spearman (12\u{1F48E})").button("Recruit Archer (12\u{1F48E})").button("Recruit Cavalry (20\u{1F48E})").button(hkLocked ? "\u{1F512} Heavy Knight (needs Lv3 Barracks)" : "\u2694 Recruit Heavy Knight (35\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Heavy Knight").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
+  ).button("Recruit City Guard (8\u{1F48E})").button("Recruit Spearman (12\u{1F48E})").button("Recruit Archer (12\u{1F48E})").button("Recruit Cavalry (20\u{1F48E})").button(hkLocked ? "\u{1F512} Heavy Knight (needs Lv3 Barracks)" : "\u2694 Recruit Heavy Knight (35\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Heavy Knight").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} available)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5412,21 +5827,36 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${rs.iron}  Gold: ${rs.gold}  Diam
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
   const hk = t.heavyKnight ?? 0;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk;
+  const sm2 = t.samurai ?? 0;
+  const ml2 = t.mercenaryLancer ?? 0;
+  const lg2 = t.legionary ?? 0;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm2 + ml2 + lg2;
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
   }
-  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0).slider(`Heavy Knights (${hk} available)`, 0, Math.max(hk, 1), 1, 0);
+  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0).slider(`Heavy Knights (${hk} available)`, 0, Math.max(hk, 1), 1, 0).slider(`Samurai (${sm2} available)`, 0, Math.max(sm2, 1), 1, 0).slider(`Mercenary Lancers (${ml2} available)`, 0, Math.max(ml2, 1), 1, 0).slider(`Legionaries (${lg2} available)`, 0, Math.max(lg2, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry, heavyKnight] = response.formValues;
-  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, heavyKnight: heavyKnight ?? 0 });
+  const [guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues;
+  pickupTroops(player, village, {
+    cityGuards: guards,
+    spearmen,
+    archers,
+    cavalry,
+    heavyKnight: heavyKnight ?? 0,
+    samurai: samurai ?? 0,
+    mercenaryLancer: mercenaryLancer ?? 0,
+    legionary: legionary ?? 0
+  });
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
   const hkCarried = carried.heavyKnight ?? 0;
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried;
+  const smCarried = carried.samurai ?? 0;
+  const mlCarried = carried.mercenaryLancer ?? 0;
+  const lgCarried = carried.legionary ?? 0;
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried + smCarried + mlCarried + lgCarried;
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
@@ -5440,6 +5870,9 @@ async function showReturnTroopsForm(player, village) {
   Archers: ${carried.archers}
   Cavalry: ${carried.cavalry}
   Heavy Knights: ${hkCarried}
+  Samurai: ${smCarried}
+  Mercenary Lancers: ${mlCarried}
+  Legionaries: ${lgCarried}
 
 \xA7aTotal: ${total} troops`
   ).button("Return All Troops").button("Cancel");
@@ -5453,7 +5886,7 @@ async function showReturnTroopsForm(player, village) {
     if (!slot) continue;
     const info = TROOP_TOKEN_MAP[slot.typeId];
     if (!info) continue;
-    village.troops[info.troopType] += slot.amount;
+    village.troops[info.troopType] = (village.troops[info.troopType] ?? 0) + slot.amount;
     container.setItem(i, void 0);
   }
   saveVillage(village);
@@ -5462,7 +5895,16 @@ async function showReturnTroopsForm(player, village) {
 async function showTrainTroopsForm(player, village) {
   const tick = getCurrentTick();
   const queueCount = village.trainingQueue?.length ?? 0;
-  const troopTypes = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight"];
+  const troopTypes = [
+    "cityGuards",
+    "spearmen",
+    "archers",
+    "cavalry",
+    "heavyKnight",
+    "samurai",
+    "mercenaryLancer",
+    "legionary"
+  ];
   const makeCostLine = (type) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
@@ -5474,6 +5916,10 @@ async function showTrainTroopsForm(player, village) {
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
   const hkAvailable = village.barracksLevel >= 3;
+  const castleAvailable = village.hasCastle ?? false;
+  const playerVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const eliteAvailable = castleAvailable && playerVillages.length >= 3;
+  const eliteLockMsg = !castleAvailable ? "\u{1F512} needs Castle + 3 villages" : playerVillages.length < 3 ? `\u{1F512} needs 3 villages (you have ${playerVillages.length})` : "";
   const form = new ActionFormData2().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
 Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}  \xA77Di: \xA7f${rs.diamonds}
@@ -5488,15 +5934,21 @@ ${queueSummary}
 \xA77${makeCostLine("archers")}`).button(`Cavalry
 \xA77${makeCostLine("cavalry")}`).button(hkAvailable ? `Heavy Knight
 \xA77${makeCostLine("heavyKnight")}` : `\xA77Heavy Knight (\u{1F512} Barracks Lv3 needed)
-\xA77${makeCostLine("heavyKnight")}`).button("Back");
+\xA77${makeCostLine("heavyKnight")}`).button(eliteAvailable ? `\u2B50 Samurai
+\xA77${makeCostLine("samurai")}` : `\xA77Samurai (${eliteLockMsg})
+\xA77${makeCostLine("samurai")}`).button(eliteAvailable ? `\u2B50 Mercenary Lancer
+\xA77${makeCostLine("mercenaryLancer")}` : `\xA77Mercenary Lancer (${eliteLockMsg})
+\xA77${makeCostLine("mercenaryLancer")}`).button(eliteAvailable ? `\u2B50 Legionary
+\xA77${makeCostLine("legionary")}` : `\xA77Legionary (${eliteLockMsg})
+\xA77${makeCostLine("legionary")}`).button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === 5) return;
+  if (response.canceled || response.selection === 8) return;
   const selectedType = troopTypes[response.selection];
   const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
   const countResponse = await countForm.show(player);
   if (countResponse.canceled || countResponse.formValues == null) return;
   const count = countResponse.formValues[0];
-  queueTraining(village, selectedType, count, tick);
+  queueTraining(village, selectedType, count, tick, playerVillages.length);
 }
 async function showMarketMenu(player, block) {
   const village = findVillageAt2(block.location);
