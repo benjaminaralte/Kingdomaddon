@@ -5173,70 +5173,93 @@ function townHallBlueprint() {
 }
 function barracksBlueprint() {
   const p = [];
-  // Clear a generous volume for the castle
-  p.push(...fill(-8, 1, -8, 8, 13, 8, "minecraft:air"));
-  // Foundation
-  p.push(...fill(-8, 0, -8, 8, 0, 8, "minecraft:stone_bricks"));
-  // Four main walls (8 high, stone bricks)
-  p.push(...fill(-8, 1, -8, 8, 8, -8, "minecraft:stone_bricks")); // north
-  p.push(...fill(-8, 1,  8, 8, 8,  8, "minecraft:stone_bricks")); // south
-  p.push(...fill(-8, 1, -7, -8, 8,  7, "minecraft:stone_bricks")); // west
-  p.push(...fill( 8, 1, -7,  8, 8,  7, "minecraft:stone_bricks")); // east
-  // Gate opening south wall (x=-2..+2, y=1..5)
-  for (let x = -2; x <= 2; x++) for (let y = 1; y <= 5; y++) p.push(blk(x, y, 8, "minecraft:air"));
-  // Battlements top (y=9, alternating merlons)
-  for (let x = -8; x <= 8; x += 2) {
-    p.push(blk(x, 9, -8, "minecraft:stone_bricks"));
-    p.push(blk(x, 9,  8, "minecraft:stone_bricks"));
+  // Clear volume
+  p.push(...fill(-8, 1, -6, 8, 12, 6, "minecraft:air"));
+  // Foundation (cobblestone)
+  p.push(...fill(-8, 0, -6, 8, 0, 6, "minecraft:cobblestone"));
+  // Outer walls: stone bricks (y=1-7)
+  p.push(...fill(-8, 1, -6, 8, 7, -6, "minecraft:stone_bricks")); // north
+  p.push(...fill(-8, 1,  6, 8, 7,  6, "minecraft:stone_bricks")); // south
+  p.push(...fill(-8, 1, -5, -8, 7,  5, "minecraft:stone_bricks")); // west
+  p.push(...fill( 8, 1, -5,  8, 7,  5, "minecraft:stone_bricks")); // east
+  // Timber frame: dark oak corner columns
+  for (const [cx, cz] of [[-8,-6],[-8,6],[8,-6],[8,6]])
+    p.push(...fill(cx, 1, cz, cx, 8, cz, "minecraft:dark_oak_log"));
+  // Mid-wall dark oak posts (structural rhythm)
+  for (const mpx of [-4, 0, 4]) {
+    p.push(...fill(mpx, 1, -6, mpx, 7, -6, "minecraft:dark_oak_log"));
+    p.push(...fill(mpx, 1,  6, mpx, 7,  6, "minecraft:dark_oak_log"));
   }
-  for (let z = -6; z <= 6; z += 2) {
-    p.push(blk(-8, 9, z, "minecraft:stone_bricks"));
-    p.push(blk( 8, 9, z, "minecraft:stone_bricks"));
+  for (const mpz of [-2, 2]) {
+    p.push(...fill(-8, 1, mpz, -8, 7, mpz, "minecraft:dark_oak_log"));
+    p.push(...fill( 8, 1, mpz,  8, 7, mpz, "minecraft:dark_oak_log"));
   }
-  // Corner towers (3x3 outer shell, y=1..11, hollow centre)
-  for (const [cx, cz] of [[-8, -8], [-8, 8], [8, -8], [8, 8]]) {
-    for (let tx = cx - 1; tx <= cx + 1; tx++) {
-      for (let tz = cz - 1; tz <= cz + 1; tz++) {
-        if (tx === cx && tz === cz) continue; // hollow centre
-        for (let ty = 1; ty <= 11; ty++) p.push(blk(tx, ty, tz, "minecraft:stone_bricks"));
-      }
-    }
-    // Tower battlements at y=12
-    for (let tx = cx - 1; tx <= cx + 1; tx++) {
-      for (let tz = cz - 1; tz <= cz + 1; tz++) {
-        if ((tx + tz + 40) % 2 === 0) p.push(blk(tx, 12, tz, "minecraft:stone_bricks"));
-      }
-    }
-    // Tower light
-    p.push(blk(cx, 2, cz, "minecraft:sea_lantern"));
+  // Triple-wide door opening (south wall, x=-1..1, y=1-3)
+  for (let x = -1; x <= 1; x++) for (let y = 1; y <= 3; y++) p.push(blk(x, y, 6, "minecraft:air"));
+  // Windows: 2-high glass panes on each wall
+  for (const wx of [-6, -2, 2, 6])     { p.push(blk(wx, 3, -6, "minecraft:glass"), blk(wx, 4, -6, "minecraft:glass")); } // north
+  for (const wx of [-5, -3, 3, 5])     { p.push(blk(wx, 3,  6, "minecraft:glass"), blk(wx, 4,  6, "minecraft:glass")); } // south flanking door
+  for (const wz of [-4, -1, 1, 4])     {
+    p.push(blk(-8, 3, wz, "minecraft:glass"), blk(-8, 4, wz, "minecraft:glass")); // west
+    p.push(blk( 8, 3, wz, "minecraft:glass"), blk( 8, 4, wz, "minecraft:glass")); // east
   }
+  // Flat roof (cobblestone y=8) + stone brick crenellations (y=9)
+  p.push(...fill(-8, 8, -6, 8, 8, 6, "minecraft:cobblestone"));
+  for (let x = -8; x <= 8; x += 2) { p.push(blk(x, 9, -6, "minecraft:stone_bricks")); p.push(blk(x, 9, 6, "minecraft:stone_bricks")); }
+  for (let z = -5; z <= 5; z += 2) { p.push(blk(-8, 9, z, "minecraft:stone_bricks")); p.push(blk(8, 9, z, "minecraft:stone_bricks")); }
+  // Entry watchtower above south door (y=8-11)
+  p.push(...fill(-1, 8, 6, 1, 11, 6, "minecraft:stone_bricks"));
+  p.push(blk(0, 9, 6, "minecraft:air")); // arrow slit window
+  p.push(blk(-1, 12, 6, "minecraft:stone_bricks"), blk(0, 12, 6, "minecraft:stone_bricks"), blk(1, 12, 6, "minecraft:stone_bricks"));
   // Interior floor
-  p.push(...fill(-7, 1, -7, 7, 1, 7, "minecraft:cobblestone"));
-  // Training carpet
-  p.push(...fill(-4, 1, -3, 4, 1, 3, "minecraft:red_carpet"));
-  // Equipment wall (north interior side)
-  p.push(blk(-5, 1, -6, "minecraft:chest"), blk(-3, 1, -6, "minecraft:chest"));
-  p.push(blk( 3, 1, -6, "minecraft:chest"), blk( 5, 1, -6, "minecraft:chest"));
-  p.push(blk( 0, 1, -6, "minecraft:anvil"));
-  p.push(blk(-2, 1, -6, "minecraft:smithing_table"));
-  p.push(blk( 2, 1, -6, "minecraft:smithing_table"));
-  // Weapon racks (iron bars)
-  for (let x = -5; x <= 5; x += 2) {
-    p.push(blk(x, 1, 5, "minecraft:iron_bars"));
-    p.push(blk(x, 2, 5, "minecraft:iron_bars"));
+  p.push(...fill(-7, 1, -5, 7, 1, 5, "minecraft:cobblestone"));
+  p.push(...fill( 0, 1, -5, 0, 1, 5, "minecraft:red_carpet")); // central aisle
+  // ── BUNK ROOM (north zone, z=-5 to -1) ──────────────────────────────────
+  p.push(blk(-5, 1, -4, "minecraft:white_bed"), blk(-5, 1, -2, "minecraft:white_bed")); // left lower bunks
+  p.push(blk( 5, 1, -4, "minecraft:white_bed"), blk( 5, 1, -2, "minecraft:white_bed")); // right lower bunks
+  p.push(blk(-7, 1, -4, "minecraft:chest"), blk(-7, 1, -2, "minecraft:chest")); // personal chests L
+  p.push(blk( 7, 1, -4, "minecraft:chest"), blk( 7, 1, -2, "minecraft:chest")); // personal chests R
+  p.push(blk(-7, 2, -4, "minecraft:bookshelf"), blk(-7, 2, -2, "minecraft:bookshelf")); // shelving above chests
+  p.push(blk( 7, 2, -4, "minecraft:bookshelf"), blk( 7, 2, -2, "minecraft:bookshelf"));
+  // Upper bunk platform (dark oak, y=2, over lower beds)
+  p.push(...fill(-6, 2, -4, -4, 2, -2, "minecraft:dark_oak_planks"));
+  p.push(...fill( 4, 2, -4,  6, 2, -2, "minecraft:dark_oak_planks"));
+  p.push(blk(-6, 2, -4, "minecraft:dark_oak_log"), blk(-6, 2, -2, "minecraft:dark_oak_log")); // L support posts
+  p.push(blk(-4, 2, -4, "minecraft:dark_oak_log"), blk(-4, 2, -2, "minecraft:dark_oak_log"));
+  p.push(blk( 4, 2, -4, "minecraft:dark_oak_log"), blk( 4, 2, -2, "minecraft:dark_oak_log")); // R support posts
+  p.push(blk( 6, 2, -4, "minecraft:dark_oak_log"), blk( 6, 2, -2, "minecraft:dark_oak_log"));
+  p.push(blk(-7, 2, -5, "minecraft:bookshelf"), blk(-5, 2, -5, "minecraft:bookshelf")); // north wall shelf
+  p.push(blk( 5, 2, -5, "minecraft:bookshelf"), blk( 7, 2, -5, "minecraft:bookshelf"));
+  // ── EQUIPMENT ZONE (center, z=-1 to 1) ──────────────────────────────────
+  p.push(blk(-3, 1, 0, "minecraft:anvil"));
+  p.push(blk(-2, 1, 0, "minecraft:smithing_table"));
+  p.push(blk( 2, 1, 0, "minecraft:crafting_table"));
+  p.push(blk( 3, 1, 0, "minecraft:grindstone"));
+  p.push(blk(-7, 1, 0, "minecraft:chest"), blk(7, 1, 0, "minecraft:chest")); // equipment chests
+  p.push(blk(-7, 2, 0, "minecraft:barrel"), blk(7, 2, 0, "minecraft:barrel")); // supply barrels
+  for (let iy = 1; iy <= 3; iy++) { // weapon rack bars (flanking equipment)
+    p.push(blk(-5, iy, 0, "minecraft:iron_bars"), blk(-6, iy, 0, "minecraft:iron_bars"));
+    p.push(blk( 5, iy, 0, "minecraft:iron_bars"), blk( 6, iy, 0, "minecraft:iron_bars"));
   }
-  // Windows in walls
-  for (const wx of [-4, 0, 4]) {
-    p.push(blk(wx, 4, -8, "minecraft:glass"), blk(wx, 6, -8, "minecraft:glass"));
-    p.push(blk(wx, 4,  8, "minecraft:glass"));
+  // ── TRAINING YARD (south zone, z=2 to 5) ────────────────────────────────
+  p.push(...fill(-6, 1, 2, 6, 1, 5, "minecraft:gravel")); // gravel training floor
+  p.push(blk( 0, 1, 4, "minecraft:dark_oak_log"), blk(0, 2, 4, "minecraft:dark_oak_log"), blk(0, 3, 4, "minecraft:dark_oak_log")); // training post
+  p.push(blk(-1, 3, 4, "minecraft:iron_bars"), blk(1, 3, 4, "minecraft:iron_bars")); // crossarms on post
+  p.push(blk(-4, 1, 3, "minecraft:oak_fence"), blk(4, 1, 3, "minecraft:oak_fence")); // sparring ring markers
+  p.push(blk(-4, 1, 5, "minecraft:oak_fence"), blk(4, 1, 5, "minecraft:oak_fence"));
+  // ── GRAND ENTRANCE (south exterior) ─────────────────────────────────────
+  p.push(...fill(-3, 0, 7, 3, 0, 10, "minecraft:stone_bricks")); // raised approach platform
+  p.push(...fill(-4, 1, 7, -4, 3, 10, "minecraft:stone_bricks")); // left guard pillar
+  p.push(...fill( 4, 1, 7,  4, 3, 10, "minecraft:stone_bricks")); // right guard pillar
+  p.push(blk(-4, 4, 9, "minecraft:torch"), blk(4, 4, 9, "minecraft:torch")); // pillar torches
+  // ── LIGHTING ────────────────────────────────────────────────────────────
+  p.push(blk(0, 7, -3, "minecraft:sea_lantern")); // bunk room chandelier
+  p.push(blk(0, 7,  0, "minecraft:sea_lantern")); // equipment zone
+  p.push(blk(0, 7,  3, "minecraft:sea_lantern")); // training yard
+  for (const tz of [-4, -1, 2, 5]) {
+    p.push(blk(-7, 4, tz, "minecraft:torch"), blk(7, 4, tz, "minecraft:torch")); // wall torches
   }
-  p.push(blk(-8, 4, -4, "minecraft:glass"), blk(-8, 4, 0, "minecraft:glass"), blk(-8, 4, 4, "minecraft:glass"));
-  p.push(blk( 8, 4, -4, "minecraft:glass"), blk( 8, 4, 0, "minecraft:glass"), blk( 8, 4, 4, "minecraft:glass"));
-  // Interior lighting
-  p.push(blk( 0, 8, 0, "minecraft:sea_lantern"));
-  p.push(blk(-5, 5, -7, "minecraft:torch"), blk(5, 5, -7, "minecraft:torch"));
-  p.push(blk(-7, 5,  0, "minecraft:torch"), blk(7, 5,  0, "minecraft:torch"));
-  p.push(blk(-5, 5,  7, "minecraft:torch"), blk(5, 5,  7, "minecraft:torch"));
+  p.push(blk(0, 4, -5, "minecraft:torch"), blk(0, 4, 5, "minecraft:torch")); // N + S wall torches
   return p;
 }
 function marketBlueprint() {
@@ -5269,22 +5292,80 @@ function marketBlueprint() {
 }
 function granaryBlueprint() {
   const p = [];
-  p.push(...fill(-3, 1, -3, 3, 8, 3, "minecraft:air"));
-  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:birch_planks"));
-  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:spruce_planks"));
-  for (let y = 1; y <= 2; y++) p.push(blk(0, y, 3, "minecraft:air"));
-  p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
-  p.push(blk(0, 2, -3, "minecraft:glass"), blk(0, 2, 3, "minecraft:glass"));
-  for (const [cx, cz] of [[-3, -3], [-3, 3], [3, -3], [3, 3]])
-    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:spruce_log"));
-  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:hay_block"));
-  p.push(...fill(-2, 6, -2, 2, 6, 2, "minecraft:hay_block"));
-  p.push(...fill(-1, 7, -1, 1, 7, 1, "minecraft:hay_block"));
-  p.push(blk(0, 8, 0, "minecraft:hay_block"));
-  p.push(blk(-2, 1, -2, "minecraft:barrel"), blk(2, 1, -2, "minecraft:barrel"));
-  p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
-  p.push(blk(0, 1, -2, "minecraft:chest"));
-  p.push(blk(0, 1, 0, "minecraft:sea_lantern"));
+  // Clear volume (bigger 9x9 footprint, 12 tall)
+  p.push(...fill(-4, 1, -4, 4, 12, 4, "minecraft:air"));
+  // Foundation (birch planks — warm barn look)
+  p.push(...fill(-4, 0, -4, 4, 0, 4, "minecraft:birch_planks"));
+  // Corner structural posts (spruce log, full height)
+  for (const [cx, cz] of [[-4,-4],[-4,4],[4,-4],[4,4]])
+    p.push(...fill(cx, 1, cz, cx, 8, cz, "minecraft:spruce_log"));
+  // Mid-wall posts (spruce log) for structural rhythm
+  for (const mpx of [-4, 4]) {
+    p.push(...fill(mpx, 1, 0, mpx, 6, 0, "minecraft:spruce_log")); // E/W mid post
+  }
+  p.push(...fill(0, 1, -4, 0, 6, -4, "minecraft:spruce_log")); // N mid post
+  p.push(...fill(0, 1,  4, 0, 6,  4, "minecraft:spruce_log")); // S mid post
+  // Walls (spruce planks, y=1-6)
+  p.push(...fill(-3, 1, -4, 3, 6, -4, "minecraft:spruce_planks")); // north
+  p.push(...fill(-3, 1,  4, 3, 6,  4, "minecraft:spruce_planks")); // south
+  p.push(...fill(-4, 1, -3, -4, 6, 3, "minecraft:spruce_planks")); // west
+  p.push(...fill( 4, 1, -3,  4, 6, 3, "minecraft:spruce_planks")); // east
+  // Door opening: south wall, double-wide (x=-1..1, y=1-2)
+  for (let x = -1; x <= 1; x++) for (let y = 1; y <= 2; y++) p.push(blk(x, y, 4, "minecraft:air"));
+  // Doorstep (birch planks outside, z=5)
+  p.push(blk(-1, 0, 5, "minecraft:birch_planks"), blk(0, 0, 5, "minecraft:birch_planks"), blk(1, 0, 5, "minecraft:birch_planks"));
+  // Windows: 2-high glass on each wall (2 per wall)
+  for (const wx of [-2, 2]) {
+    p.push(blk(wx, 3, -4, "minecraft:glass"), blk(wx, 4, -4, "minecraft:glass")); // north
+    p.push(blk(wx, 3,  4, "minecraft:glass"), blk(wx, 4,  4, "minecraft:glass")); // south
+  }
+  for (const wz of [-2, 2]) {
+    p.push(blk(-4, 3, wz, "minecraft:glass"), blk(-4, 4, wz, "minecraft:glass")); // west
+    p.push(blk( 4, 3, wz, "minecraft:glass"), blk( 4, 4, wz, "minecraft:glass")); // east
+  }
+  // Upper wall (solid, y=7 above windows)
+  p.push(...fill(-3, 7, -4, 3, 7, -4, "minecraft:spruce_planks"));
+  p.push(...fill(-3, 7,  4, 3, 7,  4, "minecraft:spruce_planks"));
+  p.push(...fill(-4, 7, -3, -4, 7, 3, "minecraft:spruce_planks"));
+  p.push(...fill( 4, 7, -3,  4, 7, 3, "minecraft:spruce_planks"));
+  // Ventilation slits at y=6 (every other block along top of walls)
+  for (let x = -3; x <= 3; x += 2) {
+    p.push(blk(x, 6, -4, "minecraft:glass")); // north vent
+    p.push(blk(x, 6,  4, "minecraft:glass")); // south vent
+  }
+  for (let z = -3; z <= 3; z += 2) {
+    p.push(blk(-4, 6, z, "minecraft:glass")); // west vent
+    p.push(blk( 4, 6, z, "minecraft:glass")); // east vent
+  }
+  // Hay pyramid roof (thematic and recognizable)
+  p.push(...fill(-4, 8, -4, 4, 8, 4, "minecraft:hay_block"));
+  p.push(...fill(-3, 9, -3, 3, 9, 3, "minecraft:hay_block"));
+  p.push(...fill(-2,10, -2, 2,10, 2, "minecraft:hay_block"));
+  p.push(...fill(-1,11, -1, 1,11, 1, "minecraft:hay_block"));
+  p.push(blk(0, 12, 0, "minecraft:hay_block"));
+  // Interior floor (birch planks)
+  p.push(...fill(-3, 1, -3, 3, 1, 3, "minecraft:birch_planks"));
+  // Barrel rows along east & west walls (stacked 2-high for a full granary look)
+  p.push(blk(-3, 1, -3, "minecraft:barrel"), blk(-3, 2, -3, "minecraft:barrel"));
+  p.push(blk(-3, 1, -2, "minecraft:barrel"), blk(-3, 2, -2, "minecraft:barrel"));
+  p.push(blk(-3, 1,  1, "minecraft:barrel"), blk(-3, 2,  1, "minecraft:barrel"));
+  p.push(blk(-3, 1,  2, "minecraft:barrel"), blk(-3, 2,  2, "minecraft:barrel"));
+  p.push(blk( 3, 1, -3, "minecraft:barrel"), blk( 3, 2, -3, "minecraft:barrel"));
+  p.push(blk( 3, 1, -2, "minecraft:barrel"), blk( 3, 2, -2, "minecraft:barrel"));
+  p.push(blk( 3, 1,  1, "minecraft:barrel"), blk( 3, 2,  1, "minecraft:barrel"));
+  p.push(blk( 3, 1,  2, "minecraft:barrel"), blk( 3, 2,  2, "minecraft:barrel"));
+  // Hay bales (north storage section)
+  p.push(blk(-2, 1, -3, "minecraft:hay_block"), blk(0, 1, -3, "minecraft:hay_block"), blk(2, 1, -3, "minecraft:hay_block"));
+  p.push(blk(-2, 2, -3, "minecraft:hay_block"), blk(0, 2, -3, "minecraft:hay_block"), blk(2, 2, -3, "minecraft:hay_block")); // 2nd tier
+  // Chest (central record-keeping) and composter
+  p.push(blk(0, 1, -1, "minecraft:chest"));
+  p.push(blk(0, 1,  2, "minecraft:composter"));
+  // Ceiling beam (spruce log ridge beam at y=7 center)
+  p.push(...fill(0, 7, -3, 0, 7, 3, "minecraft:spruce_log"));
+  // Lighting: hanging lanterns from beam + wall torches
+  p.push(blk(0, 7, -2, "minecraft:lantern"), blk(0, 7, 0, "minecraft:lantern"), blk(0, 7, 2, "minecraft:lantern"));
+  p.push(blk(-3, 3,  3, "minecraft:torch"), blk(3, 3,  3, "minecraft:torch")); // near door torches
+  p.push(blk(-3, 3, -3, "minecraft:torch"), blk(3, 3, -3, "minecraft:torch")); // back wall torches
   return p;
 }
 function blacksmithBlueprint() {
@@ -5333,30 +5414,74 @@ function tradeStationBlueprint() {
 }
 function treasuryBlueprint() {
   const p = [];
-  p.push(...fill(-3, 1, -3, 3, 6, 3, "minecraft:air"));
-  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:deepslate_bricks"));
-  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:deepslate_bricks"));
-  p.push(...ring(-2, -2, 2, 2, 1, 4, "minecraft:deepslate_bricks"));
-  for (let y = 1; y <= 2; y++) {
-    p.push(blk(0, y, 3, "minecraft:air"));
-    p.push(blk(0, y, 2, "minecraft:air"));
+  // Clear volume (9x9, 10 tall)
+  p.push(...fill(-4, 1, -4, 4, 10, 4, "minecraft:air"));
+  // Foundation (deepslate bricks — heavy, secure)
+  p.push(...fill(-4, 0, -4, 4, 0, 4, "minecraft:deepslate_bricks"));
+  // Reinforced corner columns (double-thick deepslate)
+  for (const [cx, cz] of [[-4,-4],[-4,4],[4,-4],[4,4]])
+    p.push(...fill(cx, 1, cz, cx, 8, cz, "minecraft:deepslate_bricks"));
+  // Outer walls (deepslate bricks, y=1-7, full solid vault construction)
+  p.push(...fill(-3, 1, -4, 3, 7, -4, "minecraft:deepslate_bricks")); // north
+  p.push(...fill(-3, 1,  4, 3, 7,  4, "minecraft:deepslate_bricks")); // south
+  p.push(...fill(-4, 1, -3, -4, 7, 3, "minecraft:deepslate_bricks")); // west
+  p.push(...fill( 4, 1, -3,  4, 7, 3, "minecraft:deepslate_bricks")); // east
+  // Narrow door opening (south wall, single-wide x=0, y=1-2 — vault entrance)
+  p.push(blk(0, 1, 4, "minecraft:air"), blk(0, 2, 4, "minecraft:air"));
+  // Iron bar vault door frame flanking entrance (x=-1 and +1, y=1-3)
+  for (let y = 1; y <= 3; y++) {
+    p.push(blk(-1, y, 4, "minecraft:iron_bars"));
+    p.push(blk( 1, y, 4, "minecraft:iron_bars"));
   }
-  p.push(blk(-1, 1, 2, "minecraft:iron_bars"), blk(1, 1, 2, "minecraft:iron_bars"));
-  p.push(blk(-1, 2, 2, "minecraft:iron_bars"), blk(1, 2, 2, "minecraft:iron_bars"));
-  p.push(blk(3, 4, 0, "minecraft:air"), blk(-3, 4, 0, "minecraft:air"));
-  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:deepslate_bricks"));
+  // Arrow-slit windows (narrow 1-block glass — secure, not traversable)
+  p.push(blk(-2, 4, -4, "minecraft:glass"), blk(-2, 5, -4, "minecraft:glass")); // north L
+  p.push(blk( 2, 4, -4, "minecraft:glass"), blk( 2, 5, -4, "minecraft:glass")); // north R
+  p.push(blk(-4, 4, -1, "minecraft:glass"), blk(-4, 5, -1, "minecraft:glass")); // west upper
+  p.push(blk(-4, 4,  1, "minecraft:glass"), blk(-4, 5,  1, "minecraft:glass")); // west lower
+  p.push(blk( 4, 4, -1, "minecraft:glass"), blk( 4, 5, -1, "minecraft:glass")); // east upper
+  p.push(blk( 4, 4,  1, "minecraft:glass"), blk( 4, 5,  1, "minecraft:glass")); // east lower
+  p.push(blk(-2, 4,  4, "minecraft:glass"), blk( 2, 4,  4, "minecraft:glass")); // south (above vault door)
+  // Decorative iron bar cross-grill pattern on upper walls (y=6)
   for (let x = -3; x <= 3; x += 2) {
-    p.push(blk(x, 6, -3, "minecraft:deepslate_bricks"));
-    p.push(blk(x, 6, 3, "minecraft:deepslate_bricks"));
+    p.push(blk(x, 6, -4, "minecraft:iron_bars"), blk(x, 6, 4, "minecraft:iron_bars"));
   }
-  for (let z = -2; z <= 2; z += 2) {
-    p.push(blk(-3, 6, z, "minecraft:deepslate_bricks"));
-    p.push(blk(3, 6, z, "minecraft:deepslate_bricks"));
+  for (let z = -3; z <= 3; z += 2) {
+    p.push(blk(-4, 6, z, "minecraft:iron_bars"), blk(4, 6, z, "minecraft:iron_bars"));
   }
-  p.push(blk(-1, 1, -2, "minecraft:gold_block"), blk(1, 1, -2, "minecraft:gold_block"));
-  p.push(blk(0, 1, -2, "minecraft:gold_block"));
-  p.push(blk(-1, 1, 0, "minecraft:chest"), blk(1, 1, 0, "minecraft:chest"));
-  p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
+  // Solid roof (deepslate bricks y=8) + crenellations at y=9
+  p.push(...fill(-4, 8, -4, 4, 8, 4, "minecraft:deepslate_bricks"));
+  for (let x = -4; x <= 4; x += 2) {
+    p.push(blk(x, 9, -4, "minecraft:deepslate_bricks"));
+    p.push(blk(x, 9,  4, "minecraft:deepslate_bricks"));
+  }
+  for (let z = -3; z <= 3; z += 2) {
+    p.push(blk(-4, 9, z, "minecraft:deepslate_bricks"));
+    p.push(blk( 4, 9, z, "minecraft:deepslate_bricks"));
+  }
+  // Interior floor (polished andesite — elegant vault floor)
+  p.push(...fill(-3, 1, -3, 3, 1, 3, "minecraft:polished_andesite"));
+  // Gold block vault display (back north wall — treasure on pedestals)
+  p.push(...fill(-3, 1, -3, 3, 1, -3, "minecraft:gold_block")); // gold row
+  p.push(blk(-3, 2, -3, "minecraft:gold_block"), blk(0, 2, -3, "minecraft:gold_block"), blk(3, 2, -3, "minecraft:gold_block")); // pedestal tops
+  // Chest vault storage (main double-rows)
+  p.push(blk(-2, 1, -2, "minecraft:chest"), blk(-1, 1, -2, "minecraft:chest")); // double chest L
+  p.push(blk( 1, 1, -2, "minecraft:chest"), blk( 2, 1, -2, "minecraft:chest")); // double chest R
+  // Side chest stacks (against E/W inner walls)
+  p.push(blk(-3, 1, -1, "minecraft:chest"), blk(-3, 2, -1, "minecraft:barrel"));
+  p.push(blk(-3, 1,  1, "minecraft:chest"), blk(-3, 2,  1, "minecraft:barrel"));
+  p.push(blk( 3, 1, -1, "minecraft:chest"), blk( 3, 2, -1, "minecraft:barrel"));
+  p.push(blk( 3, 1,  1, "minecraft:chest"), blk( 3, 2,  1, "minecraft:barrel"));
+  // Enchanting table + bookshelves (NW corner — royal enchantments)
+  p.push(blk(-3, 1, -3, "minecraft:enchanting_table"));
+  p.push(blk(-3, 2, -2, "minecraft:bookshelf"), blk(-2, 2, -3, "minecraft:bookshelf")); // boosting bookshelves
+  p.push(blk( 3, 1, -3, "minecraft:bookshelf"), blk( 3, 2, -3, "minecraft:bookshelf")); // NE shelves
+  // Brewing stand (alchemy/treasury apothecary)
+  p.push(blk(0, 1, -1, "minecraft:brewing_stand"));
+  // Lighting (sea lanterns + wall torches for a rich vault glow)
+  p.push(blk(0, 7, 0, "minecraft:sea_lantern")); // central chandelier
+  p.push(blk(-2, 3, -3, "minecraft:torch"), blk(2, 3, -3, "minecraft:torch")); // back wall torches
+  p.push(blk(-3, 3,  0, "minecraft:torch"), blk(3, 3,  0, "minecraft:torch")); // side wall torches
+  p.push(blk( 0, 3,  4, "minecraft:torch")); // above entrance
   return p;
 }
 function storageBlueprint() {
@@ -5594,6 +5719,55 @@ function kingCastleBlueprint() {
   p.push(blk( 8, 1, 8, "minecraft:chest"), blk( 9, 1, 8, "minecraft:chest"));
   p.push(blk(-10, 1, 6, "minecraft:crafting_table")); // entrance crafting station
 
+  // === GRAND ENTRANCE STAIRCASE (south exterior, outside south gate z=10) ===
+  // Raised stone approach platform
+  p.push(...fill(-4, 0, 11, 4, 0, 15, "minecraft:stone_bricks"));
+  // Flanking guard pillars with torches
+  p.push(...fill(-5, 1, 11, -5, 4, 15, "minecraft:stone_bricks"));
+  p.push(...fill( 5, 1, 11,  5, 4, 15, "minecraft:stone_bricks"));
+  p.push(blk(-5, 5, 15, "minecraft:torch"), blk(5, 5, 15, "minecraft:torch"));
+  // Step tiers (rise from platform to gate level)
+  p.push(...fill(-3, 1, 11, 3, 1, 11, "minecraft:stone_bricks")); // step 1
+  p.push(...fill(-3, 2, 12, 3, 2, 12, "minecraft:stone_bricks")); // step 2
+  // Gate approach wall caps
+  p.push(blk(-4, 1, 12, "minecraft:stone_bricks"), blk(4, 1, 12, "minecraft:stone_bricks"));
+
+  // === FLAGPOLES on corner tower tops ===
+  for (const [tx, tz] of [[-12,-10],[9,-10],[-12,7],[9,7]]) {
+    // Oak fence flagpole (3 tall above tower top)
+    p.push(blk(tx+1, 22, tz+1, "minecraft:oak_fence"));
+    p.push(blk(tx+1, 23, tz+1, "minecraft:oak_fence"));
+    p.push(blk(tx+1, 24, tz+1, "minecraft:oak_fence"));
+    // Red wool flag (2 blocks extending from pole)
+    p.push(blk(tx+2, 23, tz+1, "minecraft:red_wool"));
+    p.push(blk(tx+2, 24, tz+1, "minecraft:red_wool"));
+    p.push(blk(tx+3, 24, tz+1, "minecraft:red_wool")); // flag tip
+  }
+
+  // === INTERIOR STAIRCASE (NW corner, y=1 → y=10 upper floor) ===
+  // Rising step-blocks along the west inner wall northward
+  for (let s = 0; s < 9; s++) {
+    p.push(blk(-10, 1+s, -7+s, "minecraft:stone_bricks")); // stair step block
+  }
+  // West walkway along upper floor perimeter
+  p.push(...fill(-11, 9, -8, -11, 9, 7, "minecraft:dark_oak_planks"));
+
+  // === UPPER FLOOR BALCONY RAILS (iron bars along 2nd floor edges) ===
+  for (let x = -10; x <= 10; x++) {
+    if (x < -1 || x > 1) p.push(blk(x, 10, 8, "minecraft:iron_bars")); // south edge
+  }
+  for (let z = -7; z <= 7; z++) {
+    p.push(blk(-10, 10, z, "minecraft:iron_bars")); // west edge
+    p.push(blk( 10, 10, z, "minecraft:iron_bars")); // east edge
+  }
+
+  // === THRONE DAIS ENHANCEMENTS ===
+  // Purple carpet on dais
+  for (let x = -2; x <= 2; x++) p.push(blk(x, 2, -9, "minecraft:purple_carpet"));
+  // Flanking throne pillars
+  p.push(blk(-4, 2, -8, "minecraft:stone_bricks"), blk(-4, 3, -8, "minecraft:stone_bricks"), blk(-4, 4, -8, "minecraft:stone_bricks"));
+  p.push(blk( 4, 2, -8, "minecraft:stone_bricks"), blk( 4, 3, -8, "minecraft:stone_bricks"), blk( 4, 4, -8, "minecraft:stone_bricks"));
+
   // === GROUND FLOOR CHANDELIERS (sea lanterns at y=8) ===
   p.push(blk( 0, 8, -4, "minecraft:sea_lantern"), blk( 0, 8, 0, "minecraft:sea_lantern"), blk( 0, 8, 4, "minecraft:sea_lantern"));
   p.push(blk(-5, 8, -4, "minecraft:sea_lantern"), blk(-5, 8, 4, "minecraft:sea_lantern"));
@@ -5689,91 +5863,158 @@ function stoneGateBlueprint() {
 // ── House blueprints (3 random designs, each with 2-3 beds) ────────────────
 function houseBlueprintCottage() {
   const p = [];
+  // Clear volume (7x6 footprint, 7 tall)
   p.push(...fill(-3, 1, -2, 3, 7, 3, "minecraft:air"));
+  // Foundation (cobblestone)
   p.push(...fill(-3, 0, -2, 3, 0, 3, "minecraft:cobblestone"));
+  // Corner log posts (oak log)
   for (const [cx, cz] of [[-3,-2],[-3,3],[3,-2],[3,3]])
-    p.push(...fill(cx, 1, cz, cx, 4, cz, "minecraft:oak_log"));
-  p.push(...fill(-2, 1, -2, 2, 4, -2, "minecraft:oak_planks")); // back wall
-  p.push(...fill(-2, 1,  3, 2, 4,  3, "minecraft:oak_planks")); // front wall
-  p.push(...fill(-3, 1, -1, -3, 4,  2, "minecraft:oak_planks")); // left
-  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:oak_planks")); // right
-  p.push(blk(0, 1, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air")); // door
-  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(1, 3, -2, "minecraft:glass"));
-  p.push(blk(-2, 3,  1, "minecraft:glass"), blk(2, 3,  1, "minecraft:glass"));
+    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:oak_log"));
+  // Walls (oak planks)
+  p.push(...fill(-2, 1, -2, 2, 4, -2, "minecraft:oak_planks")); // back/north wall
+  p.push(...fill(-2, 1,  3, 2, 4,  3, "minecraft:oak_planks")); // front/south wall
+  p.push(...fill(-3, 1, -1, -3, 4,  2, "minecraft:oak_planks")); // west wall
+  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:oak_planks")); // east wall
+  // Double-wide door opening (south wall, x=-1..0, y=1-2)
+  p.push(blk(-1, 1, 3, "minecraft:air"), blk(0, 1, 3, "minecraft:air"));
+  p.push(blk(-1, 2, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air"));
+  // Doorstep
+  p.push(blk(-1, 0, 4, "minecraft:cobblestone"), blk(0, 0, 4, "minecraft:cobblestone"));
+  // Windows (2-high glass, each wall)
+  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(1, 3, -2, "minecraft:glass")); // north 2-wide
+  p.push(blk(-1, 4, -2, "minecraft:glass"), blk(1, 4, -2, "minecraft:glass"));
+  p.push(blk(-3, 3,  1, "minecraft:glass"), blk(-3, 4,  1, "minecraft:glass")); // west
+  p.push(blk( 3, 3,  1, "minecraft:glass"), blk( 3, 4,  1, "minecraft:glass")); // east
+  p.push(blk( 2, 3,  3, "minecraft:glass")); // south flanking door
   // Stepped pyramid roof (oak planks)
   p.push(...fill(-3, 5, -2, 3, 5, 3, "minecraft:oak_planks"));
   p.push(...fill(-2, 6, -1, 2, 6, 2, "minecraft:oak_planks"));
   p.push(...fill(-1, 7,  0, 1, 7, 1, "minecraft:oak_planks"));
-  // Interior floor
+  // Interior floor (oak planks + carpet strip)
   p.push(...fill(-2, 1, -1, 2, 1, 2, "minecraft:oak_planks"));
-  // 2 beds
-  p.push(blk( 1, 1, 1, "minecraft:white_bed"), blk(-1, 1, 1, "minecraft:white_bed"));
-  // Furniture & storage
-  p.push(blk(-2, 1, -1, "minecraft:crafting_table"));
-  p.push(blk( 2, 1, -1, "minecraft:furnace")); // cooking
-  p.push(blk(-2, 1,  2, "minecraft:chest")); // personal chest
-  p.push(blk( 2, 1,  2, "minecraft:barrel")); // food barrel
-  p.push(blk( 0, 4,  0, "minecraft:torch"));
+  p.push(blk(0, 1, -1, "minecraft:brown_carpet"), blk(0, 1, 0, "minecraft:brown_carpet"), blk(0, 1, 1, "minecraft:brown_carpet"), blk(0, 1, 2, "minecraft:brown_carpet"));
+  // 2 beds (against east wall)
+  p.push(blk( 2, 1, 0, "minecraft:white_bed"), blk(2, 1, 2, "minecraft:white_bed"));
+  // Furniture — cozy cottage feel
+  p.push(blk(-2, 1, -1, "minecraft:crafting_table")); // workbench corner
+  p.push(blk(-2, 1,  0, "minecraft:furnace"));          // fireplace/cooking
+  p.push(blk(-2, 2,  0, "minecraft:stone_bricks"));     // chimney above furnace
+  p.push(blk(-2, 3,  0, "minecraft:stone_bricks"));
+  p.push(blk(-2, 1,  2, "minecraft:chest"));            // personal storage
+  p.push(blk( 2, 1, -1, "minecraft:bookshelf"));        // bookshelf by bed
+  p.push(blk(-2, 2, -1, "minecraft:bookshelf"));        // wall shelf
+  p.push(blk(-2, 1,  1, "minecraft:barrel"));           // food barrel
+  p.push(blk( 0, 1, -1, "minecraft:flower_pot"));       // decorative pot
+  // Lighting
+  p.push(blk(0, 5, 1, "minecraft:lantern"));             // ceiling lantern
   p.push(blk(-2, 3, 1, "minecraft:torch"), blk(2, 3, 1, "minecraft:torch")); // wall torches
+  p.push(blk(-2, 3, -1, "minecraft:torch")); // back wall torch
   return p;
 }
 function houseBlueprintStone() {
   const p = [];
-  p.push(...fill(-4, 1, -3, 4, 8, 3, "minecraft:air"));
+  // Clear volume (9x7 footprint, 9 tall)
+  p.push(...fill(-4, 1, -3, 4, 9, 3, "minecraft:air"));
+  // Foundation (cobblestone)
   p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:cobblestone"));
-  // Stone brick walls
-  p.push(...fill(-4, 1, -3, 4, 5, -3, "minecraft:stone_bricks"));
-  p.push(...fill(-4, 1,  3, 4, 5,  3, "minecraft:stone_bricks"));
-  p.push(...fill(-4, 1, -2, -4, 5,  2, "minecraft:stone_bricks"));
-  p.push(...fill( 4, 1, -2,  4, 5,  2, "minecraft:stone_bricks"));
-  p.push(blk(0, 1, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air")); // door
-  p.push(blk(-2, 3, -3, "minecraft:glass"), blk(2, 3, -3, "minecraft:glass"));
-  p.push(blk(-2, 3,  3, "minecraft:glass"), blk(2, 3,  3, "minecraft:glass"));
-  p.push(blk(-4, 3,  0, "minecraft:glass"), blk(4, 3,  0, "minecraft:glass"));
-  // Flat stone roof
-  p.push(...fill(-4, 6, -3, 4, 6, 3, "minecraft:stone_bricks"));
-  p.push(...fill(-3, 7, -2, 3, 7, 2, "minecraft:stone_bricks"));
-  p.push(...fill(-2, 8, -1, 2, 8, 1, "minecraft:stone_bricks"));
-  // Interior floor
+  // Stone brick walls (y=1-6)
+  p.push(...fill(-4, 1, -3, 4, 6, -3, "minecraft:stone_bricks")); // north
+  p.push(...fill(-4, 1,  3, 4, 6,  3, "minecraft:stone_bricks")); // south
+  p.push(...fill(-4, 1, -2, -4, 6,  2, "minecraft:stone_bricks")); // west
+  p.push(...fill( 4, 1, -2,  4, 6,  2, "minecraft:stone_bricks")); // east
+  // Corner dark oak columns
+  for (const [cx, cz] of [[-4,-3],[-4,3],[4,-3],[4,3]])
+    p.push(...fill(cx, 1, cz, cx, 7, cz, "minecraft:dark_oak_log"));
+  // Double-wide door opening (south wall, x=-1..0, y=1-3)
+  p.push(blk(-1, 1, 3, "minecraft:air"), blk(0, 1, 3, "minecraft:air"));
+  p.push(blk(-1, 2, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air"));
+  p.push(blk(-1, 3, 3, "minecraft:air"), blk(0, 3, 3, "minecraft:air"));
+  // Doorstep
+  p.push(blk(-1, 0, 4, "minecraft:stone_bricks"), blk(0, 0, 4, "minecraft:stone_bricks"), blk(1, 0, 4, "minecraft:stone_bricks"));
+  // Windows (2-high glass, multiple per wall)
+  for (const wx of [-2, 2]) {
+    p.push(blk(wx, 3, -3, "minecraft:glass"), blk(wx, 4, -3, "minecraft:glass")); // north 2 windows
+    p.push(blk(wx, 3,  3, "minecraft:glass"), blk(wx, 4,  3, "minecraft:glass")); // south flanking door
+  }
+  p.push(blk(-4, 3, 0, "minecraft:glass"), blk(-4, 4, 0, "minecraft:glass")); // west center window
+  p.push(blk( 4, 3, 0, "minecraft:glass"), blk( 4, 4, 0, "minecraft:glass")); // east center window
+  // Flat stepped stone roof
+  p.push(...fill(-4, 7, -3, 4, 7, 3, "minecraft:stone_bricks"));
+  p.push(...fill(-3, 8, -2, 3, 8, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-2, 9, -1, 2, 9, 1, "minecraft:stone_bricks"));
+  // Roof crenellations
+  for (let x = -4; x <= 4; x += 2) { p.push(blk(x, 8, -3, "minecraft:stone_bricks")); p.push(blk(x, 8, 3, "minecraft:stone_bricks")); }
+  // Interior floor (cobblestone + red carpet runner)
   p.push(...fill(-3, 1, -2, 3, 1, 2, "minecraft:cobblestone"));
-  // 3 beds
-  p.push(blk(-2, 1, 1, "minecraft:white_bed"), blk(0, 1, 1, "minecraft:white_bed"), blk(2, 1, 1, "minecraft:white_bed"));
-  // Furniture & storage
-  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
-  p.push(blk(-3, 1, -1, "minecraft:furnace")); // cooking area
+  p.push(blk(0, 1, -2, "minecraft:red_carpet"), blk(0, 1, -1, "minecraft:red_carpet"), blk(0, 1, 0, "minecraft:red_carpet"), blk(0, 1, 1, "minecraft:red_carpet"), blk(0, 1, 2, "minecraft:red_carpet"));
+  // 3 beds (along north wall — this house holds a small family)
+  p.push(blk(-2, 1, -1, "minecraft:white_bed"), blk(0, 1, -1, "minecraft:white_bed"), blk(2, 1, -1, "minecraft:white_bed"));
+  // Furniture — stone manor style
+  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(-2, 1, -2, "minecraft:chest")); // double chest storage
+  p.push(blk( 2, 1, -2, "minecraft:chest"), blk( 3, 1, -2, "minecraft:chest")); // double chest storage
+  p.push(blk(-3, 2, -2, "minecraft:bookshelf"), blk(-2, 2, -2, "minecraft:bookshelf")); // shelving above chests
+  p.push(blk( 2, 2, -2, "minecraft:bookshelf"), blk( 3, 2, -2, "minecraft:bookshelf"));
+  p.push(blk(-3, 1, -1, "minecraft:furnace"));  // cooking hearth
+  p.push(blk(-3, 2, -1, "minecraft:stone_bricks")); // chimney
+  p.push(blk(-3, 3, -1, "minecraft:stone_bricks"));
   p.push(blk( 3, 1, -1, "minecraft:crafting_table")); // workstation
-  p.push(blk(-3, 1,  0, "minecraft:barrel")); // food storage
-  p.push(blk(-3, 2, -2, "minecraft:bookshelf"), blk(3, 2, -2, "minecraft:bookshelf")); // shelving above chests
-  p.push(blk( 0, 5,  0, "minecraft:sea_lantern"));
+  p.push(blk( 3, 1,  0, "minecraft:barrel"));          // storage barrel
+  p.push(blk(-3, 1,  1, "minecraft:flower_pot"));      // window sill decoration
+  p.push(blk( 3, 2, -2, "minecraft:bookshelf"));       // book nook
+  // Lighting
+  p.push(blk(0, 6, 0, "minecraft:sea_lantern")); // ceiling chandelier
+  p.push(blk(-3, 4, 0, "minecraft:torch"), blk(3, 4, 0, "minecraft:torch")); // wall torches
+  p.push(blk(0, 4, -3, "minecraft:torch")); // north wall torch
   return p;
 }
 function houseBlueprintFarmhouse() {
   const p = [];
-  p.push(...fill(-4, 1, -2, 3, 6, 3, "minecraft:air"));
+  // Clear volume (8x6 footprint, 7 tall)
+  p.push(...fill(-4, 1, -2, 3, 7, 3, "minecraft:air"));
+  // Foundation (cobblestone)
   p.push(...fill(-4, 0, -2, 3, 0, 3, "minecraft:cobblestone"));
-  // Birch plank walls
-  p.push(...fill(-4, 1, -2, 3, 4, -2, "minecraft:birch_planks"));
-  p.push(...fill(-4, 1,  3, 3, 4,  3, "minecraft:birch_planks"));
-  p.push(...fill(-4, 1, -1, -4, 4,  2, "minecraft:birch_planks"));
-  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:birch_planks"));
-  p.push(blk(0, 1, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air")); // door
-  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(1, 3, -2, "minecraft:glass"));
-  p.push(blk( 2, 3,  1, "minecraft:glass"));
-  // Gabled planks roof
+  // Spruce log corner posts
+  for (const [cx, cz] of [[-4,-2],[-4,3],[3,-2],[3,3]])
+    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:spruce_log"));
+  // Birch plank walls (y=1-4)
+  p.push(...fill(-3, 1, -2, 2, 4, -2, "minecraft:birch_planks")); // north
+  p.push(...fill(-3, 1,  3, 2, 4,  3, "minecraft:birch_planks")); // south
+  p.push(...fill(-4, 1, -1, -4, 4,  2, "minecraft:birch_planks")); // west
+  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:birch_planks")); // east
+  // Double-wide door (south, x=-1..0, y=1-2)
+  p.push(blk(-1, 1, 3, "minecraft:air"), blk(0, 1, 3, "minecraft:air"));
+  p.push(blk(-1, 2, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air"));
+  p.push(blk(-1, 0, 4, "minecraft:cobblestone"), blk(0, 0, 4, "minecraft:cobblestone")); // doorstep
+  // Windows (2-high glass on each wall)
+  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(-1, 4, -2, "minecraft:glass")); // north L
+  p.push(blk( 1, 3, -2, "minecraft:glass"), blk( 1, 4, -2, "minecraft:glass")); // north R
+  p.push(blk(-4, 3,  0, "minecraft:glass"), blk(-4, 4,  0, "minecraft:glass")); // west
+  p.push(blk( 3, 3,  0, "minecraft:glass"), blk( 3, 4,  0, "minecraft:glass")); // east
+  p.push(blk( 2, 3,  3, "minecraft:glass")); // south flanking door
+  // Gabled birch roof (pyramid style)
   p.push(...fill(-4, 5, -2, 3, 5, 3, "minecraft:birch_planks"));
   p.push(...fill(-3, 6, -1, 2, 6, 2, "minecraft:birch_planks"));
-  // Interior floor
+  p.push(...fill(-2, 7,  0, 1, 7, 1, "minecraft:birch_planks"));
+  // Interior floor (birch planks + green carpet runner — farm fresh)
   p.push(...fill(-3, 1, -1, 2, 1, 2, "minecraft:birch_planks"));
-  // 2 beds
-  p.push(blk(1, 1, 1, "minecraft:white_bed"), blk(2, 1, 1, "minecraft:white_bed"));
-  // Furniture & storage
-  p.push(blk(-3, 1, -1, "minecraft:barrel")); // food barrel
-  p.push(blk(-3, 1,  0, "minecraft:chest")); // personal chest
-  p.push(blk(-3, 1,  1, "minecraft:furnace")); // cooking
+  p.push(blk(0, 1, -1, "minecraft:green_carpet"), blk(0, 1, 0, "minecraft:green_carpet"), blk(0, 1, 1, "minecraft:green_carpet"), blk(0, 1, 2, "minecraft:green_carpet"));
+  // 2 beds (east wall)
+  p.push(blk( 2, 1, 0, "minecraft:white_bed"), blk(2, 1, 2, "minecraft:white_bed"));
+  // Furniture — farmhouse style
+  p.push(blk(-3, 1, -1, "minecraft:barrel"));    // food barrel (crop storage)
+  p.push(blk(-3, 1,  0, "minecraft:chest"));     // personal chest
+  p.push(blk(-3, 1,  1, "minecraft:furnace"));   // cooking/hearth
+  p.push(blk(-3, 2,  1, "minecraft:stone_bricks")); // chimney
+  p.push(blk(-3, 3,  1, "minecraft:stone_bricks"));
   p.push(blk( 2, 1, -1, "minecraft:crafting_table")); // workbench
-  p.push(blk(-3, 2,  2, "minecraft:composter")); // compost bin (farm theme)
-  p.push(blk( 0, 4,  0, "minecraft:lantern"));
+  p.push(blk( 1, 1, -1, "minecraft:composter"));  // compost bin (farm theme)
+  p.push(blk(-3, 2, -1, "minecraft:bookshelf"));  // recipe books
+  p.push(blk(-3, 2,  0, "minecraft:bookshelf"));
+  p.push(blk( 2, 2, -1, "minecraft:flower_pot")); // window sill pot
+  // Lighting
+  p.push(blk(0, 5, 1, "minecraft:lantern"));      // ceiling lantern
   p.push(blk(-3, 3, -1, "minecraft:torch"), blk(2, 3, 1, "minecraft:torch")); // wall torches
+  p.push(blk(0, 4, -2, "minecraft:torch")); // north wall torch
   return p;
 }
 function houseBlueprint() {
@@ -5865,6 +6106,154 @@ function barnBlueprint() {
   return p;
 }
 
+// ── Farm Plot Blueprints (3 random designs) ────────────────────────────────
+function farmPlotBlueprintWheat() {
+  const p = [];
+  // Clear volume
+  p.push(...fill(-5, 1, -4, 8, 5, 6, "minecraft:air"));
+  // === WHEAT FARM PLOT ===
+  // Farmland with water channel (5 wide x 6 deep per plot, 2 plots)
+  p.push(...fill(-5, 0, -4, 3, 0, 5, "minecraft:farmland")); // left plot
+  p.push(...fill(-5, 1, -4, 3, 1, 5, "minecraft:wheat")); // wheat crops (grown)
+  p.push(...fill(-1, 0, -4, -1, 0, 5, "minecraft:water")); // irrigation channel L
+  p.push(...fill(-1, 1, -4, -1, 1, 5, "minecraft:air")); // clear water surface
+  p.push(...fill( 1, 0, -4,  1, 0, 5, "minecraft:water")); // irrigation channel R
+  p.push(...fill( 1, 1, -4,  1, 1, 5, "minecraft:air"));
+  // Fence perimeter
+  p.push(...fill(-5, 1, -5, 8, 1, -5, "minecraft:oak_fence")); // north fence
+  p.push(...fill(-5, 1,  6, 8, 1,  6, "minecraft:oak_fence")); // south fence
+  p.push(...fill(-5, 1, -4, -5, 1,  5, "minecraft:oak_fence")); // west fence
+  p.push(...fill( 8, 1, -4,  8, 1,  5, "minecraft:oak_fence")); // east fence
+  // Fence gate (south side, center)
+  p.push(blk(-1, 1, 6, "minecraft:air"), blk(0, 1, 6, "minecraft:air")); // gate opening
+  // === TOOL SHED (east side, 5x4x4) ===
+  p.push(...fill(4, 0, -4, 8, 0, 1, "minecraft:oak_planks")); // shed foundation
+  p.push(...fill(4, 1, -4, 8, 4, -4, "minecraft:oak_planks")); // shed north wall
+  p.push(...fill(4, 1,  1, 8, 4,  1, "minecraft:oak_planks")); // shed south wall
+  p.push(...fill(4, 1, -3, 4, 4,  0, "minecraft:oak_planks")); // shed west wall
+  p.push(...fill(8, 1, -3, 8, 4,  0, "minecraft:oak_planks")); // shed east wall
+  p.push(blk(6, 1, 1, "minecraft:air"), blk(6, 2, 1, "minecraft:air")); // shed door
+  p.push(blk(6, 3, -4, "minecraft:glass"), blk(6, 3, 1, "minecraft:glass")); // windows
+  p.push(blk(4, 3, -2, "minecraft:glass"), blk(8, 3, -2, "minecraft:glass"));
+  p.push(...fill(4, 5, -4, 8, 5, 1, "minecraft:oak_planks")); // shed roof
+  // Shed interior
+  p.push(blk(5, 1, -3, "minecraft:chest"), blk(6, 1, -3, "minecraft:chest")); // tool storage
+  p.push(blk(7, 1, -3, "minecraft:barrel")); // seed barrel
+  p.push(blk(5, 1, 0, "minecraft:crafting_table")); // workbench
+  p.push(blk(7, 1, 0, "minecraft:composter")); // composter
+  p.push(blk(6, 4, -2, "minecraft:lantern")); // shed lantern
+  // Corner fence posts (tall oak fence pillars)
+  for (const [fx, fz] of [[-5,-5],[-5,6],[8,-5],[8,6]]) {
+    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"));
+  }
+  return p;
+}
+function farmPlotBlueprintMixed() {
+  const p = [];
+  // Clear volume
+  p.push(...fill(-6, 1, -5, 7, 5, 7, "minecraft:air"));
+  // === MIXED CROP FARM (4 plots, different crops) ===
+  // Plot 1: Carrots (NW)
+  p.push(...fill(-5, 0, -4, -2, 0, 0, "minecraft:farmland"));
+  p.push(...fill(-5, 1, -4, -2, 1, 0, "minecraft:carrots")); // fully grown carrots
+  // Plot 2: Potatoes (NE)
+  p.push(...fill( 0, 0, -4,  3, 0, 0, "minecraft:farmland"));
+  p.push(...fill( 0, 1, -4,  3, 1, 0, "minecraft:potatoes")); // fully grown potatoes
+  // Plot 3: Wheat (SW)
+  p.push(...fill(-5, 0,  2, -2, 0, 6, "minecraft:farmland"));
+  p.push(...fill(-5, 1,  2, -2, 1, 6, "minecraft:wheat"));
+  // Plot 4: Beetroot (SE)
+  p.push(...fill( 0, 0,  2,  3, 0, 6, "minecraft:farmland"));
+  p.push(...fill( 0, 1,  2,  3, 1, 6, "minecraft:beetroot"));
+  // Center water source
+  p.push(blk(-1, 0, 1, "minecraft:water"), blk(-1, 1, 1, "minecraft:air"));
+  p.push(blk( 4, 0, 1, "minecraft:water"), blk( 4, 1, 1, "minecraft:air"));
+  p.push(...fill(-5, 0, 1, 3, 0, 1, "minecraft:water")); // center irrigation row
+  p.push(...fill(-5, 1, 1, 3, 1, 1, "minecraft:air"));
+  // Outer fence
+  p.push(...fill(-6, 1, -5, 5, 1, -5, "minecraft:oak_fence")); // north
+  p.push(...fill(-6, 1,  7, 5, 1,  7, "minecraft:oak_fence")); // south
+  p.push(...fill(-6, 1, -4, -6, 1,  6, "minecraft:oak_fence")); // west
+  p.push(...fill( 5, 1, -4,  5, 1,  6, "minecraft:oak_fence")); // east
+  // Gate opening south center
+  p.push(blk(-1, 1, 7, "minecraft:air"), blk(0, 1, 7, "minecraft:air"));
+  // Corner pillars
+  for (const [fx, fz] of [[-6,-5],[-6,7],[5,-5],[5,7]])
+    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"));
+  // === TOOL SHED (east side) ===
+  p.push(...fill(5, 0, -5, 7, 0, 2, "minecraft:birch_planks"));
+  p.push(...fill(5, 1, -5, 7, 3, -5, "minecraft:birch_planks")); // north wall
+  p.push(...fill(5, 1,  2, 7, 3,  2, "minecraft:birch_planks")); // south wall
+  p.push(...fill(5, 1, -4, 5, 3,  1, "minecraft:birch_planks")); // west wall
+  p.push(...fill(7, 1, -4, 7, 3,  1, "minecraft:birch_planks")); // east wall
+  p.push(blk(6, 1, 2, "minecraft:air"), blk(6, 2, 2, "minecraft:air")); // shed door
+  p.push(blk(6, 3, -5, "minecraft:glass")); // window
+  p.push(...fill(5, 4, -5, 7, 4, 2, "minecraft:birch_planks")); // roof
+  // Shed interior
+  p.push(blk(5, 1, -4, "minecraft:chest"), blk(6, 1, -4, "minecraft:chest")); // storage
+  p.push(blk(7, 1, -3, "minecraft:barrel")); // seed barrel
+  p.push(blk(5, 1,  1, "minecraft:composter")); // compost
+  p.push(blk(6, 3, -2, "minecraft:lantern")); // lighting
+  return p;
+}
+function farmPlotBlueprintPlantation() {
+  const p = [];
+  // Clear volume
+  p.push(...fill(-7, 1, -6, 10, 6, 9, "minecraft:air"));
+  // === LARGE PLANTATION (4 large plots) ===
+  // NW wheat
+  p.push(...fill(-6, 0, -5, -1, 0, 1, "minecraft:farmland"));
+  p.push(...fill(-6, 1, -5, -1, 1, 1, "minecraft:wheat"));
+  // NE carrots
+  p.push(...fill( 1, 0, -5,  6, 0, 1, "minecraft:farmland"));
+  p.push(...fill( 1, 1, -5,  6, 1, 1, "minecraft:carrots"));
+  // SW potatoes
+  p.push(...fill(-6, 0,  3, -1, 0, 7, "minecraft:farmland"));
+  p.push(...fill(-6, 1,  3, -1, 1, 7, "minecraft:potatoes"));
+  // SE beetroot
+  p.push(...fill( 1, 0,  3,  6, 0, 7, "minecraft:farmland"));
+  p.push(...fill( 1, 1,  3,  6, 1, 7, "minecraft:beetroot"));
+  // Central irrigation cross
+  p.push(...fill(-6, 0, 2, 6, 0, 2, "minecraft:water")); // EW channel
+  p.push(...fill(-6, 1, 2, 6, 1, 2, "minecraft:air"));
+  p.push(...fill(0, 0, -5, 0, 0, 7, "minecraft:water")); // NS channel
+  p.push(...fill(0, 1, -5, 0, 1, 7, "minecraft:air"));
+  // Outer fence perimeter
+  p.push(...fill(-7, 1, -6, 8, 1, -6, "minecraft:oak_fence")); // north
+  p.push(...fill(-7, 1,  9, 8, 1,  9, "minecraft:oak_fence")); // south
+  p.push(...fill(-7, 1, -5, -7, 1,  8, "minecraft:oak_fence")); // west
+  p.push(...fill( 8, 1, -5,  8, 1,  8, "minecraft:oak_fence")); // east
+  p.push(blk(-1, 1, 9, "minecraft:air"), blk(0, 1, 9, "minecraft:air")); // gate S
+  // Corner pillars
+  for (const [fx, fz] of [[-7,-6],[-7,9],[8,-6],[8,9]])
+    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
+  // Scarecrow (hay bale + pumpkin look)
+  p.push(blk(-3, 1, 4, "minecraft:oak_fence"), blk(-3, 2, 4, "minecraft:hay_block"), blk(-3, 3, 4, "minecraft:carved_pumpkin"));
+  p.push(blk( 3, 1, -3, "minecraft:oak_fence"), blk(3, 2, -3, "minecraft:hay_block"), blk(3, 3, -3, "minecraft:carved_pumpkin"));
+  // === STORAGE BARN (east side, 5x8 footprint) ===
+  p.push(...fill(8, 0, -6, 10, 0, 8, "minecraft:oak_planks")); // barn foundation
+  // Barn walls (spruce planks)
+  p.push(...fill(8, 1, -6, 10, 5, -6, "minecraft:spruce_planks")); // N wall
+  p.push(...fill(8, 1,  8, 10, 5,  8, "minecraft:spruce_planks")); // S wall
+  p.push(...fill(8, 1, -5, 8, 5,  7, "minecraft:spruce_planks")); // W wall
+  p.push(...fill(10,1, -5, 10, 5, 7, "minecraft:spruce_planks")); // E wall
+  p.push(blk(9, 1, 8, "minecraft:air"), blk(9, 2, 8, "minecraft:air")); // barn door S
+  p.push(blk(9, 3, -6, "minecraft:glass"), blk(9, 3, 8, "minecraft:glass")); // windows
+  // Barn roof (pyramid)
+  p.push(...fill(8, 6, -6, 10, 6, 8, "minecraft:spruce_planks"));
+  p.push(...fill(9, 7, -5, 9, 7, 7, "minecraft:spruce_planks"));
+  // Barn interior
+  p.push(blk(8, 1, -5, "minecraft:barrel"), blk(8, 2, -5, "minecraft:barrel")); // barrel stack
+  p.push(blk(8, 1, -3, "minecraft:chest"), blk(8, 1, -2, "minecraft:chest")); // storage
+  p.push(blk(8, 1,  5, "minecraft:hay_block"), blk(8, 1, 6, "minecraft:hay_block")); // hay storage
+  p.push(blk(10,1, -4, "minecraft:barrel"), blk(10, 1, -3, "minecraft:barrel"));
+  p.push(blk(9, 5, 1, "minecraft:lantern")); // barn lantern
+  return p;
+}
+function farmPlotBlueprint() {
+  const designs = [farmPlotBlueprintWheat, farmPlotBlueprintMixed, farmPlotBlueprintPlantation];
+  return designs[Math.floor(Math.random() * designs.length)]();
+}
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
   "kingdoms:barracks": barracksBlueprint,
@@ -5883,7 +6272,8 @@ var BLUEPRINTS = {
   "kingdoms:king_castle": kingCastleBlueprint,
   "kingdoms:house": houseBlueprint,
   "kingdoms:fence_enclosure": fenceEnclosureBlueprint,
-  "kingdoms:barn": barnBlueprint
+  "kingdoms:barn": barnBlueprint,
+  "kingdoms:farm_plot": farmPlotBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -7079,6 +7469,7 @@ var SHOP_ITEMS = [
   { id: "kingdoms:storage_item", label: "Material Storage", desc: "Warehouse for iron, gold, diamond, coal, wood, stone", cost: 30, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", cost: 45, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:barn_item", label: "\uD83D\uDC04 Barn", desc: "Large barn for cattle and multipurpose livestock storage", cost: 40, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:farm_plot_item", label: "\uD83C\uDF3E Farm Plot", desc: "Instant farm: fenced crop plots, irrigation channels, and a tool shed — 3 random designs!", cost: 30, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", cost: 5, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", cost: 10, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", cost: 60, costItem: "minecraft:emerald", prereq: true },
