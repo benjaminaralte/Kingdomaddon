@@ -174,7 +174,9 @@ var TROOP_WAGES = {
   cityGuards: 1,
   spearmen: 2,
   archers: 2,
-  cavalry: 3
+  cavalry: 3,
+  samurai: 4,
+  heavyKnights: 4
 };
 var EMPTY_RESOURCE_STORAGE = {
   iron: 0,
@@ -943,7 +945,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, samurai: 0, heavyKnights: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -979,7 +981,7 @@ function renameVillage(playerName, villageId, newName) {
 }
 function getVillageSummary(village) {
   const t = village.troops;
-  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0);
   const stages = ["\u2714 None", "\u26A0 Stage 1", "\u26A0 Stage 2", "\xA7c Stage 3", "\xA7c Stage 4"];
   const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
   const hasStation = village.hasTradeStation ? "\xA7a\u2714 Active" : "\xA7c\u2718 None";
@@ -988,7 +990,7 @@ function getVillageSummary(village) {
     `Pop: ${village.population}/${village.housingCapacity}  Prosperity: ${village.prosperity}`,
     `Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}`,
     `Market Lv${village.marketLevel}  Barracks Lv${village.barracksLevel}`,
-    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry})`,
+    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} Sa:${t.samurai ?? 0} HK:${t.heavyKnights ?? 0})`,
     `Food Shortage: ${stages[village.foodShortageStage] ?? "Unknown"}`,
     `Weapon Tier: ${village.blacksmith.weaponTier}  Armor Tier: ${village.blacksmith.armorTier}`,
     `Trade Station: ${hasStation}`,
@@ -1244,21 +1246,23 @@ var RECRUIT_COSTS = {
   cityGuards: 5,
   spearmen: 8,
   archers: 8,
-  cavalry: 12
+  cavalry: 12,
+  samurai: 15,
+  heavyKnights: 15
 };
 function recruitTroop(village, type, count = 1) {
   if (!village.granaryLocation || !village.treasuryLocation) {
     notifyPlayer(village.owner, `\xA7c\u26A0 Cannot recruit soldiers \u2014 \xA7bGranary\xA7c and \xA7bTreasury\xA7c must both be built and active in \xA7b${village.name}\xA7c!`);
     return false;
   }
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0);
   if (totalSoldiers + count > MAX_VILLAGE_SOLDIERS) {
     notifyPlayer(village.owner, `\xA7cSoldier cap of \xA7b${MAX_VILLAGE_SOLDIERS}\xA7c reached in \xA7b${village.name}\xA7c. Disband some troops first.`);
     return false;
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
-  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - village.workers.farmers - village.workers.workers;
+  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.samurai ?? 0) - (village.troops.heavyKnights ?? 0) - village.workers.farmers - village.workers.workers;
   if (availableWorkers < count) {
     notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
     return false;
@@ -1284,7 +1288,7 @@ function tickWages(village) {
   const currentDay = getCurrentDay();
   const daysSinceWage = daysSince(village.lastWageDay);
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + (village.troops.samurai ?? 0) * TROOP_WAGES.samurai + (village.troops.heavyKnights ?? 0) * TROOP_WAGES.heavyKnights;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -1357,7 +1361,7 @@ function upgradeBarracks(village) {
   return true;
 }
 function getTotalTroops(village) {
-  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0);
 }
 function processAllWages() {
   for (const village of getAllVillages()) {
@@ -1470,13 +1474,15 @@ function notifyVillageUnderSiege(villageId) {
 init_storage();
 import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
-  "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
-  "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
-  "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
-  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" }
+  "kingdoms:guard_token":        { troopType: "cityGuards",   entityId: "kingdoms:city_guard",   label: "City Guard" },
+  "kingdoms:spearman_token":     { troopType: "spearmen",     entityId: "kingdoms:spearman",     label: "Spearman" },
+  "kingdoms:archer_token":       { troopType: "archers",      entityId: "kingdoms:archer",       label: "Archer" },
+  "kingdoms:cavalry_token":      { troopType: "cavalry",      entityId: "kingdoms:cavalry",      label: "Cavalry" },
+  "kingdoms:samurai_token":      { troopType: "samurai",      entityId: "kingdoms:samurai",      label: "Samurai" },
+  "kingdoms:heavy_knight_token": { troopType: "heavyKnights", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" }
 };
 function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry;
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0);
   if (total <= 0) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
     return false;
@@ -1503,6 +1509,14 @@ function pickupTroops(player, village, pickup) {
     notifyPlayer(player.name, `\xA7cNot enough Cavalry (have ${village.troops.cavalry}).`);
     return false;
   }
+  if ((pickup.samurai ?? 0) > (village.troops.samurai ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Samurai (have ${village.troops.samurai ?? 0}).`);
+    return false;
+  }
+  if ((pickup.heavyKnights ?? 0) > (village.troops.heavyKnights ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Heavy Knights (have ${village.troops.heavyKnights ?? 0}).`);
+    return false;
+  }
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
   if (!inv?.container) {
     notifyPlayer(player.name, "\xA7cInventory unavailable.");
@@ -1510,10 +1524,12 @@ function pickupTroops(player, village, pickup) {
   }
   const container = inv.container;
   const toGive = [
-    { itemId: "kingdoms:guard_token", count: pickup.cityGuards },
-    { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
-    { itemId: "kingdoms:archer_token", count: pickup.archers },
-    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry }
+    { itemId: "kingdoms:guard_token",        count: pickup.cityGuards },
+    { itemId: "kingdoms:spearman_token",     count: pickup.spearmen },
+    { itemId: "kingdoms:archer_token",       count: pickup.archers },
+    { itemId: "kingdoms:cavalry_token",      count: pickup.cavalry },
+    { itemId: "kingdoms:samurai_token",      count: pickup.samurai ?? 0 },
+    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnights ?? 0 }
   ].filter((t) => t.count > 0);
   let slotsNeeded = 0;
   for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
@@ -1529,6 +1545,8 @@ function pickupTroops(player, village, pickup) {
   village.troops.spearmen -= pickup.spearmen;
   village.troops.archers -= pickup.archers;
   village.troops.cavalry -= pickup.cavalry;
+  village.troops.samurai = (village.troops.samurai ?? 0) - (pickup.samurai ?? 0);
+  village.troops.heavyKnights = (village.troops.heavyKnights ?? 0) - (pickup.heavyKnights ?? 0);
   village.treasury -= cost;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
@@ -1697,7 +1715,7 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
 }
 function countTroopTokens(player) {
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
-  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 };
+  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, samurai: 0, heavyKnights: 0 };
   if (!inv?.container) return result;
   const container = inv.container;
   for (let i = 0; i < container.size; i++) {
@@ -4196,22 +4214,28 @@ function extractUntaggedMinecart(cart, village) {
 // src/systems/training.ts
 init_storage();
 var TRAINING_COSTS = {
-  cityGuards: { emeralds: 2, iron: 5, gold: 0 },
-  spearmen: { emeralds: 3, iron: 8, gold: 0 },
-  archers: { emeralds: 3, iron: 6, gold: 2 },
-  cavalry: { emeralds: 5, iron: 10, gold: 3 }
+  cityGuards:  { emeralds: 2, iron: 5,  gold: 0 },
+  spearmen:    { emeralds: 3, iron: 8,  gold: 0 },
+  archers:     { emeralds: 3, iron: 6,  gold: 2 },
+  cavalry:     { emeralds: 5, iron: 10, gold: 3 },
+  samurai:     { emeralds: 6, iron: 8,  gold: 4 },
+  heavyKnights:{ emeralds: 6, iron: 12, gold: 4 }
 };
 var TRAINING_TICKS = {
-  cityGuards: 400,
-  spearmen: 400,
-  archers: 400,
-  cavalry: 400
+  cityGuards:   400,
+  spearmen:     400,
+  archers:      400,
+  cavalry:      400,
+  samurai:      600,
+  heavyKnights: 600
 };
 var TROOP_LABELS = {
-  cityGuards: "City Guard",
-  spearmen: "Spearman",
-  archers: "Archer",
-  cavalry: "Cavalry"
+  cityGuards:   "City Guard",
+  spearmen:     "Spearman",
+  archers:      "Archer",
+  cavalry:      "Cavalry",
+  samurai:      "Samurai",
+  heavyKnights: "Heavy Knight"
 };
 var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
@@ -6568,7 +6592,7 @@ ${queueSummary}
 
 Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}
 \xA77Withdraw cost: \xA7b10\u{1F48E} per 10 soldiers`
-  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops\n\xA77Cost: ${Math.ceil((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10) * 10}\u{1F48E} for ${t.cityGuards + t.spearmen + t.archers + t.cavalry} total`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)\n\xA77~20s per soldier`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry) / 10)} set(s) avail`).button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA77Free \u2014 recall troops to you");
+  ).button("Recruit City Guard (5\u{1F48E})").button("Recruit Spearman (8\u{1F48E})").button("Recruit Archer (8\u{1F48E})").button("Recruit Cavalry (12\u{1F48E})").button("Recruit Samurai (15\u{1F48E})").button("Recruit Heavy Knight (15\u{1F48E})").button("Disband 1 Guard").button("Disband 1 Spearman").button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`).button(`\u2694 Pick Up Troops\n\xA77Cost: ${Math.ceil((t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)) / 10) * 10}\u{1F48E} for ${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)} total`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)\n\xA77~20s per soldier`).button(`\xA76\u{1F5FA} Get Formation Set x10 \u2014 ${Math.floor((t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)) / 10)} set(s) avail`).button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA77Free \u2014 recall troops to you");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6585,27 +6609,33 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
       recruitTroop(village, "cavalry", 1);
       break;
     case 4:
-      disbandTroop(village, "cityGuards", 1);
+      recruitTroop(village, "samurai", 1);
       break;
     case 5:
-      disbandTroop(village, "spearmen", 1);
+      recruitTroop(village, "heavyKnights", 1);
       break;
     case 6:
-      upgradeBarracks(village);
+      disbandTroop(village, "cityGuards", 1);
       break;
     case 7:
-      await showPickUpTroopsForm(player, village);
+      disbandTroop(village, "spearmen", 1);
       break;
     case 8:
-      await showReturnTroopsForm(player, village);
+      upgradeBarracks(village);
       break;
     case 9:
-      await showTrainTroopsForm(player, village);
+      await showPickUpTroopsForm(player, village);
       break;
     case 10:
+      await showReturnTroopsForm(player, village);
+      break;
+    case 11:
+      await showTrainTroopsForm(player, village);
+      break;
+    case 12:
       await showGetFormationSetForm(player, village);
       break;
-    case 11: {
+    case 13: {
       const inv11 = player.getComponent(EntityInventoryComponent8.componentId);
       const c11 = inv11?.container;
       let gave11 = false;
@@ -6624,20 +6654,27 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0);
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
   }
-  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`).slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0).slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0).slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0).slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0);
+  const form = new ModalFormData()
+    .title(`\u2694 Pick Up Troops \u2014 ${village.name}`)
+    .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0)
+    .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0)
+    .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0)
+    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0)
+    .slider(`Samurai (${t.samurai ?? 0} available)`, 0, Math.max(t.samurai ?? 0, 1), 1, 0)
+    .slider(`Heavy Knights (${t.heavyKnights ?? 0} available)`, 0, Math.max(t.heavyKnights ?? 0, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry] = response.formValues;
-  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry });
+  const [guards, spearmen, archers, cavalry, samurai, heavyKnights] = response.formValues;
+  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, samurai, heavyKnights });
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry;
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.samurai ?? 0) + (carried.heavyKnights ?? 0);
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
@@ -6650,6 +6687,8 @@ async function showReturnTroopsForm(player, village) {
   Spearmen: ${carried.spearmen}
   Archers: ${carried.archers}
   Cavalry: ${carried.cavalry}
+  Samurai: ${carried.samurai ?? 0}
+  Heavy Knights: ${carried.heavyKnights ?? 0}
 
 \xA7aTotal: ${total} troops`
   ).button("Return All Troops").button("Cancel");
@@ -7871,19 +7910,30 @@ var STRAT_MIN_TOWNHALL_DIST = 15;
 var STRAT_LEASH_DIST = 30;
 var stratFormations = new Map();
 var stratMarkerEntities = new Map();
-var STRAT_TROOP_LABELS = {cityGuards:"City Guards", spearmen:"Spearmen", archers:"Archers", cavalry:"Cavalry"};
-var STRAT_TROOP_KEYS   = ["cityGuards","spearmen","archers","cavalry"];
-var STRAT_TOKEN_IDS    = {
-  cityGuards: "kingdoms:guard_token",
-  spearmen:   "kingdoms:spearman_token",
-  archers:    "kingdoms:archer_token",
-  cavalry:    "kingdoms:cavalry_token"
+var STRAT_TROOP_LABELS = {
+  cityGuards:   "City Guards",
+  spearmen:     "Spearmen",
+  archers:      "Archers",
+  cavalry:      "Cavalry",
+  samurai:      "Samurai",
+  heavyKnights: "Heavy Knights"
+};
+var STRAT_TROOP_KEYS = ["cityGuards","spearmen","archers","cavalry","samurai","heavyKnights"];
+var STRAT_TOKEN_IDS  = {
+  cityGuards:   "kingdoms:guard_token",
+  spearmen:     "kingdoms:spearman_token",
+  archers:      "kingdoms:archer_token",
+  cavalry:      "kingdoms:cavalry_token",
+  samurai:      "kingdoms:samurai_token",
+  heavyKnights: "kingdoms:heavy_knight_token"
 };
 var STRAT_ENTITY_MAP = {
-  cityGuards: "kingdoms:city_guard",
-  spearmen:   "kingdoms:spearman",
-  archers:    "kingdoms:archer",
-  cavalry:    "kingdoms:cavalry"
+  cityGuards:   "kingdoms:city_guard",
+  spearmen:     "kingdoms:spearman",
+  archers:      "kingdoms:archer",
+  cavalry:      "kingdoms:cavalry",
+  samurai:      "kingdoms:samurai",
+  heavyKnights: "kingdoms:heavy_knight"
 };
 function countInventoryTokens(player) {
   const inv = player.getComponent(EntityInventoryComponent8.componentId);
