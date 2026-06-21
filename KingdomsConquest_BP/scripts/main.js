@@ -2452,7 +2452,7 @@ function cmdReset(player) {
     notifyPlayer(player.name, "\xA7cOnly operators can run kc:reset.");
     return;
   }
-  notifyPlayer(player.name, "\xA7c\u26A0 Deleting ALL Kingdoms & Conquest data\u2026");
+  notifyPlayer(player.name, "\xA7c\u26A0 [kc:reset] Deleting ALL Kingdoms & Conquest data\u2026");
   const villages = getAllVillages();
   for (const v of villages) {
     try { deleteVillage(v.id); } catch {}
@@ -2465,7 +2465,12 @@ function cmdReset(player) {
     const camps = getAllBanditCamps ? getAllBanditCamps() : [];
     for (const c of camps) { try { deleteBanditCamp(c.id); } catch {} }
   } catch {}
-  notifyPlayer(player.name, "\xA7aAll addon data has been reset. The world is a blank slate again.");
+  try {
+    for (const p of world16.getPlayers()) {
+      try { world16.setDynamicProperty(KC_FIRST_SPAWN_PROP + p.name, void 0); } catch {}
+    }
+  } catch {}
+  notifyPlayer(player.name, "\xA7aAll addon data has been reset. All kingdoms, villages, and first-spawn flags cleared. Players will receive starter items on next login.");
 }
 function showMyStatus(player) {
   const myVillages = getAllVillages().filter((v) => v.owner === player.name);
@@ -6441,15 +6446,65 @@ world16.afterEvents.playerSpawn.subscribe((event) => {
     try {
       for (const { id, count } of [
         { id: "kingdoms:town_hall", count: 1 },
+        { id: "kingdoms:village_spawner", count: 1 },
         { id: "minecraft:cobblestone", count: 10 },
         { id: "minecraft:bread", count: 8 }
       ]) {
-        player.runCommand(`give @s ${id} ${count}`);
+        try { player.runCommand(`give @s ${id} ${count}`); } catch {}
       }
       generateStarterVillage(player);
+      system3.runTimeout(() => {
+        notifyPlayer(player.name, "\xA76\u2605 Welcome to Kingdoms & Conquest! \xA76\u2605");
+        notifyPlayer(player.name, "\xA7fYou received:\xA7a Town Hall\xA7f (place to claim your village) \xA7b+\xA7a Village Spawner\xA7f (right-click ground to summon a small village structure).");
+        notifyPlayer(player.name, "\xA77Step 1: Right-click the\xA7a Village Spawner\xA77 on the ground to generate your starter village.");
+        notifyPlayer(player.name, "\xA77Step 2: Place the\xA7a Town Hall\xA77 block inside it, then right-click to claim and name your kingdom.");
+        notifyPlayer(player.name, "\xA77Step 3: Use\xA7e /scriptevent kc:help\xA77 to see all commands.");
+        notifyPlayer(player.name, "\xA7c\u26A0 Soldiers from other kingdoms are hostile unless you are allied. Use\xA7e kc:ally <kingdom>\xA7c to establish peace.");
+      }, 120);
     } catch {}
   }, 60);
 });
+system3.runInterval(() => {
+  try {
+    const players = [...world16.getPlayers()];
+    if (players.length < 1) return;
+    for (const player of players) {
+      try {
+        const playerKingdom = getKingdomOf(player.name);
+        const nearEntities = player.dimension.getEntities({
+          location: player.location,
+          maxDistance: 24,
+          families: ["kingdoms_guard"]
+        });
+        for (const entity of nearEntities) {
+          try {
+            let ownerKingdom = null;
+            const directOwner = entity.getDynamicProperty("kc:owner")
+                             || entity.getDynamicProperty("kc:strat_raid_owner");
+            if (directOwner) {
+              if (directOwner === player.name) continue;
+              ownerKingdom = getKingdomOf(directOwner);
+            } else {
+              const villageId = entity.getDynamicProperty("kc:auto_dispatch");
+              if (villageId) {
+                const v = getVillage(villageId);
+                if (!v) continue;
+                if (v.owner === player.name) continue;
+                ownerKingdom = getKingdomOf(v.owner);
+              }
+            }
+            if (!ownerKingdom) continue;
+            if (playerKingdom && ownerKingdom.id === playerKingdom.id) continue;
+            if (playerKingdom && ownerKingdom.alliances?.includes(playerKingdom.id)) continue;
+            player.addTag("kc:aggro_target");
+            try { entity.runCommand("attack @p[r=25,tag=kc:aggro_target]"); } catch {}
+            player.removeTag("kc:aggro_target");
+          } catch {}
+        }
+      } catch {}
+    }
+  } catch {}
+}, 80);
 async function showClaimVillageForm(player, block) {
   const form = new ModalFormData().title("Claim Village").textField("Kingdom Name", "Enter your kingdom name...").textField("Village Name", "Enter a name for this village...");
   const response = await form.show(player);
