@@ -148,6 +148,8 @@ export interface VillageData {
   fieldWorkerLevel?: number;
   tradeHistory?: TradeHistoryEntry[];
   armory?: Partial<Record<ArmoryItemKey, number>>;
+  waypointLocation?: Vec3;
+  waypointEntityId?: string;
 }
 
 export interface KingdomData {
@@ -157,6 +159,7 @@ export interface KingdomData {
   villageIds: string[];
   wars: string[];
   alliances: string[];
+  peaceCooldowns?: Record<string, number>;
 }
 
 export interface BanditCampData {

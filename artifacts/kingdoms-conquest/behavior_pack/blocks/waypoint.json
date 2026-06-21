@@ -1,0 +1,32 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "kingdoms:waypoint",
+      "menu_category": {
+        "category": "construction",
+        "group": "itemGroup.name.stone"
+      }
+    },
+    "components": {
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 5
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 20
+      },
+      "minecraft:geometry": {
+        "identifier": "minecraft:geometry.full_block"
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "kingdoms_waypoint",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:light_emission": 10,
+      "minecraft:map_color": "#00CFFF",
+      "minecraft:display_name": "Village Waypoint"
+    }
+  }
+}

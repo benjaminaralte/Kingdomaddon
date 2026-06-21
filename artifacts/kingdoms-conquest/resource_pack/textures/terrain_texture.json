@@ -15,6 +15,7 @@
     "kingdoms_guard_pole_gate":       { "textures": "textures/blocks/guard_pole_gate" },
     "kingdoms_guard_pole_road":       { "textures": "textures/blocks/guard_pole_road" },
     "kingdoms_guard_pole_watchtower": { "textures": "textures/blocks/guard_pole_watchtower" },
-    "kingdoms_trade_pole":            { "textures": "textures/blocks/trade_pole" }
+    "kingdoms_trade_pole":            { "textures": "textures/blocks/trade_pole" },
+    "kingdoms_waypoint":              { "textures": "textures/blocks/waypoint" }
   }
 }

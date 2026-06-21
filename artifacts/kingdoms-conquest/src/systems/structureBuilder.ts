@@ -8,6 +8,7 @@ export const STRUCTURE_BLOCK_IDS = new Set([
   "kingdoms:blacksmith",
   "kingdoms:trade_station",
   "kingdoms:treasury",
+  "kingdoms:waypoint",
 ]);
 
 type BP = { x: number; y: number; z: number; b: string };
@@ -345,6 +346,27 @@ function treasuryBlueprint(): BP[] {
   return p;
 }
 
+// ─── WAYPOINT ─────────────────────────────────────────────────────────────────
+// 3×3 base, 5-tall stone obelisk with glowstone cap and lantern accents
+function waypointBlueprint(): BP[] {
+  const p: BP[] = [];
+  // Clear air above
+  p.push(...fill(-1, 1, -1, 1, 6, 1, "minecraft:air"));
+  // Smooth stone base platform (flat 3×3, y=0)
+  p.push(...fill(-1, 0, -1, 1, 0, 1, "minecraft:smooth_stone"));
+  // Stone brick pillar y=1-4
+  p.push(...fill(0, 1, 0, 0, 4, 0, "minecraft:stone_bricks"));
+  // Chiseled stone accents at y=2
+  p.push(blk(-1, 2, 0, "minecraft:chiseled_stone_bricks"), blk(1, 2, 0, "minecraft:chiseled_stone_bricks"));
+  p.push(blk(0, 2, -1, "minecraft:chiseled_stone_bricks"), blk(0, 2, 1, "minecraft:chiseled_stone_bricks"));
+  // Glowstone cap at y=5
+  p.push(blk(0, 5, 0, "minecraft:glowstone"));
+  // Sea lanterns at base corners y=0
+  p.push(blk(-1, 0, -1, "minecraft:sea_lantern"), blk(1, 0, -1, "minecraft:sea_lantern"));
+  p.push(blk(-1, 0,  1, "minecraft:sea_lantern"), blk(1, 0,  1, "minecraft:sea_lantern"));
+  return p;
+}
+
 // ─── PUBLIC API ───────────────────────────────────────────────────────────────
 
 const BLUEPRINTS: Record<string, () => BP[]> = {
@@ -355,6 +377,7 @@ const BLUEPRINTS: Record<string, () => BP[]> = {
   "kingdoms:blacksmith":   blacksmithBlueprint,
   "kingdoms:trade_station": tradeStationBlueprint,
   "kingdoms:treasury":     treasuryBlueprint,
+  "kingdoms:waypoint":     waypointBlueprint,
 };
 
 /**

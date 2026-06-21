@@ -151,8 +151,8 @@ var init_storage = __esm({
 });
 
 // src/main.ts
-import { world as world16, system as system3, EntityInventoryComponent as EntityInventoryComponent8 } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { world as world17, system as system3, EntityInventoryComponent as EntityInventoryComponent8 } from "@minecraft/server";
+import { ActionFormData as ActionFormData2, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/types/index.ts
 var WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
@@ -3376,6 +3376,13 @@ var MERCHANT_STOCK_TEMPLATES = {
     "minecraft:apple": 48
   }
 };
+var SEED_PURCHASE_MATERIALS = [
+  { itemId: "minecraft:copper_ingot", amount: 2, label: "Copper Ingot \xD72" },
+  { itemId: "minecraft:flint", amount: 1, label: "Flint \xD71" },
+  { itemId: "minecraft:glass", amount: 1, label: "Glass \xD71" },
+  { itemId: "minecraft:leather", amount: 1, label: "Leather \xD71" },
+  { itemId: "minecraft:blue_orchid", amount: 1, label: "Blue Orchid \xD71" }
+];
 var SEED_SHOP = [
   { itemId: "minecraft:wheat_seeds", label: "Wheat Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
   { itemId: "minecraft:carrot", label: "Carrots (seed)", quantityPerPurchase: 8, emeraldCost: 2 },
@@ -3576,6 +3583,28 @@ function upgradeMarket(village) {
   notifyPlayer(village.owner, `\xA7aMarket upgraded to level \xA7b${village.marketLevel}\xA7a in \xA7b${village.name}\xA7a!`);
   return true;
 }
+function countItem(container, itemId) {
+  let total = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === itemId) total += slot.amount;
+  }
+  return total;
+}
+function removeItems(container, itemId, amount) {
+  let toRemove = amount;
+  for (let i = 0; i < container.size && toRemove > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== itemId) continue;
+    const take = Math.min(slot.amount, toRemove);
+    toRemove -= take;
+    if (take >= slot.amount) container.setItem(i, void 0);
+    else {
+      slot.amount -= take;
+      container.setItem(i, slot);
+    }
+  }
+}
 function buySeedsFromMarket(player, village, entry) {
   if (village.marketLevel < 1) {
     notifyPlayer(player.name, "\xA7cBuild and upgrade the market first.");
@@ -3584,27 +3613,24 @@ function buySeedsFromMarket(player, village, entry) {
   const inv = player.getComponent(EntityInventoryComponent6.componentId);
   if (!inv?.container) return false;
   const container = inv.container;
-  let emeraldsHeld = 0;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot?.typeId === "minecraft:emerald") emeraldsHeld += slot.amount;
-  }
+  const emeraldsHeld = countItem(container, "minecraft:emerald");
   if (emeraldsHeld < entry.emeraldCost) {
-    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost} emeralds\xA7c (you have ${emeraldsHeld}) to buy ${entry.quantityPerPurchase}x ${entry.label}.`);
+    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost} emeralds\xA7c (you have ${emeraldsHeld}).`);
     return false;
   }
-  let emeraldsToRemove = entry.emeraldCost;
-  for (let i = 0; i < container.size && emeraldsToRemove > 0; i++) {
-    const slot = container.getItem(i);
-    if (!slot || slot.typeId !== "minecraft:emerald") continue;
-    const take = Math.min(slot.amount, emeraldsToRemove);
-    emeraldsToRemove -= take;
-    if (take >= slot.amount) {
-      container.setItem(i, void 0);
-    } else {
-      slot.amount -= take;
-      container.setItem(i, slot);
+  const missing = [];
+  for (const mat of SEED_PURCHASE_MATERIALS) {
+    if (countItem(container, mat.itemId) < mat.amount) {
+      missing.push(`\xA7e${mat.label}`);
     }
+  }
+  if (missing.length > 0) {
+    notifyPlayer(player.name, `\xA7cAlso need: ${missing.join("\xA7c, ")}`);
+    return false;
+  }
+  removeItems(container, "minecraft:emerald", entry.emeraldCost);
+  for (const mat of SEED_PURCHASE_MATERIALS) {
+    removeItems(container, mat.itemId, mat.amount);
   }
   let remaining = entry.quantityPerPurchase;
   for (let i = 0; i < container.size && remaining > 0; i++) {
@@ -3620,10 +3646,11 @@ function buySeedsFromMarket(player, village, entry) {
       remaining -= give;
     }
   }
-  if (remaining > 0) {
-    notifyPlayer(player.name, "\xA7cInventory full \u2014 some seeds couldn't be delivered.");
-  }
-  notifyPlayer(player.name, `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost}\u{1F48E}\xA7a.`);
+  if (remaining > 0) notifyPlayer(player.name, "\xA7cInventory full \u2014 some seeds couldn't be delivered.");
+  notifyPlayer(
+    player.name,
+    `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost}\u{1F48E}\xA7a + farming materials.`
+  );
   return true;
 }
 function sellFoodBulk(player, village, entry, batches) {
@@ -4490,7 +4517,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:granary",
   "kingdoms:blacksmith",
   "kingdoms:trade_station",
-  "kingdoms:treasury"
+  "kingdoms:treasury",
+  "kingdoms:waypoint"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -4702,6 +4730,18 @@ function treasuryBlueprint() {
   p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
   return p;
 }
+function waypointBlueprint() {
+  const p = [];
+  p.push(...fill(-1, 1, -1, 1, 6, 1, "minecraft:air"));
+  p.push(...fill(-1, 0, -1, 1, 0, 1, "minecraft:smooth_stone"));
+  p.push(...fill(0, 1, 0, 0, 4, 0, "minecraft:stone_bricks"));
+  p.push(blk(-1, 2, 0, "minecraft:chiseled_stone_bricks"), blk(1, 2, 0, "minecraft:chiseled_stone_bricks"));
+  p.push(blk(0, 2, -1, "minecraft:chiseled_stone_bricks"), blk(0, 2, 1, "minecraft:chiseled_stone_bricks"));
+  p.push(blk(0, 5, 0, "minecraft:glowstone"));
+  p.push(blk(-1, 0, -1, "minecraft:sea_lantern"), blk(1, 0, -1, "minecraft:sea_lantern"));
+  p.push(blk(-1, 0, 1, "minecraft:sea_lantern"), blk(1, 0, 1, "minecraft:sea_lantern"));
+  return p;
+}
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
   "kingdoms:barracks": barracksBlueprint,
@@ -4709,7 +4749,8 @@ var BLUEPRINTS = {
   "kingdoms:granary": granaryBlueprint,
   "kingdoms:blacksmith": blacksmithBlueprint,
   "kingdoms:trade_station": tradeStationBlueprint,
-  "kingdoms:treasury": treasuryBlueprint
+  "kingdoms:treasury": treasuryBlueprint,
+  "kingdoms:waypoint": waypointBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -4729,7 +4770,203 @@ function generateStructure(dimension, origin, blockTypeId) {
   }
 }
 
+// src/systems/waypoint.ts
+init_storage();
+import { world as world16 } from "@minecraft/server";
+import { ActionFormData } from "@minecraft/server-ui";
+var WAYPOINT_PROP = "kc:waypoint_village_id";
+function registerWaypoint(village, location) {
+  if (village.waypointLocation) {
+    notifyPlayer(
+      village.owner,
+      `\xA7c\xA7b${village.name}\xA7c already has a waypoint. Break the existing one to move it.`
+    );
+    return false;
+  }
+  village.waypointLocation = location;
+  const dim = world16.getDimension(village.location.dimension);
+  try {
+    const entity = dim.spawnEntity("kingdoms:structure_hub", {
+      x: location.x + 0.5,
+      y: location.y + 1,
+      z: location.z + 0.5
+    });
+    entity.setDynamicProperty(WAYPOINT_PROP, village.id);
+    entity.nameTag = `\xA7b\u2726 ${village.name}`;
+    village.waypointEntityId = entity.id;
+  } catch {
+  }
+  saveVillage(village);
+  notifyPlayer(
+    village.owner,
+    `\xA7a\u2726 Waypoint registered for \xA7b${village.name}\xA7a! Right-click the marker to teleport to any of your villages.`
+  );
+  return true;
+}
+function removeWaypoint(village) {
+  if (village.waypointEntityId) {
+    const dim = world16.getDimension(village.location.dimension);
+    try {
+      for (const entityType of ["kingdoms:structure_hub"]) {
+        const entities = dim.getEntities({ type: entityType });
+        const e = entities.find((x) => x.id === village.waypointEntityId);
+        if (e) {
+          e.remove();
+          break;
+        }
+      }
+    } catch {
+    }
+    village.waypointEntityId = void 0;
+  }
+  village.waypointLocation = void 0;
+  saveVillage(village);
+  notifyPlayer(village.owner, `\xA7eWaypoint removed from \xA7b${village.name}\xA7e.`);
+}
+async function showWaypointMenu(player) {
+  const destinations = getAllVillages().filter(
+    (v) => v.owner === player.name && v.waypointLocation
+  );
+  if (destinations.length === 0) {
+    notifyPlayer(
+      player.name,
+      `\xA7cNo waypoints found. Place a \xA7bVillage Waypoint\xA7c block inside your village first.`
+    );
+    return;
+  }
+  const form = new ActionFormData().title("\xA7b\u2726 Village Waypoints").body(
+    `\xA77${destinations.length} waypoint(s) registered.
+\xA7fSelect a destination to teleport to:`
+  );
+  for (const v of destinations) {
+    const loc2 = v.waypointLocation;
+    form.button(`\xA7b${v.name}
+\xA77${Math.round(loc2.x)}, ${Math.round(loc2.y)}, ${Math.round(loc2.z)}`);
+  }
+  form.button("\xA77Cancel");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= destinations.length) return;
+  const dest = destinations[response.selection];
+  const loc = dest.waypointLocation;
+  try {
+    const dim = world16.getDimension(dest.location.dimension);
+    player.teleport(
+      { x: loc.x + 0.5, y: loc.y + 1, z: loc.z + 0.5 },
+      { dimension: dim }
+    );
+    notifyPlayer(player.name, `\xA7a\u2726 Teleported to \xA7b${dest.name}\xA7a!`);
+  } catch {
+    notifyPlayer(player.name, `\xA7cTeleport failed \u2014 chunk may not be loaded.`);
+  }
+}
+
 // src/main.ts
+var peaceCooldowns = /* @__PURE__ */ new Map();
+var pendingDiplomacyRequests = /* @__PURE__ */ new Map();
+function checkThreeWool(woolType, loc, dim) {
+  const dirs = [[1, 0], [0, 1]];
+  for (const [dx, dz] of dirs) {
+    const b1 = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
+    const b2 = dim.getBlock({ x: loc.x + dx * 2, y: loc.y, z: loc.z + dz * 2 });
+    const b3 = dim.getBlock({ x: loc.x - dx, y: loc.y, z: loc.z - dz });
+    if (b1?.typeId === woolType && b2?.typeId === woolType) return true;
+    if (b1?.typeId === woolType && b3?.typeId === woolType) return true;
+  }
+  return false;
+}
+async function triggerWoolDiplomacy(player, targetVillage, isBlack) {
+  const myKingdom = getKingdomOf(player.name);
+  if (!myKingdom) {
+    notifyPlayer(player.name, "\xA7cYou must be in a kingdom to use wool diplomacy.");
+    return;
+  }
+  const enemyKingdom = getKingdom(targetVillage.kingdomId);
+  if (!enemyKingdom) return;
+  if (isBlack) {
+    if (areAtWar(myKingdom.id, enemyKingdom.id)) {
+      notifyPlayer(player.name, `\xA7cAlready at war with \xA7b${enemyKingdom.name}\xA7c.`);
+      return;
+    }
+    const form = new MessageFormData().title("\u2694 Declare War?").body(
+      `You placed 3 black wool in \xA7b${targetVillage.name}\xA7r!
+
+This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king}).
+
+\xA77This cannot be undone without a peace treaty.`
+    ).button1("\u2694 DECLARE WAR").button2("Cancel");
+    const resp = await form.show(player);
+    if (resp.selection === 0) {
+      declareWar(myKingdom.id, enemyKingdom.id);
+      for (const p of world17.getPlayers()) {
+        notifyPlayer(p.name, `\xA7c\u2694 WAR DECLARED! \xA7f${player.name} \xA77(${myKingdom.name}) \xA7chas declared war on \xA7b${enemyKingdom.name}\xA7c!`);
+      }
+    }
+    return;
+  }
+  const atWar = areAtWar(myKingdom.id, enemyKingdom.id);
+  const requestType = atWar ? "peace" : "alliance";
+  const cooldownKey = `${myKingdom.id}:${enemyKingdom.id}`;
+  const cooldownExpiry = peaceCooldowns.get(cooldownKey) ?? 0;
+  if (getCurrentTick() < cooldownExpiry) {
+    const days = ((cooldownExpiry - getCurrentTick()) / TICKS_PER_DAY).toFixed(1);
+    notifyPlayer(player.name, `\xA7c${enemyKingdom.name} denied your last request. Wait \xA7e${days}\xA7c more in-game days.`);
+    return;
+  }
+  if (!atWar && enemyKingdom.alliances?.includes(myKingdom.id)) {
+    notifyPlayer(player.name, `\xA7aAlready allied with \xA7b${enemyKingdom.name}\xA7a.`);
+    return;
+  }
+  const label = requestType === "peace" ? "\u2709 Peace Offer" : "\u2709 Alliance Offer";
+  pendingDiplomacyRequests.set(enemyKingdom.king, {
+    fromKingdomId: myKingdom.id,
+    toKingdomId: enemyKingdom.id,
+    type: requestType,
+    senderName: player.name,
+    cooldownKey
+  });
+  notifyPlayer(player.name, `\xA7a${label} sent to \xA7b${enemyKingdom.name}\xA7a (${enemyKingdom.king}). Awaiting response...`);
+  notifyPlayer(enemyKingdom.king, `\xA7e\u{1F4DC} \xA7b${myKingdom.name}\xA7e sent a \xA7f${label}\xA7e. Interact with any waypoint or use /scriptevent kc:diplomacy to respond.`);
+  const targetOnline = world17.getPlayers().find((p) => p.name === enemyKingdom.king);
+  if (targetOnline) void showPendingDiplomacyRequest(targetOnline);
+}
+async function showPendingDiplomacyRequest(player) {
+  const req = pendingDiplomacyRequests.get(player.name);
+  if (!req) return;
+  const senderKingdom = getKingdom(req.fromKingdomId);
+  if (!senderKingdom) {
+    pendingDiplomacyRequests.delete(player.name);
+    return;
+  }
+  const label = req.type === "peace" ? "\u2709 Peace Offer" : "\u2709 Alliance Offer";
+  const body = req.type === "peace" ? `\xA7b${senderKingdom.name}\xA7r has offered PEACE.
+Sent by: \xA7f${req.senderName}
+
+Accept = end the war.
+Deny = block requests for 2 in-game days.` : `\xA7b${senderKingdom.name}\xA7r requests an ALLIANCE.
+Sent by: \xA7f${req.senderName}
+
+Accept = form alliance (soldiers won't clash).
+Deny = block requests for 2 in-game days.`;
+  const form = new MessageFormData().title(label).body(body).button1("\u2705 Accept").button2("\u274C Deny");
+  const resp = await form.show(player);
+  pendingDiplomacyRequests.delete(player.name);
+  if (resp.selection === 0) {
+    if (req.type === "peace") {
+      makePeace(req.fromKingdomId, req.toKingdomId);
+      notifyPlayer(req.senderName, `\xA7a\u2705 ${player.name} accepted peace! The war with \xA7b${senderKingdom.name}\xA7a is over.`);
+      notifyPlayer(player.name, `\xA7aPeace established with \xA7b${senderKingdom.name}\xA7a.`);
+    } else {
+      formAlliance(req.fromKingdomId, req.toKingdomId);
+      notifyPlayer(req.senderName, `\xA7a\u2705 ${player.name} accepted the alliance with \xA7b${senderKingdom.name}\xA7a!`);
+      notifyPlayer(player.name, `\xA7aAlliance formed with \xA7b${senderKingdom.name}\xA7a!`);
+    }
+  } else {
+    peaceCooldowns.set(req.cooldownKey, getCurrentTick() + TICKS_PER_DAY * 2);
+    notifyPlayer(req.senderName, `\xA7c${player.name} denied your ${req.type} offer. Try again in 2 in-game days.`);
+    notifyPlayer(player.name, `\xA7eOffer denied.`);
+  }
+}
 var CUSTOM_BLOCKS = {
   TOWN_HALL: "kingdoms:town_hall",
   GUARD_POLE_VILLAGE: "kingdoms:guard_pole_village",
@@ -4749,7 +4986,7 @@ function findVillageAt2(location) {
     (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
   );
 }
-world16.afterEvents.playerPlaceBlock.subscribe((event) => {
+world17.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
   const typeId = block.typeId;
@@ -4807,10 +5044,30 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       notifyPlayer(player.name, `\xA7aVillage Treasury registered for \xA7b${village.name}\xA7a.`);
     }
   }
+  if (typeId === "kingdoms:waypoint") {
+    const village = findVillageAt2(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "\xA7cNo village territory here. Must be inside a claimed village.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "\xA7cThis is not your village.");
+      return;
+    }
+    registerWaypoint(village, block.location);
+  }
+  if (typeId === "minecraft:black_wool" || typeId === "minecraft:white_wool") {
+    const woolVillage = findVillageAt2(block.location);
+    if (woolVillage && woolVillage.owner && woolVillage.owner !== player.name) {
+      if (checkThreeWool(typeId, block.location, block.dimension)) {
+        void triggerWoolDiplomacy(player, woolVillage, typeId === "minecraft:black_wool");
+      }
+    }
+  }
   if (STRUCTURE_BLOCK_IDS.has(typeId)) {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
-    notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace("_", " ")}\xA77\u2026`);
+    notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}\xA77\u2026`);
     system3.run(() => {
       generateStructure(dimension, origin, typeId);
     });
@@ -4825,7 +5082,7 @@ function canOpenMenu(playerName) {
   lastMenuTick.set(playerName, tick);
   return true;
 }
-world16.afterEvents.itemStartUseOn.subscribe((event) => {
+world17.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
   const itemStack = event.itemStack;
@@ -4871,9 +5128,21 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
       break;
+    case "kingdoms:waypoint": {
+      const wpVillage = findVillageAt2(block.location);
+      if (wpVillage && wpVillage.waypointLocation) {
+        void showWaypointMenu(player);
+        if (pendingDiplomacyRequests.has(player.name)) {
+          system3.runTimeout(() => {
+            void showPendingDiplomacyRequest(player);
+          }, 40);
+        }
+      }
+      break;
+    }
   }
 });
-world16.afterEvents.playerBreakBlock.subscribe((event) => {
+world17.afterEvents.playerBreakBlock.subscribe((event) => {
   const { player } = event;
   if (!player) return;
   const typeId = event.brokenBlockPermutation.type.id;
@@ -4931,6 +5200,23 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
       }
     }
   }
+  if (typeId === "kingdoms:waypoint") {
+    const village = findVillageAt2(blockLoc);
+    if (village && village.waypointLocation) {
+      const loc = village.waypointLocation;
+      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        removeWaypoint(village);
+      }
+    }
+  }
+});
+world17.afterEvents.playerJoin.subscribe((event) => {
+  const playerName = event.playerName;
+  if (!pendingDiplomacyRequests.has(playerName)) return;
+  system3.runTimeout(() => {
+    const player = world17.getPlayers().find((p) => p.name === playerName);
+    if (player) void showPendingDiplomacyRequest(player);
+  }, 100);
 });
 system3.runInterval(() => {
   const tick = getCurrentTick();
@@ -4962,7 +5248,7 @@ system3.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
-world16.beforeEvents.playerBreakBlock.subscribe((event) => {
+world17.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;
   const permutation = block.permutation;
@@ -4979,7 +5265,7 @@ world16.beforeEvents.playerBreakBlock.subscribe((event) => {
   const dimId = player.dimension.id;
   system3.run(() => {
     try {
-      const dim = world16.getDimension(dimId);
+      const dim = world17.getDimension(dimId);
       const freshBlock = dim.getBlock(loc);
       if (!freshBlock) return;
       const freshAge = freshBlock.permutation.getState("age");
@@ -4991,7 +5277,7 @@ world16.beforeEvents.playerBreakBlock.subscribe((event) => {
     }
   });
 });
-world16.afterEvents.itemUse.subscribe((event) => {
+world17.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   if (!player) return;
   const itemId = event.itemStack?.typeId;
@@ -5025,7 +5311,7 @@ async function showTownHallMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getVillageSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Town Hall`).body(summary);
+  const form = new ActionFormData2().title(`${village.name} \u2014 Town Hall`).body(summary);
   if (isOwner) {
     form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village");
   } else {
@@ -5070,7 +5356,7 @@ async function showBarracksMenu(player, block) {
   const rs = village.resourceStorage;
   const hkLocked = village.barracksLevel < 3;
   const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
-  const form = new ActionFormData().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
+  const form = new ActionFormData2().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
 Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
 Archers: ${t.archers}  Cavalry: ${t.cavalry}
@@ -5145,7 +5431,7 @@ async function showReturnTroopsForm(player, village) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
   }
-  const form = new ActionFormData().title(`Return Troops \u2014 ${village.name}`).body(
+  const form = new ActionFormData2().title(`Return Troops \u2014 ${village.name}`).body(
     `\xA77Return all carried troops to this barracks.
 
 \xA7fCarrying:
@@ -5188,7 +5474,7 @@ async function showTrainTroopsForm(player, village) {
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
   const hkAvailable = village.barracksLevel >= 3;
-  const form = new ActionFormData().title(`Train Troops \u2014 ${village.name}`).body(
+  const form = new ActionFormData2().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
 Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}  \xA77Di: \xA7f${rs.diamonds}
 
@@ -5222,7 +5508,7 @@ async function showMarketMenu(player, block) {
   const merchantList = village.activeMerchants.map(
     (m, i) => `Merchant ${i + 1}: ${Object.entries(m.stock).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ")}`
   ).join("\n") || "No merchants present.";
-  const form = new ActionFormData().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
+  const form = new ActionFormData2().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
     `\xA7bTreasury: \xA76${village.treasury}\u{1F48E}\xA7r  |  Merchants: ${village.activeMerchants.length}/${maxMerchants}
 
 ${merchantList}
@@ -5251,11 +5537,13 @@ ${merchantList}
   }
 }
 async function showSeedShopMenu(player, village) {
-  const form = new ActionFormData().title(`${village.name} \u2014 Seed Shop`).body(
-    `\xA7bBuy seeds with emeralds from your inventory.
+  const matLine = SEED_PURCHASE_MATERIALS.map((m) => m.label).join(" + ");
+  const form = new ActionFormData2().title(`${village.name} \u2014 Seed Shop`).body(
+    `\xA7bBuy seeds for emeralds + farming materials.
 \xA77Market Lv${village.marketLevel} (needs Lv1+)
 
-Seeds help villager farmers auto-replant crops.`
+\xA7eEach purchase also requires:
+\xA7f${matLine}`
   );
   for (const entry of SEED_SHOP) {
     form.button(`${entry.label} \xD7${entry.quantityPerPurchase}  [${entry.emeraldCost}\u{1F48E}]`);
@@ -5267,7 +5555,7 @@ Seeds help villager farmers auto-replant crops.`
   buySeedsFromMarket(player, village, SEED_SHOP[response.selection]);
 }
 async function showFoodSellMenu(player, village) {
-  const form = new ActionFormData().title(`${village.name} \u2014 Sell Food`).body(
+  const form = new ActionFormData2().title(`${village.name} \u2014 Sell Food`).body(
     `\xA7bSell food in bulk for emeralds (to your inventory).
 \xA77Sources: granary first, then player inventory.
 \xA7cMinimum batch required \u2014 low rates by design.`
@@ -5295,7 +5583,7 @@ async function showBlacksmithMenu(player, block) {
     return;
   }
   const summary = getBlacksmithSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
+  const form = new ActionFormData2().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5322,7 +5610,7 @@ async function showArmoryCraftMenu(player, village) {
     if (r.costEmeralds > 0) parts.push(`${r.costEmeralds}\u{1F48E}`);
     return parts.join(", ");
   };
-  const form = new ActionFormData().title(`${village.name} \u2014 Craft for Armory`).body(
+  const form = new ActionFormData2().title(`${village.name} \u2014 Craft for Armory`).body(
     `\xA77Craft gear from village resource storage.
 \xA77Storage: \xA7fFe:${rs.iron} Au:${rs.gold} \u{1F4A0}:${rs.diamonds} W:${rs.wood} St:${rs.stone}
 \xA77Treasury: \xA7f${village.treasury}\u{1F48E}
@@ -5358,7 +5646,7 @@ async function showGranaryStorageMenu(player, block) {
   const cons = getFoodConsumption(village);
   const fieldTotal = getFieldStorageTotal(village);
   const fieldBtn = `\u{1F33E} Collect Field Harvest${fieldTotal > 0 ? ` (${fieldTotal} food units ready)` : " (empty)"}`;
-  const form = new ActionFormData().title(`${village.name} \u2014 Granary`).body(
+  const form = new ActionFormData2().title(`${village.name} \u2014 Granary`).body(
     `${report}
 
 Farmers: ${village.workers.farmers}  Daily: +${prod}/-${cons}
@@ -5393,7 +5681,7 @@ Shortage: ${village.foodShortageStage}/4`
 }
 async function showGranaryDepositMenu(player, village) {
   const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
-  const form = new ActionFormData().title(`Deposit Food \u2014 ${village.name}`).body("Select a food type to deposit 16 of from your inventory:");
+  const form = new ActionFormData2().title(`Deposit Food \u2014 ${village.name}`).body("Select a food type to deposit 16 of from your inventory:");
   for (const item of foodItems) {
     form.button(item.replace("minecraft:", ""));
   }
@@ -5409,7 +5697,7 @@ async function showTreasuryBlockMenu(player, block) {
     return;
   }
   const report = getTreasuryReport(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
+  const form = new ActionFormData2().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5434,7 +5722,7 @@ async function showTreasuryMenu(player, villageId) {
   const village = getVillage(villageId);
   if (!village) return;
   const report = getTreasuryReport(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
+  const form = new ActionFormData2().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -5462,7 +5750,7 @@ async function showKingdomOverview(player) {
     return;
   }
   const summary = getKingdomSummary(kingdom.id);
-  const form = new ActionFormData().title(kingdom.name).body(summary).button("Diplomacy").button("Close");
+  const form = new ActionFormData2().title(kingdom.name).body(summary).button("Diplomacy").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   if (response.selection === 0) await showDiplomacyMenu(player);
@@ -5475,7 +5763,7 @@ async function showDiplomacyMenu(player) {
     notifyPlayer(player.name, "\xA7eNo other kingdoms exist yet.");
     return;
   }
-  const form = new ActionFormData().title("Diplomacy").body(`Kingdom: ${myKingdom.name}
+  const form = new ActionFormData2().title("Diplomacy").body(`Kingdom: ${myKingdom.name}
 Wars: ${myKingdom.wars.length}  Alliances: ${myKingdom.alliances.length}`);
   for (const k of others) {
     const rel = myKingdom.wars.includes(k.id) ? "\xA7c[WAR]" : myKingdom.alliances.includes(k.id) ? "\xA7a[ALLY]" : "\xA77[NEUTRAL]";
@@ -5489,7 +5777,7 @@ Wars: ${myKingdom.wars.length}  Alliances: ${myKingdom.alliances.length}`);
 async function showDiplomacyActions(player, myKingdom, target) {
   const atWar = myKingdom.wars.includes(target.id);
   const allied = myKingdom.alliances.includes(target.id);
-  const form = new ActionFormData().title(`Diplomacy \u2014 ${target.name}`).body(`King: ${target.king}
+  const form = new ActionFormData2().title(`Diplomacy \u2014 ${target.name}`).body(`King: ${target.king}
 Villages: ${target.villageIds.length}
 Relation: ${atWar ? "\xA7cAt War" : allied ? "\xA7aAllied" : "\xA77Neutral"}`);
   const actions = [];
@@ -5523,7 +5811,7 @@ async function showReinforcementsMenu(player, villageId) {
     notifyPlayer(player.name, "\xA7cNo other villages in your kingdom.");
     return;
   }
-  const form = new ActionFormData().title("Send Resources / Reinforcements").body(`From: \xA7b${village.name}\xA7r
+  const form = new ActionFormData2().title("Send Resources / Reinforcements").body(`From: \xA7b${village.name}\xA7r
 Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}
 Guards: ${village.troops.cityGuards}  Spearmen: ${village.troops.spearmen}
 Archers: ${village.troops.archers}  Cavalry: ${village.troops.cavalry}
@@ -5574,7 +5862,7 @@ async function showActiveMerchantsMenu(player, village) {
     notifyPlayer(player.name, "\xA7eNo merchants are visiting \xA7b" + village.name + "\xA7e right now.");
     return;
   }
-  const form = new ActionFormData().title(`${village.name} \u2014 Merchants`).body(`Active merchants: ${village.activeMerchants.length}
+  const form = new ActionFormData2().title(`${village.name} \u2014 Merchants`).body(`Active merchants: ${village.activeMerchants.length}
 Select a merchant to trade with:`);
   for (const m of village.activeMerchants) {
     const stockSummary = Object.entries(m.stock).slice(0, 3).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ");
@@ -5589,7 +5877,7 @@ Select a merchant to trade with:`);
 }
 async function showMerchantTradeMenu(player, village, merchant, entityId) {
   const stockText = Object.entries(merchant.stock).map(([item, count]) => `${item.replace("minecraft:", "")} \xD7${count}`).join("\n") || "Sold out!";
-  const form = new ActionFormData().title("Travelling Merchant").body(`Available:
+  const form = new ActionFormData2().title("Travelling Merchant").body(`Available:
 ${stockText}
 
 Village Treasury: ${village.treasury}\u{1F48E}`).button("Buy Iron \xD78 (8\u{1F48E})").button("Buy Gold \xD74 (12\u{1F48E})").button("Buy Diamond \xD71 (8\u{1F48E})").button("Buy Bread \xD716 (16\u{1F48E})").button("Close");
@@ -5618,7 +5906,7 @@ async function showTradeStationMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getTradeStationSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Trade Station`).body(summary);
+  const form = new ActionFormData2().title(`${village.name} \u2014 Trade Station`).body(summary);
   if (isOwner) {
     form.button("\u{1F4E6} Dispatch Resources").button("\u{1F5E1} Dispatch Reinforcements").button("\u{1F4CA} Resource Storage").button("\u{1F682} Active Shipments").button("\u{1F4CB} Trade History");
   } else {
@@ -5657,7 +5945,7 @@ async function showDispatchResourceMenu(player, fromVillageId) {
     );
     return;
   }
-  const form = new ActionFormData().title(`${from.name} \u2014 Dispatch Resources`).body(
+  const form = new ActionFormData2().title(`${from.name} \u2014 Dispatch Resources`).body(
     `\xA77Select destination village.
 
 \xA7bAvailable:
@@ -5714,7 +6002,7 @@ async function showDispatchMilitaryMenu(player, fromVillageId) {
     return;
   }
   const t = from.troops;
-  const form = new ActionFormData().title(`${from.name} \u2014 Dispatch Reinforcements`).body(
+  const form = new ActionFormData2().title(`${from.name} \u2014 Dispatch Reinforcements`).body(
     `\xA77Select destination village.
 
 \xA7bAvailable Troops:
@@ -5765,7 +6053,7 @@ async function showResourceStorageMenu(player, villageId) {
   const rs = village.resourceStorage;
   const resourceKeys = Object.keys(RESOURCE_LABELS);
   const storageLines = resourceKeys.map((k) => `  ${RESOURCE_LABELS[k]}: ${rs[k]}`).join("\n");
-  const form = new ActionFormData().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
+  const form = new ActionFormData2().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
 
 \xA7b\u2500\u2500 Storage \u2500\u2500
 \xA7f${storageLines}
@@ -5806,7 +6094,7 @@ async function showActiveShipmentsMenu(player, villageId) {
     ].filter(Boolean).join(" ");
     return `${type} #${i + 1} \u2192 ${dest?.name ?? "Unknown"}: ${cargo || "Troops"}`;
   }).join("\n");
-  const form = new ActionFormData().title(`${village.name} \u2014 Active Shipments`).body(`\xA7b${railCarts.length} rail shipment(s) in transit:
+  const form = new ActionFormData2().title(`${village.name} \u2014 Active Shipments`).body(`\xA7b${railCarts.length} rail shipment(s) in transit:
 
 \xA7f${lines}
 
@@ -5818,7 +6106,7 @@ async function showTradeHistoryMenu(player, villageId) {
   if (!village) return;
   const history = village.tradeHistory ?? [];
   if (history.length === 0) {
-    const form2 = new ActionFormData().title(`${village.name} \u2014 Trade History`).body("\xA77No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.").button("Close");
+    const form2 = new ActionFormData2().title(`${village.name} \u2014 Trade History`).body("\xA77No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.").button("Close");
     await form2.show(player);
     return;
   }
@@ -5833,7 +6121,7 @@ async function showTradeHistoryMenu(player, villageId) {
 \xA77Cargo: \xA7f${entry.summary}
 \xA78${timeLabel}`;
   });
-  const form = new ActionFormData().title(`${village.name} \u2014 Trade History`).body(`\xA7bLast ${history.length} arrival(s):
+  const form = new ActionFormData2().title(`${village.name} \u2014 Trade History`).body(`\xA7bLast ${history.length} arrival(s):
 
 ` + lines.join("\n\n")).button("Close");
   await form.show(player);

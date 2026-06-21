@@ -1,10 +1,10 @@
 import { world, system, EntityInventoryComponent } from "@minecraft/server";
-import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
+import { ActionFormData, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 import type { VillageData, KingdomData, MerchantData, ResourceStorage, TroopType } from "./types/index.js";
 import { RESOURCE_LABELS } from "./types/index.js";
 import { getCurrentTick } from "./utils/tick.js";
 import { notifyPlayer } from "./utils/notify.js";
-import { getAllVillages, getVillage, getAllKingdoms, saveVillage } from "./storage/index.js";
+import { getAllVillages, getVillage, getKingdom, getAllKingdoms, saveVillage } from "./storage/index.js";
 import {
   handleCropBreak,
   isCropBlock,
@@ -38,6 +38,7 @@ import {
   buySeedsFromMarket,
   sellFoodBulk,
   SEED_SHOP,
+  SEED_PURCHASE_MATERIALS,
   FOOD_SELL_RATES,
 } from "./systems/market.js";
 import { tickBandits } from "./systems/bandit.js";
@@ -93,7 +94,142 @@ import {
 } from "./systems/deployTroops.js";
 import type { GuardPoleType } from "./types/index.js";
 import { generateStructure, STRUCTURE_BLOCK_IDS } from "./systems/structureBuilder.js";
+import { registerWaypoint, removeWaypoint, showWaypointMenu } from "./systems/waypoint.js";
+import { areAtWar } from "./systems/kingdom.js";
+import { TICKS_PER_DAY } from "./types/index.js";
 
+// ── Wool Diplomacy ────────────────────────────────────────────────────────────
+interface PendingDiplomacyRequest {
+  fromKingdomId: string;
+  toKingdomId: string;
+  type: "war" | "peace" | "alliance";
+  senderName: string;
+  cooldownKey: string;
+}
+
+const peaceCooldowns = new Map<string, number>();           // `${fromId}:${toId}` → tick expires
+const pendingDiplomacyRequests = new Map<string, PendingDiplomacyRequest>(); // targetKingName → req
+
+function checkThreeWool(woolType: string, loc: { x: number; y: number; z: number }, dim: import("@minecraft/server").Dimension): boolean {
+  const dirs: [number, number][] = [[1, 0], [0, 1]];
+  for (const [dx, dz] of dirs) {
+    const b1 = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
+    const b2 = dim.getBlock({ x: loc.x + dx * 2, y: loc.y, z: loc.z + dz * 2 });
+    const b3 = dim.getBlock({ x: loc.x - dx, y: loc.y, z: loc.z - dz });
+    if (b1?.typeId === woolType && b2?.typeId === woolType) return true;
+    if (b1?.typeId === woolType && b3?.typeId === woolType) return true;
+  }
+  return false;
+}
+
+async function triggerWoolDiplomacy(
+  player: import("@minecraft/server").Player,
+  targetVillage: VillageData,
+  isBlack: boolean
+): Promise<void> {
+  const myKingdom = getKingdomOf(player.name);
+  if (!myKingdom) {
+    notifyPlayer(player.name, "§cYou must be in a kingdom to use wool diplomacy.");
+    return;
+  }
+  const enemyKingdom = getKingdom(targetVillage.kingdomId);
+  if (!enemyKingdom) return;
+
+  if (isBlack) {
+    if (areAtWar(myKingdom.id, enemyKingdom.id)) {
+      notifyPlayer(player.name, `§cAlready at war with §b${enemyKingdom.name}§c.`);
+      return;
+    }
+    const form = new MessageFormData()
+      .title("⚔ Declare War?")
+      .body(
+        `You placed 3 black wool in §b${targetVillage.name}§r!\n\nThis declares WAR on §c${enemyKingdom.name}§r (King: ${enemyKingdom.king}).\n\n§7This cannot be undone without a peace treaty.`
+      )
+      .button1("⚔ DECLARE WAR")
+      .button2("Cancel");
+    const resp = await form.show(player);
+    if (resp.selection === 0) {
+      declareWar(myKingdom.id, enemyKingdom.id);
+      for (const p of world.getPlayers()) {
+        notifyPlayer(p.name, `§c⚔ WAR DECLARED! §f${player.name} §7(${myKingdom.name}) §chas declared war on §b${enemyKingdom.name}§c!`);
+      }
+    }
+    return;
+  }
+
+  // White wool — peace if at war, alliance if neutral
+  const atWar = areAtWar(myKingdom.id, enemyKingdom.id);
+  const requestType: "peace" | "alliance" = atWar ? "peace" : "alliance";
+  const cooldownKey = `${myKingdom.id}:${enemyKingdom.id}`;
+  const cooldownExpiry = peaceCooldowns.get(cooldownKey) ?? 0;
+
+  if (getCurrentTick() < cooldownExpiry) {
+    const days = ((cooldownExpiry - getCurrentTick()) / TICKS_PER_DAY).toFixed(1);
+    notifyPlayer(player.name, `§c${enemyKingdom.name} denied your last request. Wait §e${days}§c more in-game days.`);
+    return;
+  }
+
+  if (!atWar && enemyKingdom.alliances?.includes(myKingdom.id)) {
+    notifyPlayer(player.name, `§aAlready allied with §b${enemyKingdom.name}§a.`);
+    return;
+  }
+
+  const label = requestType === "peace" ? "✉ Peace Offer" : "✉ Alliance Offer";
+
+  pendingDiplomacyRequests.set(enemyKingdom.king, {
+    fromKingdomId: myKingdom.id,
+    toKingdomId: enemyKingdom.id,
+    type: requestType,
+    senderName: player.name,
+    cooldownKey,
+  });
+
+  notifyPlayer(player.name, `§a${label} sent to §b${enemyKingdom.name}§a (${enemyKingdom.king}). Awaiting response...`);
+  notifyPlayer(enemyKingdom.king, `§e📜 §b${myKingdom.name}§e sent a §f${label}§e. Interact with any waypoint or use /scriptevent kc:diplomacy to respond.`);
+
+  const targetOnline = world.getPlayers().find((p) => p.name === enemyKingdom.king);
+  if (targetOnline) void showPendingDiplomacyRequest(targetOnline);
+}
+
+async function showPendingDiplomacyRequest(player: import("@minecraft/server").Player): Promise<void> {
+  const req = pendingDiplomacyRequests.get(player.name);
+  if (!req) return;
+
+  const senderKingdom = getKingdom(req.fromKingdomId);
+  if (!senderKingdom) { pendingDiplomacyRequests.delete(player.name); return; }
+
+  const label = req.type === "peace" ? "✉ Peace Offer" : "✉ Alliance Offer";
+  const body = req.type === "peace"
+    ? `§b${senderKingdom.name}§r has offered PEACE.\nSent by: §f${req.senderName}\n\nAccept = end the war.\nDeny = block requests for 2 in-game days.`
+    : `§b${senderKingdom.name}§r requests an ALLIANCE.\nSent by: §f${req.senderName}\n\nAccept = form alliance (soldiers won't clash).\nDeny = block requests for 2 in-game days.`;
+
+  const form = new MessageFormData()
+    .title(label)
+    .body(body)
+    .button1("✅ Accept")
+    .button2("❌ Deny");
+
+  const resp = await form.show(player);
+  pendingDiplomacyRequests.delete(player.name);
+
+  if (resp.selection === 0) {
+    if (req.type === "peace") {
+      makePeace(req.fromKingdomId, req.toKingdomId);
+      notifyPlayer(req.senderName, `§a✅ ${player.name} accepted peace! The war with §b${senderKingdom.name}§a is over.`);
+      notifyPlayer(player.name, `§aPeace established with §b${senderKingdom.name}§a.`);
+    } else {
+      formAlliance(req.fromKingdomId, req.toKingdomId);
+      notifyPlayer(req.senderName, `§a✅ ${player.name} accepted the alliance with §b${senderKingdom.name}§a!`);
+      notifyPlayer(player.name, `§aAlliance formed with §b${senderKingdom.name}§a!`);
+    }
+  } else {
+    peaceCooldowns.set(req.cooldownKey, getCurrentTick() + TICKS_PER_DAY * 2);
+    notifyPlayer(req.senderName, `§c${player.name} denied your ${req.type} offer. Try again in 2 in-game days.`);
+    notifyPlayer(player.name, `§eOffer denied.`);
+  }
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const CUSTOM_BLOCKS = {
   TOWN_HALL: "kingdoms:town_hall",
   GUARD_POLE_VILLAGE: "kingdoms:guard_pole_village",
@@ -182,11 +318,35 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     }
   }
 
+  // ── Waypoint block ──
+  if (typeId === "kingdoms:waypoint") {
+    const village = findVillageAt(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "§cNo village territory here. Must be inside a claimed village.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "§cThis is not your village.");
+      return;
+    }
+    registerWaypoint(village, block.location);
+  }
+
+  // ── Wool diplomacy ──
+  if (typeId === "minecraft:black_wool" || typeId === "minecraft:white_wool") {
+    const woolVillage = findVillageAt(block.location);
+    if (woolVillage && woolVillage.owner && woolVillage.owner !== player.name) {
+      if (checkThreeWool(typeId, block.location, block.dimension)) {
+        void triggerWoolDiplomacy(player, woolVillage, typeId === "minecraft:black_wool");
+      }
+    }
+  }
+
   // Generate multi-block structure for any kingdoms structure block
   if (STRUCTURE_BLOCK_IDS.has(typeId)) {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
-    notifyPlayer(player.name, `§7Building §b${typeId.replace("kingdoms:", "").replace("_", " ")}§7…`);
+    notifyPlayer(player.name, `§7Building §b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}§7…`);
     system.run(() => {
       generateStructure(dimension, origin, typeId);
     });
@@ -263,6 +423,16 @@ world.afterEvents.itemStartUseOn.subscribe((event) => {
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
       break;
+    case "kingdoms:waypoint": {
+      const wpVillage = findVillageAt(block.location);
+      if (wpVillage && wpVillage.waypointLocation) {
+        void showWaypointMenu(player);
+        if (pendingDiplomacyRequests.has(player.name)) {
+          system.runTimeout(() => { void showPendingDiplomacyRequest(player); }, 40);
+        }
+      }
+      break;
+    }
   }
 });
 
@@ -333,6 +503,28 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
       }
     }
   }
+
+  if (typeId === "kingdoms:waypoint") {
+    const village = findVillageAt(blockLoc);
+    if (village && village.waypointLocation) {
+      const loc = village.waypointLocation;
+      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        removeWaypoint(village);
+      }
+    }
+  }
+});
+
+// Waypoint menu is opened from itemStartUseOn (same pattern as all other blocks).
+
+// ── Show pending diplomacy on player join ─────────────────────────────────────
+world.afterEvents.playerJoin.subscribe((event) => {
+  const playerName = event.playerName;
+  if (!pendingDiplomacyRequests.has(playerName)) return;
+  system.runTimeout(() => {
+    const player = world.getPlayers().find((p) => p.name === playerName);
+    if (player) void showPendingDiplomacyRequest(player);
+  }, 100);
 });
 
 system.runInterval(() => {
@@ -734,10 +926,11 @@ async function showSeedShopMenu(
   player: import("@minecraft/server").Player,
   village: VillageData
 ): Promise<void> {
+  const matLine = SEED_PURCHASE_MATERIALS.map((m) => m.label).join(" + ");
   const form = new ActionFormData()
     .title(`${village.name} — Seed Shop`)
     .body(
-      `§bBuy seeds with emeralds from your inventory.\n§7Market Lv${village.marketLevel} (needs Lv1+)\n\nSeeds help villager farmers auto-replant crops.`
+      `§bBuy seeds for emeralds + farming materials.\n§7Market Lv${village.marketLevel} (needs Lv1+)\n\n§eEach purchase also requires:\n§f${matLine}`
     );
 
   for (const entry of SEED_SHOP) {

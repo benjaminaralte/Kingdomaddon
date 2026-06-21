@@ -28,12 +28,27 @@ const MERCHANT_STOCK_TEMPLATES: Record<string, Record<string, number>> = {
   },
 };
 
+export interface MaterialCost {
+  itemId: string;
+  amount: number;
+  label: string;
+}
+
 export interface SeedShopEntry {
   itemId: string;
   label: string;
   quantityPerPurchase: number;
   emeraldCost: number;
 }
+
+/** Materials consumed from player inventory on every seed/tool purchase. */
+export const SEED_PURCHASE_MATERIALS: MaterialCost[] = [
+  { itemId: "minecraft:copper_ingot", amount: 2, label: "Copper Ingot ×2" },
+  { itemId: "minecraft:flint",        amount: 1, label: "Flint ×1" },
+  { itemId: "minecraft:glass",        amount: 1, label: "Glass ×1" },
+  { itemId: "minecraft:leather",      amount: 1, label: "Leather ×1" },
+  { itemId: "minecraft:blue_orchid",  amount: 1, label: "Blue Orchid ×1" },
+];
 
 export const SEED_SHOP: SeedShopEntry[] = [
   { itemId: "minecraft:wheat_seeds",   label: "Wheat Seeds",    quantityPerPurchase: 8,  emeraldCost: 1 },
@@ -285,6 +300,27 @@ export function upgradeMarket(village: VillageData): boolean {
   return true;
 }
 
+function countItem(container: import("@minecraft/server").Container, itemId: string): number {
+  let total = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === itemId) total += slot.amount;
+  }
+  return total;
+}
+
+function removeItems(container: import("@minecraft/server").Container, itemId: string, amount: number): void {
+  let toRemove = amount;
+  for (let i = 0; i < container.size && toRemove > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== itemId) continue;
+    const take = Math.min(slot.amount, toRemove);
+    toRemove -= take;
+    if (take >= slot.amount) container.setItem(i, undefined);
+    else { slot.amount -= take; container.setItem(i, slot); }
+  }
+}
+
 export function buySeedsFromMarket(
   player: Player,
   village: VillageData,
@@ -299,29 +335,26 @@ export function buySeedsFromMarket(
   if (!inv?.container) return false;
   const container = inv.container;
 
-  let emeraldsHeld = 0;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot?.typeId === "minecraft:emerald") emeraldsHeld += slot.amount;
-  }
-
+  const emeraldsHeld = countItem(container, "minecraft:emerald");
   if (emeraldsHeld < entry.emeraldCost) {
-    notifyPlayer(player.name, `§cNeed §6${entry.emeraldCost} emeralds§c (you have ${emeraldsHeld}) to buy ${entry.quantityPerPurchase}x ${entry.label}.`);
+    notifyPlayer(player.name, `§cNeed §6${entry.emeraldCost} emeralds§c (you have ${emeraldsHeld}).`);
     return false;
   }
 
-  let emeraldsToRemove = entry.emeraldCost;
-  for (let i = 0; i < container.size && emeraldsToRemove > 0; i++) {
-    const slot = container.getItem(i);
-    if (!slot || slot.typeId !== "minecraft:emerald") continue;
-    const take = Math.min(slot.amount, emeraldsToRemove);
-    emeraldsToRemove -= take;
-    if (take >= slot.amount) {
-      container.setItem(i, undefined);
-    } else {
-      slot.amount -= take;
-      container.setItem(i, slot);
+  const missing: string[] = [];
+  for (const mat of SEED_PURCHASE_MATERIALS) {
+    if (countItem(container, mat.itemId) < mat.amount) {
+      missing.push(`§e${mat.label}`);
     }
+  }
+  if (missing.length > 0) {
+    notifyPlayer(player.name, `§cAlso need: ${missing.join("§c, ")}`);
+    return false;
+  }
+
+  removeItems(container, "minecraft:emerald", entry.emeraldCost);
+  for (const mat of SEED_PURCHASE_MATERIALS) {
+    removeItems(container, mat.itemId, mat.amount);
   }
 
   let remaining = entry.quantityPerPurchase;
@@ -339,11 +372,11 @@ export function buySeedsFromMarket(
     }
   }
 
-  if (remaining > 0) {
-    notifyPlayer(player.name, "§cInventory full — some seeds couldn't be delivered.");
-  }
-
-  notifyPlayer(player.name, `§aBought §b${entry.quantityPerPurchase - remaining}x ${entry.label}§a for §6${entry.emeraldCost}💎§a.`);
+  if (remaining > 0) notifyPlayer(player.name, "§cInventory full — some seeds couldn't be delivered.");
+  notifyPlayer(
+    player.name,
+    `§aBought §b${entry.quantityPerPurchase - remaining}x ${entry.label}§a for §6${entry.emeraldCost}💎§a + farming materials.`
+  );
   return true;
 }
 

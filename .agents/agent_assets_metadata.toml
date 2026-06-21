@@ -17,3 +17,9 @@ id = "5AwYpoMHTBUs73My5jQnS"
 uri = "file://KingdomsConquest_updated.zip"
 type = "unspecified"
 title = "KingdomsConquest_updated.zip — with Black Wool War + Strategic Map"
+
+[[outputs]]
+id = "IiwYz-osqaaY86RNYno60"
+uri = "file://artifacts/kingdoms-conquest/dist/kingdoms-conquest-v2.zip"
+type = "unspecified"
+title = "kingdoms-conquest.mcaddon"
