@@ -6425,7 +6425,7 @@ async function showTownHallMenu(player, block) {
   const summary = getVillageSummary(village);
   const form = new ActionFormData().title(`${village.name} \u2014 Town Hall`).body(summary);
   if (isOwner) {
-    form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village").button("\xA7a\uD83C\uDFDB Purchase Buildings");
+    form.button("Kingdom Overview").button("Diplomacy").button("Rename Village").button("\xA7a\uD83C\uDFDB Purchase Buildings");
   } else {
     form.button("Close");
   }
@@ -6436,21 +6436,12 @@ async function showTownHallMenu(player, block) {
       await showKingdomOverview(player);
       break;
     case 1:
-      await showTreasuryMenu(player, village.id);
-      break;
-    case 2:
       await showDiplomacyMenu(player);
       break;
-    case 3:
-      await showReinforcementsMenu(player, village.id);
-      break;
-    case 4:
-      await showActiveMerchantsMenu(player, village);
-      break;
-    case 5:
+    case 2:
       await showRenameForm(player, village.id);
       break;
-    case 6:
+    case 3:
       await showBuildingShopMenu(player, village);
       break;
   }
@@ -7531,20 +7522,54 @@ async function showTradeStationMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getTradeStationSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Trade Station`).body(summary);
+  const poles = village.tradePoles ?? [];
+  const poleStatus = poles.length > 0
+    ? `\xA7a\u2714 ${poles.length} Trade Pole(s) active \u2014 detect radius: ${TRADE_POLE_DETECT_RADIUS} blocks\n\xA77Place a chest minecart on rails within ${TRADE_POLE_DETECT_RADIUS} blocks of a pole.\n\xA77Poles auto-receive: \xA7aemerald\xA77\u2192treasury, \xA7afood\xA77\u2192granary, \xA7etroop tokens\xA77\u2192barracks.`
+    : `\xA7c\u26D4 No Trade Poles placed yet.\n\xA77Place a \xA7bkingdoms:trade_pole\xA77 block near rails to receive incoming minecarts.`;
+  const stationLoc = village.tradeStationLocation;
+  const stationStr = stationLoc
+    ? `\xA77Station at: \xA7f${Math.round(stationLoc.x)},${Math.round(stationLoc.y)},${Math.round(stationLoc.z)}`
+    : `\xA7cStation not registered.`;
+  const body = [
+    summary,
+    ``,
+    `\xA77\u2500\u2500 Rail Detection \u2500\u2500`,
+    poleStatus,
+    ``,
+    stationStr,
+    `\xA77\u2500\u2500 Manual Shipping \u2500\u2500`,
+    `\xA7fSpawn a chest minecart \u2192 fill with tokens or goods \u2192 push onto rails toward destination's Trade Pole.`
+  ].join("\n");
+  const form = new ActionFormData().title(`${village.name} \u2014 Trade Station`).body(body);
   if (isOwner) {
-    form.button("\u{1F4E6} Dispatch Resources").button("\u{1F5E1} Dispatch Reinforcements").button("\u{1F4CA} Resource Storage").button("\u{1F682} Active Shipments").button("\u{1F4CB} Trade History");
+    form
+      .button("\u{1F682} Spawn Chest Minecart\n\xA77Spawns at this station for manual shipping")
+      .button("\u{1F4E6} Dispatch Resources\n\xA77Send resources to another village via rail")
+      .button("\u{1F4CA} Resource Storage")
+      .button("\u{1F682} Active Shipments")
+      .button("\u{1F4CB} Trade History");
   } else {
     form.button("Close");
   }
   const response = await form.show(player);
   if (response.canceled || !isOwner) return;
   switch (response.selection) {
-    case 0:
-      await showDispatchResourceMenu(player, village.id);
+    case 0: {
+      const spawnLoc = village.tradeStationLocation ?? block.location;
+      try {
+        player.dimension.spawnEntity("minecraft:chest_minecart", {
+          x: spawnLoc.x + 0.5,
+          y: spawnLoc.y + 0.5,
+          z: spawnLoc.z + 0.5
+        });
+        notifyPlayer(player.name, `\xA7a\u{1F682} Chest minecart spawned at the Trade Station! Fill it with troop tokens or goods, then push it onto rails toward your destination\u2019s Trade Pole.`);
+      } catch {
+        notifyPlayer(player.name, "\xA7cCould not spawn minecart \u2014 make sure the station chunk is loaded.");
+      }
       break;
+    }
     case 1:
-      await showDispatchMilitaryMenu(player, village.id);
+      await showDispatchResourceMenu(player, village.id);
       break;
     case 2:
       await showResourceStorageMenu(player, village.id);
