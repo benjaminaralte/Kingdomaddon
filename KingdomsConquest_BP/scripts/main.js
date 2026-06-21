@@ -30,11 +30,13 @@ __export(storage_exports, {
 import { world as world4 } from "@minecraft/server";
 function getRegistry() {
   const raw = world4.getDynamicProperty(REGISTRY_KEY);
-  if (!raw) return { villageIds: [], kingdomIds: [], banditCampIds: [] };
+  if (!raw) return { villageIds: [], kingdomIds: [], banditCampIds: [], rebelCityIds: [] };
   try {
-    return JSON.parse(raw);
+    const r = JSON.parse(raw);
+    if (!r.rebelCityIds) r.rebelCityIds = [];
+    return r;
   } catch {
-    return { villageIds: [], kingdomIds: [], banditCampIds: [] };
+    return { villageIds: [], kingdomIds: [], banditCampIds: [], rebelCityIds: [] };
   }
 }
 function saveRegistry(data) {
@@ -150,6 +152,55 @@ var REGISTRY_KEY = "kc:registry";
 var VILLAGE_PREFIX = "kc:village:";
 var KINGDOM_PREFIX = "kc:kingdom:";
 var BANDIT_PREFIX = "kc:bandit:";
+var REBEL_PREFIX = "kc:rebel:";
+var ACHIEVEMENT_PREFIX = "kc:achievements:";
+
+function getRebelCity(id) {
+  const raw = world4.getDynamicProperty(REBEL_PREFIX + id);
+  if (!raw) return void 0;
+  try { return JSON.parse(raw); } catch { return void 0; }
+}
+function saveRebelCity(data) {
+  world4.setDynamicProperty(REBEL_PREFIX + data.id, JSON.stringify(data));
+  const reg = getRegistry();
+  if (!reg.rebelCityIds.includes(data.id)) {
+    reg.rebelCityIds.push(data.id);
+    saveRegistry(reg);
+  }
+}
+function deleteRebelCity(id) {
+  world4.setDynamicProperty(REBEL_PREFIX + id, void 0);
+  const reg = getRegistry();
+  reg.rebelCityIds = reg.rebelCityIds.filter((r) => r !== id);
+  saveRegistry(reg);
+}
+function getAllRebelCities() {
+  const reg = getRegistry();
+  return reg.rebelCityIds.flatMap((id) => {
+    const r = getRebelCity(id);
+    return r ? [r] : [];
+  });
+}
+function getPlayerAchievements(playerName) {
+  const raw = world4.getDynamicProperty(ACHIEVEMENT_PREFIX + playerName);
+  if (!raw) return { campsDestroyed: 0, citiesDefeated: 0 };
+  try { return { campsDestroyed: 0, citiesDefeated: 0, ...JSON.parse(raw) }; } catch {
+    return { campsDestroyed: 0, citiesDefeated: 0 };
+  }
+}
+function savePlayerAchievements(playerName, data) {
+  world4.setDynamicProperty(ACHIEVEMENT_PREFIX + playerName, JSON.stringify(data));
+}
+function awardCampDestroyed(playerName) {
+  const ach = getPlayerAchievements(playerName);
+  ach.campsDestroyed++;
+  savePlayerAchievements(playerName, ach);
+}
+function awardCityDefeated(playerName) {
+  const ach = getPlayerAchievements(playerName);
+  ach.citiesDefeated++;
+  savePlayerAchievements(playerName, ach);
+}
 
 var init_storage = __esm({
   "src/storage/index.ts"() {
@@ -159,6 +210,8 @@ var init_storage = __esm({
     VILLAGE_PREFIX = "kc:village:";
     KINGDOM_PREFIX = "kc:kingdom:";
     BANDIT_PREFIX = "kc:bandit:";
+    REBEL_PREFIX = "kc:rebel:";
+    ACHIEVEMENT_PREFIX = "kc:achievements:";
   }
 });
 
@@ -1137,13 +1190,15 @@ function cleanDeadEntities(camp) {
 }
 function tickBandits() {
   tryWorldSpawn();
+  tryWorldSpawnRebelCity();
   const camps = getAllBanditCamps();
   for (const camp of camps) {
     cleanDeadEntities(camp);
     const fresh = getBanditCamp(camp.id);
     if (!fresh) continue;
     if (fresh.strength <= 0) {
-      disbandBanditCamp(fresh.id);
+      const killer = findNearestPlayer(fresh.location, 128);
+      disbandBanditCamp(fresh.id, killer?.name);
       continue;
     }
     trySpawnEntities(fresh);
@@ -1151,6 +1206,17 @@ function tickBandits() {
       raidNearbyTargets(fresh);
     }
   }
+  tickRebelCities();
+}
+function findNearestPlayer(loc, maxDist) {
+  let nearest = null;
+  let nearestDist = maxDist;
+  for (const p of world7.getAllPlayers()) {
+    if (p.dimension.id !== loc.dimension) continue;
+    const d = distance(p.location, loc);
+    if (d < nearestDist) { nearestDist = d; nearest = p; }
+  }
+  return nearest;
 }
 function raidNearbyTargets(camp) {
   const villages = getAllVillages();
@@ -1217,21 +1283,22 @@ function raidNearbyTargets(camp) {
 function getTotalVillageDefense(village) {
   return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3;
 }
-function disbandBanditCamp(campId) {
+function disbandBanditCamp(campId, killerPlayerName) {
   const camp = getBanditCamp(campId);
   if (!camp) return;
   try {
     const dim = world7.getDimension(camp.location.dimension);
     const live = getLiveEntities(dim, camp);
     for (const entity of live) {
-      try {
-        entity.kill();
-      } catch {
-      }
+      try { entity.kill(); } catch {}
     }
-  } catch {
-  }
+  } catch {}
   deleteBanditCamp(campId);
+  if (killerPlayerName) {
+    awardCampDestroyed(killerPlayerName);
+    const ach = getPlayerAchievements(killerPlayerName);
+    notifyPlayer(killerPlayerName, `\xA7a\u2605 ACHIEVEMENT: Bandit camp destroyed! (Total: \xA7e${ach.campsDestroyed}\xA7a camps)`);
+  }
 }
 function getBanditCampSummary() {
   const camps = getAllBanditCamps();
@@ -1240,6 +1307,204 @@ function getBanditCampSummary() {
     (c, i) => `\xA7c\u2694 Camp #${i + 1}\xA7r  Strength: \xA7e${c.strength}\xA7r  Entities: ${c.entityIds.length}  Pos: \xA77${Math.round(c.location.x)},${Math.round(c.location.z)}`
   ).join("\n");
 }
+
+// ── Rebel City / Bandit Stronghold ──────────────────────────────────────────
+var MAX_REBEL_CITIES = 5;
+var REBEL_CITY_MIN_STRENGTH = 20;
+var REBEL_CITY_MAX_STRENGTH = 40;
+var REBEL_CITY_MAX_ENTITIES = 30;
+var REBEL_WARN_RADIUS = 150;
+var lastRebelWarn = new Map();
+
+function buildRebelCityStructure(dim, loc) {
+  const x = Math.floor(loc.x);
+  const z = Math.floor(loc.z);
+  const y = Math.floor(loc.y);
+  try {
+    dim.runCommand(`fill ${x - 12} ${y + 1} ${z - 12} ${x + 12} ${y + 8} ${z + 12} minecraft:air replace minecraft:air`);
+    dim.runCommand(`fill ${x - 12} ${y} ${z - 12} ${x + 12} ${y} ${z + 12} minecraft:cobblestone`);
+    // Outer walls
+    dim.runCommand(`fill ${x - 12} ${y + 1} ${z - 12} ${x + 12} ${y + 5} ${z - 12} minecraft:stone_bricks`);
+    dim.runCommand(`fill ${x - 12} ${y + 1} ${z + 12} ${x + 12} ${y + 5} ${z + 12} minecraft:stone_bricks`);
+    dim.runCommand(`fill ${x - 12} ${y + 1} ${z - 12} ${x - 12} ${y + 5} ${z + 12} minecraft:stone_bricks`);
+    dim.runCommand(`fill ${x + 12} ${y + 1} ${z - 12} ${x + 12} ${y + 5} ${z + 12} minecraft:stone_bricks`);
+    // Corner towers
+    for (const [ox, oz] of [[-12,-12],[12,-12],[-12,12],[12,12]]) {
+      dim.runCommand(`fill ${x+ox-2} ${y+1} ${z+oz-2} ${x+ox+2} ${y+8} ${z+oz+2} minecraft:stone_bricks hollow`);
+      dim.runCommand(`setblock ${x+ox} ${y+9} ${z+oz} minecraft:torch`);
+    }
+    // Gates (openings in walls)
+    dim.runCommand(`fill ${x - 2} ${y + 1} ${z - 13} ${x + 2} ${y + 4} ${z - 11} minecraft:air`);
+    dim.runCommand(`fill ${x - 2} ${y + 1} ${z + 11} ${x + 2} ${y + 4} ${z + 13} minecraft:air`);
+    // Central keep
+    dim.runCommand(`fill ${x - 4} ${y + 1} ${z - 4} ${x + 4} ${y + 7} ${z + 4} minecraft:stone_bricks hollow`);
+    dim.runCommand(`fill ${x - 3} ${y + 2} ${z - 3} ${x + 3} ${y + 6} ${z + 3} minecraft:air`);
+    dim.runCommand(`setblock ${x} ${y + 8} ${z} minecraft:nether_star`);
+    // Campfires and tents
+    dim.runCommand(`setblock ${x - 6} ${y + 1} ${z} minecraft:campfire`);
+    dim.runCommand(`setblock ${x + 6} ${y + 1} ${z} minecraft:campfire`);
+    dim.runCommand(`setblock ${x} ${y + 1} ${z - 6} minecraft:campfire`);
+    dim.runCommand(`setblock ${x} ${y + 1} ${z + 6} minecraft:campfire`);
+    // Loot chests
+    dim.runCommand(`setblock ${x - 2} ${y + 1} ${z - 2} minecraft:chest`);
+    dim.runCommand(`setblock ${x + 2} ${y + 1} ${z - 2} minecraft:chest`);
+    dim.runCommand(`setblock ${x - 2} ${y + 1} ${z + 2} minecraft:chest`);
+    dim.runCommand(`setblock ${x + 2} ${y + 1} ${z + 2} minecraft:chest`);
+    // Barrels and crafting
+    dim.runCommand(`setblock ${x - 8} ${y + 1} ${z - 8} minecraft:barrel`);
+    dim.runCommand(`setblock ${x + 8} ${y + 1} ${z - 8} minecraft:barrel`);
+    dim.runCommand(`setblock ${x - 8} ${y + 1} ${z + 8} minecraft:barrel`);
+    dim.runCommand(`setblock ${x + 8} ${y + 1} ${z + 8} minecraft:barrel`);
+    dim.runCommand(`setblock ${x} ${y + 1} ${z + 2} minecraft:crafting_table`);
+    // Paths inside
+    dim.runCommand(`fill ${x - 11} ${y + 1} ${z} ${x + 11} ${y + 1} ${z} minecraft:gravel`);
+    dim.runCommand(`fill ${x} ${y + 1} ${z - 11} ${x} ${y + 1} ${z + 11} minecraft:gravel`);
+    // Torches on walls
+    dim.runCommand(`setblock ${x - 6} ${y + 6} ${z - 12} minecraft:torch`);
+    dim.runCommand(`setblock ${x + 6} ${y + 6} ${z - 12} minecraft:torch`);
+    dim.runCommand(`setblock ${x - 6} ${y + 6} ${z + 12} minecraft:torch`);
+    dim.runCommand(`setblock ${x + 6} ${y + 6} ${z + 12} minecraft:torch`);
+    dim.runCommand(`setblock ${x - 12} ${y + 6} ${z - 6} minecraft:torch`);
+    dim.runCommand(`setblock ${x - 12} ${y + 6} ${z + 6} minecraft:torch`);
+    dim.runCommand(`setblock ${x + 12} ${y + 6} ${z - 6} minecraft:torch`);
+    dim.runCommand(`setblock ${x + 12} ${y + 6} ${z + 6} minecraft:torch`);
+  } catch {}
+}
+
+function trySpawnEntitiesRebelCity(city) {
+  const dim = world7.getDimension(city.location.dimension);
+  const live = dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === city.id);
+  const target = Math.min(city.strength, REBEL_CITY_MAX_ENTITIES);
+  const toSpawn = target - live.length;
+  for (let i = 0; i < toSpawn; i++) {
+    try {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * 10;
+      const entity = dim.spawnEntity("kingdoms:bandit", {
+        x: city.location.x + Math.cos(angle) * r,
+        y: city.location.y,
+        z: city.location.z + Math.sin(angle) * r
+      });
+      entity.setDynamicProperty("kc:rebel_id", city.id);
+      entity.nameTag = "\xA7c[Rebel]";
+    } catch {}
+  }
+}
+
+function cleanDeadEntitiesRebelCity(city) {
+  try {
+    const dim = world7.getDimension(city.location.dimension);
+    const liveIds = new Set(dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === city.id).map((e) => e.id));
+    const before = city.entityIds.length;
+    city.entityIds = city.entityIds.filter((id) => liveIds.has(id));
+    const killed = before - city.entityIds.length;
+    if (killed > 0) city.strength = Math.max(0, city.strength - killed);
+    saveRebelCity(city);
+  } catch {}
+}
+
+function disbandRebelCity(cityId, killerPlayerName) {
+  const city = getRebelCity(cityId);
+  if (!city) return;
+  try {
+    const dim = world7.getDimension(city.location.dimension);
+    const live = dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === cityId);
+    for (const e of live) { try { e.kill(); } catch {} }
+    // Drop loot at city center
+    const cx = Math.floor(city.location.x);
+    const cy = Math.floor(city.location.y) + 1;
+    const cz = Math.floor(city.location.z);
+    dim.runCommand(`give @a[r=200] minecraft:emerald 20`);
+    dim.runCommand(`give @a[r=200] minecraft:diamond 5`);
+    dim.runCommand(`give @a[r=200] minecraft:iron_ingot 20`);
+    dim.runCommand(`give @a[r=200] minecraft:gold_ingot 10`);
+    dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} minecraft:netherite_scrap 2`);
+    dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} minecraft:enchanted_golden_apple 1`);
+  } catch {}
+  deleteRebelCity(cityId);
+  if (killerPlayerName) {
+    awardCityDefeated(killerPlayerName);
+    const ach = getPlayerAchievements(killerPlayerName);
+    notifyPlayer(killerPlayerName, `\xA76\u2605\u2605 ACHIEVEMENT: Rebel city defeated! Riches claimed! (Total: \xA7e${ach.citiesDefeated}\xA76 cities, \xA7e${ach.campsDestroyed}\xA76 camps)`);
+  }
+  // Notify all players
+  for (const p of world7.getAllPlayers()) {
+    if (p.name !== killerPlayerName) {
+      p.sendMessage(`\xA76[Kingdoms] \xA7f${killerPlayerName ?? "Someone"} has defeated a \xA7cRebel City\xA7f! Loot distributed to all nearby players.`);
+    }
+  }
+}
+
+function tryWorldSpawnRebelCity() {
+  const cities = getAllRebelCities();
+  if (cities.length >= MAX_REBEL_CITIES) return;
+  if (Math.random() > 0.15) return;
+  const villages = getAllVillages();
+  if (villages.length === 0) return;
+  const anchor = villages[Math.floor(Math.random() * villages.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 300 + Math.random() * 400;
+  const cx = anchor.location.x + Math.cos(angle) * dist;
+  const cz = anchor.location.z + Math.sin(angle) * dist;
+  for (const v of villages) {
+    if (distance(v.location, { x: cx, y: v.location.y, z: cz }) < 200) return;
+  }
+  for (const c of cities) {
+    if (distance(c.location, { x: cx, y: c.location.y, z: cz }) < 300) return;
+  }
+  const strength = REBEL_CITY_MIN_STRENGTH + Math.floor(Math.random() * (REBEL_CITY_MAX_STRENGTH - REBEL_CITY_MIN_STRENGTH));
+  const city = {
+    id: generateId(),
+    location: { x: cx, y: anchor.location.y, z: cz, dimension: anchor.location.dimension },
+    strength,
+    entityIds: []
+  };
+  saveRebelCity(city);
+  trySpawnEntitiesRebelCity(city);
+  system.run(() => {
+    try { buildRebelCityStructure(world7.getDimension(city.location.dimension), city.location); } catch {}
+  });
+  // Warn all online players
+  for (const p of world7.getAllPlayers()) {
+    p.sendMessage(`\xA7c\u26A0 A \xA7lRebel City\xA7r\xA7c has risen in the world! Strength: \xA7e${strength}\xA7c. Conquer it for great rewards!`);
+  }
+}
+
+function tickRebelCities() {
+  const cities = getAllRebelCities();
+  for (const city of cities) {
+    cleanDeadEntitiesRebelCity(city);
+    const fresh = getRebelCity(city.id);
+    if (!fresh) continue;
+    if (fresh.strength <= 0) {
+      const killer = findNearestPlayer(fresh.location, 200);
+      disbandRebelCity(fresh.id, killer?.name);
+      continue;
+    }
+    trySpawnEntitiesRebelCity(fresh);
+  }
+}
+
+function tickRebelCityWarnings(currentTick) {
+  if (currentTick % 100 !== 0) return;
+  const cities = getAllRebelCities();
+  if (cities.length === 0) return;
+  for (const p of world7.getAllPlayers()) {
+    for (const city of cities) {
+      if (city.location.dimension !== p.dimension.id) continue;
+      const d = distance(p.location, city.location);
+      if (d <= REBEL_WARN_RADIUS) {
+        const key = `${p.name}:${city.id}`;
+        const last = lastRebelWarn.get(key) ?? 0;
+        if (currentTick - last > 400) {
+          p.sendMessage(`\xA7c\u26A0 \xA7lDANGER!\xA7r\xA7c A Rebel City is nearby (${Math.round(d)} blocks)! Strength: \xA7e${city.strength}\xA7c rebels inside.`);
+          lastRebelWarn.set(key, currentTick);
+        }
+      }
+    }
+  }
+}
+// ── End Rebel City ──────────────────────────────────────────────────────────
 
 // src/systems/military.ts
 var RECRUIT_COSTS = {
@@ -2360,6 +2625,10 @@ function handleKcCommand(player, subcommand, args) {
     case "bandits":
       cmdBandits(player);
       break;
+    case "achievements":
+    case "stats":
+      cmdAchievements(player);
+      break;
     case "stratmap":
     case "formation":
     case "raid":
@@ -2403,6 +2672,8 @@ function showHelp(player) {
     "\xA7e/scriptevent kc:intel <kingdomName>\xA7r \u2014 scout an enemy kingdom",
     "\xA7e/scriptevent kc:alerts\xA7r \u2014 toggle incoming-attack alerts on/off",
     "\xA7e/scriptevent kc:collect <id>\xA7r \u2014 collect NPC-harvested crops to your inventory",
+    "\xA7e/scriptevent kc:achievements\xA7r \u2014 \xA76view your combat achievements (camps destroyed, rebel cities defeated)\xA7r",
+    "\xA7e/scriptevent kc:bandits\xA7r \u2014 list active bandit camps \xA7cand rebel cities\xA7r",
     "\xA7c\u2694 WAR TIP: Place 3 black wool in a line inside an enemy village to declare war!",
     "\xA76\u{1F5FA} /scriptevent kc:stratmap\xA7r \u2014 open Strategic Formation Map (bird's-eye view, place troops)",
     "\xA77Troop types: cityGuards, spearmen, archers, cavalry"
@@ -2807,6 +3078,29 @@ function cmdBandits(player) {
   const summary = getBanditCampSummary();
   notifyPlayer(player.name, "\xA7c\u2550\u2550\u2550 Active Bandit Camps \u2550\u2550\u2550");
   for (const line of summary.split("\n")) notifyPlayer(player.name, line);
+  const cities = getAllRebelCities();
+  if (cities.length > 0) {
+    notifyPlayer(player.name, `\xA74\u2550\u2550\u2550 Rebel Cities (${cities.length}) \u2550\u2550\u2550`);
+    for (const city of cities) {
+      notifyPlayer(player.name, `\xA74\u2694\u2694 Rebel City\xA7r  Strength: \xA7e${city.strength}\xA7r  Pos: \xA77${Math.round(city.location.x)},${Math.round(city.location.z)}`);
+    }
+  }
+}
+function cmdAchievements(player) {
+  const ach = getPlayerAchievements(player.name);
+  const send = (msg) => notifyPlayer(player.name, msg);
+  send(`\xA76\u2550\u2550\u2550 ${player.name}'s Achievements \u2550\u2550\u2550`);
+  send(`\xA7c\u2694 Bandit Camps Destroyed: \xA7e${ach.campsDestroyed}`);
+  send(`\xA74\u2694\u2694 Rebel Cities Defeated: \xA7e${ach.citiesDefeated}`);
+  const totalScore = ach.campsDestroyed * 10 + ach.citiesDefeated * 50;
+  send(`\xA76\u2605 Combat Score: \xA7e${totalScore} pts`);
+  if (ach.citiesDefeated === 0 && ach.campsDestroyed === 0) {
+    send(`\xA77Tip: Destroy bandit camps and defeat rebel cities to earn achievements!`);
+  } else if (ach.citiesDefeated >= 3) {
+    send(`\xA7d\u2605\u2605\u2605 LEGEND \u2014 You have conquered 3 or more rebel cities!`);
+  } else if (ach.campsDestroyed >= 10) {
+    send(`\xA7b\u2605\u2605 WARLORD \u2014 10+ bandit camps cleared!`);
+  }
 }
 function cmdTutorial(player, topic) {
   const send = (msg) => notifyPlayer(player.name, msg);
@@ -6227,6 +6521,59 @@ function spawnPillagerPatrol(dim, loc) {
   try { dim.spawnEntity("minecraft:pillager", { x: loc.x + 1, y: loc.y, z: loc.z + 1 }); } catch {}
 }
 
+// ── Villager Territory Respawn ──────────────────────────────────────────────
+var VILLAGER_RESPAWN_INTERVAL = 200;
+var lastVillagerRespawnTick = -1;
+function tickVillagerRespawn(currentTick) {
+  if (currentTick - lastVillagerRespawnTick < VILLAGER_RESPAWN_INTERVAL) return;
+  lastVillagerRespawnTick = currentTick;
+  const villages = getAllVillages();
+  if (villages.length === 0) return;
+  const dims = new Map();
+  for (const village of villages) {
+    const dimId = village.location.dimension;
+    if (!dims.has(dimId)) {
+      try { dims.set(dimId, world16.getDimension(dimId)); } catch {}
+    }
+  }
+  for (const [dimId, dim] of dims) {
+    let villagers;
+    try {
+      villagers = dim.getEntities({ type: "minecraft:villager_v2" });
+    } catch { continue; }
+    for (const villager of villagers) {
+      const vLoc = villager.location;
+      const villageId = villager.getDynamicProperty("kc:village_id");
+      let homeVillage = null;
+      if (villageId) {
+        homeVillage = villages.find((v) => v.id === villageId && v.location.dimension === dimId);
+      }
+      if (!homeVillage) {
+        homeVillage = villages.find((v) =>
+          v.location.dimension === dimId &&
+          Math.abs(v.townHallLocation.x - vLoc.x) < VILLAGE_CLAIM_RADIUS &&
+          Math.abs(v.townHallLocation.z - vLoc.z) < VILLAGE_CLAIM_RADIUS
+        );
+        if (homeVillage) {
+          try { villager.setDynamicProperty("kc:village_id", homeVillage.id); } catch {}
+        }
+      }
+      if (!homeVillage) continue;
+      const th = homeVillage.townHallLocation;
+      const dx = Math.abs(vLoc.x - th.x);
+      const dz = Math.abs(vLoc.z - th.z);
+      if (dx > VILLAGE_CLAIM_RADIUS || dz > VILLAGE_CLAIM_RADIUS) {
+        const spawnX = th.x + (Math.random() * 10 - 5);
+        const spawnZ = th.z + (Math.random() * 10 - 5);
+        try {
+          villager.teleport({ x: spawnX, y: th.y + 1, z: spawnZ });
+        } catch {}
+      }
+    }
+  }
+}
+// ── End Villager Territory Respawn ──────────────────────────────────────────
+
 // World life tick — runs periodically, spawns content near players
 function tickWorldLife(currentTick) {
   if (currentTick - lastWorldLifeTick < WORLD_LIFE_INTERVAL) return;
@@ -6276,6 +6623,7 @@ system3.runInterval(() => {
   tickSieges(tick);
   tickBorders(tick);
   tickAutoDefense(tick);
+  tickRebelCityWarnings(tick);
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
   }
@@ -6283,6 +6631,7 @@ system3.runInterval(() => {
   tickAllMerchantMovement();
   tickTradeCartMovement();
   tickWorldLife(tick);
+  tickVillagerRespawn(tick);
 }, 20);
 system3.runInterval(() => {
   processAllFood();
@@ -6616,7 +6965,8 @@ var SHOP_ITEMS = [
   { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", cost: 12, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:wall_tall_item", label: "\uD83E\uDDF1 Tall Stone Wall (5x10)", desc: "5-wide wall, 10 blocks tall — matches short wall z-depth for seamless joining", cost: 18, costItem: "minecraft:emerald", prereq: true },
   { id: "kingdoms:stone_gate_item", label: "\uD83D\uDEAA Stone Gate", desc: "9-wide gate with towers, arch & portcullis bars — joints with all wall types", cost: 35, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:king_castle_item", label: "\uD83D\uDC51 King's Castle", desc: "Grand two-story keep with throne hall, royal chambers, 4 towers & world leaderboard", cost: 200, costItem: "minecraft:emerald", prereq: true }
+  { id: "kingdoms:king_castle_item", label: "\uD83D\uDC51 King's Castle", desc: "Grand two-story keep with throne hall, royal chambers, 4 towers & world leaderboard", cost: 200, costItem: "minecraft:emerald", prereq: true },
+  { id: "kingdoms:town_hall_item", label: "\uD83C\uDFDB Occupy: Town Hall", desc: "Place in a defeated/unclaimed village to take ownership. Cannot be used in your own territory.", cost: 100, costItem: "minecraft:emerald", prereq: true }
 ];
 async function showBuildingShopMenu(player, village) {
   const hasInfra = !!(village.granaryLocation && village.treasuryLocation);
