@@ -8271,42 +8271,6 @@ Shortage: ${village.foodShortageStage}/4`
     const sliderResp = await sliderForm.show(player);
     if (sliderResp.canceled) return;
     const qty = sliderResp.formValues[0];
-    if (item === "minecraft:wheat") {
-      const maxBread = Math.floor(count / 3);
-      const formatForm = new ActionFormData()
-        .title("Withdraw Wheat - Choose Form")
-        .body(`Stored: ${count} Wheat\nWithdraw ${qty} as:\n\n  - Wheat: receive ${qty} wheat\n  - Bread: every 3 wheat = 1 bread (receive ${Math.floor(qty / 3)} bread from ${Math.floor(qty / 3) * 3} wheat)`)
-        .button("Withdraw as Wheat")
-        .button(`Withdraw as Bread (${Math.floor(qty / 3)} loaves)`);
-      const formatResp = await formatForm.show(player);
-      if (formatResp.canceled) return;
-      if (formatResp.selection === 1) {
-        const loaves = Math.floor(qty / 3);
-        if (loaves <= 0) { notifyPlayer(player.name, "\xA7cNeed at least 3 wheat to make 1 bread."); return; }
-        const wheatUsed = loaves * 3;
-        withdrawFromGranary(player, village, "minecraft:wheat", wheatUsed);
-        const inv = player.getComponent(EntityInventoryComponent8.componentId);
-        const c = inv?.container;
-        if (c) {
-          let removed = wheatUsed;
-          for (let i = 0; i < c.size && removed > 0; i++) {
-            const s = c.getItem(i);
-            if (s?.typeId !== "minecraft:wheat") continue;
-            const take = Math.min(s.amount, removed); removed -= take;
-            if (take >= s.amount) c.setItem(i, void 0);
-            else { s.amount -= take; c.setItem(i, s); }
-          }
-          let given = 0;
-          for (let i = 0; i < c.size && given < loaves; i++) {
-            const s = c.getItem(i);
-            if (!s) { const g = Math.min(loaves - given, 64); try { c.setItem(i, new ItemStack6("minecraft:bread", g)); given += g; } catch {} }
-            else if (s.typeId === "minecraft:bread" && s.amount < 64) { const g = Math.min(loaves - given, 64 - s.amount); s.amount += g; c.setItem(i, s); given += g; }
-          }
-          notifyPlayer(player.name, `\xA7aWithdrew ${loaves} Bread (used ${wheatUsed} wheat).`);
-        }
-        return;
-      }
-    }
     withdrawFromGranary(player, village, item, qty);
   } else if (response.selection === withdrawable.length) {
     await showGranaryDepositMenu(player, village);
