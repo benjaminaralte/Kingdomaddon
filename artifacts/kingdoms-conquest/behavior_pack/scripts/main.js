@@ -7019,6 +7019,10 @@ world20.afterEvents.itemUse.subscribe((event) => {
   }
   if (itemId === "kingdoms:village_spawner") {
     void showVillageSpawnerMenu(player);
+    return;
+  }
+  if (itemId === "kingdoms:formation_scroll") {
+    openTacticsMenu(player);
   }
 });
 async function showVillageSpawnerMenu(player) {
