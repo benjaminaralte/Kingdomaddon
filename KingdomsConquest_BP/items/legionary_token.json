@@ -8,7 +8,11 @@
     "components": {
       "minecraft:max_stack_size": 64,
       "minecraft:icon": { "textures": { "default": "legionary_token" } },
-      "minecraft:display_name": { "value": "Legionary" }
+      "minecraft:display_name": { "value": "Legionary" },
+      "minecraft:use_modifiers": {
+        "use_duration": 0,
+        "movement_modifier": 1.0
+      }
     }
   }
 }
