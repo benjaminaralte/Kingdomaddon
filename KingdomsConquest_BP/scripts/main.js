@@ -4153,6 +4153,8 @@ function tickAllMiners() {
     const outputs = MINING_OUTPUT_BY_TIER[tier] ?? MINING_OUTPUT_BY_TIER[0];
     village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
     const rs = village.resourceStorage;
+    const prosperity = Math.max(0, Math.min(100, village.prosperity ?? 0));
+    const prosperityBonus = 1 + (prosperity / 100) * 0.5;
     const gained = {};
     for (const [res, range] of Object.entries(outputs)) {
       const [min, max] = range;
@@ -4161,17 +4163,20 @@ function tickAllMiners() {
       for (let m = 0; m < miners; m++) {
         total += min + Math.floor(Math.random() * (max - min + 1));
       }
-      if (total > 0) {
-        rs[res] = (rs[res] ?? 0) + total;
-        gained[res] = total;
+      const boosted = Math.floor(total * prosperityBonus);
+      if (boosted > 0) {
+        rs[res] = (rs[res] ?? 0) + boosted;
+        gained[res] = boosted;
       }
     }
     if (village.owner && Object.keys(gained).length > 0) {
       const summary = Object.entries(gained)
         .map(([k, v]) => `${v} ${RESOURCE_LABELS[k] ?? k}`)
         .join(", ");
+      const bonusPct = Math.round((prosperityBonus - 1) * 100);
+      const bonusTag = bonusPct > 0 ? ` \xA7a(+${bonusPct}% prosperity bonus)` : "";
       notifyPlayer(village.owner,
-        `\xA77\u26CF ${miners} miner(s) in \xA7b${village.name}\xA77 gathered: \xA7f${summary}\xA77 \u2192 Material Storage.`
+        `\xA77\u26CF ${miners} miner(s) in \xA7b${village.name}\xA77 gathered: \xA7f${summary}\xA77 \u2192 Material Storage.${bonusTag}`
       );
     }
     saveVillage(village);
