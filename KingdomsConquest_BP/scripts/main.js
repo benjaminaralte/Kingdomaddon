@@ -3701,26 +3701,38 @@ var MERCHANT_DANGER_RADIUS = 5;
 var MERCHANT_SPAWN_INTERVAL = 1200;
 var MERCHANT_STOCK_TEMPLATES = {
   common: {
-    "minecraft:iron_ingot": 32,
-    "minecraft:gold_ingot": 8,
-    "minecraft:coal": 64
+    "minecraft:iron_ingot": 48,
+    "minecraft:gold_ingot": 16,
+    "minecraft:coal": 64,
+    "minecraft:oak_planks": 64
   },
   rare: {
-    "minecraft:diamond": 5,
-    "minecraft:iron_ingot": 48,
-    "minecraft:gold_ingot": 16
+    "minecraft:diamond": 10,
+    "minecraft:iron_ingot": 64,
+    "minecraft:gold_ingot": 32,
+    "minecraft:coal": 32
   },
   food: {
     "minecraft:bread": 64,
     "minecraft:cooked_beef": 32,
-    "minecraft:apple": 48
+    "minecraft:apple": 48,
+    "minecraft:coal": 32
   },
   bobsFarm: {
     "twb_farm:garlic": 16,
     "twb_farm:onion": 12,
     "twb_farm:rice": 12,
     "twb_farm:broccoli": 10,
-    "twb_farm:pineapple": 6
+    "twb_farm:pineapple": 6,
+    "minecraft:iron_ingot": 16
+  },
+  materials: {
+    "minecraft:iron_ingot": 64,
+    "minecraft:gold_ingot": 32,
+    "minecraft:diamond": 8,
+    "minecraft:coal": 64,
+    "minecraft:oak_planks": 64,
+    "minecraft:cobblestone": 64
   }
 };
 var SEED_SHOP = [
@@ -4022,17 +4034,26 @@ function removeMerchant(village, merchantEntityId) {
   village.activeMerchants = village.activeMerchants.filter((m) => m.entityId !== merchantEntityId);
   saveVillage(village);
 }
+var MERCHANT_TRADE_TABLE = {
+  "minecraft:iron_ingot":  { qty: 8,  cost: 6,  label: "Iron Ingot" },
+  "minecraft:gold_ingot":  { qty: 4,  cost: 10, label: "Gold Ingot" },
+  "minecraft:diamond":     { qty: 1,  cost: 8,  label: "Diamond" },
+  "minecraft:coal":        { qty: 16, cost: 3,  label: "Coal" },
+  "minecraft:oak_planks":  { qty: 32, cost: 4,  label: "Wood Planks" },
+  "minecraft:cobblestone": { qty: 32, cost: 2,  label: "Cobblestone" },
+  "minecraft:bread":       { qty: 8,  cost: 5,  label: "Bread" },
+  "minecraft:cooked_beef": { qty: 4,  cost: 6,  label: "Cooked Beef" },
+  "minecraft:apple":       { qty: 8,  cost: 3,  label: "Apple" },
+  "twb_farm:garlic":       { qty: 6,  cost: 3,  label: "Garlic" },
+  "twb_farm:onion":        { qty: 6,  cost: 3,  label: "Onion" },
+  "twb_farm:rice":         { qty: 6,  cost: 3,  label: "Rice" },
+  "twb_farm:broccoli":     { qty: 6,  cost: 4,  label: "Broccoli" },
+  "twb_farm:pineapple":    { qty: 4,  cost: 6,  label: "Pineapple" }
+};
 function getMerchantPrice(itemTypeId) {
-  const prices = {
-    "minecraft:iron_ingot": 1,
-    "minecraft:gold_ingot": 3,
-    "minecraft:diamond": 8,
-    "minecraft:coal": 1,
-    "minecraft:bread": 1,
-    "minecraft:cooked_beef": 1,
-    "minecraft:apple": 1
-  };
-  return prices[itemTypeId] ?? 2;
+  const entry = MERCHANT_TRADE_TABLE[itemTypeId];
+  if (entry) return entry.cost / entry.qty;
+  return 2;
 }
 function upgradeMarket(village) {
   if (village.marketLevel >= 5) {
@@ -7177,13 +7198,20 @@ world16.afterEvents.entitySpawn.subscribe((event) => {
             const db = (b.townHallLocation.x - loc.x) ** 2 + (b.townHallLocation.z - loc.z) ** 2;
             return da - db;
           })[0];
-        const m = dim.spawnEntity("kingdoms:merchant", loc);
+        const spawnAngle = Math.random() * Math.PI * 2;
+        const spawnDist = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
+        const refLoc = nearestVillage
+          ? (nearestVillage.tradeStationLocation ?? nearestVillage.townHallLocation)
+          : loc;
+        const spawnX = refLoc.x + Math.cos(spawnAngle) * spawnDist;
+        const spawnZ = refLoc.z + Math.sin(spawnAngle) * spawnDist;
+        const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
+        const templateKey = templates[Math.floor(Math.random() * templates.length)];
+        const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
+        const m = dim.spawnEntity("kingdoms:merchant", { x: spawnX, y: refLoc.y, z: spawnZ });
         if (nearestVillage) {
-          const dest = nearestVillage.tradeStationLocation ?? nearestVillage.townHallLocation;
           const destLabel = nearestVillage.tradeStationLocation ? "Market" : "Town Hall";
           m.nameTag = `\xA76Travelling Merchant \xA77[\u2192 ${nearestVillage.name} ${destLabel}]`;
-          const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
-          const stock = { ...MERCHANT_STOCK_TEMPLATES[templates[Math.floor(Math.random() * templates.length)]] };
           const merchantData = {
             entityId: m.id,
             stock,
@@ -7197,16 +7225,16 @@ world16.afterEvents.entitySpawn.subscribe((event) => {
           nearestVillage.activeMerchants.push(merchantData);
           saveVillage(nearestVillage);
           if (nearestVillage.owner) {
-            notifyPlayer(nearestVillage.owner, `\xA76\uD83D\uDED2 A travelling merchant has appeared and is heading to \xA7b${nearestVillage.name}\xA76's ${destLabel.toLowerCase()}!`);
+            notifyPlayer(nearestVillage.owner, `\xA76Travelling Merchant spotted ${Math.round(spawnDist)} blocks from \xA7b${nearestVillage.name}\xA76 and heading to the ${destLabel.toLowerCase()}! Stock: ${templateKey}.`);
           }
         } else {
           m.nameTag = "\xA76Travelling Merchant";
         }
         const cartAngle = Math.random() * Math.PI * 2;
         const cart = dim.spawnEntity("kingdoms:trade_cart", {
-          x: loc.x + Math.cos(cartAngle) * 2.5,
-          y: loc.y,
-          z: loc.z + Math.sin(cartAngle) * 2.5
+          x: spawnX + Math.cos(cartAngle) * 2.5,
+          y: refLoc.y,
+          z: spawnZ + Math.sin(cartAngle) * 2.5
         });
         cart.nameTag = "\xA77Trade Cart";
         cart.setDynamicProperty("kc:merchant_id", m.id);
@@ -8497,27 +8525,39 @@ Select a merchant to trade with:`);
   await showMerchantTradeMenu(player, village, merchant, merchant.entityId);
 }
 async function showMerchantTradeMenu(player, village, merchant, entityId) {
-  const stockText = Object.entries(merchant.stock).map(([item, count]) => `${item.replace("minecraft:", "")} \xD7${count}`).join("\n") || "Sold out!";
-  const form = new ActionFormData().title("Travelling Merchant").body(`Available:
-${stockText}
-
-Village Treasury: ${village.treasury}\u{1F48E}`).button("Buy Iron \xD78 (8\u{1F48E})").button("Buy Gold \xD74 (12\u{1F48E})").button("Buy Diamond \xD71 (8\u{1F48E})").button("Buy Bread \xD716 (16\u{1F48E})").button("Close");
-  const response = await form.show(player);
-  if (response.canceled) return;
-  switch (response.selection) {
-    case 0:
-      tradeMerchant(village, entityId, "minecraft:iron_ingot", 8);
-      break;
-    case 1:
-      tradeMerchant(village, entityId, "minecraft:gold_ingot", 4);
-      break;
-    case 2:
-      tradeMerchant(village, entityId, "minecraft:diamond", 1);
-      break;
-    case 3:
-      tradeMerchant(village, entityId, "minecraft:bread", 16);
-      break;
+  const stockEntries = Object.entries(merchant.stock).filter(([, count]) => count > 0);
+  const stockText = stockEntries.length > 0
+    ? stockEntries.map(([item, count]) => {
+        const entry = MERCHANT_TRADE_TABLE[item];
+        const label = entry ? entry.label : item.replace("minecraft:", "").replace("twb_farm:", "");
+        const route = (() => {
+          if (MERCHANT_MATERIAL_MAP[item]) return "-> Material Storage";
+          if (FOOD_SELL_RATES?.find?.((e) => e.itemId === item)) return "-> Granary";
+          if (ALL_ARMORY_ITEMS?.has?.(item)) return "-> Armory";
+          return "";
+        })();
+        return `${label} x${count}  ${route}`;
+      }).join("\n")
+    : "Sold out!";
+  const tradeOptions = [];
+  const form = new ActionFormData()
+    .title(`Travelling Merchant - ${village.name}`)
+    .body(`Goods for sale:\n${stockText}\n\nVillage Treasury: ${village.treasury} emeralds\nItems auto-route to the correct storage when bought.`);
+  for (const [itemId, stockCount] of stockEntries) {
+    const entry = MERCHANT_TRADE_TABLE[itemId];
+    if (!entry) continue;
+    const canAfford = Math.floor(village.treasury / (entry.cost / entry.qty));
+    const available = Math.min(stockCount, Math.floor(canAfford / entry.qty) * entry.qty);
+    if (available <= 0) continue;
+    form.button(`Buy ${entry.label} x${entry.qty}\n${entry.cost} emeralds from treasury  (${stockCount} in stock)`);
+    tradeOptions.push({ itemId, qty: entry.qty });
   }
+  form.button("Close");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= tradeOptions.length) return;
+  const chosen = tradeOptions[response.selection];
+  tradeMerchant(village, entityId, chosen.itemId, chosen.qty);
 }
 // ── Rail validator — scans a cube around location for any rail block ─────────
 function hasNearbyRail(dimension, location, radius) {
