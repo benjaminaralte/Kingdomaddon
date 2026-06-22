@@ -6650,6 +6650,7 @@ world20.afterEvents.playerPlaceBlock.subscribe((event) => {
     notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}\xA77\u2026`);
     system6.run(() => {
       generateStructure(dimension, origin, typeId);
+      spawnStructureHub(dimension, origin, typeId);
     });
   }
 });
@@ -6661,6 +6662,34 @@ function canOpenMenu(playerName) {
   if (tick - last < MENU_COOLDOWN_TICKS) return false;
   lastMenuTick.set(playerName, tick);
   return true;
+}
+function spawnStructureHub(dimension, blockLocation, blockTypeId) {
+  try {
+    removeStructureHub(dimension, blockLocation);
+    const entity = dimension.spawnEntity(
+      "kingdoms:structure_hub",
+      { x: blockLocation.x + 0.5, y: blockLocation.y, z: blockLocation.z + 0.5 }
+    );
+    entity.setDynamicProperty("kc:structure_type", blockTypeId);
+    entity.setDynamicProperty("kc:block_loc", JSON.stringify(blockLocation));
+  } catch {
+  }
+}
+function removeStructureHub(dimension, blockLocation) {
+  try {
+    const nearby = dimension.getEntities({
+      type: "kingdoms:structure_hub",
+      location: { x: blockLocation.x + 0.5, y: blockLocation.y, z: blockLocation.z + 0.5 },
+      maxDistance: 2
+    });
+    for (const entity of nearby) {
+      try {
+        entity.remove();
+      } catch {
+      }
+    }
+  } catch {
+  }
 }
 world20.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
@@ -6832,7 +6861,62 @@ world20.afterEvents.playerBreakBlock.subscribe((event) => {
     const dimension = player.dimension;
     system6.run(() => {
       demolishStructure(dimension, origin, typeId);
+      removeStructureHub(dimension, origin);
     });
+  }
+});
+world20.afterEvents.playerInteractWithEntity.subscribe((event) => {
+  const player = event.player;
+  const entity = event.target;
+  if (!player || !entity) return;
+  if (entity.typeId !== "kingdoms:structure_hub") return;
+  if (!canOpenMenu(player.name)) return;
+  const structureType = entity.getDynamicProperty("kc:structure_type");
+  const blockLocStr = entity.getDynamicProperty("kc:block_loc");
+  if (!structureType || !blockLocStr) return;
+  let blockLoc;
+  try {
+    blockLoc = JSON.parse(blockLocStr);
+  } catch {
+    return;
+  }
+  const block = player.dimension.getBlock(blockLoc);
+  if (!block) return;
+  switch (structureType) {
+    case CUSTOM_BLOCKS.TOWN_HALL:
+      void showTownHallMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.BARRACKS:
+      void showBarracksMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.MARKET:
+      void showMarketMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.BLACKSMITH:
+      void showBlacksmithMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.GRANARY:
+      void showGranaryStorageMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TREASURY_BLOCK:
+      void showTreasuryBlockMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TRADE_STATION:
+      void showTradeStationMenu(player, block);
+      break;
+    case "kingdoms:waypoint": {
+      const wpVillage = findVillageAt2(blockLoc);
+      if (wpVillage && wpVillage.waypointLocation) {
+        void showWaypointMenu(player, wpVillage);
+        const wpKingdom = getKingdomOf(player.name);
+        if (wpKingdom?.pendingDiplomacy) {
+          system6.runTimeout(() => {
+            void showPendingDiplomacyRequest(player);
+          }, 40);
+        }
+      }
+      break;
+    }
   }
 });
 world20.afterEvents.playerJoin.subscribe((event) => {

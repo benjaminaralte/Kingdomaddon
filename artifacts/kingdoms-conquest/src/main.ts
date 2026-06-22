@@ -462,6 +462,9 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     notifyPlayer(player.name, `§7Building §b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}§7…`);
     system.run(() => {
       generateStructure(dimension, origin, typeId);
+      // Spawn the invisible hub entity so players can interact (open menu) reliably
+      // on all platforms including mobile touch / flint use.
+      spawnStructureHub(dimension, origin, typeId);
     });
   }
 });
@@ -478,6 +481,44 @@ function canOpenMenu(playerName: string): boolean {
   if (tick - last < MENU_COOLDOWN_TICKS) return false;
   lastMenuTick.set(playerName, tick);
   return true;
+}
+
+// ── Structure Hub helpers ─────────────────────────────────────────────────────
+// An invisible kingdoms:structure_hub entity sits at each placed structure block.
+// playerInteractWithEntity fires reliably on all platforms (including mobile touch)
+// whereas itemStartUseOn can be inconsistent when using flint or empty hand.
+
+function spawnStructureHub(
+  dimension: import("@minecraft/server").Dimension,
+  blockLocation: { x: number; y: number; z: number },
+  blockTypeId: string
+): void {
+  try {
+    // Remove any existing hub at this location first (idempotent re-placement)
+    removeStructureHub(dimension, blockLocation);
+    const entity = dimension.spawnEntity(
+      "kingdoms:structure_hub",
+      { x: blockLocation.x + 0.5, y: blockLocation.y, z: blockLocation.z + 0.5 }
+    );
+    entity.setDynamicProperty("kc:structure_type", blockTypeId);
+    entity.setDynamicProperty("kc:block_loc", JSON.stringify(blockLocation));
+  } catch { /* unloaded chunk — silent */ }
+}
+
+function removeStructureHub(
+  dimension: import("@minecraft/server").Dimension,
+  blockLocation: { x: number; y: number; z: number }
+): void {
+  try {
+    const nearby = dimension.getEntities({
+      type: "kingdoms:structure_hub",
+      location: { x: blockLocation.x + 0.5, y: blockLocation.y, z: blockLocation.z + 0.5 },
+      maxDistance: 2,
+    });
+    for (const entity of nearby) {
+      try { entity.remove(); } catch { /* already gone */ }
+    }
+  } catch { /* chunk issue */ }
 }
 
 // Use itemStartUseOn (fires exactly ONCE when the player first presses use on a block).
@@ -677,7 +718,65 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     const dimension = player.dimension;
     system.run(() => {
       demolishStructure(dimension, origin, typeId);
+      removeStructureHub(dimension, origin);
     });
+  }
+});
+
+// ── Structure Hub: playerInteractWithEntity ───────────────────────────────────
+// This is the primary GUI trigger for mobile (touch/long-press) and for players
+// using flint or empty hand on a structure block.  The invisible structure_hub
+// entity is always interactable regardless of what the player holds.
+world.afterEvents.playerInteractWithEntity.subscribe((event) => {
+  const player = event.player;
+  const entity = event.target;
+  if (!player || !entity) return;
+  if (entity.typeId !== "kingdoms:structure_hub") return;
+  if (!canOpenMenu(player.name)) return;
+
+  const structureType = entity.getDynamicProperty("kc:structure_type") as string | undefined;
+  const blockLocStr = entity.getDynamicProperty("kc:block_loc") as string | undefined;
+  if (!structureType || !blockLocStr) return;
+
+  let blockLoc: { x: number; y: number; z: number };
+  try { blockLoc = JSON.parse(blockLocStr as string); } catch { return; }
+
+  const block = player.dimension.getBlock(blockLoc);
+  if (!block) return;
+
+  switch (structureType) {
+    case CUSTOM_BLOCKS.TOWN_HALL:
+      void showTownHallMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.BARRACKS:
+      void showBarracksMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.MARKET:
+      void showMarketMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.BLACKSMITH:
+      void showBlacksmithMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.GRANARY:
+      void showGranaryStorageMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TREASURY_BLOCK:
+      void showTreasuryBlockMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TRADE_STATION:
+      void showTradeStationMenu(player, block);
+      break;
+    case "kingdoms:waypoint": {
+      const wpVillage = findVillageAt(blockLoc);
+      if (wpVillage && wpVillage.waypointLocation) {
+        void showWaypointMenu(player, wpVillage);
+        const wpKingdom = getKingdomOf(player.name);
+        if (wpKingdom?.pendingDiplomacy) {
+          system.runTimeout(() => { void showPendingDiplomacyRequest(player); }, 40);
+        }
+      }
+      break;
+    }
   }
 });
 

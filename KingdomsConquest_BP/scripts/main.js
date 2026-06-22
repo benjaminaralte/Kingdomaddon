@@ -8,6 +8,157 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// src/types/index.ts
+var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, BANDIT_MIGRATE_DISTANCE;
+var init_types = __esm({
+  "src/types/index.ts"() {
+    "use strict";
+    WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
+    ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
+    TROOP_WAGES = {
+      cityGuards: 2,
+      spearmen: 3,
+      archers: 3,
+      cavalry: 5,
+      heavyKnight: 8,
+      samurai: 12,
+      mercenaryLancer: 10,
+      legionary: 10
+    };
+    EMPTY_RESOURCE_STORAGE = {
+      iron: 0,
+      gold: 0,
+      coal: 0,
+      wood: 0,
+      stone: 0,
+      diamonds: 0
+    };
+    RESOURCE_LABELS = {
+      iron: "Iron",
+      gold: "Gold",
+      coal: "Coal",
+      wood: "Wood",
+      stone: "Stone",
+      diamonds: "Diamonds"
+    };
+    TICKS_PER_DAY = 24e3;
+    CLAIM_COST_EMERALDS = 10;
+    VILLAGE_CLAIM_RADIUS = 64;
+    MIN_VILLAGERS_TO_CLAIM = 3;
+    FOOD_PER_VILLAGER_PER_DAY = 1;
+    POPULATION_GROWTH_INTERVAL_DAYS = 2;
+    WAGE_INTERVAL_DAYS = 3;
+    MAX_GUARDS_PER_POLE = 3;
+    WATCHTOWER_DETECTION_RADIUS = 48;
+    BANDIT_MIGRATE_DISTANCE = 200;
+  }
+});
+
+// src/utils/tick.ts
+import { world } from "@minecraft/server";
+function getCurrentDay() {
+  return Math.floor(world.getAbsoluteTime() / TICKS_PER_DAY);
+}
+function getCurrentTick() {
+  return world.getAbsoluteTime();
+}
+function isNewDay(lastProcessedDay) {
+  return getCurrentDay() > lastProcessedDay;
+}
+function daysSince(day) {
+  return getCurrentDay() - day;
+}
+function distanceSq(a, b) {
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
+}
+function distance(a, b) {
+  return Math.sqrt(distanceSq(a, b));
+}
+var init_tick = __esm({
+  "src/utils/tick.ts"() {
+    "use strict";
+    init_types();
+  }
+});
+
+// src/systems/playerSettings.ts
+import { world as world2 } from "@minecraft/server";
+function settingsKey(playerName) {
+  return `kc:settings:${playerName}`;
+}
+function getPlayerSettings(playerName) {
+  const raw = world2.getDynamicProperty(settingsKey(playerName));
+  if (!raw) return { ...DEFAULT_SETTINGS };
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+function savePlayerSettings(playerName, settings) {
+  world2.setDynamicProperty(settingsKey(playerName), JSON.stringify(settings));
+}
+function isAlertsEnabled(playerName) {
+  return getPlayerSettings(playerName).alertsEnabled;
+}
+function toggleAlerts(playerName) {
+  const settings = getPlayerSettings(playerName);
+  settings.alertsEnabled = !settings.alertsEnabled;
+  savePlayerSettings(playerName, settings);
+  return settings.alertsEnabled;
+}
+var DEFAULT_SETTINGS;
+var init_playerSettings = __esm({
+  "src/systems/playerSettings.ts"() {
+    "use strict";
+    DEFAULT_SETTINGS = {
+      alertsEnabled: true
+    };
+  }
+});
+
+// src/utils/notify.ts
+import { world as world3 } from "@minecraft/server";
+function sendCrisisTitle(playerName, title, subtitle, sound = "raid.horn") {
+  const player = world3.getPlayers().find((p) => p.name === playerName);
+  if (!player) return;
+  player.onScreenDisplay.setTitle(title, {
+    subtitle,
+    fadeInDuration: 10,
+    stayDuration: 80,
+    fadeOutDuration: 20
+  });
+  try {
+    player.playSound(sound, { volume: 1, pitch: 1 });
+  } catch {
+  }
+}
+function notifyPlayer(playerName, message) {
+  const player = world3.getPlayers().find((p) => p.name === playerName);
+  if (player) {
+    player.sendMessage(`\xA76[Kingdoms]\xA7r ${message}`);
+  }
+}
+function notifyAlert(playerName, message) {
+  if (!isAlertsEnabled(playerName)) return;
+  notifyPlayer(playerName, message);
+}
+function notifyKingdom(kingName, villageOwners, message) {
+  const players = world3.getPlayers();
+  const recipients = /* @__PURE__ */ new Set([kingName, ...villageOwners]);
+  for (const player of players) {
+    if (recipients.has(player.name)) {
+      player.sendMessage(`\xA7d[Kingdom]\xA7r ${message}`);
+    }
+  }
+}
+var init_notify = __esm({
+  "src/utils/notify.ts"() {
+    "use strict";
+    init_playerSettings();
+  }
+});
+
 // src/storage/index.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -30,13 +181,11 @@ __export(storage_exports, {
 import { world as world4 } from "@minecraft/server";
 function getRegistry() {
   const raw = world4.getDynamicProperty(REGISTRY_KEY);
-  if (!raw) return { villageIds: [], kingdomIds: [], banditCampIds: [], rebelCityIds: [] };
+  if (!raw) return { villageIds: [], kingdomIds: [], banditCampIds: [] };
   try {
-    const r = JSON.parse(raw);
-    if (!r.rebelCityIds) r.rebelCityIds = [];
-    return r;
+    return JSON.parse(raw);
   } catch {
-    return { villageIds: [], kingdomIds: [], banditCampIds: [], rebelCityIds: [] };
+    return { villageIds: [], kingdomIds: [], banditCampIds: [] };
   }
 }
 function saveRegistry(data) {
@@ -65,18 +214,12 @@ function deleteVillage(id) {
   reg.villageIds = reg.villageIds.filter((v) => v !== id);
   saveRegistry(reg);
 }
-var _vcTick = -1;
-var _vcCache = null;
 function getAllVillages() {
-  const tick = getCurrentTick();
-  if (tick === _vcTick && _vcCache !== null) return _vcCache;
   const reg = getRegistry();
-  _vcCache = reg.villageIds.flatMap((id) => {
+  return reg.villageIds.flatMap((id) => {
     const v = getVillage(id);
     return v ? [v] : [];
   });
-  _vcTick = tick;
-  return _vcCache;
 }
 function getVillageByOwner(playerName) {
   return getAllVillages().filter((v) => v.owner === playerName);
@@ -147,260 +290,585 @@ function getAllBanditCamps() {
 function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
-// Define the strings explicitly right here:
-var REGISTRY_KEY = "kc:registry";
-var VILLAGE_PREFIX = "kc:village:";
-var KINGDOM_PREFIX = "kc:kingdom:";
-var BANDIT_PREFIX = "kc:bandit:";
-var REBEL_PREFIX = "kc:rebel:";
-var ACHIEVEMENT_PREFIX = "kc:achievements:";
-var DIPLO_OFFERS_KEY = "kc:diplo_offers";
-
-function getRebelCity(id) {
-  const raw = world4.getDynamicProperty(REBEL_PREFIX + id);
-  if (!raw) return void 0;
-  try { return JSON.parse(raw); } catch { return void 0; }
-}
-function saveRebelCity(data) {
-  world4.setDynamicProperty(REBEL_PREFIX + data.id, JSON.stringify(data));
-  const reg = getRegistry();
-  if (!reg.rebelCityIds.includes(data.id)) {
-    reg.rebelCityIds.push(data.id);
-    saveRegistry(reg);
-  }
-}
-function deleteRebelCity(id) {
-  world4.setDynamicProperty(REBEL_PREFIX + id, void 0);
-  const reg = getRegistry();
-  reg.rebelCityIds = reg.rebelCityIds.filter((r) => r !== id);
-  saveRegistry(reg);
-}
-function getAllRebelCities() {
-  const reg = getRegistry();
-  return reg.rebelCityIds.flatMap((id) => {
-    const r = getRebelCity(id);
-    return r ? [r] : [];
-  });
-}
-function getPlayerAchievements(playerName) {
-  const raw = world4.getDynamicProperty(ACHIEVEMENT_PREFIX + playerName);
-  if (!raw) return { campsDestroyed: 0, citiesDefeated: 0 };
-  try { return { campsDestroyed: 0, citiesDefeated: 0, ...JSON.parse(raw) }; } catch {
-    return { campsDestroyed: 0, citiesDefeated: 0 };
-  }
-}
-function savePlayerAchievements(playerName, data) {
-  world4.setDynamicProperty(ACHIEVEMENT_PREFIX + playerName, JSON.stringify(data));
-}
-function awardCampDestroyed(playerName) {
-  const ach = getPlayerAchievements(playerName);
-  ach.campsDestroyed++;
-  savePlayerAchievements(playerName, ach);
-}
-function awardCityDefeated(playerName) {
-  const ach = getPlayerAchievements(playerName);
-  ach.citiesDefeated++;
-  savePlayerAchievements(playerName, ach);
-}
-
+var REGISTRY_KEY, VILLAGE_PREFIX, KINGDOM_PREFIX, BANDIT_PREFIX;
 var init_storage = __esm({
   "src/storage/index.ts"() {
     "use strict";
-    // You can keep these here or remove them, as long as they are defined above!
     REGISTRY_KEY = "kc:registry";
     VILLAGE_PREFIX = "kc:village:";
     KINGDOM_PREFIX = "kc:kingdom:";
     BANDIT_PREFIX = "kc:bandit:";
-    REBEL_PREFIX = "kc:rebel:";
-    ACHIEVEMENT_PREFIX = "kc:achievements:";
   }
 });
 
-
-// src/main.ts
-import { world as world16, system as system3, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
-import { ActionFormData, ModalFormData, MessageFormData } from "@minecraft/server-ui";
-
-// src/types/index.ts
-var WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
-var ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
-var TROOP_WAGES = {
-  cityGuards: 1,
-  spearmen: 2,
-  archers: 2,
-  cavalry: 3,
-  samurai: 4,
-  heavyKnights: 4,
-  legionary: 4,
-  mercenaryLancer: 4
-};
-var EMPTY_RESOURCE_STORAGE = {
-  iron: 0,
-  gold: 0,
-  coal: 0,
-  wood: 0,
-  stone: 0,
-  diamonds: 0
-};
-var MAX_MINERS = 5;
-var MIN_POP_FOR_MINERS = 15;
-var MINING_TOOL_TIER_NAMES = ["Wooden", "Stone", "Iron", "Golden", "Diamond"];
-var MINING_TOOL_UPGRADE_COSTS = [
-  { iron: 5,  gold: 0, diamonds: 0, emeralds: 5  },
-  { iron: 10, gold: 0, diamonds: 0, emeralds: 10 },
-  { iron: 5,  gold: 3, diamonds: 0, emeralds: 15 },
-  { iron: 10, gold: 5, diamonds: 3, emeralds: 25 },
-];
-var MINING_OUTPUT_BY_TIER = [
-  { stone:[1,2], coal:[1,2], iron:[0,0], gold:[0,0], diamonds:[0,0] },
-  { stone:[1,3], coal:[1,2], iron:[0,1], gold:[0,0], diamonds:[0,0] },
-  { stone:[1,3], coal:[1,3], iron:[1,2], gold:[0,1], diamonds:[0,0] },
-  { stone:[2,4], coal:[1,3], iron:[1,3], gold:[0,1], diamonds:[0,1] },
-  { stone:[2,5], coal:[2,4], iron:[2,4], gold:[1,2], diamonds:[0,2] },
-];
-var MERCHANT_MATERIAL_MAP = {
-  "minecraft:iron_ingot": "iron",
-  "minecraft:gold_ingot": "gold",
-  "minecraft:diamond": "diamonds",
-  "minecraft:coal": "coal",
-  "minecraft:oak_planks": "wood",
-  "minecraft:cobblestone": "stone"
-};
-var RESOURCE_ITEM_IDS = {
-  iron: "minecraft:iron_ingot",
-  gold: "minecraft:gold_ingot",
-  diamonds: "minecraft:diamond",
-  coal: "minecraft:coal",
-  wood: "minecraft:oak_planks",
-  stone: "minecraft:cobblestone"
-};
-var ARMORY_WEAPON_ITEMS = new Set([
-  "minecraft:wooden_sword", "minecraft:stone_sword", "minecraft:iron_sword",
-  "minecraft:golden_sword", "minecraft:diamond_sword", "minecraft:netherite_sword",
-  "minecraft:bow", "minecraft:crossbow", "minecraft:iron_axe", "minecraft:diamond_axe",
-  "minecraft:netherite_axe", "minecraft:trident"
-]);
-var ARMORY_ARMOR_ITEMS = new Set([
-  "minecraft:leather_helmet", "minecraft:leather_chestplate", "minecraft:leather_leggings", "minecraft:leather_boots",
-  "minecraft:iron_helmet", "minecraft:iron_chestplate", "minecraft:iron_leggings", "minecraft:iron_boots",
-  "minecraft:golden_helmet", "minecraft:golden_chestplate", "minecraft:golden_leggings", "minecraft:golden_boots",
-  "minecraft:diamond_helmet", "minecraft:diamond_chestplate", "minecraft:diamond_leggings", "minecraft:diamond_boots",
-  "minecraft:netherite_helmet", "minecraft:netherite_chestplate", "minecraft:netherite_leggings", "minecraft:netherite_boots"
-]);
-var ALL_ARMORY_ITEMS = new Set([...ARMORY_WEAPON_ITEMS, ...ARMORY_ARMOR_ITEMS]);
-var FORGE_RECIPES = {
-  iron: { weaponItem: "minecraft:iron_sword", armorPiece: "minecraft:iron_chestplate", materialKey: "iron", weaponCost: 2, armorCost: 8 },
-  gold: { weaponItem: "minecraft:golden_sword", armorPiece: "minecraft:golden_chestplate", materialKey: "gold", weaponCost: 2, armorCost: 8 },
-  diamond: { weaponItem: "minecraft:diamond_sword", armorPiece: "minecraft:diamond_chestplate", materialKey: "diamonds", weaponCost: 3, armorCost: 10 }
-};
-var RESOURCE_LABELS = {
-  iron: "Iron",
-  gold: "Gold",
-  coal: "Coal",
-  wood: "Wood",
-  stone: "Stone",
-  diamonds: "Diamonds"
-};
-var TICKS_PER_DAY = 24e3;
-var CLAIM_COST_COBBLESTONE = 10;
-var VILLAGE_CLAIM_RADIUS = 64;
-var VILLAGE_MAX_RADIUS = 160;
-var MIN_VILLAGERS_TO_CLAIM = 3;
-function getVillageRadius(village) {
-  const pop = village?.population ?? 0;
-  return Math.min(VILLAGE_CLAIM_RADIUS + Math.floor(pop / 5) * 16, VILLAGE_MAX_RADIUS);
+// src/systems/villageAlerts.ts
+function makeKey(type, villageId) {
+  return `${type}_${villageId}_${getCurrentDay()}`;
 }
-var FOOD_PER_VILLAGER_PER_DAY = 1;
-var FOOD_PER_SOLDIER_PER_DAY = 2;
-var POPULATION_GROWTH_INTERVAL_DAYS = 2;
-var WAGE_INTERVAL_DAYS = 3;
-var MAX_GUARDS_PER_POLE = 3;
-var WATCHTOWER_DETECTION_RADIUS = 48;
-var BANDIT_MIGRATE_DISTANCE = 200;
-var MAX_VILLAGE_POPULATION = 20;
-var MAX_VILLAGE_SOLDIERS = 100;
-
-// src/utils/tick.ts
-import { world } from "@minecraft/server";
-function getCurrentDay() {
-  return Math.floor(world.getAbsoluteTime() / TICKS_PER_DAY);
-}
-function getCurrentTick() {
-  return world.getAbsoluteTime();
-}
-function isNewDay(lastProcessedDay) {
-  return getCurrentDay() > lastProcessedDay;
-}
-function daysSince(day) {
-  return getCurrentDay() - day;
-}
-function distanceSq(a, b) {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
-}
-function distance(a, b) {
-  return Math.sqrt(distanceSq(a, b));
-}
-
-// src/utils/notify.ts
-import { world as world3 } from "@minecraft/server";
-
-// src/systems/playerSettings.ts
-import { world as world2 } from "@minecraft/server";
-var DEFAULT_SETTINGS = {
-  alertsEnabled: true
-};
-function settingsKey(playerName) {
-  return `kc:settings:${playerName}`;
-}
-function getPlayerSettings(playerName) {
-  const raw = world2.getDynamicProperty(settingsKey(playerName));
-  if (!raw) return { ...DEFAULT_SETTINGS };
-  try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-function savePlayerSettings(playerName, settings) {
-  world2.setDynamicProperty(settingsKey(playerName), JSON.stringify(settings));
-}
-function isAlertsEnabled(playerName) {
-  return getPlayerSettings(playerName).alertsEnabled;
-}
-function toggleAlerts(playerName) {
-  const settings = getPlayerSettings(playerName);
-  settings.alertsEnabled = !settings.alertsEnabled;
-  savePlayerSettings(playerName, settings);
-  return settings.alertsEnabled;
-}
-
-// src/utils/notify.ts
-function notifyPlayer(playerName, message) {
-  const player = world3.getPlayers().find((p) => p.name === playerName);
-  if (player) {
-    player.sendMessage(`\xA76[Kingdoms]\xA7r ${message}`);
-  }
-}
-function notifyAlert(playerName, message) {
-  if (!isAlertsEnabled(playerName)) return;
-  notifyPlayer(playerName, message);
-}
-function notifyKingdom(kingName, villageOwners, message) {
-  const players = world3.getPlayers();
-  const recipients = /* @__PURE__ */ new Set([kingName, ...villageOwners]);
-  for (const player of players) {
-    if (recipients.has(player.name)) {
-      player.sendMessage(`\xA7d[Kingdom]\xA7r ${message}`);
+function checkDailyCrisisAlerts() {
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    if (village.treasury === 0) {
+      const key = makeKey("treasury", village.id);
+      if (!alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        sendCrisisTitle(
+          village.owner,
+          "\xA76\xA7lTREASURY EMPTY",
+          `\xA7e${village.name} has run out of funds!`,
+          "random.anvil_land"
+        );
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u26A0 \xA7b${village.name}\xA7c treasury is empty \u2014 troops may desert!`
+        );
+      }
+    }
+    if (village.population > 0 && village.population < 5) {
+      const key = makeKey("population", village.id);
+      if (!alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        sendCrisisTitle(
+          village.owner,
+          "\xA7c\xA7lVILLAGE DYING",
+          `\xA7e${village.name} \u2014 only ${village.population} citizens left!`,
+          "mob.villager.death"
+        );
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u26A0 \xA7b${village.name}\xA7c is critically low on population (${village.population})!`
+        );
+      }
     }
   }
 }
+function triggerAttackAlert(ownerName, villageName, campStrength) {
+  sendCrisisTitle(
+    ownerName,
+    "\xA7c\xA7l\u2694  UNDER ATTACK!",
+    `\xA7eBandits (${campStrength}) are raiding ${villageName}!`,
+    "raid.horn"
+  );
+  notifyPlayer(
+    ownerName,
+    `\xA7c\u2694 \xA7b${villageName}\xA7c is under bandit attack! (Camp strength: ${campStrength})`
+  );
+}
+var alertedKeys;
+var init_villageAlerts = __esm({
+  "src/systems/villageAlerts.ts"() {
+    "use strict";
+    init_storage();
+    init_notify();
+    init_tick();
+    alertedKeys = /* @__PURE__ */ new Set();
+  }
+});
+
+// src/systems/kingdom.ts
+function createKingdom(king, name) {
+  const existing = getKingdomByKing(king);
+  if (existing) return existing;
+  const kingdom = {
+    id: generateId(),
+    name,
+    king,
+    villageIds: [],
+    wars: [],
+    alliances: []
+  };
+  saveKingdom(kingdom);
+  notifyPlayer(king, `Your kingdom "\xA7b${name}\xA7r" has been founded!`);
+  return kingdom;
+}
+function addVillageToKingdom(kingdomId, villageId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return;
+  if (!kingdom.villageIds.includes(villageId)) {
+    kingdom.villageIds.push(villageId);
+    saveKingdom(kingdom);
+  }
+}
+function removeVillageFromKingdom(kingdomId, villageId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return;
+  kingdom.villageIds = kingdom.villageIds.filter((id) => id !== villageId);
+  if (kingdom.villageIds.length === 0) {
+    collapseKingdom(kingdomId);
+  } else {
+    saveKingdom(kingdom);
+  }
+}
+function collapseKingdom(kingdomId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return;
+  notifyPlayer(kingdom.king, `\xA7cYour kingdom "${kingdom.name}" has collapsed!`);
+  notifyAllKingdomMembers(kingdom, `\xA7cThe kingdom of "${kingdom.name}" has fallen!`);
+  for (const vid of kingdom.villageIds) {
+    const village = getVillage(vid);
+    if (village) {
+      village.kingdomId = "";
+      village.owner = "";
+      saveVillage(village);
+    }
+  }
+  for (const other of getAllKingdoms()) {
+    if (other.id === kingdomId) continue;
+    let changed = false;
+    if (other.wars.includes(kingdomId)) {
+      other.wars = other.wars.filter((id) => id !== kingdomId);
+      changed = true;
+    }
+    if (other.alliances.includes(kingdomId)) {
+      other.alliances = other.alliances.filter((id) => id !== kingdomId);
+      changed = true;
+    }
+    if (changed) saveKingdom(other);
+  }
+  deleteKingdom(kingdomId);
+}
+function declareWar(attackerId, defenderId) {
+  const attacker = getKingdom(attackerId);
+  const defender = getKingdom(defenderId);
+  if (!attacker || !defender) return;
+  if (!attacker.wars.includes(defenderId)) attacker.wars.push(defenderId);
+  if (!defender.wars.includes(attackerId)) defender.wars.push(attackerId);
+  attacker.alliances = attacker.alliances.filter((id) => id !== defenderId);
+  defender.alliances = defender.alliances.filter((id) => id !== attackerId);
+  saveKingdom(attacker);
+  saveKingdom(defender);
+  notifyPlayer(attacker.king, `\xA7cWar declared against "${defender.name}"!`);
+  notifyPlayer(defender.king, `\xA7c"${attacker.name}" has declared war on your kingdom!`);
+}
+function makePeace(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  const b = getKingdom(kingdomBId);
+  if (!a || !b) return;
+  a.wars = a.wars.filter((id) => id !== kingdomBId);
+  b.wars = b.wars.filter((id) => id !== kingdomAId);
+  saveKingdom(a);
+  saveKingdom(b);
+  notifyPlayer(a.king, `\xA7aPeace made with "${b.name}".`);
+  notifyPlayer(b.king, `\xA7aPeace made with "${a.name}".`);
+}
+function formAlliance(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  const b = getKingdom(kingdomBId);
+  if (!a || !b) return;
+  if (a.wars.includes(kingdomBId) || b.wars.includes(kingdomAId)) return;
+  if (!a.alliances.includes(kingdomBId)) a.alliances.push(kingdomBId);
+  if (!b.alliances.includes(kingdomAId)) b.alliances.push(kingdomAId);
+  saveKingdom(a);
+  saveKingdom(b);
+  notifyPlayer(a.king, `\xA7aAlliance formed with "${b.name}"!`);
+  notifyPlayer(b.king, `\xA7aAlliance formed with "${a.name}"!`);
+}
+function areAtWar(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  return a ? a.wars.includes(kingdomBId) : false;
+}
+function getKingdomStrength(kingdomId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return 0;
+  let total = 0;
+  for (const vid of kingdom.villageIds) {
+    const village = getVillage(vid);
+    if (village) {
+      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
+    }
+  }
+  return total;
+}
+function getKingdomSummary(kingdomId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return "Unknown kingdom";
+  let totalPop = 0;
+  let totalTreasury = 0;
+  let totalFood = 0;
+  for (const vid of kingdom.villageIds) {
+    const v = getVillage(vid);
+    if (v) {
+      totalPop += v.population;
+      totalTreasury += v.treasury;
+      totalFood += v.foodStorage;
+    }
+  }
+  const strength = getKingdomStrength(kingdomId);
+  return [
+    `\xA7b${kingdom.name}\xA7r (King: ${kingdom.king})`,
+    `Villages: ${kingdom.villageIds.length}  Population: ${totalPop}`,
+    `Treasury: ${totalTreasury}\u{1F48E}  Food: ${totalFood}\u{1F33E}`,
+    `Military: ${strength} strength`,
+    `Wars: ${kingdom.wars.length}  Alliances: ${kingdom.alliances.length}`
+  ].join("\n");
+}
+function notifyAllKingdomMembers(kingdom, message) {
+  const owners = [];
+  for (const vid of kingdom.villageIds) {
+    const v = getVillage(vid);
+    if (v && v.owner) owners.push(v.owner);
+  }
+  notifyKingdom(kingdom.king, owners, message);
+}
+function notifyAlliedKings(kingdomId, message) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom || kingdom.alliances.length === 0) return;
+  for (const allyId of kingdom.alliances) {
+    const ally = getKingdom(allyId);
+    if (ally) notifyAlert(ally.king, message);
+  }
+}
+function getKingdomOf(playerName) {
+  return getAllKingdoms().find(
+    (k) => k.king === playerName || k.villageIds.some((vid) => {
+      const v = getVillage(vid);
+      return v?.owner === playerName;
+    })
+  );
+}
+var init_kingdom = __esm({
+  "src/systems/kingdom.ts"() {
+    "use strict";
+    init_storage();
+    init_notify();
+  }
+});
+
+// src/systems/bandit.ts
+var bandit_exports = {};
+__export(bandit_exports, {
+  disbandBanditCamp: () => disbandBanditCamp,
+  getBanditCampSummary: () => getBanditCampSummary,
+  getBanditThreatLevel: () => getBanditThreatLevel,
+  spawnBanditDeserters: () => spawnBanditDeserters,
+  spawnTypedDeserters: () => spawnTypedDeserters,
+  tickBandits: () => tickBandits
+});
+import { world as world5, system } from "@minecraft/server";
+function spawnTypedDeserters(village, deserters) {
+  const loc = village.location;
+  const angle = Math.random() * Math.PI * 2;
+  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
+  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
+  let camp;
+  let nearestDist = 80;
+  for (const c of getAllBanditCamps()) {
+    if (c.location.dimension !== loc.dimension) continue;
+    const d = distance(c.location, { x: campX, y: loc.y, z: campZ });
+    if (d < nearestDist) {
+      nearestDist = d;
+      camp = c;
+    }
+  }
+  let totalCount = 0;
+  for (const n of Object.values(deserters)) totalCount += n ?? 0;
+  if (!camp) {
+    camp = {
+      id: generateId(),
+      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
+      strength: 0,
+      originKingdomId: village.kingdomId,
+      entityIds: []
+    };
+    saveBanditCamp(camp);
+  }
+  camp.strength += totalCount;
+  const dim = world5.getDimension(loc.dimension);
+  for (const [troopKey, count] of Object.entries(deserters)) {
+    if (!count || count <= 0) continue;
+    const entityId = TROOP_ENTITY_IDS[troopKey] ?? "kingdoms:bandit";
+    for (let i = 0; i < count; i++) {
+      try {
+        const entity = dim.spawnEntity(entityId, {
+          x: camp.location.x + (Math.random() * 10 - 5),
+          y: camp.location.y,
+          z: camp.location.z + (Math.random() * 10 - 5)
+        });
+        entity.setDynamicProperty("kc:camp_id", camp.id);
+        if (!camp.entityIds.includes(entity.id)) camp.entityIds.push(entity.id);
+      } catch {
+      }
+    }
+  }
+  saveBanditCamp(camp);
+}
+function spawnBanditDeserters(village, count) {
+  const loc = village.location;
+  const angle = Math.random() * Math.PI * 2;
+  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
+  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
+  let nearestCamp;
+  let nearestDist = 80;
+  for (const camp of getAllBanditCamps()) {
+    if (camp.location.dimension !== loc.dimension) continue;
+    const d = distance(camp.location, { x: campX, y: loc.y, z: campZ });
+    if (d < nearestDist) {
+      nearestDist = d;
+      nearestCamp = camp;
+    }
+  }
+  if (nearestCamp) {
+    nearestCamp.strength += count;
+    saveBanditCamp(nearestCamp);
+    trySpawnEntities(nearestCamp);
+  } else {
+    const camp = {
+      id: generateId(),
+      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
+      strength: count,
+      originKingdomId: village.kingdomId,
+      entityIds: []
+    };
+    saveBanditCamp(camp);
+    trySpawnEntities(camp);
+  }
+}
+function tryWorldSpawn() {
+  const camps = getAllBanditCamps();
+  if (camps.length >= MAX_WORLD_CAMPS) return;
+  const villages = getAllVillages();
+  if (villages.length === 0) return;
+  const anchor = villages[Math.floor(Math.random() * villages.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const dist = MIN_WORLD_SPAWN_DIST + Math.random() * (MAX_WORLD_SPAWN_DIST - MIN_WORLD_SPAWN_DIST);
+  const campX = anchor.location.x + Math.cos(angle) * dist;
+  const campZ = anchor.location.z + Math.sin(angle) * dist;
+  for (const v of villages) {
+    if (distance(v.location, { x: campX, y: v.location.y, z: campZ }) < MIN_WORLD_SPAWN_DIST) return;
+  }
+  for (const c of camps) {
+    if (distance(c.location, { x: campX, y: c.location.y, z: campZ }) < 150) return;
+  }
+  const strength = 3 + Math.floor(Math.random() * 5);
+  const camp = {
+    id: generateId(),
+    location: { x: campX, y: anchor.location.y, z: campZ, dimension: anchor.location.dimension },
+    strength,
+    originKingdomId: "",
+    entityIds: []
+  };
+  saveBanditCamp(camp);
+  trySpawnEntities(camp);
+}
+function trySpawnEntities(camp) {
+  const dim = world5.getDimension(camp.location.dimension);
+  const liveEntities = getLiveEntities(dim, camp);
+  const target = Math.min(camp.strength, MAX_ENTITIES_PER_CAMP);
+  const toSpawn = target - liveEntities.length;
+  for (let i = 0; i < toSpawn; i++) {
+    try {
+      const entity = dim.spawnEntity("kingdoms:bandit", {
+        x: camp.location.x + (Math.random() * 10 - 5),
+        y: camp.location.y,
+        z: camp.location.z + (Math.random() * 10 - 5)
+      });
+      entity.setDynamicProperty("kc:camp_id", camp.id);
+      if (!camp.entityIds.includes(entity.id)) {
+        camp.entityIds.push(entity.id);
+      }
+    } catch {
+    }
+  }
+  saveBanditCamp(camp);
+}
+function getLiveEntities(dim, camp) {
+  try {
+    return dim.getEntities({
+      location: camp.location,
+      maxDistance: 80
+    }).filter((e) => {
+      try {
+        return e.getDynamicProperty("kc:camp_id") === camp.id;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+function cleanDeadEntities(camp) {
+  try {
+    const dim = world5.getDimension(camp.location.dimension);
+    const liveEntities = getLiveEntities(dim, camp);
+    const liveIds = new Set(liveEntities.map((e) => e.id));
+    const before = camp.entityIds.length;
+    camp.entityIds = camp.entityIds.filter((id) => liveIds.has(id));
+    const killed = before - camp.entityIds.length;
+    if (killed > 0) {
+      camp.strength = Math.max(0, camp.strength - killed);
+    }
+    saveBanditCamp(camp);
+  } catch {
+  }
+}
+function tickBandits() {
+  tryWorldSpawn();
+  const camps = getAllBanditCamps();
+  for (const camp of camps) {
+    cleanDeadEntities(camp);
+    const fresh = getBanditCamp(camp.id);
+    if (!fresh) continue;
+    if (fresh.strength <= 0) {
+      disbandBanditCamp(fresh.id);
+      continue;
+    }
+    trySpawnEntities(fresh);
+    if (Math.random() < 0.3) {
+      raidNearbyTargets(fresh);
+    }
+  }
+}
+function raidNearbyTargets(camp) {
+  const villages = getAllVillages();
+  let target;
+  let targetDist = 300;
+  for (const village of villages) {
+    if (village.location.dimension !== camp.location.dimension) continue;
+    const d = distance(village.location, camp.location);
+    if (d < targetDist) {
+      const defense = getTotalVillageDefense(village);
+      if (camp.strength > defense * 0.4 || d < 100) {
+        targetDist = d;
+        target = village;
+      }
+    }
+  }
+  if (!target) return;
+  triggerAttackAlert(target.owner, target.name, camp.strength);
+  notifyAlliedKings(
+    target.kingdomId,
+    `\xA7c\u{1F3F4} Allied village \xA7b${target.name}\xA7c is being raided by bandits! (Strength: ${camp.strength})`
+  );
+  const dim = world5.getDimension(camp.location.dimension);
+  const merchants = dim.getEntities({ type: "kingdoms:merchant" });
+  for (const merchant of merchants) {
+    if (distance(merchant.location, camp.location) < 150) {
+      notifyAlert(target.owner, `\xA7c\u2694 Bandits are attacking a merchant near \xA7b${target.name}\xA7c!`);
+      merchant.applyDamage(12);
+      break;
+    }
+  }
+  const stolen = Math.min(
+    Math.floor(camp.strength * RAID_FOOD_STEAL_PER_STRENGTH),
+    Math.floor(target.foodStorage * MAX_RAID_FOOD_PCT),
+    50
+  );
+  if (stolen > 0) {
+    target.foodStorage = Math.max(0, target.foodStorage - stolen);
+    camp.strength = Math.min(camp.strength + 1, 30);
+    saveBanditCamp(camp);
+    system.run(() => {
+      try {
+        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
+          saveVillage2(target);
+        });
+      } catch {
+      }
+    });
+    notifyAlert(
+      target.owner,
+      `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! They stole \xA7e${stolen}\u{1F33E}\xA7c food. (Camp strength: ${camp.strength})`
+    );
+  } else if (stolen === 0 && target.foodStorage === 0) {
+    const emeraldStolen = Math.min(Math.floor(camp.strength * 0.5), target.treasury, 10);
+    if (emeraldStolen > 0) {
+      target.treasury -= emeraldStolen;
+      system.run(() => {
+        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
+          saveVillage2(target);
+        });
+      });
+      notifyAlert(
+        target.owner,
+        `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! No food \u2014 they looted \xA76${emeraldStolen}\u{1F48E}\xA7c from the treasury.`
+      );
+    }
+  }
+}
+function getTotalVillageDefense(village) {
+  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
+}
+function disbandBanditCamp(campId) {
+  const camp = getBanditCamp(campId);
+  if (!camp) return;
+  try {
+    const dim = world5.getDimension(camp.location.dimension);
+    const live = getLiveEntities(dim, camp);
+    for (const entity of live) {
+      try {
+        entity.kill();
+      } catch {
+      }
+    }
+  } catch {
+  }
+  deleteBanditCamp(campId);
+}
+function getBanditThreatLevel(village) {
+  let closestStrength = 0;
+  for (const camp of getAllBanditCamps()) {
+    if (camp.location.dimension !== village.location.dimension) continue;
+    const d = distance(camp.location, village.location);
+    if (d < 300) {
+      closestStrength = Math.max(closestStrength, camp.strength);
+    }
+  }
+  if (closestStrength === 0) return "none";
+  if (closestStrength < 5) return "low";
+  if (closestStrength < 15) return "medium";
+  return "high";
+}
+function getBanditCampSummary() {
+  const camps = getAllBanditCamps();
+  if (camps.length === 0) return "\xA77No active bandit camps.";
+  return camps.map(
+    (c, i) => `\xA7c\u2694 Camp #${i + 1}\xA7r  Strength: \xA7e${c.strength}\xA7r  Entities: ${c.entityIds.length}  Pos: \xA77${Math.round(c.location.x)},${Math.round(c.location.z)}`
+  ).join("\n");
+}
+var MAX_WORLD_CAMPS, MIN_WORLD_SPAWN_DIST, MAX_WORLD_SPAWN_DIST, RAID_FOOD_STEAL_PER_STRENGTH, MAX_RAID_FOOD_PCT, MAX_ENTITIES_PER_CAMP, TROOP_ENTITY_IDS;
+var init_bandit = __esm({
+  "src/systems/bandit.ts"() {
+    "use strict";
+    init_types();
+    init_storage();
+    init_tick();
+    init_notify();
+    init_villageAlerts();
+    init_kingdom();
+    MAX_WORLD_CAMPS = 5;
+    MIN_WORLD_SPAWN_DIST = 300;
+    MAX_WORLD_SPAWN_DIST = 600;
+    RAID_FOOD_STEAL_PER_STRENGTH = 3;
+    MAX_RAID_FOOD_PCT = 0.15;
+    MAX_ENTITIES_PER_CAMP = 10;
+    TROOP_ENTITY_IDS = {
+      cityGuards: "kingdoms:city_guard",
+      spearmen: "kingdoms:spearman",
+      archers: "kingdoms:archer",
+      cavalry: "kingdoms:cavalry",
+      heavyKnight: "kingdoms:heavy_knight",
+      samurai: "kingdoms:samurai",
+      mercenaryLancer: "kingdoms:mercenary_lancer",
+      legionary: "kingdoms:legionary"
+    };
+  }
+});
 
 // src/main.ts
+init_types();
+init_tick();
+init_notify();
 init_storage();
+import { world as world20, system as system6, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
+import { ActionFormData as ActionFormData3, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/systems/harvest.ts
 init_storage();
-import { world as world5, ItemStack, EntityInventoryComponent } from "@minecraft/server";
+init_tick();
+init_notify();
+init_types();
+import { world as world6, ItemStack, EntityInventoryComponent } from "@minecraft/server";
 var CROP_MAX_AGES = {
   "minecraft:wheat": 7,
   "minecraft:carrots": 7,
@@ -532,17 +1000,12 @@ function withdrawFromGranary(player, village, itemTypeId, amount) {
       remaining -= give;
     }
   }
-  const actuallyGiven = amount - remaining;
-  if (actuallyGiven <= 0) {
-    notifyPlayer(player.name, "\xA7cInventory full \u2014 nothing withdrawn.");
-    return false;
-  }
-  removeFromGranary(village, itemTypeId, actuallyGiven);
   if (remaining > 0) {
-    notifyPlayer(player.name, `\xA7eInventory partially full \u2014 withdrew ${actuallyGiven}x ${itemTypeId.replace("minecraft:", "")} from \xA7b${village.name}\xA7e granary.`);
+    notifyPlayer(player.name, "\xA7cInventory full.");
     return false;
   }
-  notifyPlayer(player.name, `\xA7aWithdrew ${actuallyGiven}x ${itemTypeId.replace("minecraft:", "")} from \xA7b${village.name}\xA7a granary.`);
+  removeFromGranary(village, itemTypeId, amount);
+  notifyPlayer(player.name, `\xA7aWithdrew ${amount}x ${itemTypeId.replace("minecraft:", "")} from \xA7b${village.name}\xA7a granary.`);
   return true;
 }
 function depositPlayerItemsToGranary(player, village, itemTypeId, amount) {
@@ -580,18 +1043,16 @@ function consumeSoldierFoodFromGranary(village) {
   const currentDay = getCurrentDay();
   const daysSinceFeed = daysSince(village.lastSoldierFeedDay ?? 0);
   if (daysSinceFeed < 3) return;
-  const tF = village.troops;
-  const soldiers = (tF.cityGuards ?? 0) + (tF.spearmen ?? 0) + (tF.archers ?? 0) + (tF.cavalry ?? 0) +
-    (tF.samurai ?? 0) + (tF.heavyKnights ?? 0) + (tF.legionary ?? 0) + (tF.mercenaryLancer ?? 0);
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   if (soldiers === 0) {
     village.lastSoldierFeedDay = currentDay;
+    village.missedSoldierFeedDays = 0;
     saveVillage(village);
     return;
   }
   const foodNeeded = soldiers * 6;
   let foodPaid = 0;
-  const items = Object.keys(village.granaryItems);
-  for (const item of items) {
+  for (const item of Object.keys(village.granaryItems)) {
     if (foodPaid >= foodNeeded) break;
     const value = FOOD_ITEM_VALUES[item] ?? 0;
     if (value <= 0) continue;
@@ -600,24 +1061,63 @@ function consumeSoldierFoodFromGranary(village) {
     foodPaid += removed * value;
   }
   if (foodPaid < foodNeeded) {
-    const shortfall = foodNeeded - foodPaid;
-    const abstractFood = Math.ceil(shortfall);
-    if (village.foodStorage >= abstractFood) {
-      village.foodStorage -= abstractFood;
-      foodPaid += abstractFood;
+    const shortfall = Math.ceil(foodNeeded - foodPaid);
+    if (village.foodStorage >= shortfall) {
+      village.foodStorage -= shortfall;
+      foodPaid += shortfall;
     } else {
       village.foodStorage = 0;
-      notifyPlayer(
-        village.owner,
-        `\xA7c\u26A0 Soldiers in \xA7b${village.name}\xA7c couldn't be fully fed! Morale dropping.`
-      );
-      village.prosperity = Math.max(0, village.prosperity - 10);
     }
-  } else {
+  }
+  const fed = foodPaid >= foodNeeded;
+  if (fed) {
+    village.missedSoldierFeedDays = 0;
     notifyPlayer(
       village.owner,
       `\xA7e${soldiers} soldiers in \xA7b${village.name}\xA7e consumed food from granary.`
     );
+  } else {
+    village.missedSoldierFeedDays = (village.missedSoldierFeedDays ?? 0) + 1;
+    if (village.missedSoldierFeedDays === 1) {
+      notifyPlayer(
+        village.owner,
+        `\xA7c\u26A0 Soldiers in \xA7b${village.name}\xA7c couldn't be fully fed! They are starving \u2014 feed them or they will desert.`
+      );
+      village.prosperity = Math.max(0, village.prosperity - 10);
+    } else {
+      const deserters = {};
+      const troopKeys = [
+        "cityGuards",
+        "spearmen",
+        "archers",
+        "cavalry",
+        "heavyKnight",
+        "samurai",
+        "mercenaryLancer",
+        "legionary"
+      ];
+      let totalDeserters = 0;
+      for (const key of troopKeys) {
+        const count = village.troops[key] ?? 0;
+        if (count > 0) {
+          const d = Math.ceil(count * 0.3);
+          deserters[key] = d;
+          village.troops[key] = count - d;
+          totalDeserters += d;
+        }
+      }
+      village.missedSoldierFeedDays = 0;
+      village.prosperity = Math.max(0, village.prosperity - 20);
+      notifyPlayer(
+        village.owner,
+        `\xA74\u2694 ${totalDeserters} starving soldiers deserted \xA7b${village.name}\xA74 and turned hostile!`
+      );
+      if (totalDeserters > 0) {
+        void Promise.resolve().then(() => (init_bandit(), bandit_exports)).then(({ spawnTypedDeserters: spawnTypedDeserters2 }) => {
+          spawnTypedDeserters2(village, deserters);
+        });
+      }
+    }
   }
   village.lastSoldierFeedDay = currentDay;
   saveVillage(village);
@@ -650,8 +1150,10 @@ Abstract food reserve: ${village.foodStorage}\u{1F33E}`;
 }
 function findVillageAt(location, dimensionId) {
   return getAllVillages().find((v) => {
-    const r = getVillageRadius(v);
-    return v.location.dimension === dimensionId && Math.abs(v.location.x - location.x) < r && Math.abs(v.location.z - location.z) < r;
+    if (v.location.dimension !== dimensionId) return false;
+    const dx = v.location.x - location.x;
+    const dz = v.location.z - location.z;
+    return Math.sqrt(dx * dx + dz * dz) < VILLAGE_CLAIM_RADIUS;
   });
 }
 function addToFieldStorage(village, item, amount) {
@@ -725,15 +1227,9 @@ var AUTO_HARVEST_SCAN_STEP = 2;
 var AUTO_HARVEST_Y_RANGE = 3;
 var FIELD_WORKER_UPGRADE_COST = 20;
 var FIELD_WORKER_MAX_LEVEL = 5;
-var FIELD_WORKER_YIELD_BASE = 32;
-var FIELD_WORKER_YIELD_PER_LEVEL = 16;
-var FIELD_WORKER_LIFESPAN_BASE = 10;
-var FIELD_WORKER_LIFESPAN_PER_LEVEL = 5;
-function getFarmerYieldCap(village) {
-  return FIELD_WORKER_YIELD_BASE + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_YIELD_PER_LEVEL;
-}
-function getFarmerLifespan(village) {
-  return FIELD_WORKER_LIFESPAN_BASE + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_LIFESPAN_PER_LEVEL;
+var FIELD_WORKER_CAP_PER_LEVEL = 50;
+function getHarvestCap(village) {
+  return FIELD_WORKER_CAP_PER_LEVEL + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_CAP_PER_LEVEL;
 }
 function upgradeFieldWorkers(village) {
   const currentLevel = village.fieldWorkerLevel ?? 0;
@@ -748,110 +1244,16 @@ function upgradeFieldWorkers(village) {
   village.treasury -= FIELD_WORKER_UPGRADE_COST;
   village.fieldWorkerLevel = currentLevel + 1;
   saveVillage(village);
-  const newYield = getFarmerYieldCap(village);
-  const newLife = getFarmerLifespan(village);
+  const newCap = getHarvestCap(village);
   notifyPlayer(
     village.owner,
-    `\xA7aField Workers upgraded to \xA7bLv${village.fieldWorkerLevel}\xA7a in \xA7b${village.name}\xA7a! Farmers now yield up to \xA7f${newYield}\xA7a crops/day and live \xA7f${newLife}\xA7a days.`
+    `\xA7aField Workers upgraded to \xA7bLv${village.fieldWorkerLevel}\xA7a in \xA7b${village.name}\xA7a! NPC farmers now harvest up to \xA7f${newCap}\xA7a crops per day.`
   );
   return true;
 }
-var FARMER_PLOT_RADIUS = 16;
-var FARMER_DEFAULT_LIFESPAN_DAYS = 10;
-var FARMER_HARVEST_CAP = 64;
-function tickAllFarmers() {
-  const currentDay = getCurrentDay();
-  const dimIds = ["overworld", "nether", "the_end"];
-  for (const dimId of dimIds) {
-    let dim;
-    try { dim = world5.getDimension(dimId); } catch { continue; }
-    let farmers;
-    try { farmers = dim.getEntities({ type: "kingdoms:farmer" }); } catch { continue; }
-    for (const farmer of farmers) {
-      try {
-        const dataStr = farmer.getDynamicProperty("kc:farmer_data");
-        if (!dataStr) { farmer.remove(); continue; }
-        const data = JSON.parse(dataStr);
-        const age = currentDay - (data.spawnedDay ?? 0);
-        const village = getVillage(data.villageId);
-        const lifespan = village ? getFarmerLifespan(village) : (data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS);
-        if (age >= lifespan) {
-          if (village?.owner) notifyPlayer(village.owner, `\xA7e🧑‍🌾 A farmer in \xA7b${village.name}\xA7e has retired after ${age} days. Hire a new one from the farm plot.`);
-          farmer.remove();
-          continue;
-        }
-        if (!village) continue;
-        const yieldCap = getFarmerYieldCap(village);
-        const cx = data.plotX ?? Math.floor(farmer.location.x);
-        const cz = data.plotZ ?? Math.floor(farmer.location.z);
-        const baseY = data.plotY ?? Math.floor(farmer.location.y);
-        const radius = data.plotRadius ?? FARMER_PLOT_RADIUS;
-        let harvested = 0;
-        outer: for (let x = cx - radius; x <= cx + radius; x += 2) {
-          for (let z = cz - radius; z <= cz + radius; z += 2) {
-            if (harvested >= yieldCap) break outer;
-            for (let y = baseY - 2; y <= baseY + 4; y++) {
-              try {
-                const block = dim.getBlock({ x, y, z });
-                if (!block || !isCropBlock(block.typeId)) continue;
-                const maxAge2 = CROP_MAX_AGES[block.typeId];
-                const blockAge = block.permutation.getState("age");
-                if (blockAge === void 0 || blockAge < maxAge2) continue;
-                block.setPermutation(block.permutation.withState("age", 0));
-                const drops = CROP_DROPS[block.typeId] ?? [];
-                for (const drop of drops) {
-                  const amt = drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1));
-                  if (amt > 0) addToGranary(village, drop.item, amt);
-                }
-                harvested++;
-              } catch {}
-            }
-          }
-        }
-        if (harvested > 0) {
-          const daysLeft = lifespan - age;
-          notifyPlayer(village.owner, `\xA77\u{1F33E} Farmer in \xA7b${village.name}\xA77 harvested ${harvested} crop(s) \u2192 Granary. (${daysLeft} day${daysLeft !== 1 ? "s" : ""} left, cap: ${yieldCap})`);
-        }
-      } catch {}
-    }
-  }
-}
-function extendFarmerLifespan(player, village) {
-  const cost = 20;
-  if (village.treasury < cost) {
-    notifyPlayer(player.name, `\xA7cNeed 20\u{1F48E} in treasury to extend farmer lifespan.`);
-    return;
-  }
-  const dimIds = ["overworld", "nether", "the_end"];
-  let extended = 0;
-  for (const dimId of dimIds) {
-    let dim;
-    try { dim = world5.getDimension(dimId); } catch { continue; }
-    let farmers;
-    try { farmers = dim.getEntities({ type: "kingdoms:farmer" }); } catch { continue; }
-    for (const farmer of farmers) {
-      try {
-        const dataStr = farmer.getDynamicProperty("kc:farmer_data");
-        if (!dataStr) continue;
-        const data = JSON.parse(dataStr);
-        if (data.villageId !== village.id) continue;
-        data.lifespanDays = (data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS) + 5;
-        farmer.setDynamicProperty("kc:farmer_data", JSON.stringify(data));
-        extended++;
-      } catch {}
-    }
-  }
-  if (extended === 0) {
-    notifyPlayer(player.name, `\xA7eNo active farmers found in \xA7b${village.name}\xA7e. Hire farmers from a farm plot first.`);
-    return;
-  }
-  village.treasury -= cost;
-  saveVillage(village);
-  notifyPlayer(player.name, `\xA7aExtended ${extended} farmer(s) by 5 days in \xA7b${village.name}\xA7a! (cost: 20\u{1F48E})`);
-}
 function autoHarvestVillage(village) {
   if ((village.workers?.farmers ?? 0) === 0) return;
-  const dim = world5.getDimension(village.location.dimension);
+  const dim = world6.getDimension(village.location.dimension);
   const cx = Math.floor(village.townHallLocation.x);
   const cz = Math.floor(village.townHallLocation.z);
   const baseY = Math.floor(village.townHallLocation.y);
@@ -902,266 +1304,23 @@ function autoHarvestAllVillages() {
 
 // src/systems/commands.ts
 init_storage();
-import { system as system2 } from "@minecraft/server";
+import { system as system3 } from "@minecraft/server";
 
 // src/systems/village.ts
-import { world as world6, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
+init_types();
 init_storage();
-
-// src/systems/kingdom.ts
-init_storage();
-function createKingdom(king, name) {
-  const existing = getKingdomByKing(king);
-  if (existing) return existing;
-  const kingdom = {
-    id: generateId(),
-    name,
-    king,
-    villageIds: [],
-    wars: [],
-    alliances: []
-  };
-  saveKingdom(kingdom);
-  notifyPlayer(king, `Your kingdom "\xA7b${name}\xA7r" has been founded!`);
-  return kingdom;
-}
-function addVillageToKingdom(kingdomId, villageId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return;
-  if (!kingdom.villageIds.includes(villageId)) {
-    kingdom.villageIds.push(villageId);
-    saveKingdom(kingdom);
-  }
-}
-function removeVillageFromKingdom(kingdomId, villageId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return;
-  kingdom.villageIds = kingdom.villageIds.filter((id) => id !== villageId);
-  if (kingdom.villageIds.length === 0) {
-    collapseKingdom(kingdomId);
-  } else {
-    saveKingdom(kingdom);
-  }
-}
-function collapseKingdom(kingdomId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return;
-  notifyPlayer(kingdom.king, `\xA7cYour kingdom "${kingdom.name}" has collapsed!`);
-  notifyAllKingdomMembers(kingdom, `\xA7cThe kingdom of "${kingdom.name}" has fallen!`);
-  for (const vid of kingdom.villageIds) {
-    const village = getVillage(vid);
-    if (village) {
-      village.kingdomId = "";
-      village.owner = "";
-      saveVillage(village);
-    }
-  }
-  deleteKingdom(kingdomId);
-}
-function declareWar(attackerId, defenderId) {
-  const attacker = getKingdom(attackerId);
-  const defender = getKingdom(defenderId);
-  if (!attacker || !defender) return;
-  if (!attacker.wars.includes(defenderId)) attacker.wars.push(defenderId);
-  if (!defender.wars.includes(attackerId)) defender.wars.push(attackerId);
-  attacker.alliances = attacker.alliances.filter((id) => id !== defenderId);
-  defender.alliances = defender.alliances.filter((id) => id !== attackerId);
-  saveKingdom(attacker);
-  saveKingdom(defender);
-  notifyPlayer(attacker.king, `\xA7cWar declared against "${defender.name}"!`);
-  notifyPlayer(defender.king, `\xA7c"${attacker.name}" has declared war on your kingdom!`);
-}
-function makePeace(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  const b = getKingdom(kingdomBId);
-  if (!a || !b) return;
-  a.wars = a.wars.filter((id) => id !== kingdomBId);
-  b.wars = b.wars.filter((id) => id !== kingdomAId);
-  saveKingdom(a);
-  saveKingdom(b);
-  notifyPlayer(a.king, `\xA7aPeace made with "${b.name}".`);
-  notifyPlayer(b.king, `\xA7aPeace made with "${a.name}".`);
-}
-function formAlliance(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  const b = getKingdom(kingdomBId);
-  if (!a || !b) return;
-  if (a.wars.includes(kingdomBId) || b.wars.includes(kingdomAId)) return;
-  if (!a.alliances.includes(kingdomBId)) a.alliances.push(kingdomBId);
-  if (!b.alliances.includes(kingdomAId)) b.alliances.push(kingdomAId);
-  saveKingdom(a);
-  saveKingdom(b);
-  notifyPlayer(a.king, `\xA7aAlliance formed with "${b.name}"!`);
-  notifyPlayer(b.king, `\xA7aAlliance formed with "${a.name}"!`);
-}
-function areAtWar(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  return a ? a.wars.includes(kingdomBId) : false;
-}
-function revokeAlliance(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  const b = getKingdom(kingdomBId);
-  if (!a || !b) return;
-  a.alliances = a.alliances.filter((id) => id !== kingdomBId);
-  b.alliances = b.alliances.filter((id) => id !== kingdomAId);
-  saveKingdom(a);
-  saveKingdom(b);
-  notifyPlayer(a.king, `\xA7e[Diplomacy] You revoked the alliance with "${b.name}". Relations are now neutral.`);
-  notifyPlayer(b.king, `\xA7c[Diplomacy] "${a.name}" has revoked their alliance with you. Relations return to neutral.`);
-}
-// ── Diplomatic Offer System ───────────────────────────────────────────────
-function getDiploOffers() {
-  const raw = world4.getDynamicProperty(DIPLO_OFFERS_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
-}
-function saveDiploOffers(offers) {
-  const now = Date.now();
-  const active = offers.filter((o) => o.expiresAt > now);
-  world4.setDynamicProperty(DIPLO_OFFERS_KEY, JSON.stringify(active));
-}
-function addDiploOffer(offer) {
-  const offers = getDiploOffers();
-  const filtered = offers.filter((o) =>
-    !(o.fromKingdomId === offer.fromKingdomId && o.toKingdomId === offer.toKingdomId && o.type === offer.type)
-  );
-  filtered.push(offer);
-  saveDiploOffers(filtered);
-}
-function removeDiploOffer(offerId) {
-  saveDiploOffers(getDiploOffers().filter((o) => o.id !== offerId));
-}
-function getPendingOffersFor(kingdomId) {
-  const now = Date.now();
-  return getDiploOffers().filter((o) => o.toKingdomId === kingdomId && o.expiresAt > now);
-}
-function getPendingOfferFrom(fromId, toId, type) {
-  const now = Date.now();
-  return getDiploOffers().find((o) => o.fromKingdomId === fromId && o.toKingdomId === toId && o.type === type && o.expiresAt > now);
-}
-function sendDiploOffer(fromKingdom, toKingdom, type, amount) {
-  const offer = {
-    id: generateId(),
-    type,
-    fromKingdomId: fromKingdom.id,
-    fromKingdomName: fromKingdom.name,
-    fromKingdomKing: fromKingdom.king,
-    toKingdomId: toKingdom.id,
-    toKingdomName: toKingdom.name,
-    toKingdomKing: toKingdom.king,
-    amount: amount || 0,
-    sentAt: Date.now(),
-    expiresAt: Date.now() + 10 * 60 * 1000
-  };
-  addDiploOffer(offer);
-  const typeLabel = type === "peace" ? "\xA7aPeace Treaty" : type === "alliance" ? "\xA7aAlliance Proposal" : `\xA76Tribute Demand (${amount}\u{1F48E})`;
-  notifyPlayer(toKingdom.king, `\xA76[Diplomacy] \xA7f${fromKingdom.name} sent you a ${typeLabel}\xA7f. Open Town Hall \u2192 Diplomacy to respond. (Expires in 10 min)`);
-}
-function acceptDiploOffer(offer, acceptingKingdom) {
-  removeDiploOffer(offer.id);
-  if (offer.type === "peace") {
-    makePeace(offer.fromKingdomId, offer.toKingdomId);
-    notifyPlayer(offer.fromKingdomKing, `\xA7a[Diplomacy] ${acceptingKingdom.name} accepted your Peace Treaty! Hostilities have ended.`);
-  } else if (offer.type === "alliance") {
-    formAlliance(offer.fromKingdomId, offer.toKingdomId);
-    notifyPlayer(offer.fromKingdomKing, `\xA7a[Diplomacy] ${acceptingKingdom.name} accepted your Alliance Proposal! You are now allies.`);
-  } else if (offer.type === "tribute") {
-    const acceptingVillages = getAllVillages().filter((v) => v.kingdomId === acceptingKingdom.id);
-    let paid = 0;
-    let remaining = offer.amount;
-    for (const v of acceptingVillages) {
-      if (remaining <= 0) break;
-      const take = Math.min(v.treasury, remaining);
-      v.treasury -= take;
-      paid += take;
-      remaining -= take;
-      saveVillage(v);
-    }
-    const senderVillages = getAllVillages().filter((v) => v.kingdomId === offer.fromKingdomId);
-    if (senderVillages.length > 0) {
-      senderVillages[0].treasury += paid;
-      saveVillage(senderVillages[0]);
-    }
-    if (paid > 0) makePeace(offer.fromKingdomId, offer.toKingdomId);
-    notifyPlayer(offer.fromKingdomKing, `\xA76[Diplomacy] ${acceptingKingdom.name} paid ${paid}\u{1F48E} in tribute to ${offer.fromKingdomName}!${paid > 0 ? " Peace has been established." : ""}`);
-    notifyPlayer(offer.toKingdomKing, `\xA76[Diplomacy] Tribute of ${paid}\u{1F48E} paid to ${offer.fromKingdomName}.${paid > 0 ? " Peace terms accepted." : " (Treasury was empty.)"}`);
-  }
-}
-function declineDiploOffer(offer, decliningKingdom) {
-  removeDiploOffer(offer.id);
-  const labels = { peace: "Peace Treaty", alliance: "Alliance Proposal", tribute: "Tribute Demand" };
-  notifyPlayer(offer.fromKingdomKing, `\xA7c[Diplomacy] ${decliningKingdom.name} declined your ${labels[offer.type] || offer.type}.`);
-}
-function notifyAlliesOfAttack(attackedKingdomId, attackerKingdomName) {
-  const attacked = getKingdom(attackedKingdomId);
-  if (!attacked) return;
-  for (const allyId of attacked.alliances) {
-    const ally = getKingdom(allyId);
-    if (ally) notifyPlayer(ally.king, `\xA7c[Diplomacy] Your ally "${attacked.name}" is under attack by ${attackerKingdomName}! Consider sending reinforcements.`);
-  }
-}
-function getKingdomStrength(kingdomId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return 0;
-  let total = 0;
-  for (const vid of kingdom.villageIds) {
-    const village = getVillage(vid);
-    if (village) {
-      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.samurai ?? 0) * 4 + (village.troops.heavyKnights ?? 0) * 5 + (village.troops.legionary ?? 0) * 4 + (village.troops.mercenaryLancer ?? 0) * 4;
-    }
-  }
-  return total;
-}
-function getKingdomSummary(kingdomId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return "Unknown kingdom";
-  let totalPop = 0;
-  let totalTreasury = 0;
-  let totalFood = 0;
-  for (const vid of kingdom.villageIds) {
-    const v = getVillage(vid);
-    if (v) {
-      totalPop += v.population;
-      totalTreasury += v.treasury;
-      totalFood += v.foodStorage;
-    }
-  }
-  const strength = getKingdomStrength(kingdomId);
-  return [
-    `\xA7b${kingdom.name}\xA7r (King: ${kingdom.king})`,
-    `Villages: ${kingdom.villageIds.length}  Population: ${totalPop}`,
-    `Treasury: ${totalTreasury}\u{1F48E}  Food: ${totalFood}\u{1F33E}`,
-    `Military: ${strength} strength`,
-    `Wars: ${kingdom.wars.length}  Alliances: ${kingdom.alliances.length}`
-  ].join("\n");
-}
-function notifyAllKingdomMembers(kingdom, message) {
-  const owners = [];
-  for (const vid of kingdom.villageIds) {
-    const v = getVillage(vid);
-    if (v && v.owner) owners.push(v.owner);
-  }
-  notifyKingdom(kingdom.king, owners, message);
-}
-function getKingdomOf(playerName) {
-  return getAllKingdoms().find(
-    (k) => k.king === playerName || k.villageIds.some((vid) => {
-      const v = getVillage(vid);
-      return v?.owner === playerName;
-    })
-  );
-}
-
-// src/systems/village.ts
+init_tick();
+init_notify();
+init_kingdom();
+import { world as world7, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
 function claimVillage(player, townHallBlock, kingdomName) {
   const loc = townHallBlock.location;
   const dim = player.dimension;
-  const existing = getAllVillages().find((v) => {
-    const r = getVillageRadius(v);
-    return v.location.dimension === dim.id && Math.abs(v.location.x - loc.x) < r && Math.abs(v.location.z - loc.z) < r;
-  });
+  const existing = getAllVillages().find(
+    (v) => v.location.dimension === dim.id && Math.abs(v.location.x - loc.x) < VILLAGE_CLAIM_RADIUS && Math.abs(v.location.z - loc.z) < VILLAGE_CLAIM_RADIUS
+  );
   if (existing && existing.owner) {
-    notifyPlayer(player.name, `\xA7cThis territory already belongs to "${existing.name}" (radius: ${getVillageRadius(existing)} blocks).`);
+    notifyPlayer(player.name, `\xA7cThis territory already belongs to "${existing.name}".`);
     return false;
   }
   const query = {
@@ -1181,20 +1340,20 @@ function claimVillage(player, townHallBlock, kingdomName) {
   if (!inv) return false;
   const container = inv.container;
   if (!container) return false;
-  let cobbleFound = 0;
+  let emeraldsFound = 0;
   const slotsToConsume = [];
   for (let i = 0; i < container.size; i++) {
     const item = container.getItem(i);
-    if (item && item.typeId === "minecraft:cobblestone") {
-      const needed = CLAIM_COST_COBBLESTONE - cobbleFound;
+    if (item && item.typeId === "minecraft:emerald") {
+      const needed = CLAIM_COST_EMERALDS - emeraldsFound;
       const take = Math.min(needed, item.amount);
       slotsToConsume.push({ slot: i, amount: take });
-      cobbleFound += take;
-      if (cobbleFound >= CLAIM_COST_COBBLESTONE) break;
+      emeraldsFound += take;
+      if (emeraldsFound >= CLAIM_COST_EMERALDS) break;
     }
   }
-  if (cobbleFound < CLAIM_COST_COBBLESTONE) {
-    notifyPlayer(player.name, `\xA7cNeed ${CLAIM_COST_COBBLESTONE} cobblestone to claim a village. (You have ${cobbleFound})`);
+  if (emeraldsFound < CLAIM_COST_EMERALDS) {
+    notifyPlayer(player.name, `\xA7cNeed ${CLAIM_COST_EMERALDS} emeralds to claim a village.`);
     return false;
   }
   for (const { slot, amount } of slotsToConsume) {
@@ -1228,7 +1387,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, samurai: 0, heavyKnights: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -1241,6 +1400,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     activeCarts: [],
     granaryItems: {},
     lastSoldierFeedDay: getCurrentDay(),
+    missedSoldierFeedDays: 0,
     builtHousingUnits: 0,
     hasTradeStation: false,
     resourceStorage: { ...EMPTY_RESOURCE_STORAGE },
@@ -1264,8 +1424,11 @@ function renameVillage(playerName, villageId, newName) {
 }
 function getVillageSummary(village) {
   const t = village.troops;
-  const totalSoldiers = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
-    (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
+  const hk = t.heavyKnight ?? 0;
+  const sa = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const le = t.legionary ?? 0;
+  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le;
   const stages = ["\u2714 None", "\u26A0 Stage 1", "\u26A0 Stage 2", "\xA7c Stage 3", "\xA7c Stage 4"];
   const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
   const hasStation = village.hasTradeStation ? "\xA7a\u2714 Active" : "\xA7c\u2718 None";
@@ -1274,7 +1437,7 @@ function getVillageSummary(village) {
     `Pop: ${village.population}/${village.housingCapacity}  Prosperity: ${village.prosperity}`,
     `Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}`,
     `Market Lv${village.marketLevel}  Barracks Lv${village.barracksLevel}`,
-    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} Sa:${t.samurai ?? 0} HK:${t.heavyKnights ?? 0} Le:${t.legionary ?? 0} ML:${t.mercenaryLancer ?? 0})`,
+    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} HK:${hk}${sa > 0 ? ` Sa:${sa}` : ""}${ml > 0 ? ` ML:${ml}` : ""}${le > 0 ? ` Le:${le}` : ""})`,
     `Food Shortage: ${stages[village.foodShortageStage] ?? "Unknown"}`,
     `Weapon Tier: ${village.blacksmith.weaponTier}  Armor Tier: ${village.blacksmith.armorTier}`,
     `Trade Station: ${hasStation}`,
@@ -1284,18 +1447,15 @@ function getVillageSummary(village) {
 function updateHousingCapacity(villageId) {
   const village = getVillage(villageId);
   if (!village) return;
-  const dim = world6.getDimension(village.location.dimension);
+  const dim = world7.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   let beds = 0;
-  const _hcRadius = getVillageRadius(village);
-  for (let dx = -_hcRadius; dx <= _hcRadius; dx += 4) {
-    for (let dz = -_hcRadius; dz <= _hcRadius; dz += 4) {
-      for (let dy = -5; dy <= 10; dy++) {
-        try {
-          const block = dim.getBlock({ x: loc.x + dx, y: loc.y + dy, z: loc.z + dz });
-          if (block && block.typeId.includes("bed")) beds++;
-        } catch {
-        }
+  for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 1) {
+    for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 1) {
+      try {
+        const block = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
+        if (block && block.typeId.includes("bed")) beds++;
+      } catch {
       }
     }
   }
@@ -1303,513 +1463,60 @@ function updateHousingCapacity(villageId) {
   saveVillage(village);
 }
 function getKingdomOf2(playerName) {
-  return getAllKingdoms().find((k) => k.king === playerName);
-}
-
-// src/systems/military.ts
-init_storage();
-
-// src/systems/bandit.ts
-import { world as world7, system } from "@minecraft/server";
-init_storage();
-var MAX_WORLD_CAMPS = 28;
-var MIN_WORLD_SPAWN_DIST = 150;
-var MAX_WORLD_SPAWN_DIST = 500;
-var RAID_FOOD_STEAL_PER_STRENGTH = 3;
-var MAX_RAID_FOOD_PCT = 0.15;
-var MAX_ENTITIES_PER_CAMP = 20;
-function spawnBanditDeserters(village, count) {
-  const loc = village.location;
-  const angle = Math.random() * Math.PI * 2;
-  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
-  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
-  let nearestCamp;
-  let nearestDist = 80;
-  for (const camp of getAllBanditCamps()) {
-    if (camp.location.dimension !== loc.dimension) continue;
-    const d = distance(camp.location, { x: campX, y: loc.y, z: campZ });
-    if (d < nearestDist) {
-      nearestDist = d;
-      nearestCamp = camp;
-    }
-  }
-  if (nearestCamp) {
-    nearestCamp.strength += count;
-    saveBanditCamp(nearestCamp);
-    trySpawnEntities(nearestCamp);
-  } else {
-    const camp = {
-      id: generateId(),
-      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
-      strength: count,
-      originKingdomId: village.kingdomId,
-      entityIds: []
-    };
-    saveBanditCamp(camp);
-    trySpawnEntities(camp);
-    system.run(() => { try { buildBanditCampStructure(world7.getDimension(camp.location.dimension), camp.location); } catch {} });
-  }
-}
-function tryWorldSpawn() {
-  const camps = getAllBanditCamps();
-  if (camps.length >= MAX_WORLD_CAMPS) return;
-  const villages = getAllVillages();
-  if (villages.length === 0) return;
-  const anchor = villages[Math.floor(Math.random() * villages.length)];
-  const angle = Math.random() * Math.PI * 2;
-  const dist = MIN_WORLD_SPAWN_DIST + Math.random() * (MAX_WORLD_SPAWN_DIST - MIN_WORLD_SPAWN_DIST);
-  const campX = anchor.location.x + Math.cos(angle) * dist;
-  const campZ = anchor.location.z + Math.sin(angle) * dist;
-  for (const v of villages) {
-    if (distance(v.location, { x: campX, y: v.location.y, z: campZ }) < MIN_WORLD_SPAWN_DIST) return;
-  }
-  for (const c of camps) {
-    if (distance(c.location, { x: campX, y: c.location.y, z: campZ }) < 150) return;
-  }
-  const strength = 5 + Math.floor(Math.random() * 8);
-  const camp = {
-    id: generateId(),
-    location: { x: campX, y: anchor.location.y, z: campZ, dimension: anchor.location.dimension },
-    strength,
-    originKingdomId: "",
-    entityIds: []
-  };
-  saveBanditCamp(camp);
-  trySpawnEntities(camp);
-  system.run(() => { try { buildBanditCampStructure(world7.getDimension(camp.location.dimension), camp.location); } catch {} });
-}
-function trySpawnEntities(camp) {
-  const dim = world7.getDimension(camp.location.dimension);
-  const liveEntities = getLiveEntities(dim, camp);
-  const target = Math.min(camp.strength, MAX_ENTITIES_PER_CAMP);
-  const toSpawn = target - liveEntities.length;
-  for (let i = 0; i < toSpawn; i++) {
-    try {
-      const entity = dim.spawnEntity("kingdoms:bandit", {
-        x: camp.location.x + (Math.random() * 10 - 5),
-        y: camp.location.y,
-        z: camp.location.z + (Math.random() * 10 - 5)
-      });
-      entity.setDynamicProperty("kc:camp_id", camp.id);
-      if (!camp.entityIds.includes(entity.id)) {
-        camp.entityIds.push(entity.id);
-      }
-    } catch {
-    }
-  }
-  saveBanditCamp(camp);
-}
-function getLiveEntities(dim, camp) {
-  const all = dim.getEntities({ type: "kingdoms:bandit" });
-  const alive = all.filter((e) => camp.entityIds.includes(e.id));
-  return alive;
-}
-function cleanDeadEntities(camp) {
-  try {
-    const dim = world7.getDimension(camp.location.dimension);
-    const liveIds = new Set(
-      dim.getEntities({ type: "kingdoms:bandit" }).map((e) => e.id)
-    );
-    const before = camp.entityIds.length;
-    camp.entityIds = camp.entityIds.filter((id) => liveIds.has(id));
-    const killed = before - camp.entityIds.length;
-    if (killed > 0) {
-      camp.strength = Math.max(0, camp.strength - killed);
-    }
-    saveBanditCamp(camp);
-  } catch {
-  }
-}
-function tickBandits() {
-  tryWorldSpawn();
-  tryWorldSpawnRebelCity();
-  const camps = getAllBanditCamps();
-  for (const camp of camps) {
-    cleanDeadEntities(camp);
-    const fresh = getBanditCamp(camp.id);
-    if (!fresh) continue;
-    if (fresh.strength <= 0) {
-      const killer = findNearestPlayer(fresh.location, 128);
-      disbandBanditCamp(fresh.id, killer?.name);
-      continue;
-    }
-    trySpawnEntities(fresh);
-    if (Math.random() < 0.5) {
-      raidNearbyTargets(fresh);
-    }
-  }
-  tickRebelCities();
-}
-function findNearestPlayer(loc, maxDist) {
-  let nearest = null;
-  let nearestDist = maxDist;
-  for (const p of world7.getAllPlayers()) {
-    if (p.dimension.id !== loc.dimension) continue;
-    const d = distance(p.location, loc);
-    if (d < nearestDist) { nearestDist = d; nearest = p; }
-  }
-  return nearest;
-}
-function raidNearbyTargets(camp) {
-  const villages = getAllVillages();
-  let target;
-  let targetDist = 300;
-  for (const village of villages) {
-    if (village.location.dimension !== camp.location.dimension) continue;
-    const d = distance(village.location, camp.location);
-    if (d < targetDist) {
-      const defense = getTotalVillageDefense(village);
-      if (camp.strength > defense * 0.4 || d < 100) {
-        targetDist = d;
-        target = village;
-      }
-    }
-  }
-  if (!target) return;
-  const dim = world7.getDimension(camp.location.dimension);
-  const merchants = dim.getEntities({ type: "kingdoms:merchant" });
-  for (const merchant of merchants) {
-    if (distance(merchant.location, camp.location) < 150) {
-      notifyAlert(target.owner, `\xA7c\u2694 Bandits are attacking a merchant near \xA7b${target.name}\xA7c!`);
-      merchant.applyDamage(12);
-      break;
-    }
-  }
-  const stolen = Math.min(
-    Math.floor(camp.strength * RAID_FOOD_STEAL_PER_STRENGTH),
-    Math.floor(target.foodStorage * MAX_RAID_FOOD_PCT),
-    50
+  return getAllKingdoms().find(
+    (k) => k.king === playerName || k.villageIds.some((vid) => {
+      const v = getVillage(vid);
+      return v?.owner === playerName;
+    })
   );
-  if (stolen > 0) {
-    target.foodStorage = Math.max(0, target.foodStorage - stolen);
-    camp.strength = Math.min(camp.strength + 1, 30);
-    saveBanditCamp(camp);
-    system.run(() => {
-      try {
-        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
-          saveVillage2(target);
-        });
-      } catch {
-      }
-    });
-    notifyAlert(
-      target.owner,
-      `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! They stole \xA7e${stolen}\u{1F33E}\xA7c food. (Camp strength: ${camp.strength})`
-    );
-    logVillageEvent(target, "raid", `\u{1F3F4} Bandit raid \u2014 stole ${stolen}\u{1F33E} food (camp str: ${camp.strength})`);
-  } else if (stolen === 0 && target.foodStorage === 0) {
-    const emeraldStolen = Math.min(Math.floor(camp.strength * 0.5), target.treasury, 10);
-    if (emeraldStolen > 0) {
-      target.treasury -= emeraldStolen;
-      system.run(() => {
-        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
-          saveVillage2(target);
-        });
-      });
-      notifyAlert(
-        target.owner,
-        `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! No food \u2014 they looted \xA76${emeraldStolen}\u{1F48E}\xA7c from the treasury.`
-      );
-      logVillageEvent(target, "raid", `\u{1F3F4} Bandit raid \u2014 looted ${emeraldStolen}\u{1F48E} from treasury (no food)`);
-    }
-  }
-}
-function getTotalVillageDefense(village) {
-  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.samurai ?? 0) * 4 + (village.troops.heavyKnights ?? 0) * 5 + (village.troops.legionary ?? 0) * 4 + (village.troops.mercenaryLancer ?? 0) * 4;
-}
-function disbandBanditCamp(campId, killerPlayerName) {
-  const camp = getBanditCamp(campId);
-  if (!camp) return;
-  try {
-    const dim = world7.getDimension(camp.location.dimension);
-    const live = getLiveEntities(dim, camp);
-    for (const entity of live) {
-      try { entity.kill(); } catch {}
-    }
-  } catch {}
-  deleteBanditCamp(campId);
-  if (killerPlayerName) {
-    awardCampDestroyed(killerPlayerName);
-    const ach = getPlayerAchievements(killerPlayerName);
-    notifyPlayer(killerPlayerName, `\xA7a\u2605 ACHIEVEMENT: Bandit camp destroyed! (Total: \xA7e${ach.campsDestroyed}\xA7a camps)`);
-  }
-}
-function getBanditCampSummary() {
-  const camps = getAllBanditCamps();
-  if (camps.length === 0) return "\xA77No active bandit camps.";
-  return camps.map(
-    (c, i) => `\xA7c\u2694 Camp #${i + 1}\xA7r  Strength: \xA7e${c.strength}\xA7r  Entities: ${c.entityIds.length}  Pos: \xA77${Math.round(c.location.x)},${Math.round(c.location.z)}`
-  ).join("\n");
 }
 
-// ── Rebel City / Bandit Stronghold ──────────────────────────────────────────
-var MAX_REBEL_CITIES = 7;
-var REBEL_WARN_RADIUS = 150;
-var lastRebelWarn = new Map();
-
-var REBEL_CITY_TIERS = [
-  { tier: 1, name: "Outpost",       label: "\xA7a\u2606 Tier I \u2014 OUTPOST",             color: "\xA7a", minStr: 5,   maxStr: 20,  maxEntities: 15, recPower: 20,
-    loot: { emeralds: 15, iron: 10,  gold: 5,  diamonds: 2,  netherite: 0, special: null } },
-  { tier: 2, name: "Raider Den",    label: "\xA7e\u2605 Tier II \u2014 RAIDER DEN",          color: "\xA7e", minStr: 21,  maxStr: 55,  maxEntities: 25, recPower: 55,
-    loot: { emeralds: 25, iron: 20,  gold: 10, diamonds: 5,  netherite: 0, special: null } },
-  { tier: 3, name: "War Band",      label: "\xA76\u2605\u2605 Tier III \u2014 WAR BAND",     color: "\xA76", minStr: 56,  maxStr: 100, maxEntities: 35, recPower: 100,
-    loot: { emeralds: 40, iron: 35,  gold: 15, diamonds: 10, netherite: 0, special: null } },
-  { tier: 4, name: "Fortress",      label: "\xA7c\u2620 Tier IV \u2014 FORTRESS",            color: "\xA7c", minStr: 101, maxStr: 160, maxEntities: 45, recPower: 160,
-    loot: { emeralds: 60, iron: 50,  gold: 25, diamonds: 15, netherite: 1, special: "minecraft:enchanted_golden_apple" } },
-  { tier: 5, name: "Stronghold",    label: "\xA74\u2620\u2620 Tier V \u2014 STRONGHOLD",     color: "\xA74", minStr: 161, maxStr: 240, maxEntities: 55, recPower: 240,
-    loot: { emeralds: 90, iron: 70,  gold: 40, diamonds: 25, netherite: 3, special: "minecraft:enchanted_golden_apple" } },
-  { tier: 6, name: "Warlord Keep",  label: "\xA75\u2620\u2620\u2620 Tier VI \u2014 WARLORD KEEP",  color: "\xA75", minStr: 241, maxStr: 360, maxEntities: 65, recPower: 360,
-    loot: { emeralds: 130, iron: 100, gold: 60, diamonds: 40, netherite: 5, special: "minecraft:netherite_upgrade_smithing_template" } },
-  { tier: 7, name: "Titan Fortress",label: "\xA7d\u2620\u2620\u2620\u2620 Tier VII \u2014 TITAN FORTRESS", color: "\xA7d", minStr: 361, maxStr: 500, maxEntities: 80, recPower: 500,
-    loot: { emeralds: 200, iron: 150, gold: 80, diamonds: 64, netherite: 8, special: "minecraft:netherite_ingot" } }
-];
-
-var REBEL_TIER_SPAWN_WEIGHTS = [35, 25, 20, 10, 6, 3, 1];
-
-function getRebelCityTierDef(city) {
-  const t = city.tier ?? 1;
-  return REBEL_CITY_TIERS.find((d) => d.tier === t) ?? REBEL_CITY_TIERS[0];
-}
-function pickRebelCityTier() {
-  const total = REBEL_TIER_SPAWN_WEIGHTS.reduce((s, w) => s + w, 0);
-  let roll = Math.random() * total;
-  for (let i = 0; i < REBEL_CITY_TIERS.length; i++) {
-    roll -= REBEL_TIER_SPAWN_WEIGHTS[i];
-    if (roll <= 0) return REBEL_CITY_TIERS[i];
-  }
-  return REBEL_CITY_TIERS[0];
-}
-function rebelLootSummary(tierDef) {
-  const l = tierDef.loot;
-  let s = `\xA76${l.emeralds}\u{1F48E}\xA77, \xA7f${l.iron} iron\xA77, \xA76${l.gold} gold\xA77, \xA7b${l.diamonds} diamonds`;
-  if (l.netherite > 0) s += `\xA77, \xA78${l.netherite} netherite`;
-  return s;
-}
-
-function buildRebelCityStructure(dim, loc) {
-  const x = Math.floor(loc.x);
-  const z = Math.floor(loc.z);
-  const y = Math.floor(loc.y);
-  try {
-    dim.runCommand(`fill ${x - 12} ${y + 1} ${z - 12} ${x + 12} ${y + 8} ${z + 12} minecraft:air replace minecraft:air`);
-    dim.runCommand(`fill ${x - 12} ${y} ${z - 12} ${x + 12} ${y} ${z + 12} minecraft:cobblestone`);
-    // Outer walls
-    dim.runCommand(`fill ${x - 12} ${y + 1} ${z - 12} ${x + 12} ${y + 5} ${z - 12} minecraft:stone_bricks`);
-    dim.runCommand(`fill ${x - 12} ${y + 1} ${z + 12} ${x + 12} ${y + 5} ${z + 12} minecraft:stone_bricks`);
-    dim.runCommand(`fill ${x - 12} ${y + 1} ${z - 12} ${x - 12} ${y + 5} ${z + 12} minecraft:stone_bricks`);
-    dim.runCommand(`fill ${x + 12} ${y + 1} ${z - 12} ${x + 12} ${y + 5} ${z + 12} minecraft:stone_bricks`);
-    // Corner towers
-    for (const [ox, oz] of [[-12,-12],[12,-12],[-12,12],[12,12]]) {
-      dim.runCommand(`fill ${x+ox-2} ${y+1} ${z+oz-2} ${x+ox+2} ${y+8} ${z+oz+2} minecraft:stone_bricks hollow`);
-      dim.runCommand(`setblock ${x+ox} ${y+9} ${z+oz} minecraft:torch`);
-    }
-    // Gates (openings in walls)
-    dim.runCommand(`fill ${x - 2} ${y + 1} ${z - 13} ${x + 2} ${y + 4} ${z - 11} minecraft:air`);
-    dim.runCommand(`fill ${x - 2} ${y + 1} ${z + 11} ${x + 2} ${y + 4} ${z + 13} minecraft:air`);
-    // Central keep
-    dim.runCommand(`fill ${x - 4} ${y + 1} ${z - 4} ${x + 4} ${y + 7} ${z + 4} minecraft:stone_bricks hollow`);
-    dim.runCommand(`fill ${x - 3} ${y + 2} ${z - 3} ${x + 3} ${y + 6} ${z + 3} minecraft:air`);
-    dim.runCommand(`setblock ${x} ${y + 8} ${z} minecraft:nether_star`);
-    // Campfires and tents
-    dim.runCommand(`setblock ${x - 6} ${y + 1} ${z} minecraft:campfire`);
-    dim.runCommand(`setblock ${x + 6} ${y + 1} ${z} minecraft:campfire`);
-    dim.runCommand(`setblock ${x} ${y + 1} ${z - 6} minecraft:campfire`);
-    dim.runCommand(`setblock ${x} ${y + 1} ${z + 6} minecraft:campfire`);
-    // Loot chests
-    dim.runCommand(`setblock ${x - 2} ${y + 1} ${z - 2} minecraft:chest`);
-    dim.runCommand(`setblock ${x + 2} ${y + 1} ${z - 2} minecraft:chest`);
-    dim.runCommand(`setblock ${x - 2} ${y + 1} ${z + 2} minecraft:chest`);
-    dim.runCommand(`setblock ${x + 2} ${y + 1} ${z + 2} minecraft:chest`);
-    // Barrels and crafting
-    dim.runCommand(`setblock ${x - 8} ${y + 1} ${z - 8} minecraft:barrel`);
-    dim.runCommand(`setblock ${x + 8} ${y + 1} ${z - 8} minecraft:barrel`);
-    dim.runCommand(`setblock ${x - 8} ${y + 1} ${z + 8} minecraft:barrel`);
-    dim.runCommand(`setblock ${x + 8} ${y + 1} ${z + 8} minecraft:barrel`);
-    dim.runCommand(`setblock ${x} ${y + 1} ${z + 2} minecraft:crafting_table`);
-    // Paths inside
-    dim.runCommand(`fill ${x - 11} ${y + 1} ${z} ${x + 11} ${y + 1} ${z} minecraft:gravel`);
-    dim.runCommand(`fill ${x} ${y + 1} ${z - 11} ${x} ${y + 1} ${z + 11} minecraft:gravel`);
-    // Torches on walls
-    dim.runCommand(`setblock ${x - 6} ${y + 6} ${z - 12} minecraft:torch`);
-    dim.runCommand(`setblock ${x + 6} ${y + 6} ${z - 12} minecraft:torch`);
-    dim.runCommand(`setblock ${x - 6} ${y + 6} ${z + 12} minecraft:torch`);
-    dim.runCommand(`setblock ${x + 6} ${y + 6} ${z + 12} minecraft:torch`);
-    dim.runCommand(`setblock ${x - 12} ${y + 6} ${z - 6} minecraft:torch`);
-    dim.runCommand(`setblock ${x - 12} ${y + 6} ${z + 6} minecraft:torch`);
-    dim.runCommand(`setblock ${x + 12} ${y + 6} ${z - 6} minecraft:torch`);
-    dim.runCommand(`setblock ${x + 12} ${y + 6} ${z + 6} minecraft:torch`);
-  } catch {}
-}
-
-function trySpawnEntitiesRebelCity(city) {
-  const dim = world7.getDimension(city.location.dimension);
-  const live = dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === city.id);
-  const tierDef = getRebelCityTierDef(city);
-  const target = Math.min(city.strength, tierDef.maxEntities);
-  const toSpawn = target - live.length;
-  for (let i = 0; i < toSpawn; i++) {
-    try {
-      const angle = Math.random() * Math.PI * 2;
-      const r = Math.random() * 10;
-      const entity = dim.spawnEntity("kingdoms:bandit", {
-        x: city.location.x + Math.cos(angle) * r,
-        y: city.location.y,
-        z: city.location.z + Math.sin(angle) * r
-      });
-      entity.setDynamicProperty("kc:rebel_id", city.id);
-      entity.nameTag = `${tierDef.color}[${tierDef.name}]`;
-    } catch {}
-  }
-}
-
-function cleanDeadEntitiesRebelCity(city) {
-  try {
-    const dim = world7.getDimension(city.location.dimension);
-    const liveIds = new Set(dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === city.id).map((e) => e.id));
-    const before = city.entityIds.length;
-    city.entityIds = city.entityIds.filter((id) => liveIds.has(id));
-    const killed = before - city.entityIds.length;
-    if (killed > 0) city.strength = Math.max(0, city.strength - killed);
-    saveRebelCity(city);
-  } catch {}
-}
-
-function disbandRebelCity(cityId, killerPlayerName) {
-  const city = getRebelCity(cityId);
-  if (!city) return;
-  const tierDef = getRebelCityTierDef(city);
-  const l = tierDef.loot;
-  try {
-    const dim = world7.getDimension(city.location.dimension);
-    const live = dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === cityId);
-    for (const e of live) { try { e.kill(); } catch {} }
-    const cx = Math.floor(city.location.x);
-    const cy = Math.floor(city.location.y) + 1;
-    const cz = Math.floor(city.location.z);
-    if (l.emeralds > 0) dim.runCommand(`give @a[r=200] minecraft:emerald ${l.emeralds}`);
-    if (l.iron > 0)     dim.runCommand(`give @a[r=200] minecraft:iron_ingot ${l.iron}`);
-    if (l.gold > 0)     dim.runCommand(`give @a[r=200] minecraft:gold_ingot ${l.gold}`);
-    if (l.diamonds > 0) dim.runCommand(`give @a[r=200] minecraft:diamond ${l.diamonds}`);
-    if (l.netherite > 0) dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} minecraft:netherite_scrap ${l.netherite}`);
-    if (l.special) dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} ${l.special} 1`);
-  } catch {}
-  deleteRebelCity(cityId);
-  if (killerPlayerName) {
-    awardCityDefeated(killerPlayerName);
-    const ach = getPlayerAchievements(killerPlayerName);
-    notifyPlayer(killerPlayerName, `${tierDef.color}\u2605\u2605 CONQUERED: ${tierDef.name}! Loot claimed! (Total: \xA7e${ach.citiesDefeated}\xA76 cities, \xA7e${ach.campsDestroyed}\xA76 camps)\xA7r\n\xA77Loot: ${rebelLootSummary(tierDef)}`);
-  }
-  for (const p of world7.getAllPlayers()) {
-    if (p.name !== killerPlayerName) {
-      p.sendMessage(`\xA76[Kingdoms] \xA7f${killerPlayerName ?? "Someone"} has conquered ${tierDef.color}${tierDef.name}\xA7f! Loot distributed to all nearby players.`);
-    }
-  }
-}
-
-function tryWorldSpawnRebelCity() {
-  const cities = getAllRebelCities();
-  if (cities.length >= MAX_REBEL_CITIES) return;
-  if (Math.random() > 0.15) return;
-  const villages = getAllVillages();
-  if (villages.length === 0) return;
-  const anchor = villages[Math.floor(Math.random() * villages.length)];
-  const angle = Math.random() * Math.PI * 2;
-  const dist = 300 + Math.random() * 400;
-  const cx = anchor.location.x + Math.cos(angle) * dist;
-  const cz = anchor.location.z + Math.sin(angle) * dist;
-  for (const v of villages) {
-    if (distance(v.location, { x: cx, y: v.location.y, z: cz }) < 200) return;
-  }
-  for (const c of cities) {
-    if (distance(c.location, { x: cx, y: c.location.y, z: cz }) < 300) return;
-  }
-  const tierDef = pickRebelCityTier();
-  const strength = tierDef.minStr + Math.floor(Math.random() * (tierDef.maxStr - tierDef.minStr));
-  const city = {
-    id: generateId(),
-    location: { x: cx, y: anchor.location.y, z: cz, dimension: anchor.location.dimension },
-    strength,
-    tier: tierDef.tier,
-    entityIds: []
-  };
-  saveRebelCity(city);
-  trySpawnEntitiesRebelCity(city);
-  system.run(() => {
-    try { buildRebelCityStructure(world7.getDimension(city.location.dimension), city.location); } catch {}
-  });
-  for (const p of world7.getAllPlayers()) {
-    p.sendMessage(`${tierDef.color}\u26A0 ${tierDef.label} has risen in the world!\xA7r Strength: \xA7e${strength}\xA7r. ${tierDef.tier >= 5 ? "\xA7c\u2620 This is a DEADLY threat \u2014 do not approach unprepared!\xA7r" : "\xA7aConquer it for great rewards!"}`);
-  }
-}
-
-function tickRebelCities() {
-  const cities = getAllRebelCities();
-  for (const city of cities) {
-    cleanDeadEntitiesRebelCity(city);
-    const fresh = getRebelCity(city.id);
-    if (!fresh) continue;
-    if (fresh.strength <= 0) {
-      const killer = findNearestPlayer(fresh.location, 200);
-      disbandRebelCity(fresh.id, killer?.name);
-      continue;
-    }
-    trySpawnEntitiesRebelCity(fresh);
-  }
-}
-
-function tickRebelCityWarnings(currentTick) {
-  if (currentTick % 100 !== 0) return;
-  const cities = getAllRebelCities();
-  if (cities.length === 0) return;
-  for (const p of world7.getAllPlayers()) {
-    for (const city of cities) {
-      if (city.location.dimension !== p.dimension.id) continue;
-      const d = distance(p.location, city.location);
-      if (d <= REBEL_WARN_RADIUS) {
-        const key = `${p.name}:${city.id}`;
-        const last = lastRebelWarn.get(key) ?? 0;
-        const isFirstEntry = last === 0;
-        const cooldown = isFirstEntry ? 0 : 600;
-        if (currentTick - last > cooldown) {
-          const tierDef = getRebelCityTierDef(city);
-          const dangerColor = tierDef.tier >= 5 ? "\xA7c" : tierDef.tier >= 3 ? "\xA76" : "\xA7e";
-          p.sendMessage(
-            `${dangerColor}\u26A0 \xA7lYOU HAVE ENTERED REBEL TERRITORY!\xA7r\n` +
-            `${tierDef.label}\xA7r  \xA77(${Math.round(d)} blocks away)\n` +
-            `\xA77Rebels remaining: ${dangerColor}${city.strength}\xA7r  \xA77| Recommended power: \xA7e${tierDef.recPower}\xA7r\n` +
-            `\xA77Loot if conquered: ${rebelLootSummary(tierDef)}\xA7r\n` +
-            `${tierDef.tier >= 5 ? "\xA7c\u2620 WARNING: Approach only with a fully upgraded army!" : tierDef.tier >= 3 ? "\xA76Prepare your troops before attacking." : "\xA7aA manageable fight for an early army."}`
-          );
-          lastRebelWarn.set(key, currentTick);
-        }
-      }
-    }
-  }
-}
-// ── End Rebel City ──────────────────────────────────────────────────────────
+// src/systems/commands.ts
+init_kingdom();
 
 // src/systems/military.ts
+init_types();
+init_storage();
+init_tick();
+init_notify();
+init_bandit();
+var ELITE_TYPES = /* @__PURE__ */ new Set(["samurai", "mercenaryLancer", "legionary"]);
 var RECRUIT_COSTS = {
-  cityGuards: 5,
-  spearmen: 8,
-  archers: 8,
-  cavalry: 12,
-  samurai: 15,
-  heavyKnights: 15,
-  legionary: 15
+  cityGuards: 8,
+  spearmen: 12,
+  archers: 12,
+  cavalry: 20,
+  heavyKnight: 35,
+  samurai: 60,
+  mercenaryLancer: 50,
+  legionary: 50
 };
 function recruitTroop(village, type, count = 1) {
-  if (!village.granaryLocation || !village.treasuryLocation) {
-    notifyPlayer(village.owner, `\xA7c\u26A0 Cannot recruit soldiers \u2014 \xA7bGranary\xA7c and \xA7bTreasury\xA7c must both be built and active in \xA7b${village.name}\xA7c!`);
+  if (type === "heavyKnight" && village.barracksLevel < 3) {
+    notifyPlayer(village.owner, `\xA7cHeavy Knights require \xA7bBarracks Level 3\xA7c (currently Lv${village.barracksLevel}).`);
     return false;
   }
-  const totalSoldiers = (village.troops.cityGuards ?? 0) + (village.troops.spearmen ?? 0) + (village.troops.archers ?? 0) + (village.troops.cavalry ?? 0) + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0) + (village.troops.mercenaryLancer ?? 0);
-  if (totalSoldiers + count > MAX_VILLAGE_SOLDIERS) {
-    notifyPlayer(village.owner, `\xA7cSoldier cap of \xA7b${MAX_VILLAGE_SOLDIERS}\xA7c reached in \xA7b${village.name}\xA7c. Disband some troops first.`);
-    return false;
+  if (ELITE_TYPES.has(type)) {
+    if (!village.hasCastle) {
+      notifyPlayer(village.owner, `\xA7cElite troops require a \xA7bCastle\xA7c built in this village.`);
+      return false;
+    }
+    const playerVillageCount = getAllVillages().filter((v) => v.owner === village.owner).length;
+    if (playerVillageCount < 3) {
+      notifyPlayer(
+        village.owner,
+        `\xA7cElite troops require \xA7boccupation of 3 villages\xA7c (you have \xA7f${playerVillageCount}\xA7c).`
+      );
+      return false;
+    }
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
+  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0) - village.workers.farmers - village.workers.workers;
+  if (availableWorkers < count) {
+    notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
+    return false;
+  }
   if (village.treasury < totalCost) {
     notifyPlayer(village.owner, `\xA7cNeed ${totalCost}\u{1F48E} to recruit ${count} ${type}.`);
     return false;
@@ -1831,7 +1538,11 @@ function tickWages(village) {
   const currentDay = getCurrentDay();
   const daysSinceWage = daysSince(village.lastWageDay);
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + (village.troops.samurai ?? 0) * TROOP_WAGES.samurai + (village.troops.heavyKnights ?? 0) * TROOP_WAGES.heavyKnights + (village.troops.legionary ?? 0) * TROOP_WAGES.legionary + (village.troops.mercenaryLancer ?? 0) * TROOP_WAGES.mercenaryLancer;
+  const hk = village.troops.heavyKnight ?? 0;
+  const sa = village.troops.samurai ?? 0;
+  const ml = village.troops.mercenaryLancer ?? 0;
+  const le = village.troops.legionary ?? 0;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight + sa * TROOP_WAGES.samurai + ml * TROOP_WAGES.mercenaryLancer + le * TROOP_WAGES.legionary;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -1842,7 +1553,6 @@ function tickWages(village) {
     village.missedWages = 0;
     village.lastWageDay = currentDay;
     notifyPlayer(village.owner, `\xA7aPaid wages (${totalWages}\u{1F48E}) in \xA7b${village.name}\xA7a.`);
-    logVillageEvent(village, "wages", `\u{1F4B0} Wages paid: ${totalWages}\u{1F48E}`);
   } else {
     village.missedWages++;
     village.lastWageDay = currentDay;
@@ -1852,7 +1562,6 @@ function tickWages(village) {
           village.owner,
           `\xA7e\u26A0 Missed wage payment in \xA7b${village.name}\xA7e! Soldiers are unhappy.`
         );
-        logVillageEvent(village, "wages", `\u26A0 Missed wages #1 \u2014 soldiers unhappy`);
         break;
       case 2:
         village.prosperity = Math.max(0, village.prosperity - 15);
@@ -1860,7 +1569,6 @@ function tickWages(village) {
           village.owner,
           `\xA7c\u26A0 Second missed payment in \xA7b${village.name}\xA7c! Morale is low.`
         );
-        logVillageEvent(village, "wages", `\u26A0 Missed wages #2 \u2014 morale -15`);
         break;
       case 3:
         handleDesertion(village);
@@ -1870,38 +1578,24 @@ function tickWages(village) {
   saveVillage(village);
 }
 function handleDesertion(village) {
-  const troopStrengthWeights = {
-    cityGuards: 1,
-    spearmen: 2,
-    archers: 2,
-    cavalry: 3,
-    samurai: 4,
-    heavyKnights: 5,
-    legionary: 4,
-    mercenaryLancer: 4
-  };
+  const deserters = {};
+  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
   let totalDeserters = 0;
-  let banditStrength = 0;
-  const deserterLines = [];
-  for (const [key, weight] of Object.entries(troopStrengthWeights)) {
-    const count = village.troops[key] ?? 0;
-    if (count > 0) {
-      const d = Math.ceil(count * 0.3);
-      village.troops[key] = count - d;
+  for (const key of keys) {
+    if (village.troops[key] > 0) {
+      const d = Math.ceil(village.troops[key] * 0.3);
+      deserters[key] = d;
+      village.troops[key] -= d;
       totalDeserters += d;
-      banditStrength += d * weight;
-      deserterLines.push(`${d}x ${TROOP_LABELS[key] ?? key}`);
     }
   }
   village.missedWages = 0;
   village.prosperity = Math.max(0, village.prosperity - 25);
   notifyPlayer(
     village.owner,
-    `\xA7c${totalDeserters} soldiers deserted \xA7b${village.name}\xA7c! (${deserterLines.join(", ")}) They joined the bandits!`
+    `\xA7c${totalDeserters} soldiers deserted \xA7b${village.name}\xA7c and joined the bandits!`
   );
-  logVillageEvent(village, "desertion", `\u{1F3F3} ${totalDeserters} deserted: ${deserterLines.join(", ")}`);
-  saveVillage(village);
-  spawnBanditDeserters(village, banditStrength);
+  spawnBanditDeserters(village, totalDeserters);
 }
 function upgradeBarracks(village) {
   const maxLevel = 5;
@@ -1909,7 +1603,7 @@ function upgradeBarracks(village) {
     notifyPlayer(village.owner, "\xA7cBarracks already at maximum level.");
     return false;
   }
-  const cost = Math.pow(village.barracksLevel, 2) * 15;
+  const cost = village.barracksLevel * 15;
   if (village.treasury < cost) {
     notifyPlayer(village.owner, `\xA7cNeed ${cost}\u{1F48E} to upgrade barracks.`);
     return false;
@@ -1921,47 +1615,27 @@ function upgradeBarracks(village) {
   return true;
 }
 function getTotalTroops(village) {
-  const t = village.troops;
-  return (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
-    (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
+  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
 }
 function processAllWages() {
   for (const village of getAllVillages()) {
     tickWages(village);
   }
 }
-var VILLAGER_TAX_INTERVAL_DAYS = 10;
-function tickVillagerTax(village) {
-  const currentDay = getCurrentDay();
-  const lastTax = village.lastTaxDay ?? 0;
-  if (currentDay - lastTax < VILLAGER_TAX_INTERVAL_DAYS) return;
-  const pop = village.population ?? 0;
-  if (pop <= 0) {
-    village.lastTaxDay = currentDay;
-    saveVillage(village);
-    return;
-  }
-  const collected = pop;
-  village.treasury += collected;
-  village.lastTaxDay = currentDay;
-  saveVillage(village);
-  if (village.owner) {
-    notifyPlayer(village.owner, `\xA76\u{1F4B0} Tax collected in \xA7b${village.name}\xA76: ${collected}\u{1F48E} (${pop} villager${pop !== 1 ? "s" : ""} \xD7 1\u{1F48E}) \u2192 Treasury.`);
-  }
-}
-function processAllTaxes() {
-  for (const village of getAllVillages()) {
-    tickVillagerTax(village);
-  }
-}
 
 // src/systems/conquest.ts
 init_storage();
+init_tick();
+init_notify();
+init_kingdom();
 import { world as world10 } from "@minecraft/server";
 
 // src/systems/watchtower.ts
-import { world as world8 } from "@minecraft/server";
+init_types();
 init_storage();
+init_tick();
+init_notify();
+import { world as world8 } from "@minecraft/server";
 var DETECTION_INTERVAL_TICKS = 100;
 var lastDetectionTick = 0;
 var THREAT_ALERT_COOLDOWN = 600;
@@ -1991,19 +1665,33 @@ function scanFromWatchtower(village, tower, currentTick) {
   };
   const nearby = dim.getEntities(query);
   const kingdom = getKingdom(village.kingdomId);
+  const BANDIT_TYPE_IDS = /* @__PURE__ */ new Set([
+    "kingdoms:bandit",
+    "kingdoms:deserter",
+    "kingdoms:city_guard",
+    "kingdoms:spearman",
+    "kingdoms:archer",
+    "kingdoms:cavalry",
+    "kingdoms:heavy_knight",
+    "kingdoms:samurai",
+    "kingdoms:mercenary_lancer",
+    "kingdoms:legionary"
+  ]);
   for (const entity of nearby) {
-    if (entity.typeId === "kingdoms:bandit") {
+    if (BANDIT_TYPE_IDS.has(entity.typeId) && !entity.getDynamicProperty("kc:village_id")) {
       const alertKey = `${village.id}:bandits`;
       const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
       if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
         const d = Math.round(distance(entity.location, tower.location));
-        notifyAlert(village.owner, `\xA7c\u26A0 Watchtower detected bandits near \xA7b${village.name}\xA7c! (${d}m away)`);
+        notifyAlert(village.owner, `\xA7c\u26A0 Watchtower detected hostiles near \xA7b${village.name}\xA7c! (${d}m away)`);
         lastAlertedThreat.set(alertKey, currentTick);
       }
       return;
     }
     if (entity.typeId === "minecraft:player") {
-      const playerName = entity.name;
+      const playerEntity = world8.getPlayers().find((p) => p.id === entity.id);
+      if (!playerEntity) continue;
+      const playerName = playerEntity.name;
       if (playerName === village.owner) continue;
       if (kingdom && isAllied(playerName, kingdom.id)) continue;
       if (isEnemyPlayer(playerName, village.kingdomId)) {
@@ -2058,27 +1746,41 @@ function notifyVillageUnderSiege(villageId) {
 
 // src/systems/deployTroops.ts
 init_storage();
-import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
+init_notify();
+import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3, system as system2 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
-  "kingdoms:guard_token":          { troopType: "cityGuards",   entityId: "kingdoms:city_guard",   label: "City Guard" },
-  "kingdoms:spearman_token":       { troopType: "spearmen",     entityId: "kingdoms:spearman",     label: "Spearman" },
-  "kingdoms:archer_token":         { troopType: "archers",      entityId: "kingdoms:archer",       label: "Archer" },
-  "kingdoms:cavalry_token":        { troopType: "cavalry",      entityId: "kingdoms:cavalry",      label: "Cavalry" },
-  "kingdoms:samurai_token":           { troopType: "samurai",          entityId: "kingdoms:samurai",          label: "Samurai" },
-  "kingdoms:heavy_knight_token":      { troopType: "heavyKnights",     entityId: "kingdoms:heavy_knight",     label: "Heavy Knight" },
-  "kingdoms:legionary_token":         { troopType: "legionary",        entityId: "kingdoms:legionary",        label: "Legionary" },
-  "kingdoms:mercenary_lancer_token":  { troopType: "mercenaryLancer",  entityId: "kingdoms:mercenary_lancer", label: "Mercenary Lancer" }
+  "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
+  "kingdoms:spearman_token": { troopType: "spearmen", entityId: "kingdoms:spearman", label: "Spearman" },
+  "kingdoms:archer_token": { troopType: "archers", entityId: "kingdoms:archer", label: "Archer" },
+  "kingdoms:cavalry_token": { troopType: "cavalry", entityId: "kingdoms:cavalry", label: "Cavalry" },
+  "kingdoms:heavy_knight_token": { troopType: "heavyKnight", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" },
+  "kingdoms:samurai_token": { troopType: "samurai", entityId: "kingdoms:samurai", label: "Samurai" },
+  "kingdoms:mercenary_lancer_token": { troopType: "mercenaryLancer", entityId: "kingdoms:mercenary_lancer", label: "Mercenary Lancer" },
+  "kingdoms:legionary_token": { troopType: "legionary", entityId: "kingdoms:legionary", label: "Legionary" }
 };
+var MOUNTED_ENTITIES = /* @__PURE__ */ new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer"]);
+var _horseCounter = 0;
+function spawnMountedUnit(dim, entityId, offset) {
+  const tag = `kc_wh_${_horseCounter++}`;
+  const horse = dim.spawnEntity("kingdoms:war_horse", offset);
+  horse.addTag(tag);
+  const rider = dim.spawnEntity(entityId, offset);
+  system2.runTimeout(() => {
+    try {
+      rider.runCommandAsync(`ride @s start_riding @e[tag=${tag},c=1]`);
+    } catch {
+    }
+    try {
+      horse.removeTag(tag);
+    } catch {
+    }
+  }, 10);
+  return rider;
+}
 function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0) + (pickup.legionary ?? 0) + (pickup.mercenaryLancer ?? 0);
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + pickup.heavyKnight + pickup.samurai + pickup.mercenaryLancer + pickup.legionary;
   if (total <= 0) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
-    return false;
-  }
-  const setsNeeded = Math.ceil(total / 10);
-  const cost = setsNeeded * 10;
-  if (village.treasury < cost) {
-    notifyPlayer(player.name, `\xA7cNeed \xA7b${cost}\u{1F48E}\xA7c to withdraw ${total} soldiers (${setsNeeded} set${setsNeeded > 1 ? "s" : ""} \xD7 10\u{1F48E}). Treasury: ${village.treasury}\u{1F48E}.`);
     return false;
   }
   if (pickup.cityGuards > village.troops.cityGuards) {
@@ -2097,20 +1799,20 @@ function pickupTroops(player, village, pickup) {
     notifyPlayer(player.name, `\xA7cNot enough Cavalry (have ${village.troops.cavalry}).`);
     return false;
   }
-  if ((pickup.samurai ?? 0) > (village.troops.samurai ?? 0)) {
+  if (pickup.heavyKnight > (village.troops.heavyKnight ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Heavy Knights (have ${village.troops.heavyKnight ?? 0}).`);
+    return false;
+  }
+  if (pickup.samurai > (village.troops.samurai ?? 0)) {
     notifyPlayer(player.name, `\xA7cNot enough Samurai (have ${village.troops.samurai ?? 0}).`);
     return false;
   }
-  if ((pickup.heavyKnights ?? 0) > (village.troops.heavyKnights ?? 0)) {
-    notifyPlayer(player.name, `\xA7cNot enough Heavy Knights (have ${village.troops.heavyKnights ?? 0}).`);
-    return false;
-  }
-  if ((pickup.legionary ?? 0) > (village.troops.legionary ?? 0)) {
-    notifyPlayer(player.name, `\xA7cNot enough Legionaries (have ${village.troops.legionary ?? 0}).`);
-    return false;
-  }
-  if ((pickup.mercenaryLancer ?? 0) > (village.troops.mercenaryLancer ?? 0)) {
+  if (pickup.mercenaryLancer > (village.troops.mercenaryLancer ?? 0)) {
     notifyPlayer(player.name, `\xA7cNot enough Mercenary Lancers (have ${village.troops.mercenaryLancer ?? 0}).`);
+    return false;
+  }
+  if (pickup.legionary > (village.troops.legionary ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Legionaries (have ${village.troops.legionary ?? 0}).`);
     return false;
   }
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
@@ -2120,14 +1822,14 @@ function pickupTroops(player, village, pickup) {
   }
   const container = inv.container;
   const toGive = [
-    { itemId: "kingdoms:guard_token",        count: pickup.cityGuards },
-    { itemId: "kingdoms:spearman_token",     count: pickup.spearmen },
-    { itemId: "kingdoms:archer_token",       count: pickup.archers },
-    { itemId: "kingdoms:cavalry_token",      count: pickup.cavalry },
-    { itemId: "kingdoms:samurai_token",         count: pickup.samurai ?? 0 },
-    { itemId: "kingdoms:heavy_knight_token",    count: pickup.heavyKnights ?? 0 },
-    { itemId: "kingdoms:legionary_token",       count: pickup.legionary ?? 0 },
-    { itemId: "kingdoms:mercenary_lancer_token", count: pickup.mercenaryLancer ?? 0 }
+    { itemId: "kingdoms:guard_token", count: pickup.cityGuards },
+    { itemId: "kingdoms:spearman_token", count: pickup.spearmen },
+    { itemId: "kingdoms:archer_token", count: pickup.archers },
+    { itemId: "kingdoms:cavalry_token", count: pickup.cavalry },
+    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnight },
+    { itemId: "kingdoms:samurai_token", count: pickup.samurai },
+    { itemId: "kingdoms:mercenary_lancer_token", count: pickup.mercenaryLancer },
+    { itemId: "kingdoms:legionary_token", count: pickup.legionary }
   ].filter((t) => t.count > 0);
   let slotsNeeded = 0;
   for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
@@ -2143,11 +1845,10 @@ function pickupTroops(player, village, pickup) {
   village.troops.spearmen -= pickup.spearmen;
   village.troops.archers -= pickup.archers;
   village.troops.cavalry -= pickup.cavalry;
-  village.troops.samurai = (village.troops.samurai ?? 0) - (pickup.samurai ?? 0);
-  village.troops.heavyKnights = (village.troops.heavyKnights ?? 0) - (pickup.heavyKnights ?? 0);
-  village.troops.legionary = (village.troops.legionary ?? 0) - (pickup.legionary ?? 0);
-  village.troops.mercenaryLancer = (village.troops.mercenaryLancer ?? 0) - (pickup.mercenaryLancer ?? 0);
-  village.treasury -= cost;
+  village.troops.heavyKnight = (village.troops.heavyKnight ?? 0) - pickup.heavyKnight;
+  village.troops.samurai = (village.troops.samurai ?? 0) - pickup.samurai;
+  village.troops.mercenaryLancer = (village.troops.mercenaryLancer ?? 0) - pickup.mercenaryLancer;
+  village.troops.legionary = (village.troops.legionary ?? 0) - pickup.legionary;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
     let remaining = count;
@@ -2166,7 +1867,7 @@ function pickupTroops(player, village, pickup) {
     }
   }
   const summary = toGive.map(({ itemId, count }) => `${count} ${TROOP_TOKEN_MAP[itemId]?.label}`).join(", ");
-  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a (\xA7c-${cost}\u{1F48E}\xA7a). Right-click any token to deploy!`);
+  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a. Right-click any token to deploy!`);
   return true;
 }
 function releaseTroops(player) {
@@ -2183,15 +1884,10 @@ function releaseTroops(player) {
   }
   const total = Object.values(found).reduce((a, b) => a + b, 0);
   if (total === 0) return false;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot && TROOP_TOKEN_MAP[slot.typeId]) {
-      container.setItem(i, void 0);
-    }
-  }
   const loc = player.location;
   const dim = player.dimension;
   const parts = [];
+  const actuallySpawned = {};
   for (const [itemId, count] of Object.entries(found)) {
     const info = TROOP_TOKEN_MAP[itemId];
     if (!info) continue;
@@ -2203,80 +1899,55 @@ function releaseTroops(player) {
           y: loc.y,
           z: loc.z + (Math.random() * 4 - 2)
         };
-        const entity = dim.spawnEntity(info.entityId, offset);
+        let entity;
+        if (MOUNTED_ENTITIES.has(info.entityId)) {
+          entity = spawnMountedUnit(dim, info.entityId, offset);
+        } else {
+          entity = dim.spawnEntity(info.entityId, offset);
+        }
         entity.nameTag = `${player.name}'s ${info.label}`;
         entity.setDynamicProperty("kc:owner", player.name);
         spawned++;
       } catch {
+        break;
       }
     }
-    if (spawned > 0) parts.push(`${spawned} ${info.label}`);
+    if (spawned > 0) {
+      actuallySpawned[itemId] = spawned;
+      parts.push(`${spawned} ${info.label}`);
+    }
   }
   if (parts.length === 0) {
     notifyPlayer(player.name, "\xA7cCould not deploy troops (chunk not loaded).");
     return false;
   }
-  notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
-  return true;
-}
-function deploySingleToken(player, itemId) {
-  const info = TROOP_TOKEN_MAP[itemId];
-  if (!info) return;
-  const inv = player.getComponent(EntityInventoryComponent3.componentId);
-  if (!inv?.container) return;
-  const container = inv.container;
-  let consumed = false;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (!slot || slot.typeId !== itemId) continue;
-    if (slot.amount > 1) {
-      const updated = new ItemStack2(slot.typeId, slot.amount - 1);
-      container.setItem(i, updated);
-    } else {
-      container.setItem(i, void 0);
-    }
-    consumed = true;
-    break;
-  }
-  if (!consumed) return;
-  const loc = player.location;
-  const dim = player.dimension;
-  const angle = Math.random() * Math.PI * 2;
-  try {
-    const entity = dim.spawnEntity(info.entityId, {
-      x: loc.x + Math.cos(angle) * 2,
-      y: loc.y,
-      z: loc.z + Math.sin(angle) * 2
-    });
-    entity.nameTag = `${player.name}'s ${info.label}`;
-    entity.setDynamicProperty("kc:owner", player.name);
-    notifyPlayer(player.name, `\xA7c\u2694 Deployed 1x \xA7f${info.label}\xA7c! Right-click token again for more.`);
-  } catch {
-    notifyPlayer(player.name, "\xA7cCould not deploy troop (chunk not loaded).");
-    const inv2 = player.getComponent(EntityInventoryComponent3.componentId);
-    if (inv2?.container) {
-      let placed = false;
-      for (let i = 0; i < inv2.container.size; i++) {
-        const s = inv2.container.getItem(i);
-        if (s?.typeId === itemId) {
-          const updated = new ItemStack2(itemId, s.amount + 1);
-          inv2.container.setItem(i, updated);
-          placed = true; break;
-        }
-        if (!s && !placed) { inv2.container.setItem(i, new ItemStack2(itemId, 1)); placed = true; }
+  for (const [itemId, spawnedCount] of Object.entries(actuallySpawned)) {
+    let toRemove = spawnedCount;
+    for (let i = 0; i < container.size && toRemove > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot || slot.typeId !== itemId) continue;
+      if (slot.amount <= toRemove) {
+        toRemove -= slot.amount;
+        container.setItem(i, void 0);
+      } else {
+        slot.amount -= toRemove;
+        container.setItem(i, slot);
+        toRemove = 0;
       }
     }
   }
+  notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
+  return true;
 }
 var ENTITY_TO_TOKEN = {
-  "kingdoms:city_guard":        "kingdoms:guard_token",
-  "kingdoms:spearman":          "kingdoms:spearman_token",
-  "kingdoms:archer":            "kingdoms:archer_token",
-  "kingdoms:cavalry":           "kingdoms:cavalry_token",
-  "kingdoms:samurai":           "kingdoms:samurai_token",
-  "kingdoms:heavy_knight":      "kingdoms:heavy_knight_token",
-  "kingdoms:legionary":         "kingdoms:legionary_token",
-  "kingdoms:mercenary_lancer":  "kingdoms:mercenary_lancer_token"
+  "kingdoms:city_guard": "kingdoms:guard_token",
+  "kingdoms:spearman": "kingdoms:spearman_token",
+  "kingdoms:archer": "kingdoms:archer_token",
+  "kingdoms:cavalry": "kingdoms:cavalry_token",
+  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token",
+  "kingdoms:samurai": "kingdoms:samurai_token",
+  "kingdoms:mercenary_lancer": "kingdoms:mercenary_lancer_token",
+  "kingdoms:legionary": "kingdoms:legionary_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
@@ -2327,6 +1998,11 @@ function recallNearbyTroops(player) {
   }
   for (const entity of toRemove) {
     try {
+      const mount = entity.getVehicle?.();
+      if (mount) mount.remove();
+    } catch {
+    }
+    try {
       entity.remove();
     } catch {
     }
@@ -2344,10 +2020,10 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
     "kingdoms:spearman": "spearmen",
     "kingdoms:archer": "archers",
     "kingdoms:cavalry": "cavalry",
+    "kingdoms:heavy_knight": "heavyKnight",
     "kingdoms:samurai": "samurai",
-    "kingdoms:heavy_knight": "heavyKnights",
-    "kingdoms:legionary": "legionary",
-    "kingdoms:mercenary_lancer": "mercenaryLancer"
+    "kingdoms:mercenary_lancer": "mercenaryLancer",
+    "kingdoms:legionary": "legionary"
   };
   const loc = village.townHallLocation;
   let total = 0;
@@ -2356,7 +2032,7 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
       const entities = dimension.getEntities({ type: entityType, location: loc, maxDistance: 64 });
       for (const entity of entities) {
         if (entity.getDynamicProperty("kc:owner") === attackerName) {
-          village.troops[troopType]++;
+          village.troops[troopType] = (village.troops[troopType] ?? 0) + 1;
           total++;
           try {
             entity.remove();
@@ -2372,7 +2048,16 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
 }
 function countTroopTokens(player) {
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
-  const result = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, samurai: 0, heavyKnights: 0, legionary: 0, mercenaryLancer: 0 };
+  const result = {
+    cityGuards: 0,
+    spearmen: 0,
+    archers: 0,
+    cavalry: 0,
+    heavyKnight: 0,
+    samurai: 0,
+    mercenaryLancer: 0,
+    legionary: 0
+  };
   if (!inv?.container) return result;
   const container = inv.container;
   for (let i = 0; i < container.size; i++) {
@@ -2386,6 +2071,9 @@ function countTroopTokens(player) {
 
 // src/systems/border.ts
 init_storage();
+init_kingdom();
+init_notify();
+init_types();
 import { world as world9 } from "@minecraft/server";
 var BORDER_RADIUS = VILLAGE_CLAIM_RADIUS;
 var SIEGE_ELIGIBILITY_TICKS = 2400;
@@ -2398,9 +2086,8 @@ var lastParticleTick = 0;
 function intrusionKey(playerName, villageId) {
   return `${playerName}:${villageId}`;
 }
-function isInsideBorder(px, pz, vx, vz, radius) {
-  const r = radius ?? BORDER_RADIUS;
-  return Math.abs(px - vx) <= r && Math.abs(pz - vz) <= r;
+function isInsideBorder(px, pz, vx, vz) {
+  return Math.abs(px - vx) <= BORDER_RADIUS && Math.abs(pz - vz) <= BORDER_RADIUS;
 }
 function tickBorders(tick) {
   const players = world9.getPlayers();
@@ -2414,13 +2101,11 @@ function tickBorders(tick) {
       if (village.kingdomId === playerKingdom.id) continue;
       if (!areAtWar(playerKingdom.id, village.kingdomId)) continue;
       const { x: vx, z: vz } = village.location;
-      const vRadius = getVillageRadius(village);
       const inBorder = isInsideBorder(
         player.location.x,
         player.location.z,
         vx,
-        vz,
-        vRadius
+        vz
       );
       if (!inBorder) continue;
       const key = intrusionKey(player.name, village.id);
@@ -2507,11 +2192,10 @@ function renderBordersForPlayers() {
       if (!village.owner) continue;
       const vx = village.location.x;
       const vz = village.location.z;
-      const vr = getVillageRadius(village);
       const isEnemy = playerKingdom && village.kingdomId !== playerKingdom.id && areAtWar(playerKingdom.id, village.kingdomId);
       const edgeDist = Math.max(
-        Math.abs(px - vx) - vr,
-        Math.abs(pz - vz) - vr
+        Math.abs(px - vx) - BORDER_RADIUS,
+        Math.abs(pz - vz) - BORDER_RADIUS
       );
       if (edgeDist > 16 || edgeDist < -16) continue;
       const particleId = isEnemy ? "minecraft:basic_flame_particle" : "minecraft:villager_happy";
@@ -2522,7 +2206,7 @@ function renderBordersForPlayers() {
 function renderBorderParticles(village, dimension, playerY, particleId) {
   const cx = village.location.x;
   const cz = village.location.z;
-  const r = getVillageRadius(village);
+  const r = BORDER_RADIUS;
   const baseY = Math.floor(playerY);
   for (const yOff of PARTICLE_Y_OFFSETS) {
     const y = baseY + yOff;
@@ -2557,6 +2241,20 @@ function clearBorderIntrusion(playerName, villageId) {
 var SIEGE_RADIUS = 48;
 var CAPTURE_PROXIMITY = 5;
 var activeSieges = /* @__PURE__ */ new Map();
+function loadSiegesFromStorage() {
+  for (const village of getAllVillages()) {
+    if (!village.activeSiegeData) continue;
+    const d = village.activeSiegeData;
+    activeSieges.set(village.id, {
+      attackerKingdomId: d.attackerKingdomId,
+      attackerName: d.attackerName,
+      targetVillageId: village.id,
+      startTick: d.startTick,
+      progress: d.progress,
+      offlineTicks: d.offlineTicks
+    });
+  }
+}
 function initiateSiege(attacker, targetVillageId) {
   const target = getVillage(targetVillageId);
   if (!target || !target.owner) {
@@ -2593,15 +2291,31 @@ function initiateSiege(attacker, targetVillageId) {
     attackerName: attacker.name,
     targetVillageId,
     startTick: world10.getAbsoluteTime(),
-    progress: 0
+    progress: 0,
+    offlineTicks: 0
   };
   activeSieges.set(targetVillageId, siege);
+  persistSiege(target, siege);
   clearBorderIntrusion(attacker.name, targetVillageId);
   notifyPlayer(attacker.name, `\xA7c\u2694 Siege of \xA7b${target.name}\xA7c has begun!`);
   notifyAlert(target.owner, `\xA74\u{1F514} \xA7b${target.name}\xA74 is under siege by \xA7c${attacker.name}\xA74!`);
   notifyVillageUnderSiege(targetVillageId);
-  notifyAlliesOfAttack(target.kingdomId, attackerKingdom.name);
   return true;
+}
+var SIEGE_OFFLINE_ABANDON_TICKS = 600;
+function persistSiege(village, siege) {
+  village.activeSiegeData = {
+    attackerKingdomId: siege.attackerKingdomId,
+    attackerName: siege.attackerName,
+    startTick: siege.startTick,
+    progress: siege.progress,
+    offlineTicks: siege.offlineTicks
+  };
+  saveVillage(village);
+}
+function clearSiegePersist(village) {
+  village.activeSiegeData = void 0;
+  saveVillage(village);
 }
 function tickSieges(_currentTick) {
   for (const [villageId, siege] of activeSieges.entries()) {
@@ -2613,26 +2327,35 @@ function tickSieges(_currentTick) {
     const players = world10.getPlayers();
     const attacker = players.find((p) => p.name === siege.attackerName);
     if (!attacker) {
-      siege.progress = Math.max(0, siege.progress - 1);
-      if (siege.progress <= 0) {
+      siege.offlineTicks++;
+      if (siege.offlineTicks >= SIEGE_OFFLINE_ABANDON_TICKS) {
         activeSieges.delete(villageId);
-        notifyPlayer(target.owner, `\xA7aSiege of \xA7b${target.name}\xA7a has been lifted.`);
+        clearSiegePersist(target);
+        notifyPlayer(target.owner, `\xA7aSiege of \xA7b${target.name}\xA7a has been lifted \u2014 attacker went offline.`);
+      } else {
+        persistSiege(target, siege);
       }
       continue;
     }
+    siege.offlineTicks = 0;
     const d = distance(attacker.location, target.townHallLocation);
     if (d <= CAPTURE_PROXIMITY) {
       siege.progress++;
       if (siege.progress >= 600) {
         captureVillage(siege, target);
         activeSieges.delete(villageId);
-      } else if (siege.progress % 100 === 0) {
-        const percent = Math.floor(siege.progress / 600 * 100);
-        notifyPlayer(siege.attackerName, `\xA76Capturing... ${percent}%`);
-        notifyAlert(target.owner, `\xA7cTown Hall being captured! (${percent}%)`);
+        clearSiegePersist(target);
+      } else {
+        if (siege.progress % 100 === 0) {
+          const percent = Math.floor(siege.progress / 600 * 100);
+          notifyPlayer(siege.attackerName, `\xA76Capturing... ${percent}%`);
+          notifyAlert(target.owner, `\xA7cTown Hall being captured! (${percent}%)`);
+        }
+        persistSiege(target, siege);
       }
     } else if (d > SIEGE_RADIUS * 2) {
       siege.progress = Math.max(0, siege.progress - 2);
+      persistSiege(target, siege);
     }
   }
 }
@@ -2679,7 +2402,8 @@ function captureVillageByForce(attacker, target) {
     attackerName: attacker.name,
     targetVillageId: target.id,
     startTick: world10.getAbsoluteTime(),
-    progress: 600
+    progress: 600,
+    offlineTicks: 0
   };
   activeSieges.delete(target.id);
   captureVillage(siege, target);
@@ -2700,8 +2424,13 @@ function getAttackerKingdom(playerName) {
   );
 }
 
+// src/systems/commands.ts
+init_bandit();
+
 // src/systems/treasury.ts
+init_types();
 init_storage();
+init_notify();
 import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
 function depositEmeralds(player, villageId, amount) {
   const village = getVillage(villageId);
@@ -2770,8 +2499,8 @@ function withdrawEmeralds(player, villageId, amount) {
   return true;
 }
 function getTreasuryReport(village) {
-  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3, samurai: 4, heavyKnights: 4, legionary: 4, mercenaryLancer: 4 };
-  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry + (village.troops.samurai ?? 0) * wages.samurai + (village.troops.heavyKnights ?? 0) * wages.heavyKnights + (village.troops.legionary ?? 0) * wages.legionary + (village.troops.mercenaryLancer ?? 0) * wages.mercenaryLancer) / 3;
+  const wages = { cityGuards: 2, spearmen: 3, archers: 3, cavalry: 5, heavyKnight: 8, samurai: 12, mercenaryLancer: 10, legionary: 10 };
+  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry + (village.troops.heavyKnight ?? 0) * wages.heavyKnight + (village.troops.samurai ?? 0) * wages.samurai + (village.troops.mercenaryLancer ?? 0) * wages.mercenaryLancer + (village.troops.legionary ?? 0) * wages.legionary) / WAGE_INTERVAL_DAYS;
   return [
     `\xA7b${village.name} Treasury\xA7r`,
     `\xA77Balance: \xA76${village.treasury}\u{1F48E}`,
@@ -2784,8 +2513,10 @@ function getTreasuryReport(village) {
 }
 
 // src/systems/blacksmith.ts
-import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
+init_types();
 init_storage();
+init_notify();
+import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
 var WEAPON_UPGRADE_COSTS = [
   { material: "minecraft:cobblestone", materialCount: 1, emeralds: 1 },
   { material: "minecraft:iron_ingot", materialCount: 1, emeralds: 1 },
@@ -2799,6 +2530,87 @@ var ARMOR_UPGRADE_COSTS = [
   { material: "minecraft:diamond", materialCount: 2, emeralds: 1 },
   { material: "minecraft:netherite_scrap", materialCount: 2, emeralds: 1 }
 ];
+var ARMORY_RECIPES = [
+  { key: "woodenSwords", name: "Wooden Swords (\xD75)", produces: 5, costWood: 10, costStone: 0, costIron: 0, costGold: 0, costDiamonds: 0, costEmeralds: 0 },
+  { key: "stoneSwords", name: "Stone Swords (\xD75)", produces: 5, costWood: 0, costStone: 10, costIron: 0, costGold: 0, costDiamonds: 0, costEmeralds: 0 },
+  { key: "ironSwords", name: "Iron Swords (\xD75)", produces: 5, costWood: 0, costStone: 0, costIron: 10, costGold: 0, costDiamonds: 0, costEmeralds: 1 },
+  { key: "goldSwords", name: "Gold Swords (\xD75)", produces: 5, costWood: 0, costStone: 0, costIron: 0, costGold: 10, costDiamonds: 0, costEmeralds: 1 },
+  { key: "diamondSwords", name: "Diamond Swords (\xD75)", produces: 5, costWood: 0, costStone: 0, costIron: 0, costGold: 0, costDiamonds: 10, costEmeralds: 2 },
+  { key: "ironArmor", name: "Iron Armor Set (helmet+chest+legs+boots)", produces: 1, costWood: 0, costStone: 0, costIron: 24, costGold: 0, costDiamonds: 0, costEmeralds: 2 },
+  { key: "goldArmor", name: "Gold Armor Set", produces: 1, costWood: 0, costStone: 0, costIron: 0, costGold: 24, costDiamonds: 0, costEmeralds: 2 },
+  { key: "diamondArmor", name: "Diamond Armor Set", produces: 1, costWood: 0, costStone: 0, costIron: 0, costGold: 0, costDiamonds: 24, costEmeralds: 5 }
+];
+function canCraftArmoryRecipe(village, recipe) {
+  const rs = village.resourceStorage;
+  return (recipe.costIron === 0 || rs.iron >= recipe.costIron) && (recipe.costGold === 0 || rs.gold >= recipe.costGold) && (recipe.costDiamonds === 0 || rs.diamonds >= recipe.costDiamonds) && (recipe.costWood === 0 || rs.wood >= recipe.costWood) && (recipe.costStone === 0 || rs.stone >= recipe.costStone) && (recipe.costEmeralds === 0 || village.treasury >= recipe.costEmeralds);
+}
+function craftForArmory(village, recipeIndex, count) {
+  if (recipeIndex < 0 || recipeIndex >= ARMORY_RECIPES.length) return false;
+  const recipe = ARMORY_RECIPES[recipeIndex];
+  const totalIron = recipe.costIron * count;
+  const totalGold = recipe.costGold * count;
+  const totalDiamonds = recipe.costDiamonds * count;
+  const totalWood = recipe.costWood * count;
+  const totalStone = recipe.costStone * count;
+  const totalEmeralds = recipe.costEmeralds * count;
+  const rs = village.resourceStorage;
+  if (totalIron > 0 && rs.iron < totalIron) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalIron} iron (have ${rs.iron}).`);
+    return false;
+  }
+  if (totalGold > 0 && rs.gold < totalGold) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalGold} gold (have ${rs.gold}).`);
+    return false;
+  }
+  if (totalDiamonds > 0 && rs.diamonds < totalDiamonds) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalDiamonds} diamonds (have ${rs.diamonds}).`);
+    return false;
+  }
+  if (totalWood > 0 && rs.wood < totalWood) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalWood} wood (have ${rs.wood}).`);
+    return false;
+  }
+  if (totalStone > 0 && rs.stone < totalStone) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalStone} stone (have ${rs.stone}).`);
+    return false;
+  }
+  if (totalEmeralds > 0 && village.treasury < totalEmeralds) {
+    notifyPlayer(village.owner, `\xA7cNeed ${totalEmeralds}\u{1F48E} (treasury: ${village.treasury}).`);
+    return false;
+  }
+  rs.iron -= totalIron;
+  rs.gold -= totalGold;
+  rs.diamonds -= totalDiamonds;
+  rs.wood -= totalWood;
+  rs.stone -= totalStone;
+  village.treasury -= totalEmeralds;
+  if (!village.armory) village.armory = {};
+  const prev = village.armory[recipe.key] ?? 0;
+  village.armory[recipe.key] = prev + recipe.produces * count;
+  saveVillage(village);
+  const total = recipe.produces * count;
+  notifyPlayer(
+    village.owner,
+    `\xA7a\u2692 Crafted \xA7b${total}x ${recipe.name}\xA7a \u2192 stored in \xA7b${village.name}\xA7a armory. (Total: \xA7f${village.armory[recipe.key]}\xA7a)`
+  );
+  return true;
+}
+function getArmorySummary(village) {
+  const armory = village.armory ?? {};
+  const entries = Object.entries(armory).filter(([, v]) => (v ?? 0) > 0);
+  if (entries.length === 0) return "\xA77Armory is empty.";
+  const labels = {
+    woodenSwords: "Wooden Swords",
+    stoneSwords: "Stone Swords",
+    ironSwords: "Iron Swords",
+    goldSwords: "Gold Swords",
+    diamondSwords: "Diamond Swords",
+    ironArmor: "Iron Armor Sets",
+    goldArmor: "Gold Armor Sets",
+    diamondArmor: "Diamond Armor Sets"
+  };
+  return entries.map(([k, v]) => `  \xA7f${v}x \xA77${labels[k] ?? k}`).join("\n");
+}
 function upgradeWeapons(player, villageId) {
   const village = getVillage(villageId);
   if (!village || village.owner !== player.name) return false;
@@ -2809,7 +2621,7 @@ function upgradeWeapons(player, villageId) {
   }
   const cost = WEAPON_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0) + (village.troops.mercenaryLancer ?? 0);
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2826,12 +2638,10 @@ function upgradeWeapons(player, villageId) {
   }
   village.blacksmith.weaponTier++;
   saveVillage(village);
-  applyBlacksmithBuffsToVillage(village);
   const newTier = WEAPON_TIERS[village.blacksmith.weaponTier];
-  const newDmgBonus = getWeaponDamageBonus(village.blacksmith.weaponTier);
   notifyPlayer(
     player.name,
-    `\xA7aWeapons upgraded to \xA7b${newTier}\xA7a tier! Soldiers now deal \xA7c+${newDmgBonus}\xA7a bonus damage.`
+    `\xA7aWeapons upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a!`
   );
   return true;
 }
@@ -2845,7 +2655,7 @@ function upgradeArmor(player, villageId) {
   }
   const cost = ARMOR_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0) + (village.troops.mercenaryLancer ?? 0);
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2862,12 +2672,10 @@ function upgradeArmor(player, villageId) {
   }
   village.blacksmith.armorTier++;
   saveVillage(village);
-  applyBlacksmithBuffsToVillage(village);
   const newTier = ARMOR_TIERS[village.blacksmith.armorTier];
-  const newResPct = getArmorResistancePct(village.blacksmith.armorTier);
   notifyPlayer(
     player.name,
-    `\xA7aArmor upgraded to \xA7b${newTier}\xA7a tier! Soldiers now have \xA7b${newResPct}%\xA7a damage reduction.`
+    `\xA7aArmor upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a!`
   );
   return true;
 }
@@ -2912,69 +2720,35 @@ function giveBackItems(player, typeId, amount) {
     }
   }
 }
-var SOLDIER_ENTITY_TYPES_FOR_BUFF = [
-  "kingdoms:city_guard", "kingdoms:spearman", "kingdoms:archer",
-  "kingdoms:cavalry", "kingdoms:samurai", "kingdoms:heavy_knight", "kingdoms:legionary"
-];
-function applyBlacksmithBuffsToEntity(entity, weaponTier, armorTier) {
-  try {
-    if (weaponTier > 0) {
-      entity.addEffect("strength", 72e3, { amplifier: weaponTier - 1, showParticles: false });
-    }
-    if (armorTier > 0) {
-      entity.addEffect("resistance", 72e3, { amplifier: armorTier - 1, showParticles: false });
-    }
-  } catch {}
-}
-function applyBlacksmithBuffsToVillage(village) {
-  const weaponTier = village.blacksmith?.weaponTier ?? 0;
-  const armorTier = village.blacksmith?.armorTier ?? 0;
-  if (weaponTier === 0 && armorTier === 0) return;
-  for (const dimId of ["overworld", "nether", "the_end"]) {
-    try {
-      const dim = world16.getDimension(dimId);
-      for (const type of SOLDIER_ENTITY_TYPES_FOR_BUFF) {
-        try {
-          for (const entity of dim.getEntities({ type })) {
-            if (entity.getDynamicProperty("kc:village_id") !== village.id) continue;
-            applyBlacksmithBuffsToEntity(entity, weaponTier, armorTier);
-          }
-        } catch {}
-      }
-    } catch {}
-  }
-}
-function getWeaponDamageBonus(weaponTier) {
-  return weaponTier > 0 ? weaponTier * 3 : 0;
-}
-function getArmorResistancePct(armorTier) {
-  return armorTier > 0 ? armorTier * 20 : 0;
-}
 function getBlacksmithSummary(village) {
-  const wIdx = typeof village.blacksmith.weaponTier === "number" ? village.blacksmith.weaponTier : WEAPON_TIERS.indexOf(village.blacksmith.weaponTier);
-  const aIdx = typeof village.blacksmith.armorTier === "number" ? village.blacksmith.armorTier : ARMOR_TIERS.indexOf(village.blacksmith.armorTier);
-  const wt = WEAPON_TIERS[wIdx] ?? "wood";
-  const at = ARMOR_TIERS[aIdx] ?? "leather";
-  const nextWT = WEAPON_TIERS[wIdx + 1];
-  const nextAT = ARMOR_TIERS[aIdx + 1];
-  const wCost = WEAPON_UPGRADE_COSTS[wIdx];
-  const aCost = ARMOR_UPGRADE_COSTS[aIdx];
-  const soldiers = (village.troops?.cityGuards ?? 0) + (village.troops?.spearmen ?? 0) + (village.troops?.archers ?? 0) + (village.troops?.cavalry ?? 0) + (village.troops?.samurai ?? 0) + (village.troops?.heavyKnights ?? 0) + (village.troops?.legionary ?? 0);
-  const dmgBonus = getWeaponDamageBonus(wIdx);
-  const resPct = getArmorResistancePct(aIdx);
+  const wt = WEAPON_TIERS[village.blacksmith.weaponTier] ?? "unknown";
+  const at = ARMOR_TIERS[village.blacksmith.armorTier] ?? "unknown";
+  const nextWT = WEAPON_TIERS[village.blacksmith.weaponTier + 1];
+  const nextAT = ARMOR_TIERS[village.blacksmith.armorTier + 1];
+  const wCost = WEAPON_UPGRADE_COSTS[village.blacksmith.weaponTier];
+  const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  const rs = village.resourceStorage;
   return [
     `\xA7b${village.name} Blacksmith\xA7r`,
-    `\u2694 Weapons: \xA7a${wt}\xA7r ${nextWT ? `\u2192 ${nextWT}` : "(MAX)"} \xA77| Attack bonus: \xA7c+${dmgBonus} dmg\xA7r (Strength ${wIdx > 0 ? ["I","II","III","IV","V"][wIdx-1] : "—"})`,
-    `\uD83D\uDEE1 Armor: \xA7a${at}\xA7r ${nextAT ? `\u2192 ${nextAT}` : "(MAX)"} \xA77| Defense: \xA7b${resPct}% damage reduction\xA7r`,
-    soldiers > 0 && wCost ? `Weapon upgrade cost: \xA7e${wCost.materialCount * soldiers}\xA7rx ${wCost.material.replace("minecraft:", "")} + \xA7e${wCost.emeralds * soldiers}\xA7r\u{1F48E}` : "",
-    soldiers > 0 && aCost ? `Armor upgrade cost: \xA7e${aCost.materialCount * soldiers}\xA7rx ${aCost.material.replace("minecraft:", "")} + \xA7e${aCost.emeralds * soldiers}\xA7r\u{1F48E}` : ""
+    `Weapon Tier: \xA7a${wt}\xA7r ${nextWT ? `\u2192 ${nextWT}` : "(MAX)"}`,
+    `Armor Tier: \xA7a${at}\xA7r ${nextAT ? `\u2192 ${nextAT}` : "(MAX)"}`,
+    soldiers > 0 && wCost ? `Weapon upgrade cost: ${wCost.materialCount * soldiers}x ${wCost.material.replace("minecraft:", "")} + ${wCost.emeralds * soldiers}\u{1F48E}` : "",
+    soldiers > 0 && aCost ? `Armor upgrade cost: ${aCost.materialCount * soldiers}x ${aCost.material.replace("minecraft:", "")} + ${aCost.emeralds * soldiers}\u{1F48E}` : "",
+    `
+\xA77\u2500\u2500 Storage \u2500\u2500
+Iron: \xA7f${rs.iron}\xA77  Gold: \xA7f${rs.gold}\xA77  Diamonds: \xA7f${rs.diamonds}\xA77  Wood: \xA7f${rs.wood}\xA77  Stone: \xA7f${rs.stone}`,
+    `\xA77\u2500\u2500 Armory \u2500\u2500`,
+    getArmorySummary(village)
   ].filter(Boolean).join("\n");
 }
 
 // src/systems/commands.ts
-var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry"];
+init_notify();
+init_playerSettings();
+var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
 function registerCommands() {
-  system2.afterEvents.scriptEventReceive.subscribe(
+  system3.afterEvents.scriptEventReceive.subscribe(
     (event) => {
       const player = event.sourceEntity;
       if (!player || typeof player.name !== "string") return;
@@ -3068,27 +2842,6 @@ function handleKcCommand(player, subcommand, args) {
     case "bandits":
       cmdBandits(player);
       break;
-    case "achievements":
-    case "stats":
-      cmdAchievements(player);
-      break;
-    case "stratmap":
-    case "formation":
-    case "raid":
-      void cmdStratMap(player);
-      break;
-    case "repair":
-      cmdRepair(player);
-      break;
-    case "reset":
-      cmdReset(player);
-      break;
-    case "log":
-      cmdLog(player, args[0]);
-      break;
-    case "assault":
-      void cmdAssaultBandit(player, args[0]);
-      break;
     default:
       notifyPlayer(player.name, `\xA7cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -3097,8 +2850,6 @@ function showHelp(player) {
   const lines = [
     "\xA7b=== Kingdoms & Conquest Commands ===\xA7r",
     "\xA7e/scriptevent kc:help\xA7r \u2014 this list",
-    "\xA7e/scriptevent kc:repair\xA7r \u2014 \xA7afix broken/negative village data (safe to run anytime)\xA7r",
-    "\xA7c/scriptevent kc:reset\xA7r \u2014 \xA7cDELETE ALL addon data (irreversible!)\xA7r",
     "\xA7e/scriptevent kc:tutorial\xA7r \u2014 \xA7aIN-GAME TUTORIAL (start here!)\xA7r",
     "\xA7e/scriptevent kc:status\xA7r \u2014 your villages & kingdom",
     "\xA7e/scriptevent kc:kingdom\xA7r \u2014 full kingdom overview",
@@ -3121,78 +2872,9 @@ function showHelp(player) {
     "\xA7e/scriptevent kc:intel <kingdomName>\xA7r \u2014 scout an enemy kingdom",
     "\xA7e/scriptevent kc:alerts\xA7r \u2014 toggle incoming-attack alerts on/off",
     "\xA7e/scriptevent kc:collect <id>\xA7r \u2014 collect NPC-harvested crops to your inventory",
-    "\xA7e/scriptevent kc:achievements\xA7r \u2014 \xA76view your combat achievements (camps destroyed, rebel cities defeated)\xA7r",
-    "\xA7e/scriptevent kc:bandits\xA7r \u2014 list active bandit camps \xA7cand rebel cities\xA7r",
-    "\xA7e/scriptevent kc:log [id]\xA7r \u2014 \xA7aview last 10 events for a village (raids, wages, desertions, trades)\xA7r",
-    "\xA7e/scriptevent kc:assault <campNumber>\xA7r \u2014 \xA7cstorm a bandit camp using troops from your inventory\xA7r",
-    "\xA7c\u2694 WAR TIP: Place 3 black wool in a line inside an enemy village to declare war!",
-    "\xA76\u{1F5FA} /scriptevent kc:stratmap\xA7r \u2014 open Strategic Formation Map (bird's-eye view, place troops)",
     "\xA77Troop types: cityGuards, spearmen, archers, cavalry"
   ];
   for (const line of lines) notifyPlayer(player.name, line);
-}
-function cmdRepair(player) {
-  if (!player.isOp()) {
-    notifyPlayer(player.name, "\xA7cOnly operators can run kc:repair.");
-    return;
-  }
-  notifyPlayer(player.name, "\xA7eRunning village data repair\u2026");
-  const villages = getAllVillages();
-  let fixed = 0;
-  for (const v of villages) {
-    let dirty = false;
-    // Fix negative numeric fields
-    for (const key of ["population", "foodStorage", "treasury", "housingCapacity", "marketLevel", "foodShortageStage"]) {
-      if (typeof v[key] !== "number" || v[key] < 0) {
-        v[key] = Math.max(0, typeof v[key] === "number" ? v[key] : 0);
-        dirty = true;
-      }
-    }
-    // Ensure nested objects exist
-    if (!v.workers || typeof v.workers !== "object") { v.workers = { farmers: 0, builders: 0 }; dirty = true; }
-    if (!v.troops || typeof v.troops !== "object") { v.troops = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0 }; dirty = true; }
-    if (!Array.isArray(v.allies)) { v.allies = []; dirty = true; }
-    if (!Array.isArray(v.villageIds)) { v.villageIds = []; dirty = true; }
-    // Ensure population >= 1 if village exists
-    if (v.population < 1) { v.population = 1; dirty = true; }
-    // Sync lastPopulationDay
-    if (typeof v.lastPopulationDay !== "number") { v.lastPopulationDay = v.lastDayProcessed ?? getCurrentDay(); dirty = true; }
-    if (dirty) { saveVillage(v); fixed++; }
-  }
-  const kingdoms = getAllKingdoms();
-  let kFixed = 0;
-  for (const k of kingdoms) {
-    let dirty = false;
-    if (!Array.isArray(k.villageIds)) { k.villageIds = []; dirty = true; }
-    if (!Array.isArray(k.members)) { k.members = []; dirty = true; }
-    if (dirty) { saveKingdom(k); kFixed++; }
-  }
-  notifyPlayer(player.name, `\xA7aRepair complete: fixed ${fixed}/${villages.length} villages, ${kFixed}/${kingdoms.length} kingdoms.`);
-}
-function cmdReset(player) {
-  if (!player.isOp()) {
-    notifyPlayer(player.name, "\xA7cOnly operators can run kc:reset.");
-    return;
-  }
-  notifyPlayer(player.name, "\xA7c\u26A0 [kc:reset] Deleting ALL Kingdoms & Conquest data\u2026");
-  const villages = getAllVillages();
-  for (const v of villages) {
-    try { deleteVillage(v.id); } catch {}
-  }
-  const kingdoms = getAllKingdoms();
-  for (const k of kingdoms) {
-    try { deleteKingdom(k.id); } catch {}
-  }
-  try {
-    const camps = getAllBanditCamps ? getAllBanditCamps() : [];
-    for (const c of camps) { try { deleteBanditCamp(c.id); } catch {} }
-  } catch {}
-  try {
-    for (const p of world16.getPlayers()) {
-      try { world16.setDynamicProperty(KC_FIRST_SPAWN_PROP + p.name, void 0); } catch {}
-    }
-  } catch {}
-  notifyPlayer(player.name, "\xA7aAll addon data has been reset. All kingdoms, villages, and first-spawn flags cleared. Players will receive starter items on next login.");
 }
 function showMyStatus(player) {
   const myVillages = getAllVillages().filter((v) => v.owner === player.name);
@@ -3298,9 +2980,7 @@ function cmdSetWorkers(player, args) {
     notifyPlayer(player.name, "\xA7cUsage: /scriptevent kc:workers <id> f:<n> w:<n>");
     return;
   }
-  const tW = village.troops;
-  const available = village.population - (tW.cityGuards ?? 0) - (tW.spearmen ?? 0) - (tW.archers ?? 0) - (tW.cavalry ?? 0) -
-    (tW.samurai ?? 0) - (tW.heavyKnights ?? 0) - (tW.legionary ?? 0) - (tW.mercenaryLancer ?? 0);
+  const available = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0);
   if (farmers + workers > available) {
     notifyPlayer(player.name, `\xA7cNot enough available workers (${available} free).`);
     return;
@@ -3378,9 +3058,7 @@ function showMap(player) {
   }
   notifyPlayer(player.name, `\xA7b\u2550\u2550\u2550 ${kingdom?.name ?? "No Kingdom"} \u2014 Strategic Map \u2550\u2550\u2550`);
   for (const v of myVillages) {
-    const vtr = v.troops;
-    const troops = (vtr.cityGuards ?? 0) + (vtr.spearmen ?? 0) + (vtr.archers ?? 0) + (vtr.cavalry ?? 0) +
-      (vtr.samurai ?? 0) + (vtr.heavyKnights ?? 0) + (vtr.legionary ?? 0) + (vtr.mercenaryLancer ?? 0);
+    const troops = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.cavalry;
     const training = v.trainingQueue?.length ?? 0;
     const siegeFlag = isSiegeActive(v.id) ? " \xA7c\u2694 UNDER SIEGE\xA7r" : "";
     const trainingTag = training > 0 ? ` \xA7e\u{1FA96}+${training}\xA7r` : "";
@@ -3533,157 +3211,6 @@ function cmdBandits(player) {
   const summary = getBanditCampSummary();
   notifyPlayer(player.name, "\xA7c\u2550\u2550\u2550 Active Bandit Camps \u2550\u2550\u2550");
   for (const line of summary.split("\n")) notifyPlayer(player.name, line);
-  notifyPlayer(player.name, `\xA77Tip: use \xA7e/scriptevent kc:assault <number>\xA77 to storm a camp.`);
-  const cities = getAllRebelCities();
-  if (cities.length > 0) {
-    notifyPlayer(player.name, `\xA74\u2550\u2550\u2550 Rebel Cities (${cities.length}) \u2550\u2550\u2550`);
-    for (const city of cities) {
-      notifyPlayer(player.name, `\xA74\u2694\u2694 Rebel City\xA7r  Strength: \xA7e${city.strength}\xA7r  Pos: \xA77${Math.round(city.location.x)},${Math.round(city.location.z)}`);
-    }
-  }
-}
-function cmdLog(player, villageArg) {
-  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
-  if (myVillages.length === 0) {
-    notifyPlayer(player.name, "\xA7cYou have no villages.");
-    return;
-  }
-  let village;
-  if (villageArg) {
-    village = myVillages.find((v) => v.id === villageArg || v.name.toLowerCase().includes(villageArg.toLowerCase()));
-  }
-  if (!village) village = myVillages[0];
-  const log = village.alertLog ?? [];
-  notifyPlayer(player.name, `\xA7b\u2550\u2550\u2550 ${village.name} \u2014 Event Log \u2550\u2550\u2550`);
-  if (log.length === 0) {
-    notifyPlayer(player.name, "\xA77No events recorded yet.");
-    return;
-  }
-  const CAT_COLOR = { raid: "\xA7c", wages: "\xA7e", desertion: "\xA7c", trade: "\xA7a", default: "\xA7f" };
-  for (const entry of log) {
-    const color = CAT_COLOR[entry.category] ?? CAT_COLOR.default;
-    notifyPlayer(player.name, `\xA77Day ${entry.day}  ${color}${entry.message}`);
-  }
-  if (myVillages.length > 1) {
-    notifyPlayer(player.name, `\xA77Other villages: ${myVillages.filter((v) => v.id !== village.id).map((v) => `${v.name} (${v.id})`).join(", ")}`);
-  }
-}
-async function cmdAssaultBandit(player, campArg) {
-  const camps = getAllBanditCamps();
-  if (camps.length === 0) {
-    notifyPlayer(player.name, "\xA7eNo active bandit camps to assault.");
-    return;
-  }
-  const campIndex = campArg ? Math.max(0, parseInt(campArg, 10) - 1) : 0;
-  const camp = camps[campIndex];
-  if (!camp) {
-    notifyPlayer(player.name, `\xA7cInvalid camp number. Use /scriptevent kc:bandits to see the list (1\u2013${camps.length}).`);
-    return;
-  }
-  const ASSAULT_TOKEN_POWER = {
-    "kingdoms:guard_token":            1,
-    "kingdoms:spearman_token":         2,
-    "kingdoms:archer_token":           2,
-    "kingdoms:cavalry_token":          3,
-    "kingdoms:samurai_token":          4,
-    "kingdoms:heavy_knight_token":     5,
-    "kingdoms:legionary_token":        4,
-    "kingdoms:mercenary_lancer_token": 4
-  };
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const container = inv?.container;
-  if (!container) {
-    notifyPlayer(player.name, "\xA7cInventory unavailable.");
-    return;
-  }
-  let totalPower = 0;
-  let totalTokens = 0;
-  const tokenCounts = {};
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (!slot) continue;
-    const power = ASSAULT_TOKEN_POWER[slot.typeId];
-    if (power === undefined) continue;
-    totalPower += slot.amount * power;
-    totalTokens += slot.amount;
-    tokenCounts[slot.typeId] = (tokenCounts[slot.typeId] ?? 0) + slot.amount;
-  }
-  const campPos = `${Math.round(camp.location.x)}, ${Math.round(camp.location.z)}`;
-  const reward = Math.floor(camp.strength * 3);
-  const lootIron = Math.floor(camp.strength * 1.5);
-  const lootGold = Math.floor(camp.strength * 0.5);
-  const lootDiamonds = Math.floor(camp.strength / 6);
-  const lootPreview = `\xA76${reward}\u{1F48E} \xA77+ \xA7f${lootIron} iron\xA77, \xA76${lootGold} gold\xA77${lootDiamonds > 0 ? `, \xA7b${lootDiamonds} diamonds` : ""}`;
-  const form = new ActionFormData()
-    .title(`\u2694 Assault Bandit Camp`)
-    .body(
-      `\xA7c\u2550\u2550 Bandit Camp #${campIndex + 1} \u2550\u2550\xA7r\n` +
-      `Strength: \xA7e${camp.strength}\xA7r   Position: \xA77${campPos}\xA7r\n\n` +
-      `\xA7b\u2550\u2550 Your Forces \u2550\u2550\xA7r\n` +
-      `Tokens in inventory: \xA7f${totalTokens}\xA7r   Combat power: \xA7a${totalPower}\xA7r\n\n` +
-      `\xA77Victory requires \xA7e${camp.strength}\xA77 power (you have \xA7a${totalPower}\xA77).\n` +
-      `\xA7aReward if victorious: ${lootPreview}\xA7a + achievement.\n` +
-      `\xA7cAll tokens used are spent in the assault.`
-    )
-    .button(totalPower >= camp.strength ? `\xA7c\u2694 Launch Assault` : `\xA7c\u2694 Launch Assault (weak \u2014 risky!)`)
-    .button("Cancel");
-  const response = await form.show(player);
-  if (response.canceled || response.selection !== 0) return;
-  if (totalTokens === 0) {
-    notifyPlayer(player.name, "\xA7cYou have no troop tokens. Carry tokens in your inventory to assault a camp.");
-    return;
-  }
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (!slot || !ASSAULT_TOKEN_POWER[slot.typeId]) continue;
-    try { container.setItem(i, void 0); } catch {}
-  }
-  const attackRoll = totalPower + Math.floor(Math.random() * Math.ceil(totalPower * 0.3));
-  const defenseRoll = camp.strength + Math.floor(Math.random() * Math.ceil(camp.strength * 0.3));
-  if (attackRoll >= defenseRoll) {
-    const myVillage = getAllVillages().find((v) => v.owner === player.name);
-    if (myVillage) {
-      myVillage.treasury += reward;
-      logVillageEvent(myVillage, "raid", `\u2694 Bandit camp #${campIndex + 1} assaulted \u2014 victory! +${reward}\u{1F48E} +${lootIron} iron +${lootGold} gold${lootDiamonds > 0 ? ` +${lootDiamonds} diamonds` : ""}`);
-      saveVillage(myVillage);
-    }
-    const ach = getPlayerAchievements(player.name);
-    ach.campsDestroyed = (ach.campsDestroyed ?? 0) + 1;
-    savePlayerAchievements(player.name, ach);
-    disbandBanditCamp(camp.id, player.name);
-    try {
-      const dim = player.dimension;
-      if (lootIron > 0) dim.runCommand(`give "${player.name}" minecraft:iron_ingot ${lootIron}`);
-      if (lootGold > 0) dim.runCommand(`give "${player.name}" minecraft:gold_ingot ${lootGold}`);
-      if (lootDiamonds > 0) dim.runCommand(`give "${player.name}" minecraft:diamond ${lootDiamonds}`);
-    } catch {}
-    let lootMsg = `\xA76+${reward}\u{1F48E}\xA7a to treasury`;
-    lootMsg += `, \xA7f+${lootIron} iron\xA7a`;
-    lootMsg += `, \xA76+${lootGold} gold\xA7a`;
-    if (lootDiamonds > 0) lootMsg += `, \xA7b+${lootDiamonds} diamonds\xA7a`;
-    notifyPlayer(player.name, `\xA7a\u2694 VICTORY! Camp #${campIndex + 1} destroyed. ${lootMsg} \u2192 your inventory.`);
-  } else {
-    const weakened = Math.max(1, camp.strength - Math.floor(totalPower * 0.5));
-    camp.strength = weakened;
-    saveBanditCamp(camp);
-    notifyPlayer(player.name, `\xA7c\u2694 DEFEAT. Your forces were repelled. Camp weakened to strength \xA7e${weakened}\xA7c. Regroup and try again.`);
-  }
-}
-function cmdAchievements(player) {
-  const ach = getPlayerAchievements(player.name);
-  const send = (msg) => notifyPlayer(player.name, msg);
-  send(`\xA76\u2550\u2550\u2550 ${player.name}'s Achievements \u2550\u2550\u2550`);
-  send(`\xA7c\u2694 Bandit Camps Destroyed: \xA7e${ach.campsDestroyed}`);
-  send(`\xA74\u2694\u2694 Rebel Cities Defeated: \xA7e${ach.citiesDefeated}`);
-  const totalScore = ach.campsDestroyed * 10 + ach.citiesDefeated * 50;
-  send(`\xA76\u2605 Combat Score: \xA7e${totalScore} pts`);
-  if (ach.citiesDefeated === 0 && ach.campsDestroyed === 0) {
-    send(`\xA77Tip: Destroy bandit camps and defeat rebel cities to earn achievements!`);
-  } else if (ach.citiesDefeated >= 3) {
-    send(`\xA7d\u2605\u2605\u2605 LEGEND \u2014 You have conquered 3 or more rebel cities!`);
-  } else if (ach.campsDestroyed >= 10) {
-    send(`\xA7b\u2605\u2605 WARLORD \u2014 10+ bandit camps cleared!`);
-  }
 }
 function cmdTutorial(player, topic) {
   const send = (msg) => notifyPlayer(player.name, msg);
@@ -3749,10 +3276,10 @@ function tutorialStart(player) {
   const s = (m) => notifyPlayer(player.name, m);
   s("\xA7b\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 Tutorial: Getting Started \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
   s("\xA7e Step 1 \u2014 Claim Your Village");
-  s("\xA7f  \u2022 You start with a \xA7bTown Hall\xA7f block and \xA7b10 cobblestone\xA7f in your inventory.");
-  s("\xA7f  \u2022 Place the Town Hall near \xA7b3+ villagers\xA7f \u2014 the starter village has them ready.");
+  s("\xA7f  \u2022 Craft/obtain a \xA7bkingdoms:town_hall\xA7f block.");
+  s("\xA7f  \u2022 Place it anywhere in the world.");
   s("\xA7f  \u2022 A form appears \u2014 enter your Kingdom Name and Village Name.");
-  s("\xA7f  \u2022 Costs \xA7b10 cobblestone\xA7f (consumed on claim). Your kingdom is created!");
+  s("\xA7f  \u2022 Your kingdom is now created. The Town Hall block is your village hub.");
   s("\xA7e Step 2 \u2014 Place Your Buildings");
   s("\xA7f  \u2022 Tap each building block to open its menu:");
   s("\xA7f    \xA7a\u{1F3DB} Town Hall\xA7f \u2014 kingdom overview, diplomacy, treasury, merchants");
@@ -3912,6 +3439,9 @@ function tutorialTrade(player) {
   s("\xA7f  4. Resources are deducted immediately; a \xA7bchest minecart\xA7f spawns at your station.");
   s("\xA7f  5. Push the minecart onto the rail toward the destination.");
   s("\xA7f  6. When it arrives within ~5 blocks of the destination station, it delivers automatically.");
+  s("\xA7e Dispatching Troops (KC Military)");
+  s("\xA7f  Tap Trade Station \u2192 \xA7a\u{1F5E1} Dispatch Reinforcements\xA7f.");
+  s("\xA7f  Works the same as resources \u2014 troop tokens are sent as a minecart cargo.");
   s("\xA7e Manual Delivery (Untagged Minecart)");
   s("\xA7f  \u2022 Place a chest minecart and fill it with items from your inventory.");
   s("\xA7f  \u2022 Push it to any allied village's trade station.");
@@ -3975,7 +3505,11 @@ function resolveVillage(player, idPrefix) {
 }
 
 // src/systems/food.ts
+init_types();
 init_storage();
+init_tick();
+init_notify();
+init_kingdom();
 function drainGranaryToFoodStorage(village) {
   let converted = 0;
   for (const [item, count] of Object.entries(village.granaryItems)) {
@@ -3991,15 +3525,12 @@ function drainGranaryToFoodStorage(village) {
   return converted;
 }
 function getFoodProduction(village) {
-  const farmerOutput = village.workers.farmers * 3;
-  return farmerOutput;
+  return village.workers.farmers * 4;
 }
 function getFoodConsumption(village) {
-  const t = village.troops;
-  const soldiers = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
-    (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
-  const civilians = village.population - soldiers;
-  return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + soldiers * FOOD_PER_SOLDIER_PER_DAY;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  const civilians = Math.max(0, village.population - totalSoldiers);
+  return civilians * FOOD_PER_VILLAGER_PER_DAY;
 }
 function tickFood(village) {
   const currentDay = getCurrentDay();
@@ -4039,26 +3570,21 @@ function updateFoodShortageStage(village, dailyConsumption) {
           `\xA7c\u26A0 Food shortage in \xA7b${village.name}\xA7c! Population growth paused.`
         );
         break;
-      case 3: {
+      case 3:
         village.prosperity = Math.max(0, village.prosperity - 10);
-        const t3 = village.troops;
-        const soldierCount = (t3.cityGuards ?? 0) + (t3.spearmen ?? 0) + (t3.archers ?? 0) + (t3.cavalry ?? 0) +
-          (t3.heavyKnights ?? 0) + (t3.samurai ?? 0) + (t3.mercenaryLancer ?? 0) + (t3.legionary ?? 0);
-        const workerCount = (village.workers?.farmers ?? 0) + (village.workers?.workers ?? 0) + (village.workers?.miners ?? 0);
-        const atRisk = Math.max(0, soldierCount + workerCount - (village.population - 1));
-        const riskMsg = atRisk > 0
-          ? `\xA7c ${atRisk} soldier(s)/worker(s) will be auto-dismissed if famine hits!`
-          : `\xA7e No units at immediate risk yet.`;
         notifyPlayer(
           village.owner,
-          `\xA7c\u26A0 Severe food shortage in \xA7b${village.name}\xA7c! Morale dropping.\n${riskMsg}\n\xA7eDeposit food NOW to avoid famine.`
+          `\xA7c\u26A0 Severe food shortage in \xA7b${village.name}\xA7c! Morale dropping.`
         );
         break;
-      }
       case 4:
         notifyPlayer(
           village.owner,
           `\xA74\u26A0 FAMINE in \xA7b${village.name}\xA74! Population is dying!`
+        );
+        notifyAlliedKings(
+          village.kingdomId,
+          `\xA74\u26A0 Allied village \xA7b${village.name}\xA74 is suffering FAMINE!`
         );
         break;
     }
@@ -4072,7 +3598,7 @@ function updateFoodShortageStage(village, dailyConsumption) {
   }
 }
 function buyFood(village, amount) {
-  const costPerUnit = 2;
+  const costPerUnit = 3;
   const total = amount * costPerUnit;
   if (village.treasury < total) return false;
   village.treasury -= total;
@@ -4081,40 +3607,13 @@ function buyFood(village, amount) {
   notifyPlayer(village.owner, `\xA7aBought ${amount} food for ${total}\u{1F48E} in \xA7b${village.name}\xA7a.`);
   return true;
 }
-function getDailyFoodSellCap(village) {
-  return (village.marketLevel ?? 1) * 40;
-}
-function checkAndConsumeDailyFoodSell(village, emeraldsToEarn) {
-  const today = getCurrentDay();
-  if ((village.lastFoodSellDay ?? -1) !== today) {
-    village.dailyFoodSoldEm = 0;
-    village.lastFoodSellDay = today;
-  }
-  const cap = getDailyFoodSellCap(village);
-  const used = village.dailyFoodSoldEm ?? 0;
-  const remaining = cap - used;
-  if (remaining <= 0) return 0;
-  const allowed = Math.min(emeraldsToEarn, remaining);
-  village.dailyFoodSoldEm = used + allowed;
-  return allowed;
-}
 function sellFood(village, amount) {
-  if (!village.granaryLocation || !village.treasuryLocation) {
-    notifyPlayer(village.owner, `\xA7c\u26A0 Market income halted in \xA7b${village.name}\xA7c \u2014 Granary and Treasury must both be active!`);
-    return false;
-  }
-  const sellPricePerUnit = 1;
+  const sellPricePerUnit = 2;
   if (village.foodStorage < amount) return false;
-  const cap = getDailyFoodSellCap(village);
-  const allowed = checkAndConsumeDailyFoodSell(village, amount * sellPricePerUnit);
-  if (allowed <= 0) {
-    notifyPlayer(village.owner, `\xA7c\u{1F4CA} Daily food sell limit reached in \xA7b${village.name}\xA7c (${cap}\u{1F48E}/day at Market Lv${village.marketLevel ?? 1}). Upgrade your market for a higher cap.`);
-    return false;
-  }
   village.foodStorage -= amount;
-  village.treasury += allowed;
+  village.treasury += amount * sellPricePerUnit;
   saveVillage(village);
-  notifyPlayer(village.owner, `\xA7aSold ${amount} food for ${allowed}\u{1F48E}. Daily limit: \xA77${village.dailyFoodSoldEm}/${cap}\u{1F48E} used.`);
+  notifyPlayer(village.owner, `\xA7aSold ${amount} food for ${amount * sellPricePerUnit}\u{1F48E}.`);
   return true;
 }
 function processAllFood() {
@@ -4124,67 +3623,64 @@ function processAllFood() {
 }
 
 // src/systems/population.ts
-import { world as world11 } from "@minecraft/server";
+init_types();
 init_storage();
+init_tick();
+init_notify();
+init_notify();
+import { world as world11 } from "@minecraft/server";
 var GROWTH_CHANCE = 0.6;
 var MORTALITY_CHANCE = 0.4;
 var HOUSING_UNIT_SIZE = 5;
 function tickPopulation(village) {
-  const popDay = village.lastPopulationDay ?? village.lastDayProcessed ?? 0;
-  if (daysSince(popDay) < POPULATION_GROWTH_INTERVAL_DAYS) return;
-  village.lastPopulationDay = getCurrentDay();
+  if (daysSince(village.lastDayProcessed) < POPULATION_GROWTH_INTERVAL_DAYS) return;
   if (village.foodShortageStage >= 4) {
     handlePopulationDecline(village);
-    saveVillage(village);
     return;
   }
   if (village.foodShortageStage >= 2) {
-    saveVillage(village);
     return;
   }
-  const bedCapacity = village.housingCapacity ?? 0;
-  if (bedCapacity <= village.population) {
-    if (village.population < MAX_VILLAGE_POPULATION && village.owner) {
-      notifyPlayer(village.owner, `\xA7e\uD83D\uDECF \xA7b${village.name}\xA7e needs more \xA7bhouse beds\xA7e to grow! Buy a \xA7bHouse\xA7e from the Building Shop.`);
-    }
-    saveVillage(village);
-    return;
-  }
-  const canGrow = village.population < MAX_VILLAGE_POPULATION && village.foodStorage > 10;
+  const canGrow = village.population < village.housingCapacity && village.foodStorage > 10;
   if (canGrow && Math.random() < GROWTH_CHANCE) {
     village.population += 1;
     village.workers.farmers = Math.max(
       village.workers.farmers,
       Math.floor(village.population * 0.3)
     );
-    notifyPlayer(village.owner, `\xA7aNew villager in \xA7b${village.name}\xA7a! Population: ${village.population}/${MAX_VILLAGE_POPULATION}`);
+    notifyPlayer(village.owner, `\xA7aPopulation grew in \xA7b${village.name}\xA7a! (${village.population})`);
+    checkAndGrowStructures(village);
   }
-  saveVillage(village);
   spawnVillagerEntity(village);
 }
 function handlePopulationDecline(village) {
   if (village.population > 1 && Math.random() < MORTALITY_CHANCE) {
     village.population -= 1;
-    const t = village.troops;
-    const totalSoldiers = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
-      (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
-    const totalWorkers = (village.workers?.farmers ?? 0) + (village.workers?.workers ?? 0) + (village.workers?.miners ?? 0);
-    if (village.population < totalSoldiers + totalWorkers) {
-      if ((t.cityGuards ?? 0) > 0) t.cityGuards--;
-      else if ((t.spearmen ?? 0) > 0) t.spearmen--;
-      else if ((t.archers ?? 0) > 0) t.archers--;
-      else if ((t.cavalry ?? 0) > 0) t.cavalry--;
-      else if ((t.samurai ?? 0) > 0) t.samurai--;
-      else if ((t.heavyKnights ?? 0) > 0) t.heavyKnights--;
-      else if ((t.legionary ?? 0) > 0) t.legionary--;
-      else if ((village.workers?.miners ?? 0) > 0) village.workers.miners--;
-      else if ((village.workers?.workers ?? 0) > 0) village.workers.workers--;
-      else if ((village.workers?.farmers ?? 0) > 0) village.workers.farmers--;
+    const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+    if (village.population < totalSoldiers + village.workers.farmers + village.workers.workers) {
+      if (village.troops.cityGuards > 0) village.troops.cityGuards--;
+      else if (village.troops.spearmen > 0) village.troops.spearmen--;
+      else if (village.troops.archers > 0) village.troops.archers--;
+      else if (village.troops.cavalry > 0) village.troops.cavalry--;
+      else if ((village.troops.heavyKnight ?? 0) > 0) village.troops.heavyKnight--;
+      else if ((village.troops.samurai ?? 0) > 0) village.troops.samurai--;
+      else if ((village.troops.mercenaryLancer ?? 0) > 0) village.troops.mercenaryLancer--;
+      else if ((village.troops.legionary ?? 0) > 0) village.troops.legionary--;
+      else if (village.workers.workers > 0) village.workers.workers--;
+      else if (village.workers.farmers > 0) village.workers.farmers--;
     }
     notifyPlayer(
       village.owner,
       `\xA7cPopulation declined in \xA7b${village.name}\xA7c due to starvation! (${village.population})`
     );
+    if (village.population < 5 && village.population > 0) {
+      sendCrisisTitle(
+        village.owner,
+        "\xA7c\xA7lVILLAGE DYING",
+        `\xA7e${village.name} \u2014 only ${village.population} citizens left!`,
+        "mob.villager.death"
+      );
+    }
   }
 }
 function checkAndGrowStructures(village) {
@@ -4236,13 +3732,23 @@ function findSolidY(dim, x, startY, z) {
 function spawnVillagerEntity(village) {
   const dim = world11.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
-  const query = {
-    type: "minecraft:villager_v2",
-    location: { x: loc.x, y: loc.y, z: loc.z },
-    maxDistance: 64
-  };
-  const existingVillagers = dim.getEntities(query);
-  if (existingVillagers.length < village.population) {
+  let villagerCount = 0;
+  try {
+    const nearby = dim.getEntities({
+      type: "minecraft:villager_v2",
+      location: { x: loc.x, y: loc.y, z: loc.z },
+      maxDistance: 64
+    });
+    for (const e of nearby) {
+      try {
+        if (e.getDynamicProperty("kc:village_id") === village.id) villagerCount++;
+      } catch {
+      }
+    }
+  } catch {
+    return;
+  }
+  if (villagerCount < village.population) {
     try {
       const spawnX = loc.x + (Math.random() * 6 - 3);
       const spawnZ = loc.z + (Math.random() * 6 - 3);
@@ -4266,50 +3772,10 @@ function processAllPopulation() {
     tickPopulation(village);
   }
 }
-function tickAllMiners() {
-  const day = getCurrentDay();
-  for (const village of getAllVillages()) {
-    const lastDay = village.lastMiningDay ?? 0;
-    if (day <= lastDay) continue;
-    const miners = village.workers?.miners ?? 0;
-    if (miners <= 0) continue;
-    village.lastMiningDay = day;
-    const tier = village.miningToolTier ?? 0;
-    const outputs = MINING_OUTPUT_BY_TIER[tier] ?? MINING_OUTPUT_BY_TIER[0];
-    village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-    const rs = village.resourceStorage;
-    const prosperity = Math.max(0, Math.min(100, village.prosperity ?? 0));
-    const prosperityBonus = 1 + (prosperity / 100) * 0.5;
-    const gained = {};
-    for (const [res, range] of Object.entries(outputs)) {
-      const [min, max] = range;
-      if (max === 0) continue;
-      let total = 0;
-      for (let m = 0; m < miners; m++) {
-        total += min + Math.floor(Math.random() * (max - min + 1));
-      }
-      const boosted = Math.floor(total * prosperityBonus);
-      if (boosted > 0) {
-        rs[res] = (rs[res] ?? 0) + boosted;
-        gained[res] = boosted;
-      }
-    }
-    if (village.owner && Object.keys(gained).length > 0) {
-      const summary = Object.entries(gained)
-        .map(([k, v]) => `${v} ${RESOURCE_LABELS[k] ?? k}`)
-        .join(", ");
-      const bonusPct = Math.round((prosperityBonus - 1) * 100);
-      const bonusTag = bonusPct > 0 ? ` \xA7a(+${bonusPct}% prosperity bonus)` : "";
-      notifyPlayer(village.owner,
-        `\xA77\u26CF ${miners} miner(s) in \xA7b${village.name}\xA77 gathered: \xA7f${summary}\xA77 \u2192 Material Storage.${bonusTag}`
-      );
-    }
-    saveVillage(village);
-  }
-}
 
 // src/systems/market.ts
 init_storage();
+init_notify();
 import { world as world12, ItemStack as ItemStack5, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
 var MERCHANT_OUTER_SPAWN_MIN = 70;
 var MERCHANT_OUTER_SPAWN_MAX = 100;
@@ -4319,40 +3785,28 @@ var MERCHANT_DANGER_RADIUS = 5;
 var MERCHANT_SPAWN_INTERVAL = 1200;
 var MERCHANT_STOCK_TEMPLATES = {
   common: {
-    "minecraft:iron_ingot": 48,
-    "minecraft:gold_ingot": 16,
-    "minecraft:coal": 64,
-    "minecraft:oak_planks": 64
+    "minecraft:iron_ingot": 32,
+    "minecraft:gold_ingot": 8,
+    "minecraft:coal": 64
   },
   rare: {
-    "minecraft:diamond": 10,
-    "minecraft:iron_ingot": 64,
-    "minecraft:gold_ingot": 32,
-    "minecraft:coal": 32
+    "minecraft:diamond": 5,
+    "minecraft:iron_ingot": 48,
+    "minecraft:gold_ingot": 16
   },
   food: {
     "minecraft:bread": 64,
     "minecraft:cooked_beef": 32,
-    "minecraft:apple": 48,
-    "minecraft:coal": 32
-  },
-  bobsFarm: {
-    "twb_farm:garlic": 16,
-    "twb_farm:onion": 12,
-    "twb_farm:rice": 12,
-    "twb_farm:broccoli": 10,
-    "twb_farm:pineapple": 6,
-    "minecraft:iron_ingot": 16
-  },
-  materials: {
-    "minecraft:iron_ingot": 64,
-    "minecraft:gold_ingot": 32,
-    "minecraft:diamond": 8,
-    "minecraft:coal": 64,
-    "minecraft:oak_planks": 64,
-    "minecraft:cobblestone": 64
+    "minecraft:apple": 48
   }
 };
+var SEED_PURCHASE_MATERIALS = [
+  { itemId: "minecraft:copper_ingot", amount: 2, label: "Copper Ingot \xD72" },
+  { itemId: "minecraft:flint", amount: 1, label: "Flint \xD71" },
+  { itemId: "minecraft:glass", amount: 1, label: "Glass \xD71" },
+  { itemId: "minecraft:leather", amount: 1, label: "Leather \xD71" },
+  { itemId: "minecraft:blue_orchid", amount: 1, label: "Blue Orchid \xD71" }
+];
 var SEED_SHOP = [
   { itemId: "minecraft:wheat_seeds", label: "Wheat Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
   { itemId: "minecraft:carrot", label: "Carrots (seed)", quantityPerPurchase: 8, emeraldCost: 2 },
@@ -4360,42 +3814,22 @@ var SEED_SHOP = [
   { itemId: "minecraft:beetroot_seeds", label: "Beetroot Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
   { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
   { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 },
-  { itemId: "twb_farm:garlic", label: "\xA72Garlic \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
-  { itemId: "twb_farm:onion", label: "\xA72Onion \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
-  { itemId: "twb_farm:rice", label: "\xA72Rice \xA77[Bob's Farm]", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "twb_farm:broccoli", label: "\xA72Broccoli \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
-  { itemId: "twb_farm:cauliflower", label: "\xA72Cauliflower \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 3 },
-  { itemId: "twb_farm:chili", label: "\xA72Chili \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 3 },
-  { itemId: "twb_farm:eggplant", label: "\xA72Eggplant \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
-  { itemId: "twb_farm:leek", label: "\xA72Leek \xA77[Bob's Farm]", quantityPerPurchase: 6, emeraldCost: 2 },
-  { itemId: "twb_farm:grape", label: "\xA72Grape \xA77[Bob's Farm]", quantityPerPurchase: 8, emeraldCost: 3 },
-  { itemId: "twb_farm:pineapple", label: "\xA72Pineapple \xA77[Bob's Farm]", quantityPerPurchase: 4, emeraldCost: 5 }
+  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 }
 ];
 var FOOD_SELL_RATES = [
-  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 3, minBatch: 6 },
-  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 3, minBatch: 6 },
-  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 3, minBatch: 6 },
-  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 1, minBatch: 2 },
-  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 4, minBatch: 8 },
-  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 5, minBatch: 10 },
+  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 4, minBatch: 8 },
+  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 5, minBatch: 10 },
+  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 6, minBatch: 12 },
+  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 4, minBatch: 8 },
   { itemId: "minecraft:cooked_beef", label: "Cooked Beef", itemsPerEmerald: 1, minBatch: 2 },
   { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork", itemsPerEmerald: 1, minBatch: 2 },
-  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 1, minBatch: 2 },
-  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 1, minBatch: 2 },
-  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 1, minBatch: 2 },
-  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 4, minBatch: 8 },
-  { itemId: "twb_farm:garlic", label: "Garlic [Bob's Farm]", itemsPerEmerald: 3, minBatch: 6 },
-  { itemId: "twb_farm:onion", label: "Onion [Bob's Farm]", itemsPerEmerald: 3, minBatch: 6 },
-  { itemId: "twb_farm:rice", label: "Rice [Bob's Farm]", itemsPerEmerald: 3, minBatch: 6 },
-  { itemId: "twb_farm:broccoli", label: "Broccoli [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "twb_farm:cauliflower", label: "Cauliflower [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "twb_farm:chili", label: "Chili [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "twb_farm:eggplant", label: "Eggplant [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "twb_farm:leek", label: "Leek [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "twb_farm:grape", label: "Grape [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
-  { itemId: "twb_farm:pineapple", label: "Pineapple [Bob's Farm]", itemsPerEmerald: 1, minBatch: 2 }
+  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 6, minBatch: 12 }
 ];
 function getMaxMerchants(village) {
   return Math.floor(village.marketLevel * 3 + village.population / 8);
@@ -4415,101 +3849,48 @@ function tickAllMerchantMovement() {
     tickMerchantMovement(village);
   }
 }
-var TRADE_CART_FOLLOW_DIST = 3.5;
-var TRADE_CART_SPEED = 0.2;
-var TRADE_CART_ABANDON_DIST = 200;
-var _lastCartTick = -4;
-function tickTradeCartMovement() {
-  const _ctick = getCurrentTick();
-  if (_ctick - _lastCartTick < 4) return;
-  _lastCartTick = _ctick;
-  for (const dimId of ["overworld", "nether", "the_end"]) {
-    try {
-      const dim = world16.getDimension(dimId);
-      const carts = dim.getEntities({ type: "kingdoms:trade_cart" });
-      if (carts.length === 0) continue;
-      const merchants = dim.getEntities({ type: "kingdoms:merchant" });
-      for (const cart of carts) {
-        try {
-          if (merchants.length === 0) continue;
-          let nearest = null;
-          let nearestDist = TRADE_CART_ABANDON_DIST;
-          const merchantId = cart.getDynamicProperty("kc:merchant_id");
-          for (const m of merchants) {
-            const dx2 = m.location.x - cart.location.x;
-            const dz2 = m.location.z - cart.location.z;
-            const dist = Math.sqrt(dx2 * dx2 + dz2 * dz2);
-            if (merchantId && m.id === merchantId) { nearest = m; nearestDist = dist; break; }
-            if (dist < nearestDist) { nearestDist = dist; nearest = m; }
-          }
-          if (!nearest) continue;
-          if (nearestDist <= TRADE_CART_FOLLOW_DIST) continue;
-          const dx = nearest.location.x - cart.location.x;
-          const dz = nearest.location.z - cart.location.z;
-          const d2d = Math.sqrt(dx * dx + dz * dz);
-          if (d2d < 0.1) continue;
-          const ratio = TRADE_CART_SPEED / d2d;
-          cart.teleport(
-            { x: cart.location.x + dx * ratio, y: nearest.location.y, z: cart.location.z + dz * ratio },
-            { dimension: dim }
-          );
-        } catch {}
-      }
-    } catch {}
-  }
-}
 function spawnMerchant(village) {
   const dim = world12.getDimension(village.location.dimension);
-  const marketLoc = village.tradeStationLocation ?? village.townHallLocation;
+  const loc = village.townHallLocation;
   const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
   const templateKey = templates[Math.floor(Math.random() * templates.length)];
   const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
   const angle = Math.random() * Math.PI * 2;
-  const spawnDist = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
-  const spawnX = marketLoc.x + Math.cos(angle) * spawnDist;
-  const spawnZ = marketLoc.z + Math.sin(angle) * spawnDist;
+  const distance2 = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
   try {
-    const entity = dim.spawnEntity("kingdoms:merchant", { x: spawnX, y: marketLoc.y, z: spawnZ });
+    const entity = dim.spawnEntity("kingdoms:merchant", {
+      x: loc.x + Math.cos(angle) * distance2,
+      y: loc.y,
+      z: loc.z + Math.sin(angle) * distance2
+    });
     const merchantData = {
       entityId: entity.id,
       stock,
       destinationVillageId: village.id,
-      currentPoleIndex: 0,
-      arrived: false,
-      lastNotifyDist: -1
+      currentPoleIndex: 0
     };
     entity.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
     entity.setDynamicProperty("kc:village_id", village.id);
-    const hasMarket = !!village.tradeStationLocation;
-    entity.nameTag = `\xA76Merchant \xA77[\u2192 ${village.name}${hasMarket ? " Market" : ""}]`;
+    entity.nameTag = `\xA76Merchant \xA77[${village.name}]`;
     village.activeMerchants.push(merchantData);
     saveVillage(village);
     notifyPlayer(
       village.owner,
-      `\xA76\uD83D\uDED2 A travelling merchant has set out for \xA7b${village.name}\xA76's ${hasMarket ? "market" : "town hall"}! (${Math.round(spawnDist)} blocks away \u2014 Stock: ${Object.keys(stock).length} types)`
+      `\xA76A merchant has set out for \xA7b${village.name}\xA76! (${Math.round(distance2)} blocks away, Stock: ${Object.keys(stock).length} types)`
     );
   } catch {
   }
 }
 function tickMerchantMovement(village) {
   const dim = world12.getDimension(village.location.dimension);
-  const poles = village.tradePoles ?? [];
-  const finalDest = village.tradeStationLocation ?? village.townHallLocation;
-  const destLabel = village.tradeStationLocation ? "market" : "town hall";
+  const poles = village.tradePoles;
+  const townHall = village.townHallLocation;
   let changed = false;
   for (const merchantData of village.activeMerchants) {
     try {
       const entities = dim.getEntities({ type: "kingdoms:merchant" });
       const entity = entities.find((e) => e.id === merchantData.entityId);
       if (!entity) continue;
-      if (merchantData.arrived) {
-        const dx0 = finalDest.x - entity.location.x;
-        const dz0 = finalDest.z - entity.location.z;
-        if (Math.sqrt(dx0 * dx0 + dz0 * dz0) > MERCHANT_ARRIVE_RADIUS * 3) {
-          entity.teleport({ x: finalDest.x, y: finalDest.y, z: finalDest.z }, { keepVelocity: false });
-        }
-        continue;
-      }
       const loc = entity.location;
       let target;
       let onPole = false;
@@ -4517,7 +3898,7 @@ function tickMerchantMovement(village) {
         target = poles[merchantData.currentPoleIndex].location;
         onPole = true;
       } else {
-        target = finalDest;
+        target = townHall;
       }
       const dx = target.x - loc.x;
       const dz = target.z - loc.z;
@@ -4526,29 +3907,8 @@ function tickMerchantMovement(village) {
         if (onPole) {
           merchantData.currentPoleIndex++;
           changed = true;
-        } else {
-          merchantData.arrived = true;
-          changed = true;
-          entity.nameTag = `\xA76Merchant \xA77[${village.name} Market]`;
-          notifyPlayer(village.owner, `\xA76\uD83D\uDED2 A merchant has arrived at \xA7b${village.name}\xA76's ${destLabel} safely! Ready to trade.`);
-          entity.teleport({ x: finalDest.x, y: finalDest.y, z: finalDest.z }, { keepVelocity: false });
         }
         continue;
-      }
-      const dxFinal = finalDest.x - loc.x;
-      const dzFinal = finalDest.z - loc.z;
-      const distToFinal = Math.sqrt(dxFinal * dxFinal + dzFinal * dzFinal);
-      const notifyBucket = Math.floor(distToFinal / 30);
-      if (merchantData.lastNotifyDist === void 0 || merchantData.lastNotifyDist === -1) merchantData.lastNotifyDist = notifyBucket + 99;
-      if (notifyBucket < merchantData.lastNotifyDist) {
-        merchantData.lastNotifyDist = notifyBucket;
-        changed = true;
-        if (distToFinal < 25) {
-          notifyPlayer(village.owner, `\xA76\uD83D\uDED2 Merchant is approaching \xA7b${village.name}\xA76's ${destLabel}! (~${Math.round(distToFinal)}m away)`);
-        } else if (Math.random() < 0.35) {
-          const poleInfo = onPole ? ` \xA77(following trade road)` : "";
-          notifyPlayer(village.owner, `\xA77\uD83D\uDED2 Merchant en route to \xA7b${village.name}\xA77 ${destLabel}${poleInfo} \u2014 ${Math.round(distToFinal)}m remaining.`);
-        }
       }
       const ratio = MERCHANT_MOVE_SPEED / dist2D;
       entity.teleport(
@@ -4559,23 +3919,11 @@ function tickMerchantMovement(village) {
         const hostiles = dim.getEntities({ location: loc, maxDistance: MERCHANT_DANGER_RADIUS, families: ["monster"] });
         if (hostiles.length > 0) {
           entity.applyDamage(2);
-          if (Math.random() < 0.06) {
-            notifyPlayer(village.owner, `\xA7c\u26A0 MERCHANT UNDER ATTACK! Heading to \xA7b${village.name}\xA7c ${destLabel} \u2014 ${Math.round(distToFinal)}m away! Send guards!`);
+          if (Math.random() < 0.04) {
+            notifyPlayer(village.owner, `\xA7c\u26A0 A merchant heading to \xA7b${village.name}\xA7c is under mob attack! (${Math.round(dist2D)} blocks out)`);
           }
         }
       } catch {
-      }
-      if (onPole) {
-        try {
-          const nearbyGuards = dim.getEntities({ location: loc, maxDistance: 20, type: "kingdoms:city_guard" });
-          for (const guard of nearbyGuards) {
-            const guardOwner = guard.getDynamicProperty("kc:owner");
-            if (guardOwner === village.owner || guard.getDynamicProperty("kc:village_id") === village.id) {
-              const guardHostiles = dim.getEntities({ location: guard.location, maxDistance: 16, families: ["monster"] });
-              for (const h of guardHostiles) { try { guard.target = h; } catch {} }
-            }
-          }
-        } catch {}
       }
     } catch {
     }
@@ -4612,7 +3960,6 @@ function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
   if (merchant.stock[itemTypeId] <= 0) {
     delete merchant.stock[itemTypeId];
   }
-  routeMerchantGoods(village, itemTypeId, buyAmount);
   const totalRemaining = Object.values(merchant.stock).reduce((a, b) => a + b, 0);
   if (totalRemaining <= 0) {
     removeMerchant(village, merchantEntityId);
@@ -4620,26 +3967,6 @@ function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
     saveVillage(village);
   }
   return true;
-}
-function routeMerchantGoods(village, itemTypeId, amount) {
-  const matKey = MERCHANT_MATERIAL_MAP[itemTypeId];
-  if (matKey) {
-    village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-    village.resourceStorage[matKey] = (village.resourceStorage[matKey] ?? 0) + amount;
-    notifyPlayer(village.owner, `\xA77Merchant delivered: ${amount}x ${itemTypeId.replace("minecraft:", "")} \u2192 \xA7bMaterial Storage`);
-    return;
-  }
-  if (FOOD_SELL_RATES?.find?.((e) => e.itemId === itemTypeId)) {
-    village.granaryItems ?? (village.granaryItems = {});
-    village.granaryItems[itemTypeId] = (village.granaryItems[itemTypeId] ?? 0) + amount;
-    notifyPlayer(village.owner, `\xA77Merchant delivered: ${amount}x ${itemTypeId.replace("minecraft:", "")} \u2192 \xA7aGranary`);
-    return;
-  }
-  if (ALL_ARMORY_ITEMS?.has?.(itemTypeId)) {
-    village.armoryItems ?? (village.armoryItems = {});
-    village.armoryItems[itemTypeId] = (village.armoryItems[itemTypeId] ?? 0) + amount;
-    notifyPlayer(village.owner, `\xA77Merchant delivered: ${amount}x ${itemTypeId.replace("minecraft:", "")} \u2192 \xA76Armory`);
-  }
 }
 function removeMerchant(village, merchantEntityId) {
   const dim = world12.getDimension(village.location.dimension);
@@ -4652,26 +3979,17 @@ function removeMerchant(village, merchantEntityId) {
   village.activeMerchants = village.activeMerchants.filter((m) => m.entityId !== merchantEntityId);
   saveVillage(village);
 }
-var MERCHANT_TRADE_TABLE = {
-  "minecraft:iron_ingot":  { qty: 8,  cost: 6,  label: "Iron Ingot" },
-  "minecraft:gold_ingot":  { qty: 4,  cost: 10, label: "Gold Ingot" },
-  "minecraft:diamond":     { qty: 1,  cost: 8,  label: "Diamond" },
-  "minecraft:coal":        { qty: 16, cost: 3,  label: "Coal" },
-  "minecraft:oak_planks":  { qty: 32, cost: 4,  label: "Wood Planks" },
-  "minecraft:cobblestone": { qty: 32, cost: 2,  label: "Cobblestone" },
-  "minecraft:bread":       { qty: 8,  cost: 5,  label: "Bread" },
-  "minecraft:cooked_beef": { qty: 4,  cost: 6,  label: "Cooked Beef" },
-  "minecraft:apple":       { qty: 8,  cost: 3,  label: "Apple" },
-  "twb_farm:garlic":       { qty: 6,  cost: 3,  label: "Garlic" },
-  "twb_farm:onion":        { qty: 6,  cost: 3,  label: "Onion" },
-  "twb_farm:rice":         { qty: 6,  cost: 3,  label: "Rice" },
-  "twb_farm:broccoli":     { qty: 6,  cost: 4,  label: "Broccoli" },
-  "twb_farm:pineapple":    { qty: 4,  cost: 6,  label: "Pineapple" }
-};
 function getMerchantPrice(itemTypeId) {
-  const entry = MERCHANT_TRADE_TABLE[itemTypeId];
-  if (entry) return entry.cost / entry.qty;
-  return 2;
+  const prices = {
+    "minecraft:iron_ingot": 3,
+    "minecraft:gold_ingot": 5,
+    "minecraft:diamond": 12,
+    "minecraft:coal": 2,
+    "minecraft:bread": 2,
+    "minecraft:cooked_beef": 2,
+    "minecraft:apple": 1
+  };
+  return prices[itemTypeId] ?? 3;
 }
 function upgradeMarket(village) {
   if (village.marketLevel >= 5) {
@@ -4689,6 +4007,28 @@ function upgradeMarket(village) {
   notifyPlayer(village.owner, `\xA7aMarket upgraded to level \xA7b${village.marketLevel}\xA7a in \xA7b${village.name}\xA7a!`);
   return true;
 }
+function countItem(container, itemId) {
+  let total = 0;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === itemId) total += slot.amount;
+  }
+  return total;
+}
+function removeItems(container, itemId, amount) {
+  let toRemove = amount;
+  for (let i = 0; i < container.size && toRemove > 0; i++) {
+    const slot = container.getItem(i);
+    if (!slot || slot.typeId !== itemId) continue;
+    const take = Math.min(slot.amount, toRemove);
+    toRemove -= take;
+    if (take >= slot.amount) container.setItem(i, void 0);
+    else {
+      slot.amount -= take;
+      container.setItem(i, slot);
+    }
+  }
+}
 function buySeedsFromMarket(player, village, entry) {
   if (village.marketLevel < 1) {
     notifyPlayer(player.name, "\xA7cBuild and upgrade the market first.");
@@ -4697,27 +4037,24 @@ function buySeedsFromMarket(player, village, entry) {
   const inv = player.getComponent(EntityInventoryComponent6.componentId);
   if (!inv?.container) return false;
   const container = inv.container;
-  let emeraldsHeld = 0;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot?.typeId === "minecraft:emerald") emeraldsHeld += slot.amount;
-  }
+  const emeraldsHeld = countItem(container, "minecraft:emerald");
   if (emeraldsHeld < entry.emeraldCost) {
-    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost} emeralds\xA7c (you have ${emeraldsHeld}) to buy ${entry.quantityPerPurchase}x ${entry.label}.`);
+    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost} emeralds\xA7c (you have ${emeraldsHeld}).`);
     return false;
   }
-  let emeraldsToRemove = entry.emeraldCost;
-  for (let i = 0; i < container.size && emeraldsToRemove > 0; i++) {
-    const slot = container.getItem(i);
-    if (!slot || slot.typeId !== "minecraft:emerald") continue;
-    const take = Math.min(slot.amount, emeraldsToRemove);
-    emeraldsToRemove -= take;
-    if (take >= slot.amount) {
-      container.setItem(i, void 0);
-    } else {
-      slot.amount -= take;
-      container.setItem(i, slot);
+  const missing = [];
+  for (const mat of SEED_PURCHASE_MATERIALS) {
+    if (countItem(container, mat.itemId) < mat.amount) {
+      missing.push(`\xA7e${mat.label}`);
     }
+  }
+  if (missing.length > 0) {
+    notifyPlayer(player.name, `\xA7cAlso need: ${missing.join("\xA7c, ")}`);
+    return false;
+  }
+  removeItems(container, "minecraft:emerald", entry.emeraldCost);
+  for (const mat of SEED_PURCHASE_MATERIALS) {
+    removeItems(container, mat.itemId, mat.amount);
   }
   let remaining = entry.quantityPerPurchase;
   for (let i = 0; i < container.size && remaining > 0; i++) {
@@ -4733,17 +4070,14 @@ function buySeedsFromMarket(player, village, entry) {
       remaining -= give;
     }
   }
-  if (remaining > 0) {
-    notifyPlayer(player.name, "\xA7cInventory full \u2014 some seeds couldn't be delivered.");
-  }
-  notifyPlayer(player.name, `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost}\u{1F48E}\xA7a.`);
+  if (remaining > 0) notifyPlayer(player.name, "\xA7cInventory full \u2014 some seeds couldn't be delivered.");
+  notifyPlayer(
+    player.name,
+    `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost}\u{1F48E}\xA7a + farming materials.`
+  );
   return true;
 }
 function sellFoodBulk(player, village, entry, batches) {
-  if (!village.granaryLocation || !village.treasuryLocation) {
-    notifyPlayer(player.name, `\xA7c\u26A0 Market income halted \u2014 Granary and Treasury must both be active in \xA7b${village.name}\xA7c first!`);
-    return false;
-  }
   const totalItems = entry.itemsPerEmerald * batches;
   const emeraldsEarned = batches;
   if (batches < 1) {
@@ -4789,52 +4123,28 @@ function sellFoodBulk(player, village, entry, batches) {
       }
     }
   }
-  const ALLIANCE_TRADE_DAILY_LIMIT = 5;
-  let allianceBonus = 0;
-  let allianceBonusMsg = "";
-  const playerKingdom = getKingdomOf(player.name);
-  if (playerKingdom && playerKingdom.alliances && playerKingdom.alliances.length > 0) {
-    const today = getCurrentDay();
-    if ((playerKingdom.allianceTradesDay ?? -1) !== today) {
-      playerKingdom.allianceTradesUsed = 0;
-      playerKingdom.allianceTradesDay = today;
-    }
-    const tradesLeft = ALLIANCE_TRADE_DAILY_LIMIT - (playerKingdom.allianceTradesUsed ?? 0);
-    if (tradesLeft > 0) {
-      allianceBonus = Math.ceil(emeraldsEarned * 0.1);
-      playerKingdom.allianceTradesUsed = (playerKingdom.allianceTradesUsed ?? 0) + 1;
-      saveKingdom(playerKingdom);
-      allianceBonusMsg = ` \xA7a(+${allianceBonus}\u{1F48E} alliance bonus \u2014 ${tradesLeft - 1} left today)`;
-    } else {
-      allianceBonusMsg = ` \xA77(alliance bonus limit reached for today)`;
-    }
-  }
-  const cap = getDailyFoodSellCap(village);
-  const allowedBase = checkAndConsumeDailyFoodSell(village, emeraldsEarned);
-  if (allowedBase <= 0) {
-    notifyPlayer(
-      player.name,
-      `\xA7c\u{1F4CA} Daily food sell limit reached in \xA7b${village.name}\xA7c (${cap}\u{1F48E}/day at Market Lv${village.marketLevel ?? 1}). Upgrade your market to raise the cap.`
-    );
-    return false;
-  }
-  const totalEarned = allowedBase + allianceBonus;
-  village.treasury += totalEarned;
+  village.treasury += emeraldsEarned;
   saveVillage(village);
-  const limitMsg = `\xA77 [${village.dailyFoodSoldEm}/${cap}\u{1F48E} daily limit]`;
   notifyPlayer(
     player.name,
-    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${totalEarned}\u{1F48E}\xA7a added to \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)${allianceBonusMsg}${limitMsg}`
+    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${emeraldsEarned}\u{1F48E}\xA7a added to \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)`
   );
   return true;
 }
 
+// src/main.ts
+init_bandit();
+init_villageAlerts();
+
 // src/systems/trade.ts
 init_storage();
+init_notify();
 import { world as world13, EntityInventoryComponent as EntityInventoryComponent7 } from "@minecraft/server";
 
 // src/systems/tradeStation.ts
+init_types();
 init_storage();
+init_notify();
 function registerTradeStation(village, location) {
   village.hasTradeStation = true;
   village.tradeStationLocation = { x: location.x, y: location.y, z: location.z };
@@ -4887,6 +4197,11 @@ function getCargoSummary(cargo) {
   if (cargo.wood > 0) parts.push(`${cargo.wood} Wood`);
   if (cargo.stone > 0) parts.push(`${cargo.stone} Stone`);
   if (cargo.diamonds > 0) parts.push(`${cargo.diamonds} Diamonds`);
+  const troops = cargo.troops ?? {};
+  if ((troops.cityGuards ?? 0) > 0) parts.push(`${troops.cityGuards} Guards`);
+  if ((troops.spearmen ?? 0) > 0) parts.push(`${troops.spearmen} Spearmen`);
+  if ((troops.archers ?? 0) > 0) parts.push(`${troops.archers} Archers`);
+  if ((troops.cavalry ?? 0) > 0) parts.push(`${troops.cavalry} Cavalry`);
   return parts.join(", ") || "Empty";
 }
 function ensureResourceStorage(village) {
@@ -4988,6 +4303,39 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
     notifyPlayer(from.owner, `\xA7cNot enough Diamonds.`);
     return false;
   }
+  const troops = cargo.troops ?? {};
+  if ((troops.cityGuards ?? 0) > from.troops.cityGuards) {
+    notifyPlayer(from.owner, `\xA7cNot enough City Guards.`);
+    return false;
+  }
+  if ((troops.spearmen ?? 0) > from.troops.spearmen) {
+    notifyPlayer(from.owner, `\xA7cNot enough Spearmen.`);
+    return false;
+  }
+  if ((troops.archers ?? 0) > from.troops.archers) {
+    notifyPlayer(from.owner, `\xA7cNot enough Archers.`);
+    return false;
+  }
+  if ((troops.cavalry ?? 0) > from.troops.cavalry) {
+    notifyPlayer(from.owner, `\xA7cNot enough Cavalry.`);
+    return false;
+  }
+  if ((troops.heavyKnight ?? 0) > (from.troops.heavyKnight ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Heavy Knights.`);
+    return false;
+  }
+  if ((troops.samurai ?? 0) > (from.troops.samurai ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Samurai.`);
+    return false;
+  }
+  if ((troops.mercenaryLancer ?? 0) > (from.troops.mercenaryLancer ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Mercenary Lancers.`);
+    return false;
+  }
+  if ((troops.legionary ?? 0) > (from.troops.legionary ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Legionaries.`);
+    return false;
+  }
   from.treasury -= cargo.emeralds;
   from.foodStorage -= cargo.food;
   rs.iron -= cargo.iron ?? 0;
@@ -4996,6 +4344,14 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
   rs.wood -= cargo.wood ?? 0;
   rs.stone -= cargo.stone ?? 0;
   rs.diamonds -= cargo.diamonds ?? 0;
+  from.troops.cityGuards -= troops.cityGuards ?? 0;
+  from.troops.spearmen -= troops.spearmen ?? 0;
+  from.troops.archers -= troops.archers ?? 0;
+  from.troops.cavalry -= troops.cavalry ?? 0;
+  from.troops.heavyKnight = (from.troops.heavyKnight ?? 0) - (troops.heavyKnight ?? 0);
+  from.troops.samurai = (from.troops.samurai ?? 0) - (troops.samurai ?? 0);
+  from.troops.mercenaryLancer = (from.troops.mercenaryLancer ?? 0) - (troops.mercenaryLancer ?? 0);
+  from.troops.legionary = (from.troops.legionary ?? 0) - (troops.legionary ?? 0);
   const dim = world13.getDimension(from.location.dimension);
   const spawnLoc = from.tradeStationLocation ?? from.townHallLocation;
   let cartEntity;
@@ -5014,20 +4370,30 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
     rs.wood += cargo.wood ?? 0;
     rs.stone += cargo.stone ?? 0;
     rs.diamonds += cargo.diamonds ?? 0;
+    from.troops.cityGuards += troops.cityGuards ?? 0;
+    from.troops.spearmen += troops.spearmen ?? 0;
+    from.troops.archers += troops.archers ?? 0;
+    from.troops.cavalry += troops.cavalry ?? 0;
+    from.troops.heavyKnight = (from.troops.heavyKnight ?? 0) + (troops.heavyKnight ?? 0);
+    from.troops.samurai = (from.troops.samurai ?? 0) + (troops.samurai ?? 0);
+    from.troops.mercenaryLancer = (from.troops.mercenaryLancer ?? 0) + (troops.mercenaryLancer ?? 0);
+    from.troops.legionary = (from.troops.legionary ?? 0) + (troops.legionary ?? 0);
     saveVillage(from);
     notifyPlayer(from.owner, "\xA7cCould not spawn minecart (chunk not loaded). Resources refunded.");
     return false;
   }
+  const isMilitary = Object.values(troops).some((v) => (v ?? 0) > 0);
   const cartData = {
     entityId: cartEntity.id,
     sourceVillageId: fromVillageId,
     destinationVillageId: toVillageId,
     cargo,
     currentPoleIndex: 0,
+    isMilitary,
     isRailShipment: true
   };
   cartEntity.setDynamicProperty("kc:cart_data", JSON.stringify(cartData));
-  cartEntity.nameTag = `\u{1F4E6} \u2192 ${to.name}`;
+  cartEntity.nameTag = isMilitary ? `\u{1F5E1} \u2192 ${to.name}` : `\u{1F4E6} \u2192 ${to.name}`;
   from.activeCarts.push(cartData);
   saveVillage(from);
   const summary = getCargoSummary(cargo);
@@ -5036,7 +4402,6 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
     `\xA7a\u{1F4E6} Shipment ready! Push the \xA7bchest minecart\xA7a at \xA7b${from.name}\xA7a's trade station along rails to \xA7b${to.name}\xA7a. [${summary}]`
   );
   notifyPlayer(to.owner, `\xA7e\u{1F682} Incoming shipment from \xA7b${from.name}\xA7e! [${summary}]`);
-  logVillageEvent(to, "trade", `\u{1F682} Shipment from ${from.name}: ${summary}`);
   return true;
 }
 var MAX_HISTORY_ENTRIES = 10;
@@ -5052,92 +4417,6 @@ function recordTradeHistory(village, fromVillageName, summary, isManual) {
   if (village.tradeHistory.length > MAX_HISTORY_ENTRIES) {
     village.tradeHistory.length = MAX_HISTORY_ENTRIES;
   }
-}
-var MAX_ALERT_LOG_ENTRIES = 10;
-function logVillageEvent(village, category, message) {
-  if (!village.alertLog) village.alertLog = [];
-  const entry = {
-    tick: getCurrentTick(),
-    day: getCurrentDay(),
-    category,
-    message
-  };
-  village.alertLog.unshift(entry);
-  if (village.alertLog.length > MAX_ALERT_LOG_ENTRIES) village.alertLog.length = MAX_ALERT_LOG_ENTRIES;
-}
-var lastPoleTick = 0;
-var POLE_TICK_INTERVAL = 40;
-var TRADE_POLE_DETECT_RADIUS = 5;
-function tickTradePoles(currentTick) {
-  if (currentTick - lastPoleTick < POLE_TICK_INTERVAL) return;
-  lastPoleTick = currentTick;
-  for (const village of getAllVillages()) {
-    if (!village.tradePoles || village.tradePoles.length === 0) continue;
-    for (const pole of village.tradePoles) {
-      processTradePoleCarts(village, pole);
-    }
-  }
-}
-function processTradePoleCarts(village, pole) {
-  const dim = world13.getDimension(village.location.dimension);
-  let minecarts;
-  try {
-    minecarts = dim.getEntities({
-      type: "minecraft:chest_minecart",
-      location: pole.location,
-      maxDistance: TRADE_POLE_DETECT_RADIUS
-    });
-  } catch {
-    return;
-  }
-  let changed = false;
-  for (const cart of minecarts) {
-    if (extractTradePoleCargo(cart, village)) changed = true;
-  }
-  if (changed) saveVillage(village);
-}
-function extractTradePoleCargo(cart, village) {
-  const inv = cart.getComponent(EntityInventoryComponent7.componentId);
-  if (!inv?.container) return false;
-  ensureResourceStorage(village);
-  const rs = village.resourceStorage;
-  const received = [];
-  let hasCargo = false;
-  for (let i = 0; i < inv.container.size; i++) {
-    const item = inv.container.getItem(i);
-    if (!item || item.amount === 0) continue;
-    hasCargo = true;
-    const troopInfo = TROOP_TOKEN_MAP[item.typeId];
-    if (troopInfo) {
-      village.troops[troopInfo.troopType] = (village.troops[troopInfo.troopType] ?? 0) + item.amount;
-      received.push(`${item.amount}x ${troopInfo.label}`);
-      continue;
-    }
-    const mapping = ITEM_RESOURCE_MAP[item.typeId];
-    const foodValue = FOOD_ITEM_VALUES[item.typeId];
-    if (mapping) {
-      if (mapping.target === "treasury") {
-        village.treasury += item.amount;
-        received.push(`${item.amount}\u{1F48E}`);
-      } else {
-        rs[mapping.target] += item.amount;
-        received.push(`${item.amount} ${mapping.target}`);
-      }
-    } else if (foodValue !== void 0 && foodValue >= 0) {
-      const units = item.amount * foodValue;
-      village.foodStorage += units;
-      received.push(`${units}\u{1F33E}`);
-    }
-  }
-  if (!hasCargo || received.length === 0) return false;
-  try { cart.remove(); } catch {}
-  const summary = received.join(", ");
-  notifyPlayer(
-    village.owner,
-    `\xA7a\u{1F682} Trade Pole received cargo at \xA7b${village.name}\xA7a: ${summary}`
-  );
-  recordTradeHistory(village, "Trade Pole Delivery", summary, true);
-  return true;
 }
 function tickTradeStations(currentTick) {
   if (currentTick - lastStationTick < STATION_TICK_INTERVAL) return;
@@ -5168,10 +4447,20 @@ function processArrivingMinecarts(village) {
         const cartData = JSON.parse(cartDataRaw);
         if (deliverTaggedMinecart(cartData, village, cart)) changed = true;
       } catch {
-        if (extractUntaggedMinecart(cart, village)) changed = true;
+        const dx = cart.location.x - stationLoc.x;
+        const dy = cart.location.y - stationLoc.y;
+        const dz = cart.location.z - stationLoc.z;
+        if (dx * dx + dy * dy + dz * dz <= 4) {
+          if (extractUntaggedMinecart(cart, village)) changed = true;
+        }
       }
     } else {
-      if (extractUntaggedMinecart(cart, village)) changed = true;
+      const dx = cart.location.x - stationLoc.x;
+      const dy = cart.location.y - stationLoc.y;
+      const dz = cart.location.z - stationLoc.z;
+      if (dx * dx + dy * dy + dz * dz <= 4) {
+        if (extractUntaggedMinecart(cart, village)) changed = true;
+      }
     }
   }
   if (changed) saveVillage(village);
@@ -5187,6 +4476,10 @@ function deliverTaggedMinecart(cartData, destVillage, cartEntity) {
   destVillage.resourceStorage.wood += cargo.wood ?? 0;
   destVillage.resourceStorage.stone += cargo.stone ?? 0;
   destVillage.resourceStorage.diamonds += cargo.diamonds ?? 0;
+  for (const [troopType, count] of Object.entries(cargo.troops ?? {})) {
+    const key = troopType;
+    destVillage.troops[key] = (destVillage.troops[key] ?? 0) + (count ?? 0);
+  }
   const srcVillage = getVillage(cartData.sourceVillageId);
   if (srcVillage) {
     srcVillage.activeCarts = srcVillage.activeCarts.filter((c) => c.entityId !== cartData.entityId);
@@ -5197,7 +4490,8 @@ function deliverTaggedMinecart(cartData, destVillage, cartEntity) {
   } catch {
   }
   const summary = getCargoSummary(cargo);
-  notifyPlayer(destVillage.owner, `\xA7a\u{1F4E6} Shipment arrived at \xA7b${destVillage.name}\xA7a! [${summary}]`);
+  const prefix = cartData.isMilitary ? "\xA7a\u{1F5E1} Reinforcements" : "\xA7a\u{1F4E6} Shipment";
+  notifyPlayer(destVillage.owner, `${prefix} arrived at \xA7b${destVillage.name}\xA7a! [${summary}]`);
   if (srcVillage && srcVillage.owner !== destVillage.owner) {
     notifyPlayer(srcVillage.owner, `\xA7a\u{1F4E6} Shipment delivered to \xA7b${destVillage.name}\xA7a.`);
   }
@@ -5245,53 +4539,74 @@ function extractUntaggedMinecart(cart, village) {
 
 // src/systems/training.ts
 init_storage();
+init_notify();
 var TRAINING_COSTS = {
-  cityGuards:  { emeralds: 2, iron: 5,  gold: 0 },
-  spearmen:    { emeralds: 3, iron: 8,  gold: 0 },
-  archers:     { emeralds: 3, iron: 6,  gold: 2 },
-  cavalry:     { emeralds: 5, iron: 10, gold: 3 },
-  samurai:     { emeralds: 6, iron: 8,  gold: 4 },
-  heavyKnights:{ emeralds: 6, iron: 12, gold: 4 },
-  legionary:   { emeralds: 6, iron: 10, gold: 3 }
+  cityGuards: { emeralds: 4, iron: 8, gold: 0, diamonds: 0 },
+  spearmen: { emeralds: 6, iron: 12, gold: 0, diamonds: 0 },
+  archers: { emeralds: 6, iron: 10, gold: 4, diamonds: 0 },
+  cavalry: { emeralds: 12, iron: 18, gold: 6, diamonds: 0 },
+  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 },
+  samurai: { emeralds: 40, iron: 30, gold: 15, diamonds: 10 },
+  mercenaryLancer: { emeralds: 35, iron: 25, gold: 12, diamonds: 8 },
+  legionary: { emeralds: 35, iron: 25, gold: 12, diamonds: 8 }
 };
 var TRAINING_TICKS = {
-  cityGuards:   400,
-  spearmen:     400,
-  archers:      400,
-  cavalry:      400,
-  samurai:      600,
-  heavyKnights: 600,
-  legionary:    550
+  cityGuards: 1200,
+  spearmen: 1800,
+  archers: 1600,
+  cavalry: 2400,
+  heavyKnight: 6e3,
+  samurai: 9e3,
+  mercenaryLancer: 8e3,
+  legionary: 8e3
 };
 var TROOP_LABELS = {
-  cityGuards:      "City Guard",
-  spearmen:        "Spearman",
-  archers:         "Archer",
-  cavalry:         "Cavalry",
-  samurai:         "Samurai",
-  heavyKnights:    "Heavy Knight",
-  legionary:       "Legionary",
-  mercenaryLancer: "Mercenary Lancer"
+  cityGuards: "City Guard",
+  spearmen: "Spearman",
+  archers: "Archer",
+  cavalry: "Cavalry",
+  heavyKnight: "Heavy Knight",
+  samurai: "Samurai",
+  mercenaryLancer: "Mercenary Lancer",
+  legionary: "Legionary"
 };
+var ELITE_TROOP_TYPES = ["samurai", "mercenaryLancer", "legionary"];
 var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
   const cost = TRAINING_COSTS[troopType];
   const rs = village.resourceStorage;
   if (village.treasury < cost.emeralds * count) {
-    return `\xA7cNeed \xA7f${cost.emeralds * count}\u{1F48E}\xA7c emeralds (treasury: \xA7f${village.treasury}\xA7c).`;
+    return `\xA7cNeed \xA7f${cost.emeralds * count} emeralds\xA7c in treasury (have \xA7f${village.treasury}\xA7c).`;
   }
   if (rs.iron < cost.iron * count) {
-    return `\xA7cNeed \xA7f${cost.iron * count}\xA7c iron (have \xA7f${rs.iron}\xA7c).`;
+    return `\xA7cNeed \xA7f${cost.iron * count} iron\xA7c in storage (have \xA7f${rs.iron}\xA7c).`;
   }
   if (cost.gold > 0 && rs.gold < cost.gold * count) {
-    return `\xA7cNeed \xA7f${cost.gold * count}\xA7c gold (have \xA7f${rs.gold}\xA7c).`;
+    return `\xA7cNeed \xA7f${cost.gold * count} gold\xA7c in storage (have \xA7f${rs.gold}\xA7c).`;
+  }
+  if (cost.diamonds > 0 && rs.diamonds < cost.diamonds * count) {
+    return `\xA7cNeed \xA7f${cost.diamonds * count} diamonds\xA7c in storage (have \xA7f${rs.diamonds}\xA7c).`;
   }
   return null;
 }
-function queueTraining(village, troopType, count, currentTick) {
+function queueTraining(village, troopType, count, currentTick, playerVillageCount = 0) {
   if (village.trainingQueue.length >= MAX_QUEUE_SIZE) {
     notifyPlayer(village.owner, `\xA7cTraining queue is full (max ${MAX_QUEUE_SIZE} jobs).`);
     return false;
+  }
+  if (troopType === "heavyKnight" && village.barracksLevel < 3) {
+    notifyPlayer(village.owner, `\xA7cHeavy Knights require \xA7bBarracks Level 3+\xA7c (currently Lv${village.barracksLevel}).`);
+    return false;
+  }
+  if (ELITE_TROOP_TYPES.includes(troopType)) {
+    if (!village.hasCastle) {
+      notifyPlayer(village.owner, `\xA7cElite troops require a \xA7bCastle\xA7c built in this village.`);
+      return false;
+    }
+    if (playerVillageCount < 3) {
+      notifyPlayer(village.owner, `\xA7cElite troops require \xA7boccupation of 3 villages\xA7c (you have \xA7f${playerVillageCount}\xA7c).`);
+      return false;
+    }
   }
   const err = canAffordTraining(village, troopType, count);
   if (err) {
@@ -5302,6 +4617,7 @@ function queueTraining(village, troopType, count, currentTick) {
   village.treasury -= cost.emeralds * count;
   village.resourceStorage.iron -= cost.iron * count;
   if (cost.gold > 0) village.resourceStorage.gold -= cost.gold * count;
+  if (cost.diamonds > 0) village.resourceStorage.diamonds -= cost.diamonds * count;
   const ticksNeeded = TRAINING_TICKS[troopType] * count;
   const lastJobEnd = village.trainingQueue.length > 0 ? village.trainingQueue[village.trainingQueue.length - 1].completeTick : currentTick;
   const job = {
@@ -5312,11 +4628,11 @@ function queueTraining(village, troopType, count, currentTick) {
   village.trainingQueue.push(job);
   saveVillage(village);
   const label = TROOP_LABELS[troopType];
-  const cost2 = TRAINING_COSTS[troopType];
   const costStr = [
-    `${cost2.emeralds * count}\u{1F48E}`,
-    cost2.iron * count > 0 ? `${cost2.iron * count} iron` : "",
-    cost2.gold * count > 0 ? `${cost2.gold * count} gold` : ""
+    `${cost.emeralds * count} emeralds`,
+    cost.iron * count > 0 ? `${cost.iron * count} iron` : "",
+    cost.gold * count > 0 ? `${cost.gold * count} gold` : "",
+    cost.diamonds * count > 0 ? `${cost.diamonds * count} diamonds` : ""
   ].filter(Boolean).join(", ");
   const secRemaining = Math.ceil((job.completeTick - currentTick) / 20);
   notifyPlayer(village.owner, `\xA7a\u{1FA96} Training \xA7f${count} ${label}\xA7a started. Cost: \xA7f${costStr}\xA7a. Ready in \xA7f~${secRemaining}s\xA7a.`);
@@ -5328,7 +4644,7 @@ function tickTraining(village, currentTick) {
   const remaining = [];
   for (const job of village.trainingQueue) {
     if (currentTick >= job.completeTick) {
-      village.troops[job.troopType] += job.count;
+      village.troops[job.troopType] = (village.troops[job.troopType] ?? 0) + job.count;
       const label = TROOP_LABELS[job.troopType];
       notifyPlayer(village.owner, `\xA7a\u{1FA96} \xA7f${job.count} ${label}\xA7a finished training and joined \xA7b${village.name}\xA7a's garrison!`);
       changed = true;
@@ -5353,8 +4669,12 @@ function getTrainingQueueSummary(village, currentTick) {
 }
 
 // src/systems/autoDefense.ts
-import { world as world14 } from "@minecraft/server";
+init_types();
 init_storage();
+init_notify();
+init_tick();
+init_kingdom();
+import { world as world14 } from "@minecraft/server";
 var THREAT_SCAN_INTERVAL = 60;
 var RAID_NOTIFY_COOLDOWN = 300;
 var lastRaidNotify = /* @__PURE__ */ new Map();
@@ -5365,49 +4685,40 @@ var TROOP_ENTITY_MAP = {
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
   cavalry: "kingdoms:cavalry",
+  heavyKnight: "kingdoms:heavy_knight",
   samurai: "kingdoms:samurai",
-  heavyKnights: "kingdoms:heavy_knight",
-  legionary: "kingdoms:legionary",
-  mercenaryLancer: "kingdoms:mercenary_lancer"
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary: "kingdoms:legionary"
 };
-var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry", "samurai", "heavyKnights", "legionary", "mercenaryLancer"];
+var TROOP_PRIORITY = ["samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
-  const _adPlayers = world14.getPlayers();
-  const _adKingdoms = new Map();
-  for (const _p of _adPlayers) {
-    const _k = getKingdomOf(_p.name);
-    if (_k) _adKingdoms.set(_p.name, _k);
-  }
   for (const village of getAllVillages()) {
     if (!village.owner) continue;
-    scanVillageThreat(village, currentTick, _adPlayers, _adKingdoms);
+    scanVillageThreat(village, currentTick);
   }
 }
-var MOB_DEPLOY_THRESHOLD = 5;
-var MOB_SECOND_WAVE_THRESHOLD = 8;
-function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) {
+function scanVillageThreat(village, currentTick) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  let mobCount = 0;
+  let threatCount = 0;
   let playerRaider = null;
   try {
-    const _vScanRadius = getVillageRadius(village);
     const hostiles = dim.getEntities({
       location: center,
-      maxDistance: _vScanRadius,
+      maxDistance: VILLAGE_CLAIM_RADIUS,
       families: ["monster"]
     });
-    mobCount = hostiles.length;
-  } catch {}
-  const _vThreatRadius = getVillageRadius(village);
-  const _scanPlayers = cachedPlayers ?? world14.getPlayers();
-  for (const p of _scanPlayers) {
+    threatCount += hostiles.length;
+  } catch {
+  }
+  for (const p of world14.getPlayers()) {
     if (p.name === village.owner) continue;
-    const theirKingdom = cachedKingdoms ? cachedKingdoms.get(p.name) : getKingdomOf(p.name);
+    const theirKingdom = getKingdomOf(p.name);
     if (!theirKingdom) continue;
     if (!areAtWar(village.kingdomId, theirKingdom.id)) continue;
-    if (distance(p.location, center) <= _vThreatRadius) {
+    if (distance(p.location, center) <= VILLAGE_CLAIM_RADIUS) {
+      threatCount++;
       if (!playerRaider) playerRaider = p.name;
     }
   }
@@ -5416,23 +4727,26 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
       notifyAlert(village.owner, `\xA7c\u{1F514} RAID ALERT! \xA7f${playerRaider}\xA7c has entered \xA7b${village.name}\xA7c!`);
+      notifyAlliedKings(
+        village.kingdomId,
+        `\xA7c\u{1F514} Allied village \xA7b${village.name}\xA7c is being raided by \xA7f${playerRaider}\xA7c!`
+      );
       lastRaidNotify.set(key, currentTick);
     }
   }
-  const shouldDefend = playerRaider !== null || mobCount >= MOB_DEPLOY_THRESHOLD;
-  if (!shouldDefend) {
+  if (threatCount === 0) {
     recallAutoDispatched(village);
     return;
   }
-  if (mobCount >= MOB_DEPLOY_THRESHOLD) {
+  if (threatCount > 0) {
     const key = `${village.id}:mob`;
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
-      notifyAlert(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${mobCount} mob${mobCount > 1 ? "s" : ""} inside village radius \u2014 deploying defenders!)`);
+      notifyAlert(village.owner, `\xA7c\u2694 \xA7b${village.name}\xA7c is under attack! (${threatCount} threat${threatCount > 1 ? "s" : ""} nearby)`);
       lastRaidNotify.set(key, currentTick);
     }
   }
-  dispatchTroops(village, mobCount, playerRaider !== null);
+  dispatchTroops(village, threatCount);
 }
 function countAutoDispatched(village) {
   const dim = world14.getDimension(village.location.dimension);
@@ -5440,7 +4754,7 @@ function countAutoDispatched(village) {
   let count = 0;
   for (const entityType of Object.values(TROOP_ENTITY_MAP)) {
     try {
-      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: getVillageRadius(village) * 2 });
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
       for (const e of entities) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) === village.id) count++;
       }
@@ -5449,71 +4763,42 @@ function countAutoDispatched(village) {
   }
   return count;
 }
-function dispatchTroops(village, mobCount, hasPlayerRaider) {
-  const totalBarracks = Object.values(village.troops).reduce((s, v) => s + (v ?? 0), 0);
+function dispatchTroops(village, threatCount) {
+  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   if (totalBarracks <= 0) return;
+  const alreadyOut = countAutoDispatched(village);
+  const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
+  if (needed <= 0) return;
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  let polesCleared = false;
-  for (const pole of (village.guardPoles ?? [])) {
-    if (pole.entityIds && pole.entityIds.length > 0) {
-      despawnPoleGuards(village, pole);
-      polesCleared = true;
-    }
-  }
-  const alreadyOut = countAutoDispatched(village);
-  const WAVE_SIZE = 10;
-  let wavesNeeded = 0;
-  if (mobCount >= MOB_DEPLOY_THRESHOLD) wavesNeeded = 1;
-  if (mobCount > MOB_SECOND_WAVE_THRESHOLD) wavesNeeded = 2;
-  if (hasPlayerRaider && wavesNeeded < 1) wavesNeeded = 1;
-  const targetOut = Math.min(wavesNeeded * WAVE_SIZE, totalBarracks);
-  const needed = targetOut - alreadyOut;
-  if (needed <= 0) {
-    if (polesCleared) saveVillage(village);
-    return;
-  }
-  const availablePool = [];
-  for (const troopType of TROOP_PRIORITY) {
-    const inBarracks = (village.troops[troopType] ?? 0) - (village.guardPoles ?? []).filter(p => p.troopType === troopType).reduce((s, p) => s + (p.assignedGuards ?? 0), 0);
-    for (let i = 0; i < Math.max(0, inBarracks); i++) {
-      availablePool.push(troopType);
-    }
-  }
-  for (let i = availablePool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [availablePool[i], availablePool[j]] = [availablePool[j], availablePool[i]];
-  }
-  const toDispatch = availablePool.slice(0, needed);
-  const dispatchCounts = {};
-  for (const t of toDispatch) {
-    dispatchCounts[t] = (dispatchCounts[t] ?? 0) + 1;
-  }
   let dispatched = 0;
-  for (const [troopType, count] of Object.entries(dispatchCounts)) {
-    village.troops[troopType] -= count;
-    for (let i = 0; i < count; i++) {
+  for (const troopType of TROOP_PRIORITY) {
+    if (dispatched >= needed) break;
+    if ((village.troops[troopType] ?? 0) <= 0) continue;
+    const toSend = Math.min(village.troops[troopType] ?? 0, needed - dispatched);
+    village.troops[troopType] -= toSend;
+    for (let i = 0; i < toSend; i++) {
       try {
         const angle = Math.random() * Math.PI * 2;
         const r = 6 + Math.random() * 12;
-        const entity = dim.spawnEntity(TROOP_ENTITY_MAP[troopType], {
+        const offset = {
           x: center.x + Math.cos(angle) * r,
           y: center.y,
           z: center.z + Math.sin(angle) * r
-        });
+        };
+        const entityId = TROOP_ENTITY_MAP[troopType];
+        const entity = MOUNTED_ENTITIES.has(entityId) ? spawnMountedUnit(dim, entityId, offset) : dim.spawnEntity(entityId, offset);
         entity.setDynamicProperty(AUTO_DISPATCH_PROP, village.id);
         entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType);
         entity.nameTag = `\u2694 [${village.name}]`;
         dispatched++;
-      } catch {}
+      } catch {
+      }
     }
   }
-  if (dispatched > 0 || polesCleared) {
+  if (dispatched > 0) {
     saveVillage(village);
-    if (dispatched > 0) {
-      const waveLabel = wavesNeeded === 2 ? " (2nd wave!)" : "";
-      notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} deployed from barracks to defend \xA7b${village.name}\xA7e${waveLabel}!${polesCleared ? " Guard pole soldiers have left their posts to assist." : ""}`);
-    }
+    notifyPlayer(village.owner, `\xA7e\u2694 ${dispatched} troop${dispatched > 1 ? "s" : ""} auto-dispatched to defend \xA7b${village.name}\xA7e!`);
   }
 }
 function recallAutoDispatched(village) {
@@ -5521,60 +4806,54 @@ function recallAutoDispatched(village) {
   const center = village.townHallLocation;
   const survivors = {};
   let recalled = 0;
+  const RECALL_RADIUS2 = VILLAGE_CLAIM_RADIUS * 6;
   for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP)) {
     try {
-      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: getVillageRadius(village) * 2 });
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: RECALL_RADIUS2 });
       for (const e of entities) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
         const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;
         survivors[tt] = (survivors[tt] ?? 0) + 1;
-        try { e.remove(); } catch {}
+        try {
+          const mount = e.getVehicle?.();
+          if (mount) mount.remove();
+        } catch {
+        }
+        try {
+          e.remove();
+        } catch {
+        }
         recalled++;
       }
-    } catch {}
+    } catch {
+    }
   }
-  const polesNeedingRestore = (village.guardPoles ?? []).filter(p => p.assignedGuards > 0 && p.entityIds.length === 0);
   if (recalled > 0) {
     for (const [tt, count] of Object.entries(survivors)) {
-      village.troops[tt] = (village.troops[tt] ?? 0) + count;
+      village.troops[tt] += count;
     }
-  }
-  if (polesNeedingRestore.length > 0) {
-    const troopTotals = {};
-    for (const [tt] of Object.entries(TROOP_ENTITY_MAP)) {
-      troopTotals[tt] = village.troops[tt] ?? 0;
-    }
-    for (const pole of polesNeedingRestore) {
-      const tt = pole.troopType;
-      const alreadyClaimed = (village.guardPoles ?? []).filter(p => p !== pole && p.troopType === tt).reduce((s, p) => s + (p.assignedGuards ?? 0), 0);
-      const canHave = Math.max(0, (troopTotals[tt] ?? 0) - alreadyClaimed);
-      pole.assignedGuards = Math.min(pole.assignedGuards, canHave);
-      if (pole.assignedGuards > 0) {
-        try { spawnPoleGuards(village, pole); } catch {}
-      }
-    }
-  }
-  if (recalled > 0 || polesNeedingRestore.length > 0) {
     saveVillage(village);
-    if (recalled > 0) {
-      notifyPlayer(village.owner, `\xA7a\u2705 Threat cleared! \xA7f${recalled}\xA7a troop${recalled > 1 ? "s" : ""} returned to \xA7b${village.name}\xA7a barracks.${polesNeedingRestore.length > 0 ? " Guard pole soldiers have returned to their posts." : ""}`);
-    } else if (polesNeedingRestore.length > 0) {
-      notifyPlayer(village.owner, `\xA7a\u2705 Threat cleared! Guard pole soldiers have returned to their posts at \xA7b${village.name}\xA7a.`);
-    }
+    notifyPlayer(village.owner, `\xA7a\u2705 Attack repelled! \xA7f${recalled}\xA7a troop${recalled > 1 ? "s" : ""} returned to \xA7b${village.name}\xA7a barracks.`);
   }
 }
 
 // src/systems/guards.ts
 import { world as world15 } from "@minecraft/server";
+init_types();
 init_storage();
+init_notify();
 var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
-  cavalry: "kingdoms:cavalry"
+  cavalry: "kingdoms:cavalry",
+  heavyKnight: "kingdoms:heavy_knight",
+  samurai: "kingdoms:samurai",
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary: "kingdoms:legionary"
 };
 function getBestAvailableTroopType(village) {
-  const types = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const types = ["samurai", "legionary", "mercenaryLancer", "heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
   for (const t of types) {
     if (village.troops[t] > 0) return t;
   }
@@ -5655,20 +4934,16 @@ function spawnPoleGuards(village, pole) {
     try {
       const count = Math.max(pole.assignedGuards, 1);
       const angle = i / count * Math.PI * 2;
-      const entity = dim.spawnEntity(entityType, {
+      const offset = {
         x: pole.location.x + Math.cos(angle) * 2,
         y: pole.location.y,
         z: pole.location.z + Math.sin(angle) * 2
-      });
+      };
+      const entity = MOUNTED_ENTITIES.has(entityType) ? spawnMountedUnit(dim, entityType, offset) : dim.spawnEntity(entityType, offset);
       entity.setDynamicProperty("kc:pole_id", pole.id);
       entity.setDynamicProperty("kc:village_id", village.id);
       entity.nameTag = `${pole.troopType} [${village.name}]`;
       pole.entityIds.push(entity.id);
-      applyBlacksmithBuffsToEntity(
-        entity,
-        village.blacksmith?.weaponTier ?? 0,
-        village.blacksmith?.armorTier ?? 0
-      );
     } catch {
     }
   }
@@ -5684,7 +4959,14 @@ function despawnPoleGuards(village, pole) {
         maxDistance: POLE_SEARCH_RADIUS
       });
       const entity = nearby.find((e) => e.id === eid);
-      if (entity) entity.remove();
+      if (entity) {
+        try {
+          const mount = entity.getVehicle?.();
+          if (mount) mount.remove();
+        } catch {
+        }
+        entity.remove();
+      }
     } catch {
     }
   }
@@ -5701,44 +4983,172 @@ function refreshAllGuards() {
     fillUnderstaffedPoles(village);
   }
 }
-
-var GUARD_TETHER_RADIUS = 24;
-var GUARD_TETHER_INTERVAL = 200;
-var lastGuardTetherTick = 0;
-function tickGuardTethers(currentTick) {
-  if (currentTick - lastGuardTetherTick < GUARD_TETHER_INTERVAL) return;
-  lastGuardTetherTick = currentTick;
+var POLE_RETURN_THRESHOLD = 18;
+function enforceGuardPositions() {
   for (const village of getAllVillages()) {
-    if (!village.guardPoles || village.guardPoles.length === 0) continue;
+    if (!village.owner) continue;
     const dim = world15.getDimension(village.location.dimension);
     for (const pole of village.guardPoles) {
-      if (!pole.entityIds || pole.entityIds.length === 0) continue;
+      if (pole.entityIds.length === 0) continue;
       const entityType = GUARD_ENTITY_MAP[pole.troopType];
       if (!entityType) continue;
-      for (const eid of pole.entityIds) {
-        try {
-          const nearby = dim.getEntities({ type: entityType, location: pole.location, maxDistance: GUARD_TETHER_RADIUS * 2 });
+      const stillPresent = [];
+      try {
+        const nearby = dim.getEntities({
+          type: entityType,
+          location: pole.location,
+          maxDistance: POLE_RETURN_THRESHOLD + 32
+        });
+        for (const eid of pole.entityIds) {
           const entity = nearby.find((e) => e.id === eid);
           if (!entity) continue;
+          stillPresent.push(eid);
           const dx = entity.location.x - pole.location.x;
           const dz = entity.location.z - pole.location.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist > GUARD_TETHER_RADIUS) {
-            const returnAngle = Math.atan2(-dz, -dx) + (Math.random() - 0.5) * 0.5;
-            entity.teleport({
-              x: pole.location.x + Math.cos(returnAngle) * 2,
-              y: pole.location.y,
-              z: pole.location.z + Math.sin(returnAngle) * 2
-            }, { keepVelocity: false });
+          if (dist > POLE_RETURN_THRESHOLD) {
+            try {
+              entity.teleport({
+                x: pole.location.x + (Math.random() * 4 - 2),
+                y: pole.location.y,
+                z: pole.location.z + (Math.random() * 4 - 2)
+              });
+            } catch {
+            }
           }
-        } catch {}
+        }
+      } catch {
       }
+      pole.entityIds = stillPresent;
     }
   }
 }
 
+// src/main.ts
+init_kingdom();
+
 // src/systems/reinforcements.ts
 init_storage();
+init_tick();
+init_notify();
+var BASE_TRAVEL_TICKS = 600;
+var TICKS_PER_5_BLOCKS = 20;
+var TICKS_PER_TROOP = 15;
+function calcTravelTicks(from, to, totalTroops) {
+  const dist = distance(from, to);
+  return BASE_TRAVEL_TICKS + Math.floor(dist / 5) * TICKS_PER_5_BLOCKS + totalTroops * TICKS_PER_TROOP;
+}
+function sendReinforcements(fromVillageId, toVillageId, troops) {
+  const from = getVillage(fromVillageId);
+  const to = getVillage(toVillageId);
+  if (!from || !to) return false;
+  for (const [type, count] of Object.entries(troops)) {
+    if ((count ?? 0) <= 0) continue;
+    if ((from.troops[type] ?? 0) < (count ?? 0)) {
+      notifyPlayer(from.owner, `\xA7cNot enough ${type} in \xA7b${from.name}\xA7c to send.`);
+      return false;
+    }
+  }
+  const totalTroops = Object.values(troops).reduce((s, c) => s + (c ?? 0), 0);
+  if (totalTroops === 0) return false;
+  for (const [type, count] of Object.entries(troops)) {
+    if ((count ?? 0) <= 0) continue;
+    from.troops[type] -= count ?? 0;
+  }
+  const travelTicks = calcTravelTicks(from.location, to.location, totalTroops);
+  const arriveTick = getCurrentTick() + travelTicks;
+  const etaSecs = Math.ceil(travelTicks / 20);
+  const etaMins = Math.floor(etaSecs / 60);
+  const etaLabel = etaMins > 0 ? `${etaMins}m ${etaSecs % 60}s` : `${etaSecs}s`;
+  const pr = {
+    id: generateId(),
+    sourceVillageId: fromVillageId,
+    sourceVillageName: from.name,
+    senderName: from.owner,
+    troops,
+    arriveTick
+  };
+  to.pendingReinforcements ?? (to.pendingReinforcements = []);
+  to.pendingReinforcements.push(pr);
+  saveVillage(from);
+  saveVillage(to);
+  const summary = Object.entries(troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c} ${t}`).join(", ");
+  notifyPlayer(
+    from.owner,
+    `\xA7a\u2694 Reinforcements dispatched (${summary}) from \xA7b${from.name}\xA7a \u2192 \xA7b${to.name}\xA7a. ETA: \xA7e~${etaLabel}\xA7a.`
+  );
+  if (to.owner !== from.owner) {
+    notifyAlert(
+      to.owner,
+      `\xA7e\u2694 Incoming reinforcements (${summary}) from \xA7b${from.name}\xA7e. ETA: \xA7e~${etaLabel}\xA7e.`
+    );
+  }
+  return true;
+}
+function tickPendingReinforcements(currentTick) {
+  for (const village of getAllVillages()) {
+    if (!village.pendingReinforcements || village.pendingReinforcements.length === 0) continue;
+    const remaining = [];
+    let changed = false;
+    for (const pr of village.pendingReinforcements) {
+      if (currentTick < pr.arriveTick) {
+        remaining.push(pr);
+        continue;
+      }
+      for (const [type, count] of Object.entries(pr.troops)) {
+        if ((count ?? 0) <= 0) continue;
+        village.troops[type] = (village.troops[type] ?? 0) + count;
+      }
+      const summary = Object.entries(pr.troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c} ${t}`).join(", ");
+      notifyPlayer(
+        village.owner,
+        `\xA7a\u2694 Reinforcements arrived at \xA7b${village.name}\xA7a! (${summary}) from \xA7b${pr.sourceVillageName}\xA7a.`
+      );
+      if (pr.senderName !== village.owner) {
+        notifyPlayer(pr.senderName, `\xA7a\u2694 Your reinforcements reached \xA7b${village.name}\xA7a!`);
+      }
+      changed = true;
+    }
+    if (changed) {
+      village.pendingReinforcements = remaining;
+      saveVillage(village);
+    }
+  }
+}
+function cancelReinforcement(reinforcementId, toVillageId) {
+  const to = getVillage(toVillageId);
+  if (!to || !to.pendingReinforcements) return false;
+  const idx = to.pendingReinforcements.findIndex((pr2) => pr2.id === reinforcementId);
+  if (idx === -1) return false;
+  const pr = to.pendingReinforcements[idx];
+  to.pendingReinforcements.splice(idx, 1);
+  saveVillage(to);
+  const from = getVillage(pr.sourceVillageId);
+  if (from) {
+    for (const [type, count] of Object.entries(pr.troops)) {
+      if ((count ?? 0) <= 0) continue;
+      from.troops[type] = (from.troops[type] ?? 0) + count;
+    }
+    saveVillage(from);
+    notifyPlayer(from.owner, `\xA7e\u21A9 March recalled \u2014 troops returned to \xA7b${from.name}\xA7e.`);
+  }
+  if (to.owner !== (from?.owner ?? "")) {
+    notifyPlayer(to.owner, `\xA7e\u21A9 Incoming march from \xA7b${pr.sourceVillageName}\xA7e to \xA7b${to.name}\xA7e was recalled.`);
+  }
+  return true;
+}
+function getInTransitMarches(playerName) {
+  const result = [];
+  for (const village of getAllVillages()) {
+    if (!village.pendingReinforcements) continue;
+    for (const pr of village.pendingReinforcements) {
+      if (pr.senderName === playerName) {
+        result.push({ pr, toVillageId: village.id, toName: village.name });
+      }
+    }
+  }
+  return result;
+}
 
 // src/systems/structureBuilder.ts
 var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
@@ -5749,18 +5159,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:blacksmith",
   "kingdoms:trade_station",
   "kingdoms:treasury",
-  "kingdoms:storage",
-  "kingdoms:armory",
-  "kingdoms:tower",
-  "kingdoms:wall_long",
-  "kingdoms:wall_short",
-  "kingdoms:wall_tall",
-  "kingdoms:stone_gate",
-  "kingdoms:king_castle",
-  "kingdoms:house",
-  "kingdoms:fence_enclosure",
-  "kingdoms:barn",
-  "kingdoms:farm_plot"
+  "kingdoms:waypoint",
+  "kingdoms:castle"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -5823,93 +5223,33 @@ function townHallBlueprint() {
 }
 function barracksBlueprint() {
   const p = [];
-  // Clear volume
-  p.push(...fill(-8, 1, -6, 8, 12, 6, "minecraft:air"));
-  // Foundation (cobblestone)
-  p.push(...fill(-8, 0, -6, 8, 0, 6, "minecraft:cobblestone"));
-  // Outer walls: stone bricks (y=1-7)
-  p.push(...fill(-8, 1, -6, 8, 7, -6, "minecraft:stone_bricks")); // north
-  p.push(...fill(-8, 1,  6, 8, 7,  6, "minecraft:stone_bricks")); // south
-  p.push(...fill(-8, 1, -5, -8, 7,  5, "minecraft:stone_bricks")); // west
-  p.push(...fill( 8, 1, -5,  8, 7,  5, "minecraft:stone_bricks")); // east
-  // Timber frame: dark oak corner columns
-  for (const [cx, cz] of [[-8,-6],[-8,6],[8,-6],[8,6]])
-    p.push(...fill(cx, 1, cz, cx, 8, cz, "minecraft:dark_oak_log"));
-  // Mid-wall dark oak posts (structural rhythm)
-  for (const mpx of [-4, 0, 4]) {
-    p.push(...fill(mpx, 1, -6, mpx, 7, -6, "minecraft:dark_oak_log"));
-    p.push(...fill(mpx, 1,  6, mpx, 7,  6, "minecraft:dark_oak_log"));
+  p.push(...fill(-4, 1, -3, 4, 5, 3, "minecraft:air"));
+  p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:cobblestone"));
+  p.push(...fill(-4, 1, -3, 4, 4, -3, "minecraft:stone_bricks"));
+  p.push(...fill(4, 1, -2, 4, 4, 2, "minecraft:stone_bricks"));
+  p.push(...fill(-4, 1, -2, -4, 4, 2, "minecraft:stone_bricks"));
+  for (let x = -4; x <= 4; x++)
+    for (let y = 1; y <= 4; y++)
+      if (!(x >= -1 && x <= 1 && y <= 2))
+        p.push(blk(x, y, 3, "minecraft:stone_bricks"));
+  for (const wx of [-3, 0, 3]) {
+    p.push(blk(wx, 3, -3, "minecraft:glass"));
+    p.push(blk(wx, 3, 3, "minecraft:glass"));
   }
-  for (const mpz of [-2, 2]) {
-    p.push(...fill(-8, 1, mpz, -8, 7, mpz, "minecraft:dark_oak_log"));
-    p.push(...fill( 8, 1, mpz,  8, 7, mpz, "minecraft:dark_oak_log"));
+  p.push(blk(-4, 3, 0, "minecraft:glass"), blk(4, 3, 0, "minecraft:glass"));
+  p.push(...fill(-4, 5, -3, 4, 5, 3, "minecraft:stone_bricks"));
+  for (let x = -4; x <= 4; x += 2) {
+    p.push(blk(x, 6, -3, "minecraft:stone_bricks"));
+    p.push(blk(x, 6, 3, "minecraft:stone_bricks"));
   }
-  // Triple-wide door opening (south wall, x=-1..1, y=1-3)
-  for (let x = -1; x <= 1; x++) for (let y = 1; y <= 3; y++) p.push(blk(x, y, 6, "minecraft:air"));
-  // Windows: 2-high glass panes on each wall
-  for (const wx of [-6, -2, 2, 6])     { p.push(blk(wx, 3, -6, "minecraft:glass"), blk(wx, 4, -6, "minecraft:glass")); } // north
-  for (const wx of [-5, -3, 3, 5])     { p.push(blk(wx, 3,  6, "minecraft:glass"), blk(wx, 4,  6, "minecraft:glass")); } // south flanking door
-  for (const wz of [-4, -1, 1, 4])     {
-    p.push(blk(-8, 3, wz, "minecraft:glass"), blk(-8, 4, wz, "minecraft:glass")); // west
-    p.push(blk( 8, 3, wz, "minecraft:glass"), blk( 8, 4, wz, "minecraft:glass")); // east
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-4, 6, z, "minecraft:stone_bricks"));
+    p.push(blk(4, 6, z, "minecraft:stone_bricks"));
   }
-  // Flat roof (cobblestone y=8) + stone brick crenellations (y=9)
-  p.push(...fill(-8, 8, -6, 8, 8, 6, "minecraft:cobblestone"));
-  for (let x = -8; x <= 8; x += 2) { p.push(blk(x, 9, -6, "minecraft:stone_bricks")); p.push(blk(x, 9, 6, "minecraft:stone_bricks")); }
-  for (let z = -5; z <= 5; z += 2) { p.push(blk(-8, 9, z, "minecraft:stone_bricks")); p.push(blk(8, 9, z, "minecraft:stone_bricks")); }
-  // Entry watchtower above south door (y=8-11)
-  p.push(...fill(-1, 8, 6, 1, 11, 6, "minecraft:stone_bricks"));
-  p.push(blk(0, 9, 6, "minecraft:air")); // arrow slit window
-  p.push(blk(-1, 12, 6, "minecraft:stone_bricks"), blk(0, 12, 6, "minecraft:stone_bricks"), blk(1, 12, 6, "minecraft:stone_bricks"));
-  // Interior floor
-  p.push(...fill(-7, 1, -5, 7, 1, 5, "minecraft:cobblestone"));
-  p.push(...fill( 0, 1, -5, 0, 1, 5, "minecraft:red_carpet")); // central aisle
-  // ── BUNK ROOM (north zone, z=-5 to -1) ──────────────────────────────────
-  p.push(blk(-5, 1, -4, "minecraft:white_bed"), blk(-5, 1, -2, "minecraft:white_bed")); // left lower bunks
-  p.push(blk( 5, 1, -4, "minecraft:white_bed"), blk( 5, 1, -2, "minecraft:white_bed")); // right lower bunks
-  p.push(blk(-7, 1, -4, "minecraft:chest"), blk(-7, 1, -2, "minecraft:chest")); // personal chests L
-  p.push(blk( 7, 1, -4, "minecraft:chest"), blk( 7, 1, -2, "minecraft:chest")); // personal chests R
-  p.push(blk(-7, 2, -4, "minecraft:bookshelf"), blk(-7, 2, -2, "minecraft:bookshelf")); // shelving above chests
-  p.push(blk( 7, 2, -4, "minecraft:bookshelf"), blk( 7, 2, -2, "minecraft:bookshelf"));
-  // Upper bunk platform (dark oak, y=2, over lower beds)
-  p.push(...fill(-6, 2, -4, -4, 2, -2, "minecraft:dark_oak_planks"));
-  p.push(...fill( 4, 2, -4,  6, 2, -2, "minecraft:dark_oak_planks"));
-  p.push(blk(-6, 2, -4, "minecraft:dark_oak_log"), blk(-6, 2, -2, "minecraft:dark_oak_log")); // L support posts
-  p.push(blk(-4, 2, -4, "minecraft:dark_oak_log"), blk(-4, 2, -2, "minecraft:dark_oak_log"));
-  p.push(blk( 4, 2, -4, "minecraft:dark_oak_log"), blk( 4, 2, -2, "minecraft:dark_oak_log")); // R support posts
-  p.push(blk( 6, 2, -4, "minecraft:dark_oak_log"), blk( 6, 2, -2, "minecraft:dark_oak_log"));
-  p.push(blk(-7, 2, -5, "minecraft:bookshelf"), blk(-5, 2, -5, "minecraft:bookshelf")); // north wall shelf
-  p.push(blk( 5, 2, -5, "minecraft:bookshelf"), blk( 7, 2, -5, "minecraft:bookshelf"));
-  // ── EQUIPMENT ZONE (center, z=-1 to 1) ──────────────────────────────────
-  p.push(blk(-3, 1, 0, "minecraft:anvil"));
-  p.push(blk(-2, 1, 0, "minecraft:smithing_table"));
-  p.push(blk( 2, 1, 0, "minecraft:crafting_table"));
-  p.push(blk( 3, 1, 0, "minecraft:grindstone"));
-  p.push(blk(-7, 1, 0, "minecraft:chest"), blk(7, 1, 0, "minecraft:chest")); // equipment chests
-  p.push(blk(-7, 2, 0, "minecraft:barrel"), blk(7, 2, 0, "minecraft:barrel")); // supply barrels
-  for (let iy = 1; iy <= 3; iy++) { // weapon rack bars (flanking equipment)
-    p.push(blk(-5, iy, 0, "minecraft:iron_bars"), blk(-6, iy, 0, "minecraft:iron_bars"));
-    p.push(blk( 5, iy, 0, "minecraft:iron_bars"), blk( 6, iy, 0, "minecraft:iron_bars"));
-  }
-  // ── TRAINING YARD (south zone, z=2 to 5) ────────────────────────────────
-  p.push(...fill(-6, 1, 2, 6, 1, 5, "minecraft:gravel")); // gravel training floor
-  p.push(blk( 0, 1, 4, "minecraft:dark_oak_log"), blk(0, 2, 4, "minecraft:dark_oak_log"), blk(0, 3, 4, "minecraft:dark_oak_log")); // training post
-  p.push(blk(-1, 3, 4, "minecraft:iron_bars"), blk(1, 3, 4, "minecraft:iron_bars")); // crossarms on post
-  p.push(blk(-4, 1, 3, "minecraft:oak_fence"), blk(4, 1, 3, "minecraft:oak_fence")); // sparring ring markers
-  p.push(blk(-4, 1, 5, "minecraft:oak_fence"), blk(4, 1, 5, "minecraft:oak_fence"));
-  // ── GRAND ENTRANCE (south exterior) ─────────────────────────────────────
-  p.push(...fill(-3, 0, 7, 3, 0, 10, "minecraft:stone_bricks")); // raised approach platform
-  p.push(...fill(-4, 1, 7, -4, 3, 10, "minecraft:stone_bricks")); // left guard pillar
-  p.push(...fill( 4, 1, 7,  4, 3, 10, "minecraft:stone_bricks")); // right guard pillar
-  p.push(blk(-4, 4, 9, "minecraft:torch"), blk(4, 4, 9, "minecraft:torch")); // pillar torches
-  // ── LIGHTING ────────────────────────────────────────────────────────────
-  p.push(blk(0, 7, -3, "minecraft:sea_lantern")); // bunk room chandelier
-  p.push(blk(0, 7,  0, "minecraft:sea_lantern")); // equipment zone
-  p.push(blk(0, 7,  3, "minecraft:sea_lantern")); // training yard
-  for (const tz of [-4, -1, 2, 5]) {
-    p.push(blk(-7, 4, tz, "minecraft:torch"), blk(7, 4, tz, "minecraft:torch")); // wall torches
-  }
-  p.push(blk(0, 4, -5, "minecraft:torch"), blk(0, 4, 5, "minecraft:torch")); // N + S wall torches
+  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
+  p.push(blk(0, 1, -2, "minecraft:smithing_table"));
+  for (let x = -3; x <= 3; x += 2) p.push(blk(x, 1, 1, "minecraft:red_carpet"));
+  p.push(blk(0, 1, 2, "minecraft:sea_lantern"));
   return p;
 }
 function marketBlueprint() {
@@ -5942,80 +5282,22 @@ function marketBlueprint() {
 }
 function granaryBlueprint() {
   const p = [];
-  // Clear volume (bigger 9x9 footprint, 12 tall)
-  p.push(...fill(-4, 1, -4, 4, 12, 4, "minecraft:air"));
-  // Foundation (birch planks — warm barn look)
-  p.push(...fill(-4, 0, -4, 4, 0, 4, "minecraft:birch_planks"));
-  // Corner structural posts (spruce log, full height)
-  for (const [cx, cz] of [[-4,-4],[-4,4],[4,-4],[4,4]])
-    p.push(...fill(cx, 1, cz, cx, 8, cz, "minecraft:spruce_log"));
-  // Mid-wall posts (spruce log) for structural rhythm
-  for (const mpx of [-4, 4]) {
-    p.push(...fill(mpx, 1, 0, mpx, 6, 0, "minecraft:spruce_log")); // E/W mid post
-  }
-  p.push(...fill(0, 1, -4, 0, 6, -4, "minecraft:spruce_log")); // N mid post
-  p.push(...fill(0, 1,  4, 0, 6,  4, "minecraft:spruce_log")); // S mid post
-  // Walls (spruce planks, y=1-6)
-  p.push(...fill(-3, 1, -4, 3, 6, -4, "minecraft:spruce_planks")); // north
-  p.push(...fill(-3, 1,  4, 3, 6,  4, "minecraft:spruce_planks")); // south
-  p.push(...fill(-4, 1, -3, -4, 6, 3, "minecraft:spruce_planks")); // west
-  p.push(...fill( 4, 1, -3,  4, 6, 3, "minecraft:spruce_planks")); // east
-  // Door opening: south wall, double-wide (x=-1..1, y=1-2)
-  for (let x = -1; x <= 1; x++) for (let y = 1; y <= 2; y++) p.push(blk(x, y, 4, "minecraft:air"));
-  // Doorstep (birch planks outside, z=5)
-  p.push(blk(-1, 0, 5, "minecraft:birch_planks"), blk(0, 0, 5, "minecraft:birch_planks"), blk(1, 0, 5, "minecraft:birch_planks"));
-  // Windows: 2-high glass on each wall (2 per wall)
-  for (const wx of [-2, 2]) {
-    p.push(blk(wx, 3, -4, "minecraft:glass"), blk(wx, 4, -4, "minecraft:glass")); // north
-    p.push(blk(wx, 3,  4, "minecraft:glass"), blk(wx, 4,  4, "minecraft:glass")); // south
-  }
-  for (const wz of [-2, 2]) {
-    p.push(blk(-4, 3, wz, "minecraft:glass"), blk(-4, 4, wz, "minecraft:glass")); // west
-    p.push(blk( 4, 3, wz, "minecraft:glass"), blk( 4, 4, wz, "minecraft:glass")); // east
-  }
-  // Upper wall (solid, y=7 above windows)
-  p.push(...fill(-3, 7, -4, 3, 7, -4, "minecraft:spruce_planks"));
-  p.push(...fill(-3, 7,  4, 3, 7,  4, "minecraft:spruce_planks"));
-  p.push(...fill(-4, 7, -3, -4, 7, 3, "minecraft:spruce_planks"));
-  p.push(...fill( 4, 7, -3,  4, 7, 3, "minecraft:spruce_planks"));
-  // Ventilation slits at y=6 (every other block along top of walls)
-  for (let x = -3; x <= 3; x += 2) {
-    p.push(blk(x, 6, -4, "minecraft:glass")); // north vent
-    p.push(blk(x, 6,  4, "minecraft:glass")); // south vent
-  }
-  for (let z = -3; z <= 3; z += 2) {
-    p.push(blk(-4, 6, z, "minecraft:glass")); // west vent
-    p.push(blk( 4, 6, z, "minecraft:glass")); // east vent
-  }
-  // Hay pyramid roof (thematic and recognizable)
-  p.push(...fill(-4, 8, -4, 4, 8, 4, "minecraft:hay_block"));
-  p.push(...fill(-3, 9, -3, 3, 9, 3, "minecraft:hay_block"));
-  p.push(...fill(-2,10, -2, 2,10, 2, "minecraft:hay_block"));
-  p.push(...fill(-1,11, -1, 1,11, 1, "minecraft:hay_block"));
-  p.push(blk(0, 12, 0, "minecraft:hay_block"));
-  // Interior floor (birch planks)
-  p.push(...fill(-3, 1, -3, 3, 1, 3, "minecraft:birch_planks"));
-  // Barrel rows along east & west walls (stacked 2-high for a full granary look)
-  p.push(blk(-3, 1, -3, "minecraft:barrel"), blk(-3, 2, -3, "minecraft:barrel"));
-  p.push(blk(-3, 1, -2, "minecraft:barrel"), blk(-3, 2, -2, "minecraft:barrel"));
-  p.push(blk(-3, 1,  1, "minecraft:barrel"), blk(-3, 2,  1, "minecraft:barrel"));
-  p.push(blk(-3, 1,  2, "minecraft:barrel"), blk(-3, 2,  2, "minecraft:barrel"));
-  p.push(blk( 3, 1, -3, "minecraft:barrel"), blk( 3, 2, -3, "minecraft:barrel"));
-  p.push(blk( 3, 1, -2, "minecraft:barrel"), blk( 3, 2, -2, "minecraft:barrel"));
-  p.push(blk( 3, 1,  1, "minecraft:barrel"), blk( 3, 2,  1, "minecraft:barrel"));
-  p.push(blk( 3, 1,  2, "minecraft:barrel"), blk( 3, 2,  2, "minecraft:barrel"));
-  // Hay bales (north storage section)
-  p.push(blk(-2, 1, -3, "minecraft:hay_block"), blk(0, 1, -3, "minecraft:hay_block"), blk(2, 1, -3, "minecraft:hay_block"));
-  p.push(blk(-2, 2, -3, "minecraft:hay_block"), blk(0, 2, -3, "minecraft:hay_block"), blk(2, 2, -3, "minecraft:hay_block")); // 2nd tier
-  // Chest (central record-keeping) and composter
-  p.push(blk(0, 1, -1, "minecraft:chest"));
-  p.push(blk(0, 1,  2, "minecraft:composter"));
-  // Ceiling beam (spruce log ridge beam at y=7 center)
-  p.push(...fill(0, 7, -3, 0, 7, 3, "minecraft:spruce_log"));
-  // Lighting: hanging lanterns from beam + wall torches
-  p.push(blk(0, 7, -2, "minecraft:lantern"), blk(0, 7, 0, "minecraft:lantern"), blk(0, 7, 2, "minecraft:lantern"));
-  p.push(blk(-3, 3,  3, "minecraft:torch"), blk(3, 3,  3, "minecraft:torch")); // near door torches
-  p.push(blk(-3, 3, -3, "minecraft:torch"), blk(3, 3, -3, "minecraft:torch")); // back wall torches
+  p.push(...fill(-3, 1, -3, 3, 8, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:birch_planks"));
+  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:spruce_planks"));
+  for (let y = 1; y <= 2; y++) p.push(blk(0, y, 3, "minecraft:air"));
+  p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
+  p.push(blk(0, 2, -3, "minecraft:glass"), blk(0, 2, 3, "minecraft:glass"));
+  for (const [cx, cz] of [[-3, -3], [-3, 3], [3, -3], [3, 3]])
+    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:spruce_log"));
+  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:hay_block"));
+  p.push(...fill(-2, 6, -2, 2, 6, 2, "minecraft:hay_block"));
+  p.push(...fill(-1, 7, -1, 1, 7, 1, "minecraft:hay_block"));
+  p.push(blk(0, 8, 0, "minecraft:hay_block"));
+  p.push(blk(-2, 1, -2, "minecraft:barrel"), blk(2, 1, -2, "minecraft:barrel"));
+  p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
+  p.push(blk(0, 1, -2, "minecraft:chest"));
+  p.push(blk(0, 1, 0, "minecraft:sea_lantern"));
   return p;
 }
 function blacksmithBlueprint() {
@@ -6064,869 +5346,126 @@ function tradeStationBlueprint() {
 }
 function treasuryBlueprint() {
   const p = [];
-  // Clear volume (9x9, 10 tall)
-  p.push(...fill(-4, 1, -4, 4, 10, 4, "minecraft:air"));
-  // Foundation (deepslate bricks — heavy, secure)
-  p.push(...fill(-4, 0, -4, 4, 0, 4, "minecraft:deepslate_bricks"));
-  // Reinforced corner columns (double-thick deepslate)
-  for (const [cx, cz] of [[-4,-4],[-4,4],[4,-4],[4,4]])
-    p.push(...fill(cx, 1, cz, cx, 8, cz, "minecraft:deepslate_bricks"));
-  // Outer walls (deepslate bricks, y=1-7, full solid vault construction)
-  p.push(...fill(-3, 1, -4, 3, 7, -4, "minecraft:deepslate_bricks")); // north
-  p.push(...fill(-3, 1,  4, 3, 7,  4, "minecraft:deepslate_bricks")); // south
-  p.push(...fill(-4, 1, -3, -4, 7, 3, "minecraft:deepslate_bricks")); // west
-  p.push(...fill( 4, 1, -3,  4, 7, 3, "minecraft:deepslate_bricks")); // east
-  // Narrow door opening (south wall, single-wide x=0, y=1-2 — vault entrance)
-  p.push(blk(0, 1, 4, "minecraft:air"), blk(0, 2, 4, "minecraft:air"));
-  // Iron bar vault door frame flanking entrance (x=-1 and +1, y=1-3)
-  for (let y = 1; y <= 3; y++) {
-    p.push(blk(-1, y, 4, "minecraft:iron_bars"));
-    p.push(blk( 1, y, 4, "minecraft:iron_bars"));
+  p.push(...fill(-3, 1, -3, 3, 6, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:deepslate_bricks"));
+  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:deepslate_bricks"));
+  p.push(...ring(-2, -2, 2, 2, 1, 4, "minecraft:deepslate_bricks"));
+  for (let y = 1; y <= 2; y++) {
+    p.push(blk(0, y, 3, "minecraft:air"));
+    p.push(blk(0, y, 2, "minecraft:air"));
   }
-  // Arrow-slit windows (narrow 1-block glass — secure, not traversable)
-  p.push(blk(-2, 4, -4, "minecraft:glass"), blk(-2, 5, -4, "minecraft:glass")); // north L
-  p.push(blk( 2, 4, -4, "minecraft:glass"), blk( 2, 5, -4, "minecraft:glass")); // north R
-  p.push(blk(-4, 4, -1, "minecraft:glass"), blk(-4, 5, -1, "minecraft:glass")); // west upper
-  p.push(blk(-4, 4,  1, "minecraft:glass"), blk(-4, 5,  1, "minecraft:glass")); // west lower
-  p.push(blk( 4, 4, -1, "minecraft:glass"), blk( 4, 5, -1, "minecraft:glass")); // east upper
-  p.push(blk( 4, 4,  1, "minecraft:glass"), blk( 4, 5,  1, "minecraft:glass")); // east lower
-  p.push(blk(-2, 4,  4, "minecraft:glass"), blk( 2, 4,  4, "minecraft:glass")); // south (above vault door)
-  // Decorative iron bar cross-grill pattern on upper walls (y=6)
+  p.push(blk(-1, 1, 2, "minecraft:iron_bars"), blk(1, 1, 2, "minecraft:iron_bars"));
+  p.push(blk(-1, 2, 2, "minecraft:iron_bars"), blk(1, 2, 2, "minecraft:iron_bars"));
+  p.push(blk(3, 4, 0, "minecraft:air"), blk(-3, 4, 0, "minecraft:air"));
+  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:deepslate_bricks"));
   for (let x = -3; x <= 3; x += 2) {
-    p.push(blk(x, 6, -4, "minecraft:iron_bars"), blk(x, 6, 4, "minecraft:iron_bars"));
+    p.push(blk(x, 6, -3, "minecraft:deepslate_bricks"));
+    p.push(blk(x, 6, 3, "minecraft:deepslate_bricks"));
   }
-  for (let z = -3; z <= 3; z += 2) {
-    p.push(blk(-4, 6, z, "minecraft:iron_bars"), blk(4, 6, z, "minecraft:iron_bars"));
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-3, 6, z, "minecraft:deepslate_bricks"));
+    p.push(blk(3, 6, z, "minecraft:deepslate_bricks"));
   }
-  // Solid roof (deepslate bricks y=8) + crenellations at y=9
-  p.push(...fill(-4, 8, -4, 4, 8, 4, "minecraft:deepslate_bricks"));
-  for (let x = -4; x <= 4; x += 2) {
-    p.push(blk(x, 9, -4, "minecraft:deepslate_bricks"));
-    p.push(blk(x, 9,  4, "minecraft:deepslate_bricks"));
-  }
-  for (let z = -3; z <= 3; z += 2) {
-    p.push(blk(-4, 9, z, "minecraft:deepslate_bricks"));
-    p.push(blk( 4, 9, z, "minecraft:deepslate_bricks"));
-  }
-  // Interior floor (polished andesite — elegant vault floor)
-  p.push(...fill(-3, 1, -3, 3, 1, 3, "minecraft:polished_andesite"));
-  // Gold block vault display (back north wall — treasure on pedestals)
-  p.push(...fill(-3, 1, -3, 3, 1, -3, "minecraft:gold_block")); // gold row
-  p.push(blk(-3, 2, -3, "minecraft:gold_block"), blk(0, 2, -3, "minecraft:gold_block"), blk(3, 2, -3, "minecraft:gold_block")); // pedestal tops
-  // Chest vault storage (main double-rows)
-  p.push(blk(-2, 1, -2, "minecraft:chest"), blk(-1, 1, -2, "minecraft:chest")); // double chest L
-  p.push(blk( 1, 1, -2, "minecraft:chest"), blk( 2, 1, -2, "minecraft:chest")); // double chest R
-  // Side chest stacks (against E/W inner walls)
-  p.push(blk(-3, 1, -1, "minecraft:chest"), blk(-3, 2, -1, "minecraft:barrel"));
-  p.push(blk(-3, 1,  1, "minecraft:chest"), blk(-3, 2,  1, "minecraft:barrel"));
-  p.push(blk( 3, 1, -1, "minecraft:chest"), blk( 3, 2, -1, "minecraft:barrel"));
-  p.push(blk( 3, 1,  1, "minecraft:chest"), blk( 3, 2,  1, "minecraft:barrel"));
-  // Enchanting table + bookshelves (NW corner — royal enchantments)
-  p.push(blk(-3, 1, -3, "minecraft:enchanting_table"));
-  p.push(blk(-3, 2, -2, "minecraft:bookshelf"), blk(-2, 2, -3, "minecraft:bookshelf")); // boosting bookshelves
-  p.push(blk( 3, 1, -3, "minecraft:bookshelf"), blk( 3, 2, -3, "minecraft:bookshelf")); // NE shelves
-  // Brewing stand (alchemy/treasury apothecary)
-  p.push(blk(0, 1, -1, "minecraft:brewing_stand"));
-  // Lighting (sea lanterns + wall torches for a rich vault glow)
-  p.push(blk(0, 7, 0, "minecraft:sea_lantern")); // central chandelier
-  p.push(blk(-2, 3, -3, "minecraft:torch"), blk(2, 3, -3, "minecraft:torch")); // back wall torches
-  p.push(blk(-3, 3,  0, "minecraft:torch"), blk(3, 3,  0, "minecraft:torch")); // side wall torches
-  p.push(blk( 0, 3,  4, "minecraft:torch")); // above entrance
-  return p;
-}
-function storageBlueprint() {
-  const p = [];
-  p.push(...fill(-3, 1, -3, 3, 5, 3, "minecraft:air"));
-  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:cobblestone"));
-  p.push(...fill(-3, 1, -3, 3, 4, -3, "minecraft:oak_log"));
-  p.push(...fill(-3, 1, -3, -3, 4, 3, "minecraft:oak_log"));
-  p.push(...fill(3, 1, -3, 3, 4, 3, "minecraft:oak_log"));
-  for (let x = -3; x <= 3; x++) for (let y = 1; y <= 4; y++) if (!(x >= -1 && x <= 1 && y <= 2)) p.push(blk(x, y, 3, "minecraft:oak_planks"));
-  for (let x = -2; x <= 2; x++) for (let y = 1; y <= 4; y++) p.push(blk(x, y, -3, "minecraft:oak_planks"));
-  for (let z = -2; z <= 2; z++) for (let y = 1; y <= 4; y++) p.push(blk(-3, y, z, "minecraft:oak_planks"), blk(3, y, z, "minecraft:oak_planks"));
-  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:oak_planks"));
-  p.push(blk(-2, 2, -3, "minecraft:glass"), blk(2, 2, -3, "minecraft:glass"));
-  p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
-  p.push(blk(-2, 1, -2, "minecraft:barrel"), blk(2, 1, -2, "minecraft:barrel"));
-  p.push(blk(-2, 1, 0, "minecraft:barrel"), blk(2, 1, 0, "minecraft:barrel"));
-  p.push(blk(-2, 1, 2, "minecraft:barrel"), blk(2, 1, 2, "minecraft:barrel"));
-  p.push(blk(2, 1, 2, "minecraft:chest"));
+  p.push(blk(-1, 1, -2, "minecraft:gold_block"), blk(1, 1, -2, "minecraft:gold_block"));
+  p.push(blk(0, 1, -2, "minecraft:gold_block"));
+  p.push(blk(-1, 1, 0, "minecraft:chest"), blk(1, 1, 0, "minecraft:chest"));
   p.push(blk(0, 2, 0, "minecraft:sea_lantern"));
   return p;
 }
-function armoryBlueprint() {
+function waypointBlueprint() {
   const p = [];
-  p.push(...fill(-6, 1, -2, 6, 6, 2, "minecraft:air"));
-  p.push(...fill(-6, 0, -2, 6, 0, 2, "minecraft:stone_bricks"));
-  p.push(...fill(-6, 1, -2, 6, 5, -2, "minecraft:stone_bricks"));
-  p.push(...fill(-6, 1, -1, -6, 5, 1, "minecraft:stone_bricks"));
-  p.push(...fill(6, 1, -1, 6, 5, 1, "minecraft:stone_bricks"));
-  for (let x = -6; x <= 6; x++) for (let y = 1; y <= 5; y++) if (!(x >= -1 && x <= 1 && y <= 2)) p.push(blk(x, y, 2, "minecraft:stone_bricks"));
-  p.push(...fill(-6, 6, -2, 6, 6, 2, "minecraft:stone_bricks"));
-  p.push(blk(-4, 3, -2, "minecraft:glass"), blk(-1, 3, -2, "minecraft:glass"), blk(2, 3, -2, "minecraft:glass"));
-  p.push(blk(-4, 3, 2, "minecraft:glass"), blk(-1, 3, 2, "minecraft:glass"), blk(2, 3, 2, "minecraft:glass"));
-  for (const ax of [-5, -3, -1, 1, 3, 5]) {
-    p.push(blk(ax, 1, -1, "minecraft:chiseled_stone_bricks"), blk(ax, 1, 1, "minecraft:chiseled_stone_bricks"));
-    p.push(blk(ax, 2, -1, "minecraft:iron_bars"), blk(ax, 2, 1, "minecraft:iron_bars"));
-  }
-  p.push(blk(-4, 5, 0, "minecraft:sea_lantern"), blk(0, 5, 0, "minecraft:sea_lantern"), blk(4, 5, 0, "minecraft:sea_lantern"));
-  p.push(blk(-5, 1, 0, "minecraft:chest"), blk(5, 1, 0, "minecraft:chest"));
+  p.push(...fill(-1, 1, -1, 1, 6, 1, "minecraft:air"));
+  p.push(...fill(-1, 0, -1, 1, 0, 1, "minecraft:smooth_stone"));
+  p.push(...fill(0, 1, 0, 0, 4, 0, "minecraft:stone_bricks"));
+  p.push(blk(-1, 2, 0, "minecraft:chiseled_stone_bricks"), blk(1, 2, 0, "minecraft:chiseled_stone_bricks"));
+  p.push(blk(0, 2, -1, "minecraft:chiseled_stone_bricks"), blk(0, 2, 1, "minecraft:chiseled_stone_bricks"));
+  p.push(blk(0, 5, 0, "minecraft:glowstone"));
+  p.push(blk(-1, 0, -1, "minecraft:sea_lantern"), blk(1, 0, -1, "minecraft:sea_lantern"));
+  p.push(blk(-1, 0, 1, "minecraft:sea_lantern"), blk(1, 0, 1, "minecraft:sea_lantern"));
+  p.push(blk(2, 0, 0, "minecraft:smooth_stone"));
+  p.push(blk(2, 1, 0, "minecraft:chest"));
   return p;
 }
-function towerBlueprint() {
-  const p = [];
-  p.push(...fill(-2, 1, -2, 2, 12, 2, "minecraft:air"));
-  p.push(...fill(-2, 0, -2, 2, 0, 2, "minecraft:stone_bricks"));
-  for (let y = 1; y <= 11; y++) {
-    for (let x = -2; x <= 2; x++) {
-      for (let z = -2; z <= 2; z++) {
-        if (x === -2 || x === 2 || z === -2 || z === 2) {
-          if (!(x === 0 && z === 2 && y <= 2)) p.push(blk(x, y, z, "minecraft:stone_bricks"));
-        }
-      }
+function demolishStructure(dimension, origin, blockTypeId) {
+  const blueprint = BLUEPRINTS[blockTypeId];
+  if (!blueprint) return;
+  const placements = blueprint();
+  for (const bp of placements) {
+    if (bp.b === "minecraft:air") continue;
+    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
+    try {
+      const loc = {
+        x: origin.x + bp.x,
+        y: origin.y + bp.y,
+        z: origin.z + bp.z
+      };
+      dimension.getBlock(loc)?.setType("minecraft:air");
+    } catch {
     }
   }
-  for (let x = -2; x <= 2; x++) {
-    for (let z = -2; z <= 2; z++) {
-      p.push(blk(x, 12, z, x % 2 === 0 || z % 2 === 0 ? "minecraft:stone_bricks" : "minecraft:air"));
-    }
-  }
-  p.push(blk(-2, 4, 0, "minecraft:glass"), blk(2, 4, 0, "minecraft:glass"), blk(0, 4, -2, "minecraft:glass"));
-  p.push(blk(-2, 8, 0, "minecraft:glass"), blk(2, 8, 0, "minecraft:glass"), blk(0, 8, -2, "minecraft:glass"));
-  for (let y = 1; y <= 10; y++) p.push(blk(1, y, 1, "minecraft:ladder"));
-  p.push(blk(0, 6, 0, "minecraft:sea_lantern"), blk(0, 11, 0, "minecraft:sea_lantern"));
-  p.push(blk(0, 12, 0, "minecraft:sea_lantern"));
-  return p;
 }
-function wallLongBlueprint() {
+function castleBlueprint() {
   const p = [];
-  p.push(...fill(-5, 1, -1, 5, 5, 1, "minecraft:air"));
-  p.push(...fill(-5, 0, -1, 5, 0, 1, "minecraft:stone_bricks"));
-  p.push(...fill(-5, 1, -1, 5, 4, 1, "minecraft:stone_bricks"));
-  for (let x = -5; x <= 5; x++) {
-    if ((x + 5) % 2 === 0) {
-      p.push(blk(x, 5, -1, "minecraft:stone_bricks"), blk(x, 5, 0, "minecraft:stone_bricks"), blk(x, 5, 1, "minecraft:stone_bricks"));
-    }
+  const sb = "minecraft:stone_bricks";
+  const cracked = "minecraft:cracked_stone_bricks";
+  const moss = "minecraft:mossy_stone_bricks";
+  p.push(...ring(-7, -7, 7, 7, 1, 5, sb));
+  for (let x = -6; x <= 6; x += 2) {
+    p.push(blk(x, 6, -7, sb));
+    p.push(blk(x, 6, 7, sb));
   }
-  p.push(blk(-5, 3, 0, "minecraft:torch"), blk(0, 3, 0, "minecraft:torch"), blk(5, 3, 0, "minecraft:torch"));
+  for (let z = -5; z <= 5; z += 2) {
+    p.push(blk(-7, 6, z, sb));
+    p.push(blk(7, 6, z, sb));
+  }
+  for (let gx = -1; gx <= 1; gx++) {
+    p.push(blk(gx, 1, 7, "minecraft:air"));
+    p.push(blk(gx, 2, 7, "minecraft:air"));
+    p.push(blk(gx, 3, 7, "minecraft:air"));
+  }
+  p.push(...fill(-6, 0, -6, 6, 0, 6, "minecraft:cobblestone"));
+  for (const [cx, cz] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) {
+    p.push(...fill(cx - 1, 1, cz - 1, cx + 1, 10, cz + 1, sb));
+    p.push(...fill(cx, 2, cz, cx, 9, cz, "minecraft:air"));
+    p.push(blk(cx - 1, 1, cz, cracked));
+    p.push(blk(cx + 1, 1, cz, cracked));
+    p.push(blk(cx, 1, cz - 1, cracked));
+    p.push(blk(cx, 1, cz + 1, cracked));
+    p.push(blk(cx - 1, 11, cz - 1, sb));
+    p.push(blk(cx + 1, 11, cz - 1, sb));
+    p.push(blk(cx - 1, 11, cz + 1, sb));
+    p.push(blk(cx + 1, 11, cz + 1, sb));
+  }
+  p.push(...ring(-3, -3, 3, 3, 1, 8, sb));
+  p.push(...fill(-2, 0, -2, 2, 0, 2, sb));
+  for (let x = -3; x <= 3; x++) {
+    p.push(blk(x, 1, -3, moss));
+    p.push(blk(x, 1, 3, moss));
+  }
+  for (let z = -2; z <= 2; z++) {
+    p.push(blk(-3, 1, z, moss));
+    p.push(blk(3, 1, z, moss));
+  }
+  p.push(blk(0, 1, 3, "minecraft:air"));
+  p.push(blk(0, 2, 3, "minecraft:air"));
+  p.push(blk(1, 1, 3, "minecraft:air"));
+  p.push(blk(1, 2, 3, "minecraft:air"));
+  p.push(blk(-1, 1, 3, "minecraft:air"));
+  p.push(blk(-1, 2, 3, "minecraft:air"));
+  for (let x = -3; x <= 3; x += 2) {
+    p.push(blk(x, 9, -3, sb));
+    p.push(blk(x, 9, 3, sb));
+  }
+  for (let z = -2; z <= 2; z += 2) {
+    p.push(blk(-3, 9, z, sb));
+    p.push(blk(3, 9, z, sb));
+  }
+  p.push(blk(0, 9, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 10, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 11, 0, "minecraft:oak_fence"));
+  p.push(blk(1, 11, 0, "minecraft:red_wool"));
+  p.push(blk(1, 10, 0, "minecraft:red_wool"));
   return p;
-}
-function wallShortBlueprint() {
-  const p = [];
-  p.push(...fill(-2, 1, -1, 2, 5, 1, "minecraft:air"));
-  p.push(...fill(-2, 0, -1, 2, 0, 1, "minecraft:stone_bricks"));
-  p.push(...fill(-2, 1, -1, 2, 4, 1, "minecraft:stone_bricks"));
-  for (let x = -2; x <= 2; x++) {
-    if ((x + 2) % 2 === 0) {
-      p.push(blk(x, 5, -1, "minecraft:stone_bricks"), blk(x, 5, 0, "minecraft:stone_bricks"), blk(x, 5, 1, "minecraft:stone_bricks"));
-    }
-  }
-  p.push(blk(0, 3, 0, "minecraft:torch"));
-  return p;
-}
-
-// ── Tall Stone Wall (5 wide × 10 tall, same z-depth as other walls) ─────────
-function wallTallBlueprint() {
-  const p = [];
-  p.push(...fill(-2, 1, -1, 2, 11, 1, "minecraft:air"));
-  p.push(...fill(-2, 0, -1, 2, 0, 1, "minecraft:stone_bricks")); // foundation
-  p.push(...fill(-2, 1, -1, 2, 9, 1, "minecraft:stone_bricks")); // wall body
-  // Battlements at y=10 (same alternating pattern as wallShortBlueprint)
-  for (let x = -2; x <= 2; x++) {
-    if ((x + 2) % 2 === 0) {
-      p.push(blk(x, 10, -1, "minecraft:stone_bricks"), blk(x, 10, 0, "minecraft:stone_bricks"), blk(x, 10, 1, "minecraft:stone_bricks"));
-    }
-  }
-  // Torches at mid-height on inner face
-  p.push(blk(-2, 5, 0, "minecraft:torch"), blk(0, 5, 0, "minecraft:torch"), blk(2, 5, 0, "minecraft:torch"));
-  return p;
-}
-
-// ── King's Castle (25×21 grand keep, two floors, four towers, throne hall) ───
-// Origin block = throne room floor centre.
-// Interior access to upper floor: place a ladder on the north interior wall.
-function kingCastleBlueprint() {
-  const p = [];
-
-  // === CLEAR VOLUME (26w × 21d × 23h) ===
-  p.push(...fill(-12, 1, -10, 12, 23, 10, "minecraft:air"));
-
-  // === FOUNDATION ===
-  p.push(...fill(-12, 0, -10, 12, 0, 10, "minecraft:stone_bricks"));
-
-  // === FULL PERIMETER OUTER WALLS (y=1-14, 1-block thick) ===
-  p.push(...fill(-12, 1, -10, 12, 14, -10, "minecraft:stone_bricks")); // North
-  p.push(...fill(-12, 1,  10, 12, 14,  10, "minecraft:stone_bricks")); // South
-  p.push(...fill(-12, 1,  -9, -12, 14,  9, "minecraft:stone_bricks")); // West
-  p.push(...fill( 12, 1,  -9,  12, 14,  9, "minecraft:stone_bricks")); // East
-
-  // === MAIN GATE OPENING (south wall, 5 wide × 4 tall) ===
-  p.push(...fill(-2, 1, 10, 2, 4, 10, "minecraft:air"));
-  // Iron bar portcullis hanging over gate arch (y=5)
-  for (let x = -2; x <= 2; x++) p.push(blk(x, 5, 10, "minecraft:iron_bars"));
-
-  // === CORNER TOWERS (4×4, y=1-20, tower core hollow y=1-18) ===
-  for (const [tx, tz] of [[-12,-10], [9,-10], [-12,7], [9,7]]) {
-    p.push(...fill(tx, 1, tz, tx+3, 20, tz+3, "minecraft:stone_bricks"));
-    p.push(...fill(tx+1, 1, tz+1, tx+2, 18, tz+2, "minecraft:air")); // hollow core
-    // Arrow slit windows on outer faces
-    p.push(blk(tx+1, 6, tz, "minecraft:glass"), blk(tx+2, 6, tz, "minecraft:glass"));
-    p.push(blk(tx, 6, tz+1, "minecraft:glass"), blk(tx, 6, tz+2, "minecraft:glass"));
-    p.push(blk(tx+1, 13, tz, "minecraft:glass"), blk(tx+2, 13, tz, "minecraft:glass"));
-    p.push(blk(tx, 13, tz+1, "minecraft:glass"), blk(tx, 13, tz+2, "minecraft:glass"));
-  }
-  // Tower battlements (y=21, alternating merlons)
-  for (const [tx, tz] of [[-12,-10],[9,-10],[-12,7],[9,7]]) {
-    for (let dx = 0; dx <= 3; dx++) {
-      for (let dz = 0; dz <= 3; dz++) {
-        if ((dx + dz) % 2 === 0) p.push(blk(tx+dx, 21, tz+dz, "minecraft:stone_bricks"));
-      }
-    }
-  }
-
-  // === MAIN WALL BATTLEMENTS (y=15, alternating merlons) ===
-  for (let x = -12; x <= 12; x += 2) {
-    p.push(blk(x, 15, -10, "minecraft:stone_bricks")); // North
-    p.push(blk(x, 15,  10, "minecraft:stone_bricks")); // South
-  }
-  for (let z = -9; z <= 9; z += 2) {
-    p.push(blk(-12, 15, z, "minecraft:stone_bricks")); // West
-    p.push(blk( 12, 15, z, "minecraft:stone_bricks")); // East
-  }
-
-  // === MAIN WALL WINDOWS (ground level & upper level) ===
-  // North wall
-  for (const wx of [-7, -4, 4, 7]) {
-    p.push(blk(wx, 5, -10, "minecraft:glass"), blk(wx, 6, -10, "minecraft:glass"));
-    p.push(blk(wx, 11, -10, "minecraft:glass"), blk(wx, 12, -10, "minecraft:glass"));
-  }
-  // West / East walls
-  for (const wz of [-5, 0, 5]) {
-    p.push(blk(-12, 5, wz, "minecraft:glass"), blk(-12, 6, wz, "minecraft:glass"));
-    p.push(blk(-12, 11, wz, "minecraft:glass"), blk(-12, 12, wz, "minecraft:glass"));
-    p.push(blk(12, 5, wz, "minecraft:glass"), blk(12, 6, wz, "minecraft:glass"));
-    p.push(blk(12, 11, wz, "minecraft:glass"), blk(12, 12, wz, "minecraft:glass"));
-  }
-
-  // === 2ND FLOOR PLATFORM (y=9, dark oak planks ceiling/floor) ===
-  p.push(...fill(-11, 9, -9, 11, 9, 9, "minecraft:dark_oak_planks"));
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // GROUND FLOOR INTERIOR (y=1 – 8)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Interior floor (stone bricks border, polished andesite main hall)
-  p.push(...fill(-11, 1, -9, 11, 1, 9, "minecraft:stone_bricks"));
-  p.push(...fill( -8, 1, -8,  8, 1, 8, "minecraft:polished_andesite"));
-  // Red carpet aisle (gate → throne, z-axis)
-  p.push(...fill(-1, 1, -9, 1, 1, 9, "minecraft:red_carpet"));
-
-  // === THRONE (north end, z=-8 to -9) ===
-  p.push(...fill(-3, 1, -9, 3, 1, -8, "minecraft:obsidian")); // throne dais
-  p.push(blk(0, 2, -9, "minecraft:gold_block")); // throne seat
-  p.push(blk(-2, 2, -9, "minecraft:obsidian"), blk(2, 2, -9, "minecraft:obsidian")); // armrests
-  p.push(blk(-2, 3, -9, "minecraft:gold_block"), blk(0, 3, -9, "minecraft:gold_block"), blk(2, 3, -9, "minecraft:gold_block")); // throne back rail
-  p.push(blk( 0, 4, -9, "minecraft:gold_block")); // throne crown peak
-  p.push(blk(0, 2, -8, "minecraft:lectern")); // royal lectern
-  p.push(blk(-1, 1, -8, "minecraft:obsidian"), blk(1, 1, -8, "minecraft:obsidian")); // dais step accent
-  p.push(blk(0, 8, -7, "minecraft:bell")); // ceremonial bell above throne
-
-  // === INTERIOR COLUMNS (stripped dark oak, y=2-8) ===
-  for (const [cx, cz] of [[-7,-7],[7,-7],[-7,0],[7,0],[-7,7],[7,7]]) {
-    p.push(...fill(cx, 2, cz, cx, 8, cz, "minecraft:stripped_dark_oak_log"));
-  }
-
-  // === BANQUET TABLES (oak planks at y=2, flanking the aisle) ===
-  p.push(...fill(-7, 2, -5, -3, 2, 5, "minecraft:oak_planks")); // West table
-  p.push(...fill( 3, 2, -5,  7, 2, 5, "minecraft:oak_planks")); // East table
-  // Barrel chairs around tables
-  for (let z = -4; z <= 4; z += 2) {
-    p.push(blk(-8, 1, z, "minecraft:barrel"), blk(-2, 1, z, "minecraft:barrel")); // west table
-    p.push(blk( 2, 1, z, "minecraft:barrel"), blk( 8, 1, z, "minecraft:barrel")); // east table
-  }
-  // Table centrepiece lanterns
-  p.push(blk(-5, 3, -3, "minecraft:lantern"), blk(-5, 3, 0, "minecraft:sea_lantern"), blk(-5, 3, 3, "minecraft:lantern"));
-  p.push(blk( 5, 3, -3, "minecraft:lantern"), blk( 5, 3, 0, "minecraft:sea_lantern"), blk( 5, 3, 3, "minecraft:lantern"));
-
-  // === BOOKSHELVES (inner north wall, flanking throne) ===
-  p.push(...fill(-11, 2, -8, -9, 5, -5, "minecraft:bookshelf")); // NW shelves
-  p.push(...fill(  9, 2, -8, 11, 5, -5, "minecraft:bookshelf")); // NE shelves
-  p.push(...fill(-11, 2,  3, -9, 5,  6, "minecraft:bookshelf")); // SW shelves
-  p.push(...fill(  9, 2,  3, 11, 5,  6, "minecraft:bookshelf")); // SE shelves
-
-  // === FIREPLACE (west wall, centre) ===
-  p.push(...fill(-12, 2, -1, -11, 6, 1, "minecraft:stone_bricks")); // chimney stack
-  p.push(blk(-12, 1, 0, "minecraft:netherrack")); // hearth
-  p.push(blk(-12, 2, -1, "minecraft:stone_bricks"), blk(-12, 2, 1, "minecraft:stone_bricks")); // hearth wings
-
-  // === EAST WING — trophy / store ===
-  p.push(blk(12, 1, -5, "minecraft:gold_block"), blk(12, 1, 5, "minecraft:gold_block")); // trophy pedestals
-  p.push(blk(12, 2, -5, "minecraft:chest"), blk(12, 2, 5, "minecraft:chest")); // chests on pedestals
-  p.push(blk(10, 1, 7, "minecraft:brewing_stand")); // court alchemist stand
-
-  // === ENTRANCE STORAGE (south corners) ===
-  p.push(blk(-9, 1, 8, "minecraft:chest"), blk(-8, 1, 8, "minecraft:chest"));
-  p.push(blk( 8, 1, 8, "minecraft:chest"), blk( 9, 1, 8, "minecraft:chest"));
-  p.push(blk(-10, 1, 6, "minecraft:crafting_table")); // entrance crafting station
-
-  // === GRAND ENTRANCE STAIRCASE (south exterior, outside south gate z=10) ===
-  // Raised stone approach platform
-  p.push(...fill(-4, 0, 11, 4, 0, 15, "minecraft:stone_bricks"));
-  // Flanking guard pillars with torches
-  p.push(...fill(-5, 1, 11, -5, 4, 15, "minecraft:stone_bricks"));
-  p.push(...fill( 5, 1, 11,  5, 4, 15, "minecraft:stone_bricks"));
-  p.push(blk(-5, 5, 15, "minecraft:torch"), blk(5, 5, 15, "minecraft:torch"));
-  // Step tiers (rise from platform to gate level)
-  p.push(...fill(-3, 1, 11, 3, 1, 11, "minecraft:stone_bricks")); // step 1
-  p.push(...fill(-3, 2, 12, 3, 2, 12, "minecraft:stone_bricks")); // step 2
-  // Gate approach wall caps
-  p.push(blk(-4, 1, 12, "minecraft:stone_bricks"), blk(4, 1, 12, "minecraft:stone_bricks"));
-
-  // === FLAGPOLES on corner tower tops ===
-  for (const [tx, tz] of [[-12,-10],[9,-10],[-12,7],[9,7]]) {
-    // Oak fence flagpole (3 tall above tower top)
-    p.push(blk(tx+1, 22, tz+1, "minecraft:oak_fence"));
-    p.push(blk(tx+1, 23, tz+1, "minecraft:oak_fence"));
-    p.push(blk(tx+1, 24, tz+1, "minecraft:oak_fence"));
-    // Red wool flag (2 blocks extending from pole)
-    p.push(blk(tx+2, 23, tz+1, "minecraft:red_wool"));
-    p.push(blk(tx+2, 24, tz+1, "minecraft:red_wool"));
-    p.push(blk(tx+3, 24, tz+1, "minecraft:red_wool")); // flag tip
-  }
-
-  // === INTERIOR STAIRCASE (NW corner, y=1 → y=10 upper floor) ===
-  // Rising step-blocks along the west inner wall northward
-  for (let s = 0; s < 9; s++) {
-    p.push(blk(-10, 1+s, -7+s, "minecraft:stone_bricks")); // stair step block
-  }
-  // West walkway along upper floor perimeter
-  p.push(...fill(-11, 9, -8, -11, 9, 7, "minecraft:dark_oak_planks"));
-
-  // === UPPER FLOOR BALCONY RAILS (iron bars along 2nd floor edges) ===
-  for (let x = -10; x <= 10; x++) {
-    if (x < -1 || x > 1) p.push(blk(x, 10, 8, "minecraft:iron_bars")); // south edge
-  }
-  for (let z = -7; z <= 7; z++) {
-    p.push(blk(-10, 10, z, "minecraft:iron_bars")); // west edge
-    p.push(blk( 10, 10, z, "minecraft:iron_bars")); // east edge
-  }
-
-  // === THRONE DAIS ENHANCEMENTS ===
-  // Purple carpet on dais
-  for (let x = -2; x <= 2; x++) p.push(blk(x, 2, -9, "minecraft:purple_carpet"));
-  // Flanking throne pillars
-  p.push(blk(-4, 2, -8, "minecraft:stone_bricks"), blk(-4, 3, -8, "minecraft:stone_bricks"), blk(-4, 4, -8, "minecraft:stone_bricks"));
-  p.push(blk( 4, 2, -8, "minecraft:stone_bricks"), blk( 4, 3, -8, "minecraft:stone_bricks"), blk( 4, 4, -8, "minecraft:stone_bricks"));
-
-  // === GROUND FLOOR CHANDELIERS (sea lanterns at y=8) ===
-  p.push(blk( 0, 8, -4, "minecraft:sea_lantern"), blk( 0, 8, 0, "minecraft:sea_lantern"), blk( 0, 8, 4, "minecraft:sea_lantern"));
-  p.push(blk(-5, 8, -4, "minecraft:sea_lantern"), blk(-5, 8, 4, "minecraft:sea_lantern"));
-  p.push(blk( 5, 8, -4, "minecraft:sea_lantern"), blk( 5, 8, 4, "minecraft:sea_lantern"));
-  p.push(blk(-9, 8,  0, "minecraft:lantern"), blk( 9, 8, 0, "minecraft:lantern")); // side hall lanterns
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // UPPER FLOOR (y=10 – 14)
-  // ─────────────────────────────────────────────────────────────────────────
-  p.push(...fill(-11, 10, -9, 11, 14, 9, "minecraft:air")); // clear upper interior
-
-  // Upper carpet runner
-  p.push(...fill(-1, 10, -8, 1, 10, 8, "minecraft:red_carpet"));
-  p.push(...fill(-4, 10, -8, 4, 10, -4, "minecraft:red_carpet")); // royal wing carpet
-
-  // === ROYAL CHAMBERS (north side) ===
-  p.push(blk( 0, 11, -7, "minecraft:white_bed")); // royal bed
-  p.push(blk(-3, 11, -7, "minecraft:chest"), blk(3, 11, -7, "minecraft:chest")); // royal chests
-  p.push(blk(-5, 11, -5, "minecraft:enchanting_table")); // enchanting
-  p.push(blk( 5, 11, -5, "minecraft:brewing_stand")); // brewing
-  p.push(blk(-5, 11, -3, "minecraft:crafting_table")); // royal crafting
-  p.push(blk( 5, 11, -3, "minecraft:chest")); // supplies
-  p.push(...fill(-9, 11, -8, -6, 13, -8, "minecraft:bookshelf")); // N bookshelves
-  p.push(...fill( 6, 11, -8,  9, 13, -8, "minecraft:bookshelf"));
-
-  // === PARTITION WALL separating chambers from south lounge ===
-  p.push(...fill(-9, 11, -2, -4, 13, -2, "minecraft:stone_bricks"));
-  p.push(...fill( 4, 11, -2,  9, 13, -2, "minecraft:stone_bricks"));
-  p.push(...fill(-1, 11, -2,  1, 13, -2, "minecraft:air")); // doorway
-
-  // === UPPER LOUNGE / BALCONY AREA (south) ===
-  p.push(blk(-6, 11, 4, "minecraft:barrel"), blk(6, 11, 4, "minecraft:barrel")); // lounge seating
-  p.push(blk(-4, 11, 6, "minecraft:chest"), blk(4, 11, 6, "minecraft:chest")); // upper storage
-  p.push(blk( 0, 11, 7, "minecraft:lectern")); // balcony overlook lectern
-  p.push(...fill(-9, 11, 3, -6, 13, 3, "minecraft:bookshelf")); // south bookshelves
-  p.push(...fill( 6, 11, 3,  9, 13, 3, "minecraft:bookshelf"));
-
-  // === UPPER FLOOR CHANDELIERS ===
-  p.push(blk( 0, 14, -5, "minecraft:sea_lantern"), blk( 0, 14, 3, "minecraft:sea_lantern"));
-  p.push(blk(-5, 14, -5, "minecraft:sea_lantern"), blk(5, 14, -5, "minecraft:sea_lantern"));
-  p.push(blk(-5, 14,  3, "minecraft:sea_lantern"), blk(5, 14,  3, "minecraft:sea_lantern"));
-
-  return p;
-}
-
-// ── Stone Gate (9 wide, joinable with all wall types — same z-depth) ─────────
-// Placing tip: gate left end (x=-4) should align with the end of an adjacent wall.
-// e.g., place gate origin 9 blocks past a wall_long origin (gap-free join).
-function stoneGateBlueprint() {
-  const p = [];
-  // Clear volume
-  p.push(...fill(-4, 1, -1, 4, 9, 1, "minecraft:air"));
-  // Foundation across full width
-  p.push(...fill(-4, 0, -1, 4, 0, 1, "minecraft:stone_bricks"));
-  // ── Left tower (x=-4 to -3, y=1-7) ─────────────────────────────────────
-  p.push(...fill(-4, 1, -1, -3, 7, 1, "minecraft:stone_bricks"));
-  // ── Right tower (x=3 to 4, y=1-7) ──────────────────────────────────────
-  p.push(...fill(3, 1, -1, 4, 7, 1, "minecraft:stone_bricks"));
-  // ── Left inner pillar (x=-2, y=1-4) matches wall_long height ───────────
-  p.push(...fill(-2, 1, -1, -2, 4, 1, "minecraft:stone_bricks"));
-  // ── Right inner pillar (x=2, y=1-4) ────────────────────────────────────
-  p.push(...fill(2, 1, -1, 2, 4, 1, "minecraft:stone_bricks"));
-  // ── Gate arch lintel (y=5, x=-2 to +2, full z-depth) ───────────────────
-  p.push(...fill(-2, 5, -1, 2, 5, 1, "minecraft:stone_bricks"));
-  // ── Wall walk on top of arch (y=6, x=-2 to +2) ──────────────────────────
-  p.push(...fill(-2, 6, -1, 2, 6, 1, "minecraft:stone_bricks"));
-  // ── Crenelation / battlements on arch walk (y=7, alternating) ───────────
-  for (let x = -2; x <= 2; x++) {
-    if (x % 2 === 0) {
-      p.push(blk(x, 7, -1, "minecraft:stone_bricks"), blk(x, 7, 1, "minecraft:stone_bricks"));
-    }
-  }
-  // ── Tower battlements (y=8, alternating) ────────────────────────────────
-  for (const tx of [-4, -3, 3, 4]) {
-    p.push(blk(tx, 8, -1, "minecraft:stone_bricks"), blk(tx, 8, 1, "minecraft:stone_bricks"));
-    if (tx === -3 || tx === 3) p.push(blk(tx, 8, 0, "minecraft:stone_bricks"));
-  }
-  // ── Iron-bar portcullis in gateway arch (y=3-5 at z=0, above head-height) ─
-  // Hangs from the arch lintel — decorative, allows passage at y=1-2
-  for (let y = 3; y <= 5; y++) {
-    p.push(blk(-1, y, 0, "minecraft:iron_bars"));
-    p.push(blk(0, y, 0, "minecraft:iron_bars"));
-    p.push(blk(1, y, 0, "minecraft:iron_bars"));
-  }
-  // ── Torches on inner tower faces ────────────────────────────────────────
-  p.push(blk(-3, 4, 0, "minecraft:torch"), blk(3, 4, 0, "minecraft:torch"));
-  // ── Arrow slits on tower outer faces (glass) ────────────────────────────
-  p.push(blk(-4, 4, 0, "minecraft:glass"), blk(4, 4, 0, "minecraft:glass"));
-  // ── Sea lantern on arch walk ceiling (y=6, center) ──────────────────────
-  p.push(blk(0, 6, 0, "minecraft:sea_lantern"));
-  return p;
-}
-// ── House blueprints (3 random designs, each with 2-3 beds) ────────────────
-function houseBlueprintCottage() {
-  const p = [];
-  // Clear volume (7x6 footprint, 7 tall)
-  p.push(...fill(-3, 1, -2, 3, 7, 3, "minecraft:air"));
-  // Foundation (cobblestone)
-  p.push(...fill(-3, 0, -2, 3, 0, 3, "minecraft:cobblestone"));
-  // Corner log posts (oak log)
-  for (const [cx, cz] of [[-3,-2],[-3,3],[3,-2],[3,3]])
-    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:oak_log"));
-  // Walls (oak planks)
-  p.push(...fill(-2, 1, -2, 2, 4, -2, "minecraft:oak_planks")); // back/north wall
-  p.push(...fill(-2, 1,  3, 2, 4,  3, "minecraft:oak_planks")); // front/south wall
-  p.push(...fill(-3, 1, -1, -3, 4,  2, "minecraft:oak_planks")); // west wall
-  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:oak_planks")); // east wall
-  // Double-wide door opening (south wall, x=-1..0, y=1-2)
-  p.push(blk(-1, 1, 3, "minecraft:air"), blk(0, 1, 3, "minecraft:air"));
-  p.push(blk(-1, 2, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air"));
-  // Doorstep
-  p.push(blk(-1, 0, 4, "minecraft:cobblestone"), blk(0, 0, 4, "minecraft:cobblestone"));
-  // Windows (2-high glass, each wall)
-  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(1, 3, -2, "minecraft:glass")); // north 2-wide
-  p.push(blk(-1, 4, -2, "minecraft:glass"), blk(1, 4, -2, "minecraft:glass"));
-  p.push(blk(-3, 3,  1, "minecraft:glass"), blk(-3, 4,  1, "minecraft:glass")); // west
-  p.push(blk( 3, 3,  1, "minecraft:glass"), blk( 3, 4,  1, "minecraft:glass")); // east
-  p.push(blk( 2, 3,  3, "minecraft:glass")); // south flanking door
-  // Stepped pyramid roof (oak planks)
-  p.push(...fill(-3, 5, -2, 3, 5, 3, "minecraft:oak_planks"));
-  p.push(...fill(-2, 6, -1, 2, 6, 2, "minecraft:oak_planks"));
-  p.push(...fill(-1, 7,  0, 1, 7, 1, "minecraft:oak_planks"));
-  // Interior floor (oak planks + carpet strip)
-  p.push(...fill(-2, 1, -1, 2, 1, 2, "minecraft:oak_planks"));
-  p.push(blk(0, 1, -1, "minecraft:brown_carpet"), blk(0, 1, 0, "minecraft:brown_carpet"), blk(0, 1, 1, "minecraft:brown_carpet"), blk(0, 1, 2, "minecraft:brown_carpet"));
-  // 2 beds (against east wall)
-  p.push(blk( 2, 1, 0, "minecraft:white_bed"), blk(2, 1, 2, "minecraft:white_bed"));
-  // Furniture — cozy cottage feel
-  p.push(blk(-2, 1, -1, "minecraft:crafting_table")); // workbench corner
-  p.push(blk(-2, 1,  0, "minecraft:furnace"));          // fireplace/cooking
-  p.push(blk(-2, 2,  0, "minecraft:stone_bricks"));     // chimney above furnace
-  p.push(blk(-2, 3,  0, "minecraft:stone_bricks"));
-  p.push(blk(-2, 1,  2, "minecraft:chest"));            // personal storage
-  p.push(blk( 2, 1, -1, "minecraft:bookshelf"));        // bookshelf by bed
-  p.push(blk(-2, 2, -1, "minecraft:bookshelf"));        // wall shelf
-  p.push(blk(-2, 1,  1, "minecraft:barrel"));           // food barrel
-  p.push(blk( 0, 1, -1, "minecraft:flower_pot"));       // decorative pot
-  // Lighting
-  p.push(blk(0, 5, 1, "minecraft:lantern"));             // ceiling lantern
-  p.push(blk(-2, 3, 1, "minecraft:torch"), blk(2, 3, 1, "minecraft:torch")); // wall torches
-  p.push(blk(-2, 3, -1, "minecraft:torch")); // back wall torch
-  return p;
-}
-function houseBlueprintStone() {
-  const p = [];
-  // Clear volume (9x7 footprint, 9 tall)
-  p.push(...fill(-4, 1, -3, 4, 9, 3, "minecraft:air"));
-  // Foundation (cobblestone)
-  p.push(...fill(-4, 0, -3, 4, 0, 3, "minecraft:cobblestone"));
-  // Stone brick walls (y=1-6)
-  p.push(...fill(-4, 1, -3, 4, 6, -3, "minecraft:stone_bricks")); // north
-  p.push(...fill(-4, 1,  3, 4, 6,  3, "minecraft:stone_bricks")); // south
-  p.push(...fill(-4, 1, -2, -4, 6,  2, "minecraft:stone_bricks")); // west
-  p.push(...fill( 4, 1, -2,  4, 6,  2, "minecraft:stone_bricks")); // east
-  // Corner dark oak columns
-  for (const [cx, cz] of [[-4,-3],[-4,3],[4,-3],[4,3]])
-    p.push(...fill(cx, 1, cz, cx, 7, cz, "minecraft:dark_oak_log"));
-  // Double-wide door opening (south wall, x=-1..0, y=1-3)
-  p.push(blk(-1, 1, 3, "minecraft:air"), blk(0, 1, 3, "minecraft:air"));
-  p.push(blk(-1, 2, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air"));
-  p.push(blk(-1, 3, 3, "minecraft:air"), blk(0, 3, 3, "minecraft:air"));
-  // Doorstep
-  p.push(blk(-1, 0, 4, "minecraft:stone_bricks"), blk(0, 0, 4, "minecraft:stone_bricks"), blk(1, 0, 4, "minecraft:stone_bricks"));
-  // Windows (2-high glass, multiple per wall)
-  for (const wx of [-2, 2]) {
-    p.push(blk(wx, 3, -3, "minecraft:glass"), blk(wx, 4, -3, "minecraft:glass")); // north 2 windows
-    p.push(blk(wx, 3,  3, "minecraft:glass"), blk(wx, 4,  3, "minecraft:glass")); // south flanking door
-  }
-  p.push(blk(-4, 3, 0, "minecraft:glass"), blk(-4, 4, 0, "minecraft:glass")); // west center window
-  p.push(blk( 4, 3, 0, "minecraft:glass"), blk( 4, 4, 0, "minecraft:glass")); // east center window
-  // Flat stepped stone roof
-  p.push(...fill(-4, 7, -3, 4, 7, 3, "minecraft:stone_bricks"));
-  p.push(...fill(-3, 8, -2, 3, 8, 2, "minecraft:stone_bricks"));
-  p.push(...fill(-2, 9, -1, 2, 9, 1, "minecraft:stone_bricks"));
-  // Roof crenellations
-  for (let x = -4; x <= 4; x += 2) { p.push(blk(x, 8, -3, "minecraft:stone_bricks")); p.push(blk(x, 8, 3, "minecraft:stone_bricks")); }
-  // Interior floor (cobblestone + red carpet runner)
-  p.push(...fill(-3, 1, -2, 3, 1, 2, "minecraft:cobblestone"));
-  p.push(blk(0, 1, -2, "minecraft:red_carpet"), blk(0, 1, -1, "minecraft:red_carpet"), blk(0, 1, 0, "minecraft:red_carpet"), blk(0, 1, 1, "minecraft:red_carpet"), blk(0, 1, 2, "minecraft:red_carpet"));
-  // 3 beds (along north wall — this house holds a small family)
-  p.push(blk(-2, 1, -1, "minecraft:white_bed"), blk(0, 1, -1, "minecraft:white_bed"), blk(2, 1, -1, "minecraft:white_bed"));
-  // Furniture — stone manor style
-  p.push(blk(-3, 1, -2, "minecraft:chest"), blk(-2, 1, -2, "minecraft:chest")); // double chest storage
-  p.push(blk( 2, 1, -2, "minecraft:chest"), blk( 3, 1, -2, "minecraft:chest")); // double chest storage
-  p.push(blk(-3, 2, -2, "minecraft:bookshelf"), blk(-2, 2, -2, "minecraft:bookshelf")); // shelving above chests
-  p.push(blk( 2, 2, -2, "minecraft:bookshelf"), blk( 3, 2, -2, "minecraft:bookshelf"));
-  p.push(blk(-3, 1, -1, "minecraft:furnace"));  // cooking hearth
-  p.push(blk(-3, 2, -1, "minecraft:stone_bricks")); // chimney
-  p.push(blk(-3, 3, -1, "minecraft:stone_bricks"));
-  p.push(blk( 3, 1, -1, "minecraft:crafting_table")); // workstation
-  p.push(blk( 3, 1,  0, "minecraft:barrel"));          // storage barrel
-  p.push(blk(-3, 1,  1, "minecraft:flower_pot"));      // window sill decoration
-  p.push(blk( 3, 2, -2, "minecraft:bookshelf"));       // book nook
-  // Lighting
-  p.push(blk(0, 6, 0, "minecraft:sea_lantern")); // ceiling chandelier
-  p.push(blk(-3, 4, 0, "minecraft:torch"), blk(3, 4, 0, "minecraft:torch")); // wall torches
-  p.push(blk(0, 4, -3, "minecraft:torch")); // north wall torch
-  return p;
-}
-function houseBlueprintFarmhouse() {
-  const p = [];
-  // Clear volume (8x6 footprint, 7 tall)
-  p.push(...fill(-4, 1, -2, 3, 7, 3, "minecraft:air"));
-  // Foundation (cobblestone)
-  p.push(...fill(-4, 0, -2, 3, 0, 3, "minecraft:cobblestone"));
-  // Spruce log corner posts
-  for (const [cx, cz] of [[-4,-2],[-4,3],[3,-2],[3,3]])
-    p.push(...fill(cx, 1, cz, cx, 5, cz, "minecraft:spruce_log"));
-  // Birch plank walls (y=1-4)
-  p.push(...fill(-3, 1, -2, 2, 4, -2, "minecraft:birch_planks")); // north
-  p.push(...fill(-3, 1,  3, 2, 4,  3, "minecraft:birch_planks")); // south
-  p.push(...fill(-4, 1, -1, -4, 4,  2, "minecraft:birch_planks")); // west
-  p.push(...fill( 3, 1, -1,  3, 4,  2, "minecraft:birch_planks")); // east
-  // Double-wide door (south, x=-1..0, y=1-2)
-  p.push(blk(-1, 1, 3, "minecraft:air"), blk(0, 1, 3, "minecraft:air"));
-  p.push(blk(-1, 2, 3, "minecraft:air"), blk(0, 2, 3, "minecraft:air"));
-  p.push(blk(-1, 0, 4, "minecraft:cobblestone"), blk(0, 0, 4, "minecraft:cobblestone")); // doorstep
-  // Windows (2-high glass on each wall)
-  p.push(blk(-1, 3, -2, "minecraft:glass"), blk(-1, 4, -2, "minecraft:glass")); // north L
-  p.push(blk( 1, 3, -2, "minecraft:glass"), blk( 1, 4, -2, "minecraft:glass")); // north R
-  p.push(blk(-4, 3,  0, "minecraft:glass"), blk(-4, 4,  0, "minecraft:glass")); // west
-  p.push(blk( 3, 3,  0, "minecraft:glass"), blk( 3, 4,  0, "minecraft:glass")); // east
-  p.push(blk( 2, 3,  3, "minecraft:glass")); // south flanking door
-  // Gabled birch roof (pyramid style)
-  p.push(...fill(-4, 5, -2, 3, 5, 3, "minecraft:birch_planks"));
-  p.push(...fill(-3, 6, -1, 2, 6, 2, "minecraft:birch_planks"));
-  p.push(...fill(-2, 7,  0, 1, 7, 1, "minecraft:birch_planks"));
-  // Interior floor (birch planks + green carpet runner — farm fresh)
-  p.push(...fill(-3, 1, -1, 2, 1, 2, "minecraft:birch_planks"));
-  p.push(blk(0, 1, -1, "minecraft:green_carpet"), blk(0, 1, 0, "minecraft:green_carpet"), blk(0, 1, 1, "minecraft:green_carpet"), blk(0, 1, 2, "minecraft:green_carpet"));
-  // 2 beds (east wall)
-  p.push(blk( 2, 1, 0, "minecraft:white_bed"), blk(2, 1, 2, "minecraft:white_bed"));
-  // Furniture — farmhouse style
-  p.push(blk(-3, 1, -1, "minecraft:barrel"));    // food barrel (crop storage)
-  p.push(blk(-3, 1,  0, "minecraft:chest"));     // personal chest
-  p.push(blk(-3, 1,  1, "minecraft:furnace"));   // cooking/hearth
-  p.push(blk(-3, 2,  1, "minecraft:stone_bricks")); // chimney
-  p.push(blk(-3, 3,  1, "minecraft:stone_bricks"));
-  p.push(blk( 2, 1, -1, "minecraft:crafting_table")); // workbench
-  p.push(blk( 1, 1, -1, "minecraft:composter"));  // compost bin (farm theme)
-  p.push(blk(-3, 2, -1, "minecraft:bookshelf"));  // recipe books
-  p.push(blk(-3, 2,  0, "minecraft:bookshelf"));
-  p.push(blk( 2, 2, -1, "minecraft:flower_pot")); // window sill pot
-  // Lighting
-  p.push(blk(0, 5, 1, "minecraft:lantern"));      // ceiling lantern
-  p.push(blk(-3, 3, -1, "minecraft:torch"), blk(2, 3, 1, "minecraft:torch")); // wall torches
-  p.push(blk(0, 4, -2, "minecraft:torch")); // north wall torch
-  return p;
-}
-function houseBlueprint() {
-  const design = Math.floor(Math.random() * 3);
-  if (design === 0) return houseBlueprintCottage();
-  if (design === 1) return houseBlueprintStone();
-  return houseBlueprintFarmhouse();
-}
-
-// ── Livestock Pen (large fenced enclosure) ─────────────────────────────────
-function fenceEnclosureBlueprint() {
-  const p = [];
-  p.push(...fill(-10, 1, -10, 10, 4, 10, "minecraft:air"));
-  p.push(...fill(-9, 0, -9, 9, 0, 9, "minecraft:dirt")); // interior floor
-  // Perimeter fence posts (oak log, 3 tall) then fence between
-  for (const [cx, cz] of [[-10,-10],[-10,10],[10,-10],[10,10]])
-    p.push(...fill(cx, 1, cz, cx, 3, cz, "minecraft:oak_log"));
-  // North and south fence runs
-  for (let x = -9; x <= 9; x++) {
-    p.push(blk(x, 1, -10, "minecraft:oak_fence"), blk(x, 2, -10, "minecraft:oak_fence"));
-    p.push(blk(x, 1,  10, "minecraft:oak_fence"), blk(x, 2,  10, "minecraft:oak_fence"));
-  }
-  // West and east fence runs
-  for (let z = -9; z <= 9; z++) {
-    p.push(blk(-10, 1, z, "minecraft:oak_fence"), blk(-10, 2, z, "minecraft:oak_fence"));
-    p.push(blk( 10, 1, z, "minecraft:oak_fence"), blk( 10, 2, z, "minecraft:oak_fence"));
-  }
-  // Fence gate on south wall (3 wide opening)
-  p.push(blk(-1, 1, 10, "minecraft:fence_gate"), blk(0, 1, 10, "minecraft:fence_gate"), blk(1, 1, 10, "minecraft:fence_gate"));
-  p.push(blk(-1, 2, 10, "minecraft:air"), blk(0, 2, 10, "minecraft:air"), blk(1, 2, 10, "minecraft:air"));
-  // Interior: hay bales as feed stations
-  p.push(blk(-8, 1, -8, "minecraft:hay_block"), blk(-7, 1, -8, "minecraft:hay_block"));
-  p.push(blk( 8, 1, -8, "minecraft:hay_block"), blk( 7, 1, -8, "minecraft:hay_block"));
-  // Water troughs (cauldrons)
-  p.push(blk(-1, 1, -7, "minecraft:cauldron"), blk(0, 1, -7, "minecraft:cauldron"), blk(1, 1, -7, "minecraft:cauldron"));
-  // Composter for feed
-  p.push(blk(0, 1, 8, "minecraft:composter"));
-  return p;
-}
-
-// ── Barn (large multi-purpose cattle building) ─────────────────────────────
-function barnBlueprint() {
-  const p = [];
-  p.push(...fill(-6, 1, -4, 6, 10, 4, "minecraft:air"));
-  p.push(...fill(-6, 0, -4, 6, 0, 4, "minecraft:cobblestone"));
-  // Frame posts (dark oak log)
-  for (const cx of [-6, -3, 0, 3, 6]) {
-    p.push(...fill(cx, 1, -4, cx, 6, -4, "minecraft:dark_oak_log"));
-    p.push(...fill(cx, 1,  4, cx, 6,  4, "minecraft:dark_oak_log"));
-  }
-  // Back and front walls (oak planks between posts)
-  p.push(...fill(-5, 1, -4, 5, 5, -4, "minecraft:oak_planks"));
-  p.push(...fill(-5, 1,  4, 5, 5,  4, "minecraft:oak_planks"));
-  // Side walls (west and east)
-  for (let z = -3; z <= 3; z++) {
-    for (let y = 1; y <= 5; y++) {
-      p.push(blk(-6, y, z, "minecraft:oak_planks"));
-      p.push(blk( 6, y, z, "minecraft:oak_planks"));
-    }
-  }
-  // Wide barn-door opening on front (x=-2..+2, y=1..4)
-  for (let x = -2; x <= 2; x++) for (let y = 1; y <= 4; y++) p.push(blk(x, y, 4, "minecraft:air"));
-  // Windows
-  p.push(blk(-4, 4, -4, "minecraft:glass"), blk(4, 4, -4, "minecraft:glass"));
-  p.push(blk(-4, 4,  4, "minecraft:glass"), blk(4, 4,  4, "minecraft:glass"));
-  p.push(blk(-6, 4,  0, "minecraft:glass"), blk(6, 4,  0, "minecraft:glass"));
-  // Hay-block roof (layered pyramid)
-  p.push(...fill(-6, 7, -4, 6, 7, 4, "minecraft:hay_block"));
-  p.push(...fill(-5, 8, -3, 5, 8, 3, "minecraft:hay_block"));
-  p.push(...fill(-4, 9, -2, 4, 9, 2, "minecraft:hay_block"));
-  p.push(...fill(-3,10, -1, 3,10, 1, "minecraft:hay_block"));
-  // Interior dirt floor
-  p.push(...fill(-5, 1, -3, 5, 1, 3, "minecraft:dirt"));
-  // Stall hay bales (corners)
-  p.push(blk(-4, 1, -3, "minecraft:hay_block"), blk(-4, 2, -3, "minecraft:hay_block"));
-  p.push(blk( 4, 1, -3, "minecraft:hay_block"), blk( 4, 2, -3, "minecraft:hay_block"));
-  p.push(blk(-4, 1,  2, "minecraft:hay_block"), blk(-4, 2,  2, "minecraft:hay_block"));
-  p.push(blk( 4, 1,  2, "minecraft:hay_block"), blk( 4, 2,  2, "minecraft:hay_block"));
-  // Stall dividers (fence)
-  p.push(blk(-2, 1, 0, "minecraft:oak_fence"), blk(-2, 2, 0, "minecraft:oak_fence"));
-  p.push(blk( 2, 1, 0, "minecraft:oak_fence"), blk( 2, 2, 0, "minecraft:oak_fence"));
-  // Water troughs
-  p.push(blk(-3, 1, 0, "minecraft:cauldron"), blk(3, 1, 0, "minecraft:cauldron"));
-  // Storage chests
-  p.push(blk(-5, 1, -3, "minecraft:chest"), blk(5, 1, -3, "minecraft:chest"));
-  // Lighting
-  p.push(blk(0, 6, 0, "minecraft:sea_lantern"));
-  p.push(blk(-4, 5, 0, "minecraft:torch"), blk(4, 5, 0, "minecraft:torch"));
-  return p;
-}
-
-// ── Farm Plot Blueprints (large, open, ready-to-plant) ─────────────────────
-function farmPlotBlueprintWheat() {
-  const p = [];
-  // Clear a tall volume first
-  p.push(...fill(-12, 1, -12, 22, 6, 22, "minecraft:air"));
-  // === LARGE FARM PLOT A (20 wide x 20 deep) ===
-  // Outer fence perimeter
-  p.push(...fill(-12, 1, -12, 22, 1, -12, "minecraft:oak_fence")); // N
-  p.push(...fill(-12, 1,  22, 22, 1,  22, "minecraft:oak_fence")); // S
-  p.push(...fill(-12, 1, -11, -12, 1, 21, "minecraft:oak_fence")); // W
-  p.push(...fill( 22, 1, -11,  22, 1, 21, "minecraft:oak_fence")); // E
-  // Corner pillars
-  for (const [fx, fz] of [[-12,-12],[-12,22],[22,-12],[22,22]])
-    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
-  // Gate opening south side
-  p.push(blk(4, 1, 22, "minecraft:air"), blk(5, 1, 22, "minecraft:air"));
-  // === 4 LARGE PLANTING STRIPS (each 9 wide x 20 long) with water channels ===
-  // Strip 1 (columns x=-11..x=-3)
-  p.push(...fill(-11, 0, -11, -3, 0, 21, "minecraft:farmland"));
-  p.push(blk(-7, 0, -11, "minecraft:water")); // irrigation source (buried)
-  for (let z = -10; z <= 21; z += 4) p.push(blk(-7, 0, z, "minecraft:water"));
-  p.push(...fill(-7, 1, -11, -7, 1, 21, "minecraft:air")); // air above water
-  // Strip 2 (columns x=-1..x=7)
-  p.push(...fill(-1, 0, -11, 7, 0, 21, "minecraft:farmland"));
-  p.push(blk(3, 0, -11, "minecraft:water"));
-  for (let z = -10; z <= 21; z += 4) p.push(blk(3, 0, z, "minecraft:water"));
-  p.push(...fill(3, 1, -11, 3, 1, 21, "minecraft:air"));
-  // Strip 3 (columns x=9..x=17)
-  p.push(...fill(9, 0, -11, 17, 0, 21, "minecraft:farmland"));
-  p.push(blk(13, 0, -11, "minecraft:water"));
-  for (let z = -10; z <= 21; z += 4) p.push(blk(13, 0, z, "minecraft:water"));
-  p.push(...fill(13, 1, -11, 13, 1, 21, "minecraft:air"));
-  // Divider paths (dirt paths between strips)
-  p.push(...fill(-2, 0, -11, -2, 0, 21, "minecraft:dirt_path")); // between strip 1 & 2
-  p.push(...fill( 8, 0, -11,  8, 0, 21, "minecraft:dirt_path")); // between strip 2 & 3
-  // North & South edge paths
-  p.push(...fill(-11, 0, -12, 21, 0, -12, "minecraft:dirt_path"));
-  p.push(...fill(-11, 0,  22, 21, 0,  22, "minecraft:dirt_path"));
-  // === TOOL SHED (east side, 5x4) ===
-  p.push(...fill(19, 0, -11, 21, 0, -5, "minecraft:oak_planks")); // floor
-  p.push(...fill(19, 1, -11, 21, 3, -11, "minecraft:oak_planks")); // N wall
-  p.push(...fill(19, 1, -5,  21, 3,  -5, "minecraft:oak_planks")); // S wall
-  p.push(...fill(19, 1, -10, 19, 3,  -6, "minecraft:oak_planks")); // W wall
-  p.push(...fill(21, 1, -10, 21, 3,  -6, "minecraft:oak_planks")); // E wall
-  p.push(blk(20, 1, -5, "minecraft:air"), blk(20, 2, -5, "minecraft:air")); // door
-  p.push(...fill(19, 4, -11, 21, 4, -5, "minecraft:oak_planks")); // roof
-  p.push(blk(19, 1, -10, "minecraft:chest"), blk(19, 1, -9, "minecraft:barrel")); // storage
-  p.push(blk(19, 1, -7, "minecraft:composter"), blk(19, 1, -6, "minecraft:crafting_table"));
-  p.push(blk(20, 3, -8, "minecraft:lantern"));
-  // Center farm pole (interact to spawn farmers)
-  p.push(blk(0, 1, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 2, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 3, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 4, 0, "minecraft:lantern"));
-  return p;
-}
-function farmPlotBlueprintMixed() {
-  const p = [];
-  // Clear volume
-  p.push(...fill(-12, 1, -12, 22, 6, 22, "minecraft:air"));
-  // Fence perimeter
-  p.push(...fill(-12, 1, -12, 22, 1, -12, "minecraft:oak_fence")); // N
-  p.push(...fill(-12, 1,  22, 22, 1,  22, "minecraft:oak_fence")); // S
-  p.push(...fill(-12, 1, -11, -12, 1, 21, "minecraft:oak_fence")); // W
-  p.push(...fill( 22, 1, -11,  22, 1, 21, "minecraft:oak_fence")); // E
-  for (const [fx, fz] of [[-12,-12],[-12,22],[22,-12],[22,22]])
-    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
-  p.push(blk(4, 1, 22, "minecraft:air"), blk(5, 1, 22, "minecraft:air")); // gate
-  // === 4 QUARTER PLOTS (each 10x10, separated by paths + water) ===
-  // NW plot
-  p.push(...fill(-11, 0, -11, -2, 0, -2, "minecraft:farmland"));
-  p.push(blk(-6, 0, -11, "minecraft:water")); // N channel source
-  for (let z = -10; z <= -2; z += 3) p.push(blk(-6, 0, z, "minecraft:water"));
-  p.push(...fill(-6, 1, -11, -6, 1, -2, "minecraft:air"));
-  // NE plot
-  p.push(...fill(1, 0, -11, 10, 0, -2, "minecraft:farmland"));
-  p.push(blk(5, 0, -11, "minecraft:water"));
-  for (let z = -10; z <= -2; z += 3) p.push(blk(5, 0, z, "minecraft:water"));
-  p.push(...fill(5, 1, -11, 5, 1, -2, "minecraft:air"));
-  // SW plot
-  p.push(...fill(-11, 0, 2, -2, 0, 21, "minecraft:farmland"));
-  p.push(blk(-6, 0, 2, "minecraft:water"));
-  for (let z = 3; z <= 21; z += 3) p.push(blk(-6, 0, z, "minecraft:water"));
-  p.push(...fill(-6, 1, 2, -6, 1, 21, "minecraft:air"));
-  // SE plot
-  p.push(...fill(1, 0, 2, 10, 0, 21, "minecraft:farmland"));
-  p.push(blk(5, 0, 2, "minecraft:water"));
-  for (let z = 3; z <= 21; z += 3) p.push(blk(5, 0, z, "minecraft:water"));
-  p.push(...fill(5, 1, 2, 5, 1, 21, "minecraft:air"));
-  // Center cross paths
-  p.push(...fill(-11, 0, -1, 21, 0, 0, "minecraft:dirt_path")); // EW center path
-  p.push(...fill(-1, 0, -11, 0, 0, 21, "minecraft:dirt_path")); // NS center path
-  // Center water junction
-  p.push(blk(-1, 0, -1, "minecraft:water"), blk(-1, 0, 0, "minecraft:water"), blk(0, 0, -1, "minecraft:water"));
-  // === TOOL SHED east side ===
-  p.push(...fill(12, 0, -11, 21, 0, -5, "minecraft:birch_planks"));
-  p.push(...fill(12, 1, -11, 21, 3, -11, "minecraft:birch_planks"));
-  p.push(...fill(12, 1, -5,  21, 3,  -5, "minecraft:birch_planks"));
-  p.push(...fill(12, 1, -10, 12, 3, -6, "minecraft:birch_planks"));
-  p.push(...fill(21, 1, -10, 21, 3, -6, "minecraft:birch_planks"));
-  p.push(blk(16, 1, -5, "minecraft:air"), blk(16, 2, -5, "minecraft:air"));
-  p.push(...fill(12, 4, -11, 21, 4, -5, "minecraft:birch_planks"));
-  p.push(blk(12, 1, -10, "minecraft:chest"), blk(12, 1, -9, "minecraft:barrel"), blk(12, 1, -8, "minecraft:composter"));
-  p.push(blk(16, 3, -8, "minecraft:lantern"));
-  // Center farm pole (interact to spawn farmers)
-  p.push(blk(0, 1, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 2, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 3, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 4, 0, "minecraft:lantern"));
-  return p;
-}
-function farmPlotBlueprintPlantation() {
-  const p = [];
-  // Clear a large volume
-  p.push(...fill(-14, 1, -14, 24, 7, 24, "minecraft:air"));
-  // Fence perimeter (extra large plantation)
-  p.push(...fill(-14, 1, -14, 24, 1, -14, "minecraft:oak_fence")); // N
-  p.push(...fill(-14, 1,  24, 24, 1,  24, "minecraft:oak_fence")); // S
-  p.push(...fill(-14, 1, -13, -14, 1, 23, "minecraft:oak_fence")); // W
-  p.push(...fill( 24, 1, -13,  24, 1, 23, "minecraft:oak_fence")); // E
-  for (const [fx, fz] of [[-14,-14],[-14,24],[24,-14],[24,24]])
-    p.push(blk(fx, 1, fz, "minecraft:oak_fence"), blk(fx, 2, fz, "minecraft:oak_fence"), blk(fx, 3, fz, "minecraft:oak_fence"));
-  // Gate south center
-  p.push(blk(4, 1, 24, "minecraft:air"), blk(5, 1, 24, "minecraft:air"));
-  // === 6 LARGE PLANTING STRIPS (each ~6 wide x 38 long) ===
-  const strips = [-13, -6, 1, 8, 15, 19]; // x starts of each strip (width ~5)
-  const waterCols = [-10, -3, 4, 11, 17]; // x of water channel in each strip
-  for (let s = 0; s < 5; s++) {
-    const x0 = strips[s]; const x1 = strips[s + 1] - 2; const wx = waterCols[s];
-    p.push(...fill(x0, 0, -13, x1, 0, 23, "minecraft:farmland"));
-    p.push(blk(wx, 0, -13, "minecraft:water"));
-    for (let z = -12; z <= 23; z += 4) p.push(blk(wx, 0, z, "minecraft:water"));
-    p.push(...fill(wx, 1, -13, wx, 1, 23, "minecraft:air"));
-    // Dirt path dividers between strips
-    if (s < 4) {
-      const px = strips[s + 1] - 1;
-      p.push(...fill(px, 0, -13, px, 0, 23, "minecraft:dirt_path"));
-    }
-  }
-  // North & south edge paths
-  p.push(...fill(-13, 0, -14, 23, 0, -14, "minecraft:dirt_path"));
-  p.push(...fill(-13, 0,  24, 23, 0,  24, "minecraft:dirt_path"));
-  // Scarecrows
-  p.push(blk(-8, 1, 6, "minecraft:oak_fence"), blk(-8, 2, 6, "minecraft:hay_block"), blk(-8, 3, 6, "minecraft:carved_pumpkin"));
-  p.push(blk( 6, 1, -5, "minecraft:oak_fence"), blk(6, 2, -5, "minecraft:hay_block"), blk(6, 3, -5, "minecraft:carved_pumpkin"));
-  p.push(blk(16, 1, 15, "minecraft:oak_fence"), blk(16, 2, 15, "minecraft:hay_block"), blk(16, 3, 15, "minecraft:carved_pumpkin"));
-  // === STORAGE BARN (east corner, 6x12 footprint) ===
-  p.push(...fill(20, 0, -13, 23, 0, 5, "minecraft:spruce_planks")); // floor
-  p.push(...fill(20, 1, -13, 23, 5, -13, "minecraft:spruce_planks")); // N wall
-  p.push(...fill(20, 1,  5,  23, 5,   5, "minecraft:spruce_planks")); // S wall
-  p.push(...fill(20, 1, -12, 20, 5,   4, "minecraft:spruce_planks")); // W wall
-  p.push(...fill(23, 1, -12, 23, 5,   4, "minecraft:spruce_planks")); // E wall
-  p.push(blk(21, 1, 5, "minecraft:air"), blk(21, 2, 5, "minecraft:air")); // door
-  p.push(blk(21, 3, -13, "minecraft:glass"), blk(21, 3, 5, "minecraft:glass")); // windows
-  p.push(blk(20, 3, -5, "minecraft:glass"), blk(23, 3, -5, "minecraft:glass"));
-  p.push(...fill(20, 6, -13, 23, 6, 5, "minecraft:spruce_planks")); // roof
-  p.push(blk(20, 1, -12, "minecraft:barrel"), blk(20, 2, -12, "minecraft:barrel"));
-  p.push(blk(20, 1, -10, "minecraft:chest"), blk(20, 1, -9, "minecraft:chest"));
-  p.push(blk(20, 1, 3, "minecraft:hay_block"), blk(20, 1, 4, "minecraft:hay_block"));
-  p.push(blk(23, 1, -11, "minecraft:barrel"), blk(23, 1, -10, "minecraft:barrel"));
-  p.push(blk(21, 5, -4, "minecraft:lantern"));
-  // Center farm pole (interact to spawn farmers)
-  p.push(blk(0, 1, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 2, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 3, 0, "minecraft:oak_fence"));
-  p.push(blk(0, 4, 0, "minecraft:lantern"));
-  return p;
-}
-function farmPlotBlueprint() {
-  const designs = [farmPlotBlueprintWheat, farmPlotBlueprintMixed, farmPlotBlueprintPlantation];
-  return designs[Math.floor(Math.random() * designs.length)]();
 }
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
@@ -6936,25 +5475,15 @@ var BLUEPRINTS = {
   "kingdoms:blacksmith": blacksmithBlueprint,
   "kingdoms:trade_station": tradeStationBlueprint,
   "kingdoms:treasury": treasuryBlueprint,
-  "kingdoms:storage": storageBlueprint,
-  "kingdoms:armory": armoryBlueprint,
-  "kingdoms:tower": towerBlueprint,
-  "kingdoms:wall_long": wallLongBlueprint,
-  "kingdoms:wall_short": wallShortBlueprint,
-  "kingdoms:wall_tall": wallTallBlueprint,
-  "kingdoms:stone_gate": stoneGateBlueprint,
-  "kingdoms:king_castle": kingCastleBlueprint,
-  "kingdoms:house": houseBlueprint,
-  "kingdoms:fence_enclosure": fenceEnclosureBlueprint,
-  "kingdoms:barn": barnBlueprint,
-  "kingdoms:farm_plot": farmPlotBlueprint
+  "kingdoms:waypoint": waypointBlueprint,
+  "kingdoms:castle": castleBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
   if (!blueprint) return;
   const placements = blueprint();
   for (const bp of placements) {
-    if (bp.x === 0 && bp.z === 0 && bp.y <= 1) continue;
+    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
     try {
       const loc = {
         x: origin.x + bp.x,
@@ -6967,7 +5496,976 @@ function generateStructure(dimension, origin, blockTypeId) {
   }
 }
 
+// src/systems/waypoint.ts
+init_storage();
+init_notify();
+import { world as world16 } from "@minecraft/server";
+import { ActionFormData } from "@minecraft/server-ui";
+var WAYPOINT_PROP = "kc:waypoint_village_id";
+function registerWaypoint(village, location) {
+  if (village.waypointLocation) {
+    notifyPlayer(
+      village.owner,
+      `\xA7c\xA7b${village.name}\xA7c already has a waypoint. Break the existing one to move it.`
+    );
+    return false;
+  }
+  village.waypointLocation = location;
+  const dim = world16.getDimension(village.location.dimension);
+  try {
+    const entity = dim.spawnEntity("kingdoms:structure_hub", {
+      x: location.x + 0.5,
+      y: location.y + 1,
+      z: location.z + 0.5
+    });
+    entity.setDynamicProperty(WAYPOINT_PROP, village.id);
+    entity.nameTag = `\xA7b\u2726 ${village.name}`;
+    village.waypointEntityId = entity.id;
+  } catch {
+  }
+  saveVillage(village);
+  notifyPlayer(
+    village.owner,
+    `\xA7a\u2726 Waypoint registered for \xA7b${village.name}\xA7a! Right-click the marker to teleport to any of your villages.`
+  );
+  return true;
+}
+function removeWaypoint(village) {
+  if (village.waypointEntityId) {
+    const dim = world16.getDimension(village.location.dimension);
+    try {
+      for (const entityType of ["kingdoms:structure_hub"]) {
+        const entities = dim.getEntities({ type: entityType });
+        const e = entities.find((x) => x.id === village.waypointEntityId);
+        if (e) {
+          e.remove();
+          break;
+        }
+      }
+    } catch {
+    }
+    village.waypointEntityId = void 0;
+  }
+  village.waypointLocation = void 0;
+  saveVillage(village);
+  notifyPlayer(village.owner, `\xA7eWaypoint removed from \xA7b${village.name}\xA7e.`);
+}
+function depositAllToWaypointChest(player, village) {
+  if (!village.waypointLocation) {
+    notifyPlayer(player.name, `\xA7cNo waypoint chest found.`);
+    return;
+  }
+  const chestLoc = {
+    x: village.waypointLocation.x + 2,
+    y: village.waypointLocation.y + 1,
+    z: village.waypointLocation.z
+  };
+  const dim = world16.getDimension(village.location.dimension);
+  const chestBlock = dim.getBlock(chestLoc);
+  const chestInv = chestBlock?.getComponent("inventory");
+  if (!chestInv?.container) {
+    notifyPlayer(player.name, `\xA7cWaypoint chest not found \u2014 make sure the structure has been built.`);
+    return;
+  }
+  const playerInv = player.getComponent("inventory");
+  if (!playerInv?.container) return;
+  const playerContainer = playerInv.container;
+  const chestContainer = chestInv.container;
+  let deposited = 0;
+  let noRoom = 0;
+  for (let i = 0; i < playerContainer.size; i++) {
+    const item = playerContainer.getItem(i);
+    if (!item) continue;
+    let placed = false;
+    for (let c = 0; c < chestContainer.size; c++) {
+      const existing = chestContainer.getItem(c);
+      if (existing && existing.typeId === item.typeId && existing.amount < existing.maxAmount) {
+        const space = existing.maxAmount - existing.amount;
+        const toMove = Math.min(space, item.amount);
+        existing.amount += toMove;
+        chestContainer.setItem(c, existing);
+        if (toMove >= item.amount) {
+          playerContainer.setItem(i, void 0);
+          deposited++;
+          placed = true;
+          break;
+        } else {
+          item.amount -= toMove;
+        }
+      }
+    }
+    if (placed) continue;
+    let foundSlot = false;
+    for (let c = 0; c < chestContainer.size; c++) {
+      if (!chestContainer.getItem(c)) {
+        chestContainer.setItem(c, item);
+        playerContainer.setItem(i, void 0);
+        deposited++;
+        foundSlot = true;
+        break;
+      }
+    }
+    if (!foundSlot) noRoom++;
+  }
+  if (deposited > 0 && noRoom === 0) {
+    notifyPlayer(player.name, `\xA7a\u{1F4E6} All items deposited into the waypoint chest.`);
+  } else if (deposited > 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7e\u{1F4E6} Deposited ${deposited} item(s). \xA7c${noRoom} item(s) didn't fit \u2014 chest is full.`);
+  } else if (deposited === 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7cChest is full \u2014 no items could be deposited.`);
+  } else {
+    notifyPlayer(player.name, `\xA77Your inventory is already empty.`);
+  }
+}
+function collectAllFromWaypointChest(player, village) {
+  if (!village.waypointLocation) {
+    notifyPlayer(player.name, `\xA7cNo waypoint chest found.`);
+    return;
+  }
+  const chestLoc = {
+    x: village.waypointLocation.x + 2,
+    y: village.waypointLocation.y + 1,
+    z: village.waypointLocation.z
+  };
+  const dim = world16.getDimension(village.location.dimension);
+  const chestBlock = dim.getBlock(chestLoc);
+  const chestInv = chestBlock?.getComponent("inventory");
+  if (!chestInv?.container) {
+    notifyPlayer(player.name, `\xA7cWaypoint chest not found \u2014 make sure the structure has been built.`);
+    return;
+  }
+  const playerInv = player.getComponent("inventory");
+  if (!playerInv?.container) return;
+  const playerContainer = playerInv.container;
+  const chestContainer = chestInv.container;
+  let collected = 0;
+  let noRoom = 0;
+  for (let c = 0; c < chestContainer.size; c++) {
+    const item = chestContainer.getItem(c);
+    if (!item) continue;
+    let placed = false;
+    for (let i = 0; i < playerContainer.size; i++) {
+      const existing = playerContainer.getItem(i);
+      if (existing && existing.typeId === item.typeId && existing.amount < existing.maxAmount) {
+        const space = existing.maxAmount - existing.amount;
+        const toMove = Math.min(space, item.amount);
+        existing.amount += toMove;
+        playerContainer.setItem(i, existing);
+        if (toMove >= item.amount) {
+          chestContainer.setItem(c, void 0);
+          collected++;
+          placed = true;
+          break;
+        } else {
+          item.amount -= toMove;
+        }
+      }
+    }
+    if (placed) continue;
+    let foundSlot = false;
+    for (let i = 0; i < playerContainer.size; i++) {
+      if (!playerContainer.getItem(i)) {
+        playerContainer.setItem(i, item);
+        chestContainer.setItem(c, void 0);
+        collected++;
+        foundSlot = true;
+        break;
+      }
+    }
+    if (!foundSlot) noRoom++;
+  }
+  if (collected > 0 && noRoom === 0) {
+    notifyPlayer(player.name, `\xA7a\u{1F4E6} All items collected from the waypoint chest.`);
+  } else if (collected > 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7e\u{1F4E6} Collected ${collected} item(s). \xA7c${noRoom} item(s) didn't fit \u2014 your inventory is full.`);
+  } else if (collected === 0 && noRoom > 0) {
+    notifyPlayer(player.name, `\xA7cInventory is full \u2014 no items could be collected.`);
+  } else {
+    notifyPlayer(player.name, `\xA77The chest is already empty.`);
+  }
+}
+async function showWaypointMenu(player, currentVillage) {
+  const destinations = getAllVillages().filter(
+    (v) => v.owner === player.name && v.waypointLocation
+  );
+  const hasChest = !!currentVillage?.waypointLocation;
+  if (destinations.length === 0 && !hasChest) {
+    notifyPlayer(
+      player.name,
+      `\xA7cNo waypoints found. Place a \xA7bVillage Waypoint\xA7c block inside your village first.`
+    );
+    return;
+  }
+  const form = new ActionFormData().title("\xA7b\u2726 Village Waypoints").body(
+    `\xA77${destinations.length} waypoint(s) registered.
+\xA7fSelect a destination to teleport to, or manage the chest:`
+  );
+  if (hasChest) {
+    form.button(`\xA76\u{1F4E6} Deposit All to Chest
+\xA77Sweep your inventory into the chest`);
+    form.button(`\xA7a\u{1F4E5} Collect All from Chest
+\xA77Pull everything back into your inventory`);
+  }
+  for (const v of destinations) {
+    const loc2 = v.waypointLocation;
+    form.button(`\xA7b${v.name}
+\xA77${Math.round(loc2.x)}, ${Math.round(loc2.y)}, ${Math.round(loc2.z)}`);
+  }
+  form.button("\xA77Cancel");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  let selection = response.selection;
+  if (hasChest) {
+    if (selection === 0) {
+      depositAllToWaypointChest(player, currentVillage);
+      return;
+    }
+    if (selection === 1) {
+      collectAllFromWaypointChest(player, currentVillage);
+      return;
+    }
+    selection -= 2;
+  }
+  if (selection >= destinations.length) return;
+  const dest = destinations[selection];
+  const loc = dest.waypointLocation;
+  const inventory = player.getComponent("inventory");
+  if (inventory?.container) {
+    const container = inventory.container;
+    let hasItems = false;
+    for (let i = 0; i < container.size; i++) {
+      const item = container.getItem(i);
+      if (item) {
+        hasItems = true;
+        break;
+      }
+    }
+    if (hasItems) {
+      notifyPlayer(
+        player.name,
+        `\xA7c\u2726 Waypoint travel requires an empty inventory! Use the \xA7bchest\xA7c beside the waypoint to store your items first.`
+      );
+      return;
+    }
+  }
+  try {
+    const dim = world16.getDimension(dest.location.dimension);
+    player.teleport(
+      { x: loc.x + 0.5, y: loc.y + 1, z: loc.z + 0.5 },
+      { dimension: dim }
+    );
+    notifyPlayer(player.name, `\xA7a\u2726 Teleported to \xA7b${dest.name}\xA7a!`);
+  } catch {
+    notifyPlayer(player.name, `\xA7cTeleport failed \u2014 chunk may not be loaded.`);
+  }
+}
+
 // src/main.ts
+init_kingdom();
+init_types();
+
+// src/systems/villagerBow.ts
+import { world as world17, system as system4 } from "@minecraft/server";
+var VILLAGER_TYPES = ["minecraft:villager_v2", "minecraft:villager"];
+var CHECK_INTERVAL_TICKS = 40;
+var BOW_ANIM = "animation.kingdoms.bow_greeting";
+var BOW_DURATION = 2.5;
+var BOW_RADIUS = 4;
+function startVillagerBowSystem() {
+  system4.runInterval(() => {
+    try {
+      for (const player of world17.getAllPlayers()) {
+        const dim = player.dimension;
+        const loc = player.location;
+        for (const type of VILLAGER_TYPES) {
+          try {
+            const nearby = dim.getEntities({
+              type,
+              location: loc,
+              maxDistance: BOW_RADIUS
+            });
+            for (const entity of nearby) {
+              try {
+                entity.runCommandAsync(
+                  `playanimation @s ${BOW_ANIM} false ${BOW_DURATION}`
+                );
+              } catch {
+              }
+            }
+          } catch {
+          }
+        }
+      }
+    } catch {
+    }
+  }, CHECK_INTERVAL_TICKS);
+}
+
+// src/systems/chargeAttack.ts
+init_tick();
+import { world as world18 } from "@minecraft/server";
+var VELOCITY_CHECK_INTERVAL = 5;
+var GALLOP_THRESHOLD = 0.18;
+var CHARGE_WINDOW_TICKS = 60;
+var CHARGE_BONUS = {
+  "kingdoms:cavalry": 5,
+  // base 5 → effective 10 on charge
+  "kingdoms:mercenary_lancer": 8
+  // base 7 → effective 15 on charge
+};
+var CHARGE_KNOCKBACK = {
+  "kingdoms:cavalry": 0.9,
+  "kingdoms:mercenary_lancer": 1.3
+};
+var PROP_READY = "kc:charge_ready";
+var PROP_TICK = "kc:charge_tick";
+function horizontalSpeed(entity) {
+  try {
+    const v = entity.getVelocity();
+    return Math.sqrt(v.x * v.x + v.z * v.z);
+  } catch {
+    return 0;
+  }
+}
+function setChargeReady(entity, tick) {
+  try {
+    entity.setDynamicProperty(PROP_READY, true);
+    entity.setDynamicProperty(PROP_TICK, tick);
+  } catch {
+  }
+}
+function clearCharge(entity) {
+  try {
+    entity.setDynamicProperty(PROP_READY, false);
+  } catch {
+  }
+}
+function isChargeReady(entity, currentTick) {
+  try {
+    if (!entity.getDynamicProperty(PROP_READY)) return false;
+    const set = entity.getDynamicProperty(PROP_TICK);
+    if (set === void 0) return false;
+    return currentTick - set <= CHARGE_WINDOW_TICKS;
+  } catch {
+    return false;
+  }
+}
+function tickChargeSystem(currentTick) {
+  if (currentTick % VELOCITY_CHECK_INTERVAL !== 0) return;
+  for (const entityId of Object.keys(CHARGE_BONUS)) {
+    for (const dim of ["overworld", "nether", "the_end"]) {
+      try {
+        const entities = world18.getDimension(dim).getEntities({ type: entityId });
+        for (const entity of entities) {
+          const speed = horizontalSpeed(entity);
+          if (speed >= GALLOP_THRESHOLD) {
+            setChargeReady(entity, currentTick);
+          } else {
+            const set = entity.getDynamicProperty(PROP_TICK);
+            if (entity.getDynamicProperty(PROP_READY) && set !== void 0 && currentTick - set > CHARGE_WINDOW_TICKS) {
+              clearCharge(entity);
+            }
+          }
+        }
+      } catch {
+      }
+    }
+  }
+}
+var SPEAR_COUNTER_DAMAGE = 6;
+var SPEAR_ENTITY_ID = "kingdoms:spearman";
+function registerChargeSystem() {
+  world18.afterEvents.entityHitEntity.subscribe((event) => {
+    const attacker = event.damagingEntity;
+    const victim = event.hitEntity;
+    if (!attacker || !victim) return;
+    const typeId = attacker.typeId;
+    const bonus = CHARGE_BONUS[typeId];
+    if (bonus === void 0) return;
+    const tick = getCurrentTick();
+    if (!isChargeReady(attacker, tick)) return;
+    if (victim.typeId === SPEAR_ENTITY_ID) {
+      try {
+        attacker.applyDamage(SPEAR_COUNTER_DAMAGE, { cause: "entityAttack", damagingEntity: victim });
+      } catch {
+      }
+      try {
+        const vPos = victim.location;
+        const aPos = attacker.location;
+        const dx = aPos.x - vPos.x;
+        const dz = aPos.z - vPos.z;
+        const mag = Math.sqrt(dx * dx + dz * dz) || 1;
+        attacker.applyKnockback(dx / mag * 1, dz / mag * 1, 0.5, 0.4);
+      } catch {
+      }
+      try {
+        victim.dimension.spawnParticle("minecraft:large_explosion", victim.location);
+        victim.runCommandAsync(
+          `title @a[r=32] actionbar \xA7c\u{1F6E1} Spearmen Counter!`
+        ).catch(() => {
+        });
+      } catch {
+      }
+    }
+    clearCharge(attacker);
+    try {
+      victim.applyDamage(bonus, { cause: "entityAttack", damagingEntity: attacker });
+    } catch {
+    }
+    const kb = CHARGE_KNOCKBACK[typeId] ?? 0.9;
+    try {
+      const aPos = attacker.location;
+      const vPos = victim.location;
+      const dx = vPos.x - aPos.x;
+      const dz = vPos.z - aPos.z;
+      const mag = Math.sqrt(dx * dx + dz * dz) || 1;
+      victim.applyKnockback(
+        dx / mag * kb,
+        dz / mag * kb,
+        kb * 0.5,
+        // horizontal magnitude
+        0.35
+        // vertical kick
+      );
+    } catch {
+    }
+    const chargeLabel = typeId === "kingdoms:mercenary_lancer" ? "\xA76\u2694 Lancer Charge!" : "\xA7e\u26A1 Cavalry Charge!";
+    const { x, y, z } = victim.location;
+    try {
+      victim.dimension.spawnParticle("minecraft:large_explosion", { x, y, z });
+    } catch {
+    }
+    try {
+      attacker.runCommandAsync(
+        `playsound random.explode @a[r=24] ${x} ${y} ${z} 0.6 1.4`
+      ).catch(() => {
+      });
+    } catch {
+    }
+    try {
+      attacker.runCommandAsync(
+        `title @a[r=32] actionbar ${chargeLabel}`
+      ).catch(() => {
+      });
+    } catch {
+    }
+  });
+}
+
+// src/systems/formations.ts
+init_notify();
+import { world as world19, system as system5 } from "@minecraft/server";
+import { ActionFormData as ActionFormData2 } from "@minecraft/server-ui";
+var SEARCH_RADIUS = 48;
+var HOLD_TICK_INTERVAL = 20;
+var LINE_SPACING = 2.5;
+var LINE_FORWARD_DIST = 5;
+var PERIMETER_RADIUS = 6;
+var BODYGUARD_RADIUS = 3;
+var VANGUARD_FORWARD = 4;
+var FLANK_LATERAL = 8;
+var ARC_BACK_DIST = 8;
+var ARC_SPACING = 3;
+var ESCORT_LATERAL = 3;
+var SCATTER_RADIUS = 10;
+var RALLY_RADIUS = 4;
+var HOLD_MODES = /* @__PURE__ */ new Set([
+  "spear_line_hold",
+  "spear_perimeter",
+  "cavalry_escort",
+  "heavy_vanguard",
+  "heavy_bodyguard"
+]);
+var FORMATION_TARGETS = {
+  spear_line_attack: ["kingdoms:spearman"],
+  spear_line_hold: ["kingdoms:spearman"],
+  spear_perimeter: ["kingdoms:spearman"],
+  cavalry_flanks: ["kingdoms:cavalry", "kingdoms:mercenary_lancer"],
+  cavalry_escort: ["kingdoms:cavalry", "kingdoms:mercenary_lancer"],
+  archer_arc: ["kingdoms:archer"],
+  archer_scatter: ["kingdoms:archer"],
+  heavy_vanguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
+  heavy_bodyguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
+  all_rally: [
+    "kingdoms:spearman",
+    "kingdoms:cavalry",
+    "kingdoms:mercenary_lancer",
+    "kingdoms:archer",
+    "kingdoms:heavy_knight",
+    "kingdoms:samurai",
+    "kingdoms:legionary",
+    "kingdoms:city_guard"
+  ]
+};
+var PROP_F_MODE = "kc:formation_mode";
+var PROP_F_INDEX = "kc:formation_index";
+var PROP_F_OWNER = "kc:formation_owner";
+function xzNorm(v) {
+  const len = Math.sqrt(v.x * v.x + v.z * v.z) || 1;
+  return { x: v.x / len, z: v.z / len };
+}
+function right90(f) {
+  return { x: f.z, z: -f.x };
+}
+function computePositions(mode, base, viewDir, count) {
+  const fwd = xzNorm(viewDir);
+  const rgt = right90(fwd);
+  const positions = [];
+  switch (mode) {
+    case "spear_line_attack":
+    case "spear_line_hold": {
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * LINE_SPACING;
+        positions.push({
+          x: base.x + fwd.x * LINE_FORWARD_DIST + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * LINE_FORWARD_DIST + rgt.z * offset
+        });
+      }
+      break;
+    }
+    case "spear_perimeter": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * PERIMETER_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * PERIMETER_RADIUS
+        });
+      }
+      break;
+    }
+    case "cavalry_flanks": {
+      const half = Math.ceil(count / 2);
+      for (let i = 0; i < count; i++) {
+        const side = i < half ? -1 : 1;
+        const depth = (i < half ? i : i - half) * 2;
+        positions.push({
+          x: base.x + rgt.x * side * FLANK_LATERAL + fwd.x * depth,
+          y: base.y,
+          z: base.z + rgt.z * side * FLANK_LATERAL + fwd.z * depth
+        });
+      }
+      break;
+    }
+    case "cavalry_escort": {
+      for (let i = 0; i < count; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        const depth = Math.floor(i / 2) * 2;
+        positions.push({
+          x: base.x + rgt.x * side * ESCORT_LATERAL + fwd.x * depth,
+          y: base.y,
+          z: base.z + rgt.z * side * ESCORT_LATERAL + fwd.z * depth
+        });
+      }
+      break;
+    }
+    case "archer_arc": {
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * ARC_SPACING;
+        positions.push({
+          x: base.x - fwd.x * ARC_BACK_DIST + rgt.x * offset,
+          y: base.y,
+          z: base.z - fwd.z * ARC_BACK_DIST + rgt.z * offset
+        });
+      }
+      break;
+    }
+    case "archer_scatter": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * SCATTER_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * SCATTER_RADIUS
+        });
+      }
+      break;
+    }
+    case "heavy_vanguard": {
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * 2;
+        positions.push({
+          x: base.x + fwd.x * VANGUARD_FORWARD + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * VANGUARD_FORWARD + rgt.z * offset
+        });
+      }
+      break;
+    }
+    case "heavy_bodyguard": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * BODYGUARD_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * BODYGUARD_RADIUS
+        });
+      }
+      break;
+    }
+    case "all_rally": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        const r = RALLY_RADIUS + i % 3;
+        positions.push({
+          x: base.x + Math.cos(angle) * r,
+          y: base.y,
+          z: base.z + Math.sin(angle) * r
+        });
+      }
+      break;
+    }
+  }
+  return positions;
+}
+function findOwnedTroops(player, entityTypes) {
+  const dim = player.dimension;
+  const loc = player.location;
+  const found = [];
+  for (const entityType of entityTypes) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: SEARCH_RADIUS });
+      for (const e of entities) {
+        if (e.getDynamicProperty("kc:owner") === player.name) {
+          found.push(e);
+        }
+      }
+    } catch {
+    }
+  }
+  return found;
+}
+function clearFormationTag(entity) {
+  try {
+    entity.setDynamicProperty(PROP_F_MODE, "");
+  } catch {
+  }
+}
+function applyFormation(player, mode) {
+  const troops = findOwnedTroops(player, FORMATION_TARGETS[mode]);
+  if (troops.length === 0) return 0;
+  const positions = computePositions(
+    mode,
+    player.location,
+    player.getViewDirection(),
+    troops.length
+  );
+  const isHold = HOLD_MODES.has(mode);
+  troops.forEach((troop, i) => {
+    const pos = positions[i];
+    if (!pos) return;
+    try {
+      troop.teleport(pos, { dimension: player.dimension });
+    } catch {
+    }
+    if (isHold) {
+      try {
+        troop.setDynamicProperty(PROP_F_MODE, mode);
+        troop.setDynamicProperty(PROP_F_INDEX, i);
+        troop.setDynamicProperty(PROP_F_OWNER, player.name);
+      } catch {
+      }
+    } else {
+      clearFormationTag(troop);
+    }
+  });
+  return troops.length;
+}
+function dismissAllFormations(player) {
+  const all = findOwnedTroops(player, FORMATION_TARGETS["all_rally"]);
+  for (const e of all) clearFormationTag(e);
+  return all.length;
+}
+function tickFormations(currentTick) {
+  if (currentTick % HOLD_TICK_INTERVAL !== 0) return;
+  for (const player of world19.getPlayers()) {
+    for (const entityTypes of Object.values(FORMATION_TARGETS)) {
+      try {
+        const dim = player.dimension;
+        const loc = player.location;
+        const viewDir = player.getViewDirection();
+        const groups = /* @__PURE__ */ new Map();
+        for (const entityType of entityTypes) {
+          try {
+            const entities = dim.getEntities({
+              type: entityType,
+              location: loc,
+              maxDistance: SEARCH_RADIUS * 2
+            });
+            for (const e of entities) {
+              if (e.getDynamicProperty(PROP_F_OWNER) !== player.name) continue;
+              const mode = e.getDynamicProperty(PROP_F_MODE);
+              if (!mode || !HOLD_MODES.has(mode)) continue;
+              if (!groups.has(mode)) groups.set(mode, []);
+              groups.get(mode).push(e);
+            }
+          } catch {
+          }
+        }
+        for (const [mode, troops] of groups) {
+          const positions = computePositions(
+            mode,
+            loc,
+            viewDir,
+            troops.length
+          );
+          troops.forEach((troop, i) => {
+            const idx = troop.getDynamicProperty(PROP_F_INDEX) ?? i;
+            const pos = positions[idx] ?? positions[i];
+            if (!pos) return;
+            try {
+              troop.teleport(pos, { dimension: dim });
+            } catch {
+            }
+          });
+        }
+      } catch {
+      }
+    }
+  }
+}
+var MENU_COOLDOWN_MS = 500;
+var lastMenuTime = /* @__PURE__ */ new Map();
+function openTacticsMenu(player) {
+  const now = Date.now();
+  const last = lastMenuTime.get(player.name) ?? 0;
+  if (now - last < MENU_COOLDOWN_MS) return;
+  lastMenuTime.set(player.name, now);
+  void showMainMenu(player);
+}
+async function showMainMenu(player) {
+  const form = new ActionFormData2().title("\u2694 Tactical Command").body("\xA77Choose a unit type to issue orders to your nearby troops.\n\xA78Range: 48 blocks \xB7 Only your deployed soldiers respond.").button("\u{1F5E1} Spearmen Tactics").button("\u{1F434} Cavalry / Lancer Tactics").button("\u{1F3F9} Archer Tactics").button("\u{1F6E1} Heavy Infantry Tactics").button("\u{1F514} Rally All Troops").button("\u2716 Dismiss All Formations");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      await showSpearmenMenu(player);
+      break;
+    case 1:
+      await showCavalryMenu(player);
+      break;
+    case 2:
+      await showArcherMenu(player);
+      break;
+    case 3:
+      await showHeavyMenu(player);
+      break;
+    case 4: {
+      const n = applyFormation(player, "all_rally");
+      if (n === 0) notifyPlayer(player.name, "\xA7eNo deployed troops nearby to rally.");
+      else notifyPlayer(player.name, `\xA7a\u{1F514} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} rallied to your position!`);
+      break;
+    }
+    case 5: {
+      const n = dismissAllFormations(player);
+      if (n === 0) notifyPlayer(player.name, "\xA7eNo troops in formation nearby.");
+      else notifyPlayer(player.name, `\xA7e\u2716 Formations dismissed. \xA7f${n}\xA7e troop${n > 1 ? "s" : ""} released.`);
+      break;
+    }
+  }
+}
+async function showSpearmenMenu(player) {
+  const form = new ActionFormData2().title("\u{1F5E1} Spearmen Tactics").body(
+    "\xA7eSpearmen excel in defensive lines and perimeter control.\n\n\xA7f\u25B6 Line + Attack \xA77\u2014 Line up ahead of you, then charge enemies.\n\xA7f\u25B6 Line + Hold \xA77\u2014 Hold a defensive line. Re-enforced every second.\n\xA7f\u25B6 Perimeter \xA77\u2014 Ring of pikes around you. Ideal vs. surrounded attacks.\n\xA78Counter-charge: Spearmen deal \xA7c+6 damage \xA78back to charging cavalry!"
+  ).button("\u2694 Line Formation \u2014 Attack").button("\u{1F6E1} Line Formation \u2014 Hold").button("\u{1F504} Perimeter Defense").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "spear_line_attack", "\xA7aSpearmen advance in line!");
+      break;
+    case 1:
+      issueOrder(player, "spear_line_hold", "\xA7aSpearmen holding the line!");
+      break;
+    case 2:
+      issueOrder(player, "spear_perimeter", "\xA7aSpearmen forming perimeter!");
+      break;
+    case 3:
+      await showMainMenu(player);
+      break;
+  }
+}
+async function showCavalryMenu(player) {
+  const form = new ActionFormData2().title("\u{1F434} Cavalry / Lancer Tactics").body(
+    "\xA7eMounted units are fast and devastating on the charge.\n\n\xA7f\u25B6 Charge Flanks \xA77\u2014 Split left & right, then unleash AI. Best for open battles.\n\xA7f\u25B6 Escort \xA77\u2014 Ride alongside you. Re-enforced. Great for moving through enemy territory.\n\xA78Charge bonus: \xA76+5 dmg \xA78(Cavalry) / \xA76+8 dmg \xA78(Lancer) + knockback on first hit after gallop."
+  ).button("\u26A1 Charge Flanks").button("\u{1F40E} Escort Formation").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "cavalry_flanks", "\xA7aCavalry splitting to flanks!");
+      break;
+    case 1:
+      issueOrder(player, "cavalry_escort", "\xA7aCavalry moving to escort position!");
+      break;
+    case 2:
+      await showMainMenu(player);
+      break;
+  }
+}
+async function showArcherMenu(player) {
+  const form = new ActionFormData2().title("\u{1F3F9} Archer Tactics").body(
+    "\xA7eArchers deal sustained ranged damage from a distance.\n\n\xA7f\u25B6 Ranged Arc \xA77\u2014 Arched line behind you, firing over your front line.\n\xA7f\u25B6 Scatter & Cover \xA77\u2014 Spread wide around the battlefield."
+  ).button("\u{1F3F9} Ranged Arc").button("\u{1F310} Scatter & Cover").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "archer_arc", "\xA7aArchers forming ranged arc!");
+      break;
+    case 1:
+      issueOrder(player, "archer_scatter", "\xA7aArchers scattering to cover positions!");
+      break;
+    case 2:
+      await showMainMenu(player);
+      break;
+  }
+}
+async function showHeavyMenu(player) {
+  const form = new ActionFormData2().title("\u{1F6E1} Heavy Infantry Tactics").body(
+    "\xA7eHeavy Knights, Samurai & Legionaries are elite front-line fighters.\n\n\xA7f\u25B6 Vanguard \xA77\u2014 Form a wall just ahead of you. Re-enforced. Ideal for sieges.\n\xA7f\u25B6 Bodyguard \xA77\u2014 Tight ring around you. Re-enforced. Maximum personal protection."
+  ).button("\u2694 Vanguard Line").button("\u{1F6E1} Bodyguard Ring").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "heavy_vanguard", "\xA7aHeavy infantry moving to vanguard!");
+      break;
+    case 1:
+      issueOrder(player, "heavy_bodyguard", "\xA7aElite guard forming bodyguard ring!");
+      break;
+    case 2:
+      await showMainMenu(player);
+      break;
+  }
+}
+function issueOrder(player, mode, successMsg) {
+  system5.run(() => {
+    const n = applyFormation(player, mode);
+    if (n === 0) {
+      const targets = FORMATION_TARGETS[mode];
+      const label = targets.map((t) => t.replace("kingdoms:", "").replace(/_/g, " ")).join(", ");
+      notifyPlayer(player.name, `\xA7eNo ${label} found within ${SEARCH_RADIUS} blocks.`);
+    } else {
+      notifyPlayer(player.name, `${successMsg} \xA7f(${n} unit${n > 1 ? "s" : ""})`);
+    }
+  });
+}
+
+// src/main.ts
+function checkThreeWool(woolType, loc, dim) {
+  const dirs = [[1, 0], [0, 1]];
+  for (const [dx, dz] of dirs) {
+    const b1 = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
+    const b2 = dim.getBlock({ x: loc.x + dx * 2, y: loc.y, z: loc.z + dz * 2 });
+    const b3 = dim.getBlock({ x: loc.x - dx, y: loc.y, z: loc.z - dz });
+    if (b1?.typeId === woolType && b2?.typeId === woolType) return true;
+    if (b1?.typeId === woolType && b3?.typeId === woolType) return true;
+  }
+  return false;
+}
+async function triggerWoolDiplomacy(player, targetVillage, isBlack) {
+  const myKingdom = getKingdomOf(player.name);
+  if (!myKingdom) {
+    notifyPlayer(player.name, "\xA7cYou must be in a kingdom to use wool diplomacy.");
+    return;
+  }
+  const enemyKingdom = getKingdom(targetVillage.kingdomId);
+  if (!enemyKingdom) return;
+  if (isBlack) {
+    if (areAtWar(myKingdom.id, enemyKingdom.id)) {
+      notifyPlayer(player.name, `\xA7cAlready at war with \xA7b${enemyKingdom.name}\xA7c.`);
+      return;
+    }
+    const form = new MessageFormData().title("\u2694 Declare War?").body(
+      `You placed 3 black wool in \xA7b${targetVillage.name}\xA7r!
+
+This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king}).
+
+\xA77This cannot be undone without a peace treaty.`
+    ).button1("\u2694 DECLARE WAR").button2("Cancel");
+    const resp = await form.show(player);
+    if (resp.selection === 0) {
+      declareWar(myKingdom.id, enemyKingdom.id);
+      for (const p of world20.getPlayers()) {
+        notifyPlayer(p.name, `\xA7c\u2694 WAR DECLARED! \xA7f${player.name} \xA77(${myKingdom.name}) \xA7chas declared war on \xA7b${enemyKingdom.name}\xA7c!`);
+      }
+    }
+    return;
+  }
+  const atWar = areAtWar(myKingdom.id, enemyKingdom.id);
+  const requestType = atWar ? "peace" : "alliance";
+  const cooldownKey = `${myKingdom.id}:${enemyKingdom.id}`;
+  const cooldownExpiry = myKingdom.peaceCooldowns?.[cooldownKey] ?? 0;
+  if (getCurrentTick() < cooldownExpiry) {
+    const days = ((cooldownExpiry - getCurrentTick()) / TICKS_PER_DAY).toFixed(1);
+    notifyPlayer(player.name, `\xA7c${enemyKingdom.name} denied your last request. Wait \xA7e${days}\xA7c more in-game days.`);
+    return;
+  }
+  if (!atWar && enemyKingdom.alliances?.includes(myKingdom.id)) {
+    notifyPlayer(player.name, `\xA7aAlready allied with \xA7b${enemyKingdom.name}\xA7a.`);
+    return;
+  }
+  const label = requestType === "peace" ? "\u2709 Peace Offer" : "\u2709 Alliance Offer";
+  enemyKingdom.pendingDiplomacy = {
+    fromKingdomId: myKingdom.id,
+    toKingdomId: enemyKingdom.id,
+    type: requestType,
+    senderName: player.name,
+    cooldownKey
+  };
+  saveKingdom(enemyKingdom);
+  notifyPlayer(player.name, `\xA7a${label} sent to \xA7b${enemyKingdom.name}\xA7a (${enemyKingdom.king}). Awaiting response...`);
+  notifyPlayer(enemyKingdom.king, `\xA7e\u{1F4DC} \xA7b${myKingdom.name}\xA7e sent a \xA7f${label}\xA7e. Interact with any waypoint or use /scriptevent kc:diplomacy to respond.`);
+  const targetOnline = world20.getPlayers().find((p) => p.name === enemyKingdom.king);
+  if (targetOnline) void showPendingDiplomacyRequest(targetOnline);
+}
+async function showPendingDiplomacyRequest(player) {
+  const playerKingdom = getKingdomOf(player.name);
+  const req = playerKingdom?.pendingDiplomacy;
+  if (!req || !playerKingdom) return;
+  const senderKingdom = getKingdom(req.fromKingdomId);
+  if (!senderKingdom) {
+    playerKingdom.pendingDiplomacy = void 0;
+    saveKingdom(playerKingdom);
+    return;
+  }
+  const label = req.type === "peace" ? "\u2709 Peace Offer" : "\u2709 Alliance Offer";
+  const body = req.type === "peace" ? `\xA7b${senderKingdom.name}\xA7r has offered PEACE.
+Sent by: \xA7f${req.senderName}
+
+Accept = end the war.
+Deny = block requests for 2 in-game days.` : `\xA7b${senderKingdom.name}\xA7r requests an ALLIANCE.
+Sent by: \xA7f${req.senderName}
+
+Accept = form alliance (soldiers won't clash).
+Deny = block requests for 2 in-game days.`;
+  const form = new MessageFormData().title(label).body(body).button1("\u2705 Accept").button2("\u274C Deny");
+  const resp = await form.show(player);
+  playerKingdom.pendingDiplomacy = void 0;
+  saveKingdom(playerKingdom);
+  if (resp.selection === 0) {
+    if (req.type === "peace") {
+      makePeace(req.fromKingdomId, req.toKingdomId);
+      notifyPlayer(req.senderName, `\xA7a\u2705 ${player.name} accepted peace! The war with \xA7b${senderKingdom.name}\xA7a is over.`);
+      notifyPlayer(player.name, `\xA7aPeace established with \xA7b${senderKingdom.name}\xA7a.`);
+    } else {
+      formAlliance(req.fromKingdomId, req.toKingdomId);
+      notifyPlayer(req.senderName, `\xA7a\u2705 ${player.name} accepted the alliance with \xA7b${senderKingdom.name}\xA7a!`);
+      notifyPlayer(player.name, `\xA7aAlliance formed with \xA7b${senderKingdom.name}\xA7a!`);
+    }
+  } else {
+    const freshSender = getKingdom(req.fromKingdomId);
+    if (freshSender) {
+      freshSender.peaceCooldowns ?? (freshSender.peaceCooldowns = {});
+      freshSender.peaceCooldowns[req.cooldownKey] = getCurrentTick() + TICKS_PER_DAY * 2;
+      saveKingdom(freshSender);
+    }
+    notifyPlayer(req.senderName, `\xA7c${player.name} denied your ${req.type} offer. Try again in 2 in-game days.`);
+    notifyPlayer(player.name, `\xA7eOffer denied.`);
+  }
+}
 var CUSTOM_BLOCKS = {
   TOWN_HALL: "kingdoms:town_hall",
   GUARD_POLE_VILLAGE: "kingdoms:guard_pole_village",
@@ -6981,140 +6479,52 @@ var CUSTOM_BLOCKS = {
   GRANARY: "kingdoms:granary",
   TREASURY_BLOCK: "kingdoms:treasury",
   BLACKSMITH: "kingdoms:blacksmith",
-  STORAGE: "kingdoms:storage",
-  ARMORY: "kingdoms:armory",
-  TOWER: "kingdoms:tower",
-  WALL_LONG: "kingdoms:wall_long",
-  WALL_SHORT: "kingdoms:wall_short",
-  FARM_PLOT: "kingdoms:farm_plot"
+  CASTLE: "kingdoms:castle"
 };
-function destroyStructure(dimension, origin, blockTypeId) {
-  const blueprint = BLUEPRINTS[blockTypeId];
-  if (!blueprint) return;
-  const placements = blueprint();
-  for (const bp of placements) {
-    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
-    try {
-      dimension.getBlock({ x: origin.x + bp.x, y: origin.y + bp.y, z: origin.z + bp.z })?.setType("minecraft:air");
-    } catch {}
-  }
-}
-function dropItemsAtLoc(dimension, location, itemTypeId, amount) {
-  let remaining = amount;
-  while (remaining > 0) {
-    const stack = Math.min(remaining, 64);
-    try { dimension.spawnItem(new ItemStack6(itemTypeId, stack), location); } catch {}
-    remaining -= stack;
-  }
-}
 function findVillageAt2(location) {
-  return getAllVillages().find(
-    (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
-  );
+  return getAllVillages().find((v) => {
+    const dx = v.location.x - location.x;
+    const dz = v.location.z - location.z;
+    return Math.sqrt(dx * dx + dz * dz) < 64;
+  });
 }
-var STRUCT_DISPLAY_NAMES = {
-  "kingdoms:town_hall": "\u{1F3DB} Town Hall",
-  "kingdoms:barracks": "\u2694\uFE0F Barracks",
-  "kingdoms:market": "\u{1F3EA} Market",
-  "kingdoms:blacksmith": "\u{1F528} Blacksmith",
-  "kingdoms:granary": "\u{1F33E} Granary",
-  "kingdoms:treasury": "\u{1F4B8} Treasury",
-  "kingdoms:trade_station": "\u{1F682} Trade Station",
-  "kingdoms:trade_pole": "\u{1F682} Trade Pole",
-  "kingdoms:storage": "\u{1F4E6} Storage",
-  "kingdoms:armory": "\u{1F6E1}\uFE0F Armory",
-  "kingdoms:king_castle": "\u{1F451} King's Castle"
+var TROOP_TYPE_TO_TOKEN = {
+  cityGuards: "kingdoms:guard_token",
+  spearmen: "kingdoms:spearman_token",
+  archers: "kingdoms:archer_token",
+  cavalry: "kingdoms:cavalry_token",
+  heavyKnight: "kingdoms:heavy_knight_token",
+  samurai: "kingdoms:samurai_token",
+  mercenaryLancer: "kingdoms:mercenary_lancer_token",
+  legionary: "kingdoms:legionary_token"
 };
-var STRUCT_MENU_KEYS = {
-  "kingdoms:town_hall": "town_hall",
-  "kingdoms:barracks": "barracks",
-  "kingdoms:market": "market",
-  "kingdoms:blacksmith": "blacksmith",
-  "kingdoms:granary": "granary",
-  "kingdoms:treasury": "treasury",
-  "kingdoms:trade_station": "trade_station",
-  "kingdoms:trade_pole": "trade_pole",
-  "kingdoms:storage": "storage",
-  "kingdoms:armory": "armory",
-  "kingdoms:king_castle": "king_castle"
+var RESOURCE_DROP_MAP = {
+  iron: "minecraft:iron_ingot",
+  gold: "minecraft:gold_ingot",
+  coal: "minecraft:coal",
+  wood: "minecraft:oak_log",
+  stone: "minecraft:cobblestone",
+  diamonds: "minecraft:diamond"
 };
-var STRUCT_HUB_OFFSETS = {
-  "king_castle": { x: 0, y: 2, z: 11 },
-  "barracks":    { x: 0, y: 1, z: 6 },
-  "market":      { x: 0, y: 1, z: 5 },
-  "blacksmith":  { x: 0, y: 1, z: 4 },
-  "trade_station": { x: 0, y: 1, z: 4 },
-  "armory":      { x: 0, y: 1, z: 4 },
-  "granary":     { x: 0, y: 1, z: 3 },
-  "treasury":    { x: 0, y: 1, z: 3 },
-  "storage":     { x: 0, y: 1, z: 4 },
-  "town_hall":   { x: 0, y: 1, z: 4 }
-};
-function spawnStructureHub(block, structKey) {
-  try {
-    const loc = block.location;
-    const dimId = block.dimension.id;
-    removeStructureHub(loc);
-    const off = STRUCT_HUB_OFFSETS[structKey] ?? { x: 0, y: 1, z: 0 };
-    const hub = world16.getDimension(dimId).spawnEntity("kingdoms:structure_hub", {
-      x: loc.x + off.x + 0.5,
-      y: loc.y + off.y,
-      z: loc.z + off.z + 0.5
-    });
-    hub.nameTag = "\xA76\u25B6 " + (STRUCT_DISPLAY_NAMES[block.typeId] ?? structKey) + "\n\xA7e\u25C6 Tap to open menu";
-    hub.setDynamicProperty("kc:structure_type", structKey);
-    hub.setDynamicProperty("kc:block_loc", JSON.stringify({ x: loc.x, y: loc.y, z: loc.z, dimension: dimId }));
-    world16.setDynamicProperty("kc:hub:" + loc.x + "," + loc.y + "," + loc.z, hub.id);
-  } catch {}
-}
-function removeStructureHub(loc) {
-  try {
-    const key = "kc:hub:" + loc.x + "," + loc.y + "," + loc.z;
-    world16.setDynamicProperty(key, void 0);
-    for (const dimId of ["overworld", "nether", "the_end"]) {
-      try {
-        const hubs = world16.getDimension(dimId).getEntities({ type: "kingdoms:structure_hub" });
-        for (const h of hubs) {
-          try {
-            const ls = h.getDynamicProperty("kc:block_loc");
-            if (!ls) continue;
-            const l = JSON.parse(ls);
-            if (l.x === loc.x && l.y === loc.y && l.z === loc.z) { h.remove(); return; }
-          } catch {}
-        }
-      } catch {}
+function dropItemsAtLocation(dimension, location, itemId, totalCount) {
+  if (totalCount <= 0) return;
+  const dropLoc = { x: location.x + 0.5, y: location.y + 1, z: location.z + 0.5 };
+  let remaining = totalCount;
+  while (remaining > 0) {
+    const stackSize = Math.min(remaining, 64);
+    try {
+      dimension.spawnItem(new ItemStack6(itemId, stackSize), dropLoc);
+    } catch {
     }
-  } catch {}
-}
-function openStructureMenu(player, structKey, block) {
-  switch (structKey) {
-    case "town_hall": void showTownHallMenu(player, block); break;
-    case "barracks": void showBarracksMenu(player, block); break;
-    case "market": void showMarketMenu(player, block); break;
-    case "blacksmith": void showBlacksmithMenu(player, block); break;
-    case "granary": void showGranaryStorageMenu(player, block); break;
-    case "treasury": void showTreasuryBlockMenu(player, block); break;
-    case "trade_station": void showTradeStationMenu(player, block); break;
-    case "trade_pole": void showTradePoleMenu(player, block); break;
-    case "storage": void showStorageMenu(player, block); break;
-    case "armory": void showArmoryMenu(player, block); break;
-    case "king_castle": void showKingCastleMenu(player, block); break;
+    remaining -= stackSize;
   }
 }
-world16.afterEvents.playerPlaceBlock.subscribe((event) => {
+world20.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
   const typeId = block.typeId;
   if (typeId === CUSTOM_BLOCKS.TOWN_HALL) {
     void showClaimVillageForm(player, block);
-  }
-  if (typeId === "minecraft:black_wool") {
-    const woolVillage = findVillageAt2(block.location);
-    if (woolVillage && woolVillage.owner && woolVillage.owner !== player.name) {
-      if (hasWoolWarLine(block.location, player.dimension)) {
-        void triggerWoolWarDeclaration(player, woolVillage);
-      }
-    }
   }
   if (typeId.startsWith("kingdoms:guard_pole")) {
     const typeMap = {
@@ -7151,7 +6561,37 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
     }
     registerTradeStation(village, block.location);
   }
-  if (typeId === CUSTOM_BLOCKS.TRADE_POLE) {
+  if (typeId === CUSTOM_BLOCKS.GRANARY) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      village.granaryLocation = block.location;
+      village.hasGranary = true;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7aGranary registered for \xA7b${village.name}\xA7a.`);
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      village.treasuryLocation = block.location;
+      village.hasTreasury = true;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7aVillage Treasury registered for \xA7b${village.name}\xA7a.`);
+    }
+  }
+  if (typeId === "kingdoms:waypoint") {
+    const village = findVillageAt2(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "\xA7cNo village territory here. Must be inside a claimed village.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "\xA7cThis is not your village.");
+      return;
+    }
+    registerWaypoint(village, block.location);
+  }
+  if (typeId === CUSTOM_BLOCKS.CASTLE) {
     const village = findVillageAt2(block.location);
     if (!village) {
       notifyPlayer(player.name, "\xA7cNo village territory here. Claim a village first.");
@@ -7161,86 +6601,59 @@ world16.afterEvents.playerPlaceBlock.subscribe((event) => {
       notifyPlayer(player.name, "\xA7cThis is not your village.");
       return;
     }
-    if (!village.tradePoles) village.tradePoles = [];
-    village.tradePoles.push({ id: generateId(), location: { x: block.location.x, y: block.location.y, z: block.location.z } });
+    if (village.hasCastle) {
+      notifyPlayer(player.name, `\xA7c\xA7b${village.name}\xA7c already has a Castle.`);
+      return;
+    }
+    village.hasCastle = true;
     saveVillage(village);
-    notifyPlayer(player.name, `\xA7a\u{1F682} Trade Pole placed in \xA7b${village.name}\xA7a. Chest minecarts arriving on nearby rails will auto-route: \xA7femerald\xA7a\u2192treasury, \xA7afood\xA7a\u2192granary, \xA7etroop tokens\xA7a\u2192barracks.`);
+    notifyPlayer(player.name, `\xA7a\u{1F3F0} Castle established in \xA7b${village.name}\xA7a! Elite troops are now available.`);
   }
-  if (typeId === CUSTOM_BLOCKS.GRANARY) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      village.granaryLocation = block.location;
-      saveVillage(village);
-      notifyPlayer(player.name, `\xA7aGranary registered for \xA7b${village.name}\xA7a.`);
+  if (typeId === "minecraft:black_wool" || typeId === "minecraft:white_wool") {
+    const woolVillage = findVillageAt2(block.location);
+    if (woolVillage && woolVillage.owner && woolVillage.owner !== player.name) {
+      if (checkThreeWool(typeId, block.location, block.dimension)) {
+        void triggerWoolDiplomacy(player, woolVillage, typeId === "minecraft:black_wool");
+      }
     }
   }
-  if (typeId === CUSTOM_BLOCKS.TREASURY_BLOCK) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      village.treasuryLocation = block.location;
-      saveVillage(village);
-      notifyPlayer(player.name, `\xA7aVillage Treasury registered for \xA7b${village.name}\xA7a.`);
+  if (typeId === CUSTOM_BLOCKS.BARRACKS) {
+    const bVillage = findVillageAt2(block.location);
+    let denyMsg = "";
+    if (!bVillage || bVillage.owner !== player.name) {
+      denyMsg = "\xA7cClaim a village first before building a Barracks.";
+    } else if (!bVillage.hasGranary) {
+      denyMsg = "\xA7cBarracks requires a \xA7bGranary\xA7c to be built in this village first.";
+    } else if (!bVillage.hasTreasury) {
+      denyMsg = "\xA7cBarracks requires a \xA7bTreasury\xA7c to be built in this village first.";
     }
-  }
-  if (typeId === CUSTOM_BLOCKS.STORAGE) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      village.storageLocation = block.location;
-      saveVillage(village);
-      notifyPlayer(player.name, `\xA7aMaterial Storage registered for \xA7b${village.name}\xA7a. Hold a material and tap to deposit.`);
-    }
-  }
-  if (typeId === CUSTOM_BLOCKS.ARMORY) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      village.armoryLocation = block.location;
-      saveVillage(village);
-      notifyPlayer(player.name, `\xA7aArmory registered for \xA7b${village.name}\xA7a. Hold a weapon or armor piece and tap to deposit.`);
-    }
-  }
-  if (typeId === CUSTOM_BLOCKS.MARKET) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      spawnMarketShopkeepers(village, block.location, block.dimension.id);
+    if (denyMsg) {
+      notifyPlayer(player.name, denyMsg);
+      const bLoc = { x: block.location.x, y: block.location.y, z: block.location.z };
+      const bDim = block.dimension;
+      system6.run(() => {
+        try {
+          bDim.runCommand(`setblock ${bLoc.x} ${bLoc.y} ${bLoc.z} air destroy`);
+          bDim.spawnItem(
+            new ItemStack6(CUSTOM_BLOCKS.BARRACKS, 1),
+            { x: bLoc.x + 0.5, y: bLoc.y + 1, z: bLoc.z + 0.5 }
+          );
+        } catch {
+        }
+      });
+      return;
     }
   }
   if (STRUCTURE_BLOCK_IDS.has(typeId)) {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
-    const dimId = block.dimension.id;
     notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}\xA77\u2026`);
-    system3.run(() => {
+    system6.run(() => {
       generateStructure(dimension, origin, typeId);
-      if (typeId === "kingdoms:house") {
-        const v2 = findVillageAt2(origin);
-        if (v2) system3.runTimeout(() => updateHousingCapacity(v2.id), 10);
-      }
+      spawnStructureHub(dimension, origin, typeId);
     });
   }
-  if (STRUCT_MENU_KEYS[typeId]) {
-    system3.run(() => { try { spawnStructureHub(block, STRUCT_MENU_KEYS[typeId]); } catch {} });
-  }
 });
-function spawnMarketShopkeepers(village, marketLoc, dimId) {
-  try {
-    if (!Array.isArray(village.marketShopkeeperIds)) village.marketShopkeeperIds = [];
-    const dim = world16.getDimension(dimId);
-    const angles = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3];
-    for (let i = 0; i < 3; i++) {
-      const angle = angles[i];
-      const sx = marketLoc.x + 0.5 + Math.cos(angle) * 3;
-      const sz = marketLoc.z + 0.5 + Math.sin(angle) * 3;
-      try {
-        const shopkeeper = dim.spawnEntity("kingdoms:shopkeeper", { x: sx, y: marketLoc.y + 1, z: sz });
-        shopkeeper.nameTag = "\xA76\u{1F6CD} Market Shopkeeper";
-        shopkeeper.setDynamicProperty("kc:village_id", village.id);
-        shopkeeper.setDynamicProperty("kc:market_loc", JSON.stringify({ x: marketLoc.x, y: marketLoc.y, z: marketLoc.z, dimension: dimId }));
-        village.marketShopkeeperIds.push(shopkeeper.id);
-      } catch {}
-    }
-    saveVillage(village);
-  } catch {}
-}
 var MENU_COOLDOWN_TICKS = 10;
 var lastMenuTick = /* @__PURE__ */ new Map();
 function canOpenMenu(playerName) {
@@ -7250,49 +6663,35 @@ function canOpenMenu(playerName) {
   lastMenuTick.set(playerName, tick);
   return true;
 }
-world16.afterEvents.playerInteractWithEntity.subscribe((event) => {
-  const { player, target } = event;
-  if (!target) return;
-  if (target.typeId === "kingdoms:shopkeeper") {
-    if (!canOpenMenu(player.name)) return;
-    system3.run(async () => {
-      try {
-        const mLocStr = target.getDynamicProperty("kc:market_loc");
-        if (!mLocStr) {
-          notifyPlayer(player.name, "\xA7cThis shopkeeper has no market location.");
-          return;
-        }
-        const ml = JSON.parse(mLocStr);
-        const block = world16.getDimension(ml.dimension ?? "overworld").getBlock(ml);
-        if (!block) {
-          notifyPlayer(player.name, "\xA7cCould not find the market block.");
-          return;
-        }
-        await showMarketMenu(player, block);
-      } catch {}
-    });
-    return;
-  }
-  if (target.typeId !== "kingdoms:structure_hub") return;
-  const structKey = target.getDynamicProperty("kc:structure_type");
-  if (!structKey || !canOpenMenu(player.name)) return;
+function spawnStructureHub(dimension, blockLocation, blockTypeId) {
   try {
-    const bLocStr = target.getDynamicProperty("kc:block_loc");
-    if (!bLocStr) return;
-    const bl = JSON.parse(bLocStr);
-    const block = world16.getDimension(bl.dimension ?? "overworld").getBlock(bl);
-    if (!block) return;
-    openStructureMenu(player, structKey, block);
-  } catch {}
-});
-world16.afterEvents.playerInteractWithBlock.subscribe((event) => {
-  const { player, block } = event;
-  if (!player || !block) return;
-  const structKey = STRUCT_MENU_KEYS[block.typeId];
-  if (!structKey || !canOpenMenu(player.name)) return;
-  openStructureMenu(player, structKey, block);
-});
-world16.afterEvents.itemStartUseOn.subscribe((event) => {
+    removeStructureHub(dimension, blockLocation);
+    const entity = dimension.spawnEntity(
+      "kingdoms:structure_hub",
+      { x: blockLocation.x + 0.5, y: blockLocation.y, z: blockLocation.z + 0.5 }
+    );
+    entity.setDynamicProperty("kc:structure_type", blockTypeId);
+    entity.setDynamicProperty("kc:block_loc", JSON.stringify(blockLocation));
+  } catch {
+  }
+}
+function removeStructureHub(dimension, blockLocation) {
+  try {
+    const nearby = dimension.getEntities({
+      type: "kingdoms:structure_hub",
+      location: { x: blockLocation.x + 0.5, y: blockLocation.y, z: blockLocation.z + 0.5 },
+      maxDistance: 2
+    });
+    for (const entity of nearby) {
+      try {
+        entity.remove();
+      } catch {
+      }
+    }
+  } catch {
+  }
+}
+world20.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
   const itemStack = event.itemStack;
@@ -7313,29 +6712,6 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
     if (village && village.owner === player.name) {
       depositEmeralds(player, village.id, itemStack.amount);
       return;
-    }
-  }
-  if (typeId === CUSTOM_BLOCKS.ARMORY && itemStack) {
-    const village = findVillageAt2(block.location);
-    if (village && village.owner === player.name) {
-      if (ALL_ARMORY_ITEMS.has(itemStack.typeId)) {
-        const inv = player.getComponent(EntityInventoryComponent8.componentId);
-        const container = inv?.container;
-        if (container) {
-          let deposited = 0;
-          for (let i = 0; i < container.size; i++) {
-            const slot = container.getItem(i);
-            if (slot?.typeId === itemStack.typeId) { deposited += slot.amount; container.setItem(i, void 0); }
-          }
-          if (deposited > 0) {
-            village.armoryItems ?? (village.armoryItems = {});
-            village.armoryItems[itemStack.typeId] = (village.armoryItems[itemStack.typeId] ?? 0) + deposited;
-            saveVillage(village);
-            notifyPlayer(player.name, `\xA7aDeposited ${deposited}x ${itemStack.typeId.replace("minecraft:", "")} into \xA7b${village.name}\xA7a armory.`);
-          }
-          return;
-        }
-      }
     }
   }
   if (!canOpenMenu(player.name)) return;
@@ -7361,18 +6737,22 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
       break;
-    case CUSTOM_BLOCKS.STORAGE:
-      void showStorageMenu(player, block);
+    case "kingdoms:waypoint": {
+      const wpVillage = findVillageAt2(block.location);
+      if (wpVillage && wpVillage.waypointLocation) {
+        void showWaypointMenu(player, wpVillage);
+        const wpKingdom = getKingdomOf(player.name);
+        if (wpKingdom?.pendingDiplomacy) {
+          system6.runTimeout(() => {
+            void showPendingDiplomacyRequest(player);
+          }, 40);
+        }
+      }
       break;
-    case CUSTOM_BLOCKS.ARMORY:
-      void showArmoryMenu(player, block);
-      break;
-    case CUSTOM_BLOCKS.FARM_PLOT:
-      void showFarmPlotMenu(player, block);
-      break;
+    }
   }
 });
-world16.afterEvents.playerBreakBlock.subscribe((event) => {
+world20.afterEvents.playerBreakBlock.subscribe((event) => {
   const { player } = event;
   if (!player) return;
   const typeId = event.brokenBlockPermutation.type.id;
@@ -7406,7 +6786,36 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village) {
       const loc = village.tradeStationLocation;
       if (loc && loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const rs = village.resourceStorage;
+        if (rs) {
+          const dim = player.dimension;
+          for (const [key, itemId] of Object.entries(RESOURCE_DROP_MAP)) {
+            dropItemsAtLocation(dim, blockLoc, itemId, rs[key] ?? 0);
+          }
+          village.resourceStorage = { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
+        }
         removeTradeStation(village);
+        notifyPlayer(player.name, `\xA7eMaterial storage dropped from \xA7b${village.name}\xA7e Trade Station!`);
+      }
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.BARRACKS) {
+    const village = findVillageAt2(blockLoc);
+    if (village) {
+      const dim = player.dimension;
+      const troops = village.troops;
+      let droppedAny = false;
+      for (const [troopType, tokenId] of Object.entries(TROOP_TYPE_TO_TOKEN)) {
+        const count = troops[troopType] ?? 0;
+        if (count > 0) {
+          dropItemsAtLocation(dim, blockLoc, tokenId, count);
+          droppedAny = true;
+        }
+      }
+      village.troops = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 };
+      saveVillage(village);
+      if (droppedAny) {
+        notifyPlayer(player.name, `\xA7eTroop tokens dropped from \xA7b${village.name}\xA7e Barracks!`);
       }
     }
   }
@@ -7415,17 +6824,8 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.granaryLocation) {
       const loc = village.granaryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
-        const dim = event.block.dimension;
-        const droppedItems = { ...village.granaryItems ?? {} };
-        system3.run(() => {
-          for (const [itemId, count] of Object.entries(droppedItems)) {
-            if (count > 0) dropItemsAtLoc(dim, loc, itemId, count);
-          }
-        });
         village.granaryLocation = void 0;
-        village.granaryItems = {};
         saveVillage(village);
-        notifyPlayer(player.name, `\xA7eGranary removed \u2014 stored food dropped.`);
       }
     }
   }
@@ -7434,479 +6834,140 @@ world16.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.treasuryLocation) {
       const loc = village.treasuryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
-        const dim = event.block.dimension;
-        const emeralds = village.treasury ?? 0;
-        system3.run(() => {
-          if (emeralds > 0) dropItemsAtLoc(dim, loc, "minecraft:emerald", emeralds);
-        });
-        village.treasury = 0;
         village.treasuryLocation = void 0;
         saveVillage(village);
-        notifyPlayer(player.name, `\xA7eTreasury removed \u2014 ${emeralds} emerald(s) dropped.`);
       }
     }
   }
-  if (typeId === CUSTOM_BLOCKS.STORAGE) {
+  if (typeId === "kingdoms:waypoint") {
     const village = findVillageAt2(blockLoc);
-    if (village && village.storageLocation) {
-      const loc = village.storageLocation;
+    if (village && village.waypointLocation) {
+      const loc = village.waypointLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
-        const dim = event.block.dimension;
-        const res = { ...village.resourceStorage ?? {} };
-        system3.run(() => {
-          for (const [key, count] of Object.entries(res)) {
-            const itemId = RESOURCE_ITEM_IDS[key];
-            if (itemId && count > 0) dropItemsAtLoc(dim, loc, itemId, count);
-          }
-        });
-        village.storageLocation = void 0;
-        village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE };
-        saveVillage(village);
-        notifyPlayer(player.name, `\xA7eMaterial Storage removed \u2014 stored materials dropped.`);
+        removeWaypoint(village);
       }
     }
   }
-  if (typeId === CUSTOM_BLOCKS.ARMORY) {
+  if (typeId === CUSTOM_BLOCKS.CASTLE) {
     const village = findVillageAt2(blockLoc);
-    if (village && village.armoryLocation) {
-      const loc = village.armoryLocation;
-      if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
-        const dim = event.block.dimension;
-        const items = { ...village.armoryItems ?? {} };
-        system3.run(() => {
-          for (const [itemId, count] of Object.entries(items)) {
-            if (count > 0) dropItemsAtLoc(dim, loc, itemId, count);
-          }
-        });
-        village.armoryLocation = void 0;
-        village.armoryItems = {};
-        saveVillage(village);
-        notifyPlayer(player.name, `\xA7eArmory removed \u2014 stored equipment dropped.`);
-      }
-    }
-  }
-  if (typeId === CUSTOM_BLOCKS.TRADE_POLE) {
-    const village = findVillageAt2(blockLoc);
-    if (village && village.tradePoles) {
-      village.tradePoles = village.tradePoles.filter(
-        (p) => !(p.location.x === blockLoc.x && p.location.y === blockLoc.y && p.location.z === blockLoc.z)
-      );
+    if (village && village.hasCastle) {
+      village.hasCastle = false;
       saveVillage(village);
-      notifyPlayer(player.name, `\xA7eTrade pole removed from \xA7b${village.name}\xA7e.`);
+      notifyPlayer(player.name, `\xA7c\u{1F3F0} Castle in \xA7b${village.name}\xA7c has been destroyed. Elite troops are no longer available.`);
     }
   }
-  if (STRUCT_MENU_KEYS[typeId]) {
-    removeStructureHub(blockLoc);
+  if (STRUCTURE_BLOCK_IDS.has(typeId)) {
+    const origin = { x: blockLoc.x, y: blockLoc.y, z: blockLoc.z };
+    const dimension = player.dimension;
+    system6.run(() => {
+      demolishStructure(dimension, origin, typeId);
+      removeStructureHub(dimension, origin);
+    });
   }
 });
-world16.beforeEvents.playerPlaceBlock.subscribe((event) => {
-  const { player, permutationBeingPlaced, block } = event;
-  if (!player) return;
-  const typeId = permutationBeingPlaced?.type?.id ?? "";
-  if (typeId === CUSTOM_BLOCKS.TOWN_HALL) {
-    const inv = player.getComponent(EntityInventoryComponent8.componentId);
-    const container = inv?.container;
-    if (!container) { event.cancel = true; return; }
-    let cobbleCount = 0;
-    for (let i = 0; i < container.size; i++) {
-      const item = container.getItem(i);
-      if (item?.typeId === "minecraft:cobblestone") cobbleCount += item.amount;
-    }
-    if (cobbleCount < CLAIM_COST_COBBLESTONE) {
-      event.cancel = true;
-      system3.run(() => {
-        notifyPlayer(player.name, `\xA7cYou need \xA7b${CLAIM_COST_COBBLESTONE} cobblestone\xA7c to place a Town Hall and claim a village. (Have: ${cobbleCount})`);
-      });
-    }
-  }
-});
-// ── World Life System ────────────────────────────────────────────────────────
-var WORLD_SEEDS_PROP = "kc:world_seeds";
-var MAX_WORLD_SEEDS = 50;
-var WORLD_SEED_MIN_SEP = 120;
-var WORLD_LIFE_INTERVAL = 12000;
-var WORLD_GEN_DIST_MIN = 80;
-var WORLD_GEN_DIST_MAX = 220;
-var lastWorldLifeTick = 0;
-
-function getWorldSeeds() {
-  try { const r = world16.getDynamicProperty(WORLD_SEEDS_PROP); return r ? JSON.parse(r) : []; } catch { return []; }
-}
-function saveWorldSeed(seed) {
+world20.afterEvents.playerInteractWithEntity.subscribe((event) => {
+  const player = event.player;
+  const entity = event.target;
+  if (!player || !entity) return;
+  if (entity.typeId !== "kingdoms:structure_hub") return;
+  if (!canOpenMenu(player.name)) return;
+  const structureType = entity.getDynamicProperty("kc:structure_type");
+  const blockLocStr = entity.getDynamicProperty("kc:block_loc");
+  if (!structureType || !blockLocStr) return;
+  let blockLoc;
   try {
-    const seeds = getWorldSeeds();
-    seeds.push(seed);
-    if (seeds.length > MAX_WORLD_SEEDS) seeds.shift();
-    world16.setDynamicProperty(WORLD_SEEDS_PROP, JSON.stringify(seeds));
-  } catch {}
-}
-function isAreaSeeded(x, z) {
-  return getWorldSeeds().some((s) => Math.sqrt((s.x - x) ** 2 + (s.z - z) ** 2) < WORLD_SEED_MIN_SEP);
-}
-
-// Bandit camp visual structure
-function buildBanditCampStructure(dim, loc) {
-  const x = Math.floor(loc.x);
-  const z = Math.floor(loc.z);
-  const y = Math.floor(loc.y);
-  try {
-    dim.runCommand(`fill ${x - 4} ${y + 1} ${z - 4} ${x + 4} ${y + 4} ${z + 4} minecraft:air replace minecraft:air`);
-    dim.runCommand(`fill ${x - 4} ${y} ${z - 4} ${x + 4} ${y} ${z + 4} minecraft:dirt`);
-    dim.runCommand(`setblock ${x} ${y + 1} ${z} minecraft:campfire`);
-    dim.runCommand(`setblock ${x - 2} ${y + 1} ${z} minecraft:oak_log`);
-    dim.runCommand(`setblock ${x + 2} ${y + 1} ${z} minecraft:oak_log`);
-    dim.runCommand(`setblock ${x} ${y + 1} ${z - 2} minecraft:oak_log`);
-    dim.runCommand(`setblock ${x} ${y + 1} ${z + 2} minecraft:oak_log`);
-    dim.runCommand(`setblock ${x - 3} ${y + 1} ${z - 3} minecraft:barrel`);
-    dim.runCommand(`setblock ${x + 3} ${y + 1} ${z + 3} minecraft:barrel`);
-    dim.runCommand(`setblock ${x - 3} ${y + 1} ${z + 3} minecraft:crafting_table`);
-    dim.runCommand(`setblock ${x + 3} ${y + 1} ${z - 3} minecraft:chest`);
-    const wallOffsets = [[-4, 0], [4, 0], [0, -4], [0, 4], [-4, -2], [-4, 2], [4, -2], [4, 2], [-2, -4], [2, -4], [-2, 4], [2, 4]];
-    for (const [ox, oz] of wallOffsets) {
-      dim.runCommand(`setblock ${x + ox} ${y + 1} ${z + oz} minecraft:cobblestone_wall`);
-    }
-    dim.runCommand(`setblock ${x - 2} ${y + 2} ${z + 4} minecraft:torch`);
-    dim.runCommand(`setblock ${x + 2} ${y + 2} ${z - 4} minecraft:torch`);
-    dim.runCommand(`setblock ${x + 4} ${y + 2} ${z + 2} minecraft:torch`);
-    dim.runCommand(`setblock ${x - 4} ${y + 2} ${z - 2} minecraft:torch`);
-  } catch {}
-}
-
-// NPC house blueprint
-function buildNpcHouse(dim, cx, y, cz, material) {
-  const m = material || "minecraft:oak_planks";
-  try {
-    dim.runCommand(`fill ${cx - 3} ${y} ${cz - 3} ${cx + 3} ${y + 4} ${cz + 3} ${m} hollow`);
-    dim.runCommand(`fill ${cx - 2} ${y + 1} ${cz - 2} ${cx + 2} ${y + 3} ${cz + 2} minecraft:air`);
-    dim.runCommand(`setblock ${cx} ${y + 1} ${cz + 3} minecraft:air`);
-    dim.runCommand(`setblock ${cx} ${y + 2} ${cz + 3} minecraft:air`);
-    dim.runCommand(`setblock ${cx - 2} ${y + 2} ${cz - 3} minecraft:glass`);
-    dim.runCommand(`setblock ${cx + 2} ${y + 2} ${cz - 3} minecraft:glass`);
-    dim.runCommand(`setblock ${cx - 3} ${y + 2} ${cz} minecraft:glass`);
-    dim.runCommand(`setblock ${cx + 3} ${y + 2} ${cz} minecraft:glass`);
-    dim.runCommand(`fill ${cx - 3} ${y + 5} ${cz - 3} ${cx + 3} ${y + 5} ${cz + 3} ${m}`);
-    dim.runCommand(`setblock ${cx} ${y + 4} ${cz} minecraft:glowstone`);
-  } catch {}
-}
-
-// Farm blueprint
-function buildFarmPlot(dim, fx, y, fz) {
-  try {
-    dim.runCommand(`fill ${fx} ${y} ${fz} ${fx + 10} ${y} ${fz + 8} minecraft:farmland`);
-    dim.runCommand(`fill ${fx} ${y + 1} ${fz} ${fx + 10} ${y + 1} ${fz + 8} minecraft:wheat[growth=7]`);
-    dim.runCommand(`fill ${fx + 5} ${y} ${fz} ${fx + 5} ${y} ${fz + 8} minecraft:water`);
-    dim.runCommand(`fill ${fx + 5} ${y + 1} ${fz} ${fx + 5} ${y + 1} ${fz + 8} minecraft:air`);
-    dim.runCommand(`fill ${fx - 1} ${y + 1} ${fz - 1} ${fx + 11} ${y + 1} ${fz + 9} minecraft:oak_fence hollow`);
-    dim.runCommand(`fill ${fx + 12} ${y} ${fz} ${fx + 16} ${y + 4} ${fz + 5} minecraft:oak_planks hollow`);
-    dim.runCommand(`setblock ${fx + 14} ${y + 3} ${fz + 2} minecraft:glowstone`);
-    dim.runCommand(`setblock ${fx + 13} ${y + 1} ${fz + 6} minecraft:air`);
-    dim.runCommand(`setblock ${fx + 14} ${y + 1} ${fz + 6} minecraft:air`);
-  } catch {}
-}
-
-// Well blueprint
-function buildWell(dim, wx, y, wz) {
-  try {
-    dim.runCommand(`fill ${wx - 1} ${y} ${wz - 1} ${wx + 1} ${y + 2} ${wz + 1} minecraft:stone_bricks hollow`);
-    dim.runCommand(`setblock ${wx} ${y + 1} ${wz} minecraft:water`);
-    dim.runCommand(`setblock ${wx} ${y + 2} ${wz} minecraft:air`);
-    dim.runCommand(`fill ${wx - 1} ${y + 3} ${wz - 1} ${wx + 1} ${y + 3} ${wz + 1} minecraft:oak_slab`);
-  } catch {}
-}
-
-// NPC village generator
-function spawnNpcVillage(dim, anchor, size) {
-  const x = Math.floor(anchor.x);
-  const z = Math.floor(anchor.z);
-  const y = Math.floor(anchor.y);
-  const isCity = size === "city";
-  const ring = isCity ? 22 : 13;
-  const buildingCount = isCity ? 6 : 2;
-  const villagerCount = isCity ? 12 : 4;
-  const mat = isCity ? "minecraft:stone_bricks" : "minecraft:oak_planks";
-  try {
-    dim.runCommand(`fill ${x - ring} ${y} ${z - ring} ${x + ring} ${y} ${z + ring} minecraft:grass_block`);
-    dim.runCommand(`fill ${x - ring} ${y + 1} ${z} ${x + ring} ${y + 1} ${z} minecraft:gravel`);
-    dim.runCommand(`fill ${x} ${y + 1} ${z - ring} ${x} ${y + 1} ${z + ring} minecraft:gravel`);
-  } catch {}
-  buildWell(dim, x, y + 1, z);
-  const step = (Math.PI * 2) / buildingCount;
-  for (let i = 0; i < buildingCount; i++) {
-    const angle = i * step;
-    const bx = Math.round(x + Math.cos(angle) * ring * 0.7);
-    const bz = Math.round(z + Math.sin(angle) * ring * 0.7);
-    buildNpcHouse(dim, bx, y + 1, bz, mat);
-    try { dim.spawnEntity("minecraft:villager_v2", { x: bx, y: y + 2, z: bz }); } catch {}
+    blockLoc = JSON.parse(blockLocStr);
+  } catch {
+    return;
   }
-  buildFarmPlot(dim, x + ring + 3, y + 1, z - 4);
-  try { dim.spawnEntity("minecraft:villager_v2", { x: x + ring + 8, y: y + 2, z: z }); } catch {}
-  const extra = Math.max(0, villagerCount - buildingCount - 1);
-  for (let i = 0; i < extra; i++) {
-    const vx = x + Math.floor(Math.random() * 12 - 6);
-    const vz = z + Math.floor(Math.random() * 12 - 6);
-    try { dim.spawnEntity("minecraft:villager_v2", { x: vx, y: y + 2, z: vz }); } catch {}
-  }
-  if (isCity) {
-    const w = ring + 6;
-    try {
-      dim.runCommand(`fill ${x - w} ${y + 1} ${z - w} ${x + w} ${y + 4} ${z - w} minecraft:stone_bricks`);
-      dim.runCommand(`fill ${x - w} ${y + 1} ${z + w} ${x + w} ${y + 4} ${z + w} minecraft:stone_bricks`);
-      dim.runCommand(`fill ${x - w} ${y + 1} ${z - w} ${x - w} ${y + 4} ${z + w} minecraft:stone_bricks`);
-      dim.runCommand(`fill ${x + w} ${y + 1} ${z - w} ${x + w} ${y + 4} ${z + w} minecraft:stone_bricks`);
-      dim.runCommand(`fill ${x - 3} ${y + 1} ${z - w - 1} ${x + 3} ${y + 3} ${z - w + 1} minecraft:air`);
-      dim.runCommand(`fill ${x - 3} ${y + 1} ${z + w - 1} ${x + 3} ${y + 3} ${z + w + 1} minecraft:air`);
-    } catch {}
-  }
-}
-
-// Pillager patrol spawner
-function spawnPillagerPatrol(dim, loc) {
-  const count = 3 + Math.floor(Math.random() * 4);
-  for (let i = 0; i < count; i++) {
-    const px = loc.x + (Math.random() * 14 - 7);
-    const pz = loc.z + (Math.random() * 14 - 7);
-    try { dim.spawnEntity("minecraft:pillager", { x: px, y: loc.y, z: pz }); } catch {}
-  }
-  try { dim.spawnEntity("minecraft:pillager", { x: loc.x + 1, y: loc.y, z: loc.z + 1 }); } catch {}
-}
-
-// ── Villager Territory Respawn ──────────────────────────────────────────────
-var VILLAGER_RESPAWN_INTERVAL = 200;
-var lastVillagerRespawnTick = -1;
-function tickVillagerRespawn(currentTick) {
-  if (currentTick - lastVillagerRespawnTick < VILLAGER_RESPAWN_INTERVAL) return;
-  lastVillagerRespawnTick = currentTick;
-  const villages = getAllVillages();
-  if (villages.length === 0) return;
-  const dims = new Map();
-  for (const village of villages) {
-    const dimId = village.location.dimension;
-    if (!dims.has(dimId)) {
-      try { dims.set(dimId, world16.getDimension(dimId)); } catch {}
-    }
-  }
-  for (const [dimId, dim] of dims) {
-    let villagers;
-    try {
-      villagers = dim.getEntities({ type: "minecraft:villager_v2" });
-    } catch { continue; }
-    for (const villager of villagers) {
-      const vLoc = villager.location;
-      const villageId = villager.getDynamicProperty("kc:village_id");
-      let homeVillage = null;
-      if (villageId) {
-        homeVillage = villages.find((v) => v.id === villageId && v.location.dimension === dimId);
-      }
-      if (!homeVillage) {
-        homeVillage = villages.find((v) => {
-          const r = getVillageRadius(v);
-          return v.location.dimension === dimId &&
-            Math.abs(v.townHallLocation.x - vLoc.x) < r &&
-            Math.abs(v.townHallLocation.z - vLoc.z) < r;
-        });
-        if (homeVillage) {
-          try { villager.setDynamicProperty("kc:village_id", homeVillage.id); } catch {}
+  const block = player.dimension.getBlock(blockLoc);
+  if (!block) return;
+  switch (structureType) {
+    case CUSTOM_BLOCKS.TOWN_HALL:
+      void showTownHallMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.BARRACKS:
+      void showBarracksMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.MARKET:
+      void showMarketMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.BLACKSMITH:
+      void showBlacksmithMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.GRANARY:
+      void showGranaryStorageMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TREASURY_BLOCK:
+      void showTreasuryBlockMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.TRADE_STATION:
+      void showTradeStationMenu(player, block);
+      break;
+    case "kingdoms:waypoint": {
+      const wpVillage = findVillageAt2(blockLoc);
+      if (wpVillage && wpVillage.waypointLocation) {
+        void showWaypointMenu(player, wpVillage);
+        const wpKingdom = getKingdomOf(player.name);
+        if (wpKingdom?.pendingDiplomacy) {
+          system6.runTimeout(() => {
+            void showPendingDiplomacyRequest(player);
+          }, 40);
         }
       }
-      if (!homeVillage) continue;
-      const th = homeVillage.townHallLocation;
-      const _vHomeRadius = getVillageRadius(homeVillage);
-      const dx = Math.abs(vLoc.x - th.x);
-      const dz = Math.abs(vLoc.z - th.z);
-      if (dx > _vHomeRadius || dz > _vHomeRadius) {
-        const spawnX = th.x + (Math.random() * 10 - 5);
-        const spawnZ = th.z + (Math.random() * 10 - 5);
-        try {
-          villager.teleport({ x: spawnX, y: th.y + 1, z: spawnZ });
-        } catch {}
-      }
+      break;
     }
   }
-}
-// ── End Villager Territory Respawn ──────────────────────────────────────────
-
-// World life tick — runs periodically, spawns content near players
-function tickWorldLife(currentTick) {
-  if (currentTick - lastWorldLifeTick < WORLD_LIFE_INTERVAL) return;
-  lastWorldLifeTick = currentTick;
-  const players = world16.getAllPlayers();
-  for (const player of players) {
-    const loc = player.location;
-    const dim = player.dimension;
-    const dimId = dim.id;
-    const angle = Math.random() * Math.PI * 2;
-    const dist = WORLD_GEN_DIST_MIN + Math.random() * (WORLD_GEN_DIST_MAX - WORLD_GEN_DIST_MIN);
-    const cx = loc.x + Math.cos(angle) * dist;
-    const cz = loc.z + Math.sin(angle) * dist;
-    if (isAreaSeeded(cx, cz)) continue;
-    const roll = Math.random();
-    const anchor = { x: cx, y: loc.y, z: cz };
-    if (roll < 0.18) {
-      spawnNpcVillage(dim, anchor, "city");
-      saveWorldSeed({ x: cx, z: cz, type: "city" });
-    } else if (roll < 0.50) {
-      spawnNpcVillage(dim, anchor, "village");
-      saveWorldSeed({ x: cx, z: cz, type: "village" });
-    } else if (roll < 0.68) {
-      buildFarmPlot(dim, Math.floor(cx), Math.floor(loc.y) + 1, Math.floor(cz));
-      saveWorldSeed({ x: cx, z: cz, type: "farm" });
-    } else if (roll < 0.84) {
-      spawnPillagerPatrol(dim, anchor);
-      saveWorldSeed({ x: cx, z: cz, type: "pillager" });
-    } else {
-      if (getAllBanditCamps().length < MAX_WORLD_CAMPS) {
-        const camp2 = { id: generateId(), location: { x: cx, y: loc.y, z: cz, dimension: dimId }, strength: 5 + Math.floor(Math.random() * 8), originKingdomId: "", entityIds: [] };
-        saveBanditCamp(camp2);
-        trySpawnEntities(camp2);
-        buildBanditCampStructure(dim, camp2.location);
-        saveWorldSeed({ x: cx, z: cz, type: "bandit" });
-      }
-    }
-  }
-}
-// ── End World Life ─────────────────────────────────────────────────────────────
-
-system3.runInterval(() => {
+});
+world20.afterEvents.playerJoin.subscribe((event) => {
+  const playerName = event.playerName;
+  system6.runTimeout(() => {
+    const player = world20.getPlayers().find((p) => p.name === playerName);
+    if (!player) return;
+    const kingdom = getKingdomOf(playerName);
+    if (kingdom?.pendingDiplomacy) void showPendingDiplomacyRequest(player);
+  }, 100);
+});
+startVillagerBowSystem();
+registerChargeSystem();
+loadSiegesFromStorage();
+system6.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
   tickTradeStations(tick);
-  tickTradePoles(tick);
   tickSieges(tick);
   tickBorders(tick);
   tickAutoDefense(tick);
-  tickRebelCityWarnings(tick);
+  tickChargeSystem(tick);
+  tickFormations(tick);
+  tickPendingReinforcements(tick);
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
   }
   tickAllMerchantsSpawn(tick);
   tickAllMerchantMovement();
-  tickTradeCartMovement();
-  tickWorldLife(tick);
-  tickVillagerRespawn(tick);
-  tickGuardTethers(tick);
 }, 20);
-system3.runInterval(() => {
+system6.runInterval(() => {
   processAllFood();
   processAllWages();
   processAllPopulation();
-  processAllTaxes();
   tickBandits();
   processAllSoldierFood();
-  tickAllFarmers();
-  tickAllMiners();
+  autoHarvestAllVillages();
+  checkDailyCrisisAlerts();
 }, 24e3);
-system3.runInterval(() => {
+system6.runInterval(() => {
   refreshAllGuards();
-  const _pruneTick = getCurrentTick();
-  for (const [key, alertTick] of lastAlertedThreat) {
-    if (_pruneTick - alertTick > 36e3) lastAlertedThreat.delete(key);
-  }
 }, 12e3);
-system3.runInterval(() => {
+system6.runInterval(() => {
+  enforceGuardPositions();
+}, 600);
+system6.runInterval(() => {
   for (const village of getAllVillages()) {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
-system3.runInterval(() => {
-  for (const village of getAllVillages()) {
-    applyBlacksmithBuffsToVillage(village);
-  }
-}, 36e3);
-// World merchant spawner — independent of villages, spawns travelling merchants + trade carts near players
-system3.runInterval(() => {
-  const players = world16.getAllPlayers();
-  for (const player of players) {
-    if (Math.random() > 0.5) continue;
-    try {
-      const dim = player.dimension;
-      const nearby = dim.getEntities({ type: "kingdoms:merchant", location: player.location, maxDistance: 150 });
-      if (nearby.length >= 3) continue;
-      const angle = Math.random() * Math.PI * 2;
-      const d = 60 + Math.random() * 80;
-      const mx = player.location.x + Math.cos(angle) * d;
-      const mz = player.location.z + Math.sin(angle) * d;
-      const m = dim.spawnEntity("kingdoms:merchant", { x: mx, y: player.location.y, z: mz });
-      m.nameTag = "\xA76Travelling Merchant";
-      const cartCount = 1 + Math.floor(Math.random() * 2);
-      for (let ci = 0; ci < cartCount; ci++) {
-        const ca = (ci / cartCount) * Math.PI * 2;
-        try {
-          const cart = dim.spawnEntity("kingdoms:trade_cart", {
-            x: mx + Math.cos(ca) * 3,
-            y: player.location.y,
-            z: mz + Math.sin(ca) * 3
-          });
-          cart.nameTag = "\xA77Trade Cart";
-          cart.setDynamicProperty("kc:merchant_id", m.id);
-        } catch {}
-      }
-    } catch {}
-  }
-}, 6e3);
-// Intercept vanilla wandering_trader + trader_llama — replace with kingdoms travelling merchant
-world16.afterEvents.entitySpawn.subscribe((event) => {
-  const entity = event.entity;
-  if (!entity) return;
-  if (entity.typeId === "minecraft:wandering_trader") {
-    const loc = { x: entity.location.x, y: entity.location.y, z: entity.location.z };
-    const dim = entity.dimension;
-    system3.run(() => {
-      try {
-        entity.remove();
-        const nearestVillage = getAllVillages()
-          .filter((v) => v.location.dimension === dim.id)
-          .sort((a, b) => {
-            const da = (a.townHallLocation.x - loc.x) ** 2 + (a.townHallLocation.z - loc.z) ** 2;
-            const db = (b.townHallLocation.x - loc.x) ** 2 + (b.townHallLocation.z - loc.z) ** 2;
-            return da - db;
-          })[0];
-        const spawnAngle = Math.random() * Math.PI * 2;
-        const spawnDist = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
-        const refLoc = nearestVillage
-          ? (nearestVillage.tradeStationLocation ?? nearestVillage.townHallLocation)
-          : loc;
-        const spawnX = refLoc.x + Math.cos(spawnAngle) * spawnDist;
-        const spawnZ = refLoc.z + Math.sin(spawnAngle) * spawnDist;
-        const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
-        const templateKey = templates[Math.floor(Math.random() * templates.length)];
-        const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
-        const m = dim.spawnEntity("kingdoms:merchant", { x: spawnX, y: refLoc.y, z: spawnZ });
-        if (nearestVillage) {
-          const destLabel = nearestVillage.tradeStationLocation ? "Market" : "Town Hall";
-          m.nameTag = `\xA76Travelling Merchant \xA77[\u2192 ${nearestVillage.name} ${destLabel}]`;
-          const merchantData = {
-            entityId: m.id,
-            stock,
-            destinationVillageId: nearestVillage.id,
-            currentPoleIndex: 0,
-            arrived: false,
-            lastNotifyDist: -1
-          };
-          m.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
-          m.setDynamicProperty("kc:village_id", nearestVillage.id);
-          nearestVillage.activeMerchants.push(merchantData);
-          saveVillage(nearestVillage);
-          if (nearestVillage.owner) {
-            notifyPlayer(nearestVillage.owner, `\xA76Travelling Merchant spotted ${Math.round(spawnDist)} blocks from \xA7b${nearestVillage.name}\xA76 and heading to the ${destLabel.toLowerCase()}! Stock: ${templateKey}.`);
-          }
-        } else {
-          m.nameTag = "\xA76Travelling Merchant";
-        }
-        const cartAngle = Math.random() * Math.PI * 2;
-        const cart = dim.spawnEntity("kingdoms:trade_cart", {
-          x: spawnX + Math.cos(cartAngle) * 2.5,
-          y: refLoc.y,
-          z: spawnZ + Math.sin(cartAngle) * 2.5
-        });
-        cart.nameTag = "\xA77Trade Cart";
-        cart.setDynamicProperty("kc:merchant_id", m.id);
-      } catch {}
-    });
-  } else if (entity.typeId === "minecraft:trader_llama") {
-    system3.run(() => { try { entity.remove(); } catch {} });
-  }
-});
-world16.beforeEvents.playerBreakBlock.subscribe((event) => {
+world20.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;
   const permutation = block.permutation;
@@ -7921,9 +6982,9 @@ world16.beforeEvents.playerBreakBlock.subscribe((event) => {
   const blockAge = age;
   const loc = { x: block.location.x, y: block.location.y, z: block.location.z };
   const dimId = player.dimension.id;
-  system3.run(() => {
+  system6.run(() => {
     try {
-      const dim = world16.getDimension(dimId);
+      const dim = world20.getDimension(dimId);
       const freshBlock = dim.getBlock(loc);
       if (!freshBlock) return;
       const freshAge = freshBlock.permutation.getState("age");
@@ -7935,348 +6996,28 @@ world16.beforeEvents.playerBreakBlock.subscribe((event) => {
     }
   });
 });
-world16.afterEvents.itemUse.subscribe((event) => {
+world20.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   if (!player) return;
   const itemId = event.itemStack?.typeId;
   if (!itemId) return;
   if (itemId === "kingdoms:recall_scroll") {
-    system3.run(() => {
+    system6.run(() => {
       recallNearbyTroops(player);
     });
     return;
   }
-  if (itemId === "kingdoms:formation_scroll") {
-    system3.run(() => {
-      void cmdStratMap(player);
-    });
-    return;
-  }
-  if (itemId === "kingdoms:village_spawner") {
-    system3.run(async () => {
-      const form = new ActionFormData().title("\xA76\u{1F3D9} Village Spawner").body("Select what to build near you:\n\n\xA76Big City\xA7r: Walled stone buildings, 10 villagers, large farm\n\xA7aSmall Village\xA7r: 3 wooden houses, 5 villagers, small farm").button("\xA76\u{1F3D9} Spawn Big City").button("\xA7a\u{1F3E0} Spawn Small Village").button("Cancel");
-      const resp = await form.show(player);
-      if (resp.canceled || resp.selection === 2) return;
-      const size = resp.selection === 0 ? "city" : "village";
-      const d = size === "city" ? 80 : 50;
-      const ang = Math.random() * Math.PI * 2;
-      const anchor = { x: player.location.x + Math.cos(ang) * d, y: player.location.y, z: player.location.z + Math.sin(ang) * d };
-      const dim2 = world16.getDimension(player.dimension.id);
-      spawnNpcVillage(dim2, anchor, size);
-      notifyPlayer(player.name, `\xA7a\u2714 ${size === "city" ? "\xA76City" : "\xA7aVillage"}\xA7a spawning \xA7b~${Math.round(d)}\xA7a blocks away!`);
-      try {
-        const inv2 = player.getComponent("minecraft:inventory");
-        if (inv2?.container) {
-          const si = player.selectedSlotIndex;
-          const it = inv2.container.getItem(si);
-          if (it && it.typeId === "kingdoms:village_spawner") {
-            it.amount -= 1;
-            if (it.amount <= 0) inv2.container.setItem(si, void 0);
-            else inv2.container.setItem(si, it);
-          }
-        }
-      } catch {}
-    });
+  if (itemId === "kingdoms:tactics_horn") {
+    openTacticsMenu(player);
     return;
   }
   if (TROOP_TOKEN_MAP[itemId]) {
-    system3.run(() => {
-      deploySingleToken(player, itemId);
+    system6.run(() => {
+      releaseTroops(player);
     });
-  }
-});
-world16.afterEvents.itemUseOn.subscribe((event) => {
-  const player = event.source;
-  if (!player) return;
-  const itemId = event.itemStack?.typeId;
-  if (!itemId) return;
-  if (itemId === "kingdoms:recall_scroll") {
-    system3.run(() => { recallNearbyTroops(player); });
-    return;
-  }
-  if (itemId === "kingdoms:formation_scroll") {
-    system3.run(() => { void cmdStratMap(player); });
-    return;
-  }
-  if (itemId === "kingdoms:village_spawner") {
-    system3.run(async () => {
-      const form = new ActionFormData()
-        .title("\xA76\u{1F3D9} Village Spawner")
-        .body("Select what to build near you:\n\n\xA76Big City\xA7r: Walled stone buildings, 10 villagers, large farm\n\xA7aSmall Village\xA7r: 3 wooden houses, 5 villagers, small farm")
-        .button("\xA76\u{1F3D9} Spawn Big City")
-        .button("\xA7a\u{1F3E0} Spawn Small Village")
-        .button("Cancel");
-      const resp = await form.show(player);
-      if (resp.canceled || resp.selection === 2) return;
-      const size = resp.selection === 0 ? "city" : "village";
-      const d = size === "city" ? 80 : 50;
-      const ang = Math.random() * Math.PI * 2;
-      const anchor = {
-        x: player.location.x + Math.cos(ang) * d,
-        y: player.location.y,
-        z: player.location.z + Math.sin(ang) * d
-      };
-      const dim2 = world16.getDimension(player.dimension.id);
-      spawnNpcVillage(dim2, anchor, size);
-      notifyPlayer(player.name, `\xA7a\u2714 ${size === "city" ? "\xA76City" : "\xA7aVillage"}\xA7a building \xA7b~${Math.round(d)}\xA7a blocks away!`);
-      try {
-        const inv2 = player.getComponent("minecraft:inventory");
-        if (inv2?.container) {
-          const si = player.selectedSlotIndex;
-          const it = inv2.container.getItem(si);
-          if (it && it.typeId === "kingdoms:village_spawner") {
-            it.amount -= 1;
-            inv2.container.setItem(si, it.amount <= 0 ? void 0 : it);
-          }
-        }
-      } catch {}
-    });
-    return;
-  }
-  if (TROOP_TOKEN_MAP[itemId]) {
-    system3.run(() => { deploySingleToken(player, itemId); });
   }
 });
 registerCommands();
-var guardGreetCooldown = /* @__PURE__ */ new Map();
-system3.runInterval(() => {
-  try {
-    for (const player of world16.getAllPlayers()) {
-      const guards = player.dimension.getEntities({ type: "kingdoms:city_guard", maxDistance: 4, location: player.location });
-      if (guards.length > 0) {
-        const now = getCurrentTick();
-        const last = guardGreetCooldown.get(player.name) ?? 0;
-        if (now - last > 300) {
-          guardGreetCooldown.set(player.name, now);
-          player.sendMessage("\xA76\uD83D\uDC51 \xA7o\"Your Majesty!\"\xA7r");
-        }
-      }
-    }
-  } catch {}
-}, 60);
-var KC_FIRST_SPAWN_PROP = "kc:first_spawned:";
-function hasFirstSpawned(playerName) {
-  try { return world16.getDynamicProperty(KC_FIRST_SPAWN_PROP + playerName) === true; } catch { return false; }
-}
-function markFirstSpawned(playerName) {
-  try { world16.setDynamicProperty(KC_FIRST_SPAWN_PROP + playerName, true); } catch {}
-}
-// ── NPC Village Spawner helpers ────────────────────────────────────────────────
-function findGroundY(dimension, x, startY, z) {
-  for (let y = Math.min(startY + 10, 319); y >= Math.max(startY - 40, -64); y--) {
-    try {
-      const b = dimension.getBlock({ x, y, z });
-      const above = dimension.getBlock({ x, y: y + 1, z });
-      if (b && b.typeId !== "minecraft:air" && b.typeId !== "minecraft:water" &&
-          above && above.typeId === "minecraft:air") return y;
-    } catch {}
-  }
-  return startY;
-}
-function setBlk(dimension, x, y, z, typeId) {
-  try { dimension.getBlock({ x: Math.floor(x), y: Math.floor(y), z: Math.floor(z) })?.setType(typeId); } catch {}
-}
-function buildNpcHouse(dimension, ox, oy, oz, style) {
-  const wall = style === "stone" ? "minecraft:stone_bricks" : "minecraft:oak_planks";
-  const roof = style === "stone" ? "minecraft:stone_bricks" : "minecraft:dark_oak_planks";
-  const hs = style === "stone" ? 3 : 2; // half-size
-  const fullH = 4;
-  for (let x = -hs; x <= hs; x++)
-    for (let z = -hs; z <= hs; z++)
-      setBlk(dimension, ox + x, oy, oz + z, "minecraft:cobblestone"); // floor
-  for (let y = 1; y <= fullH; y++) {
-    for (let x = -hs; x <= hs; x++) {
-      for (let z = -hs; z <= hs; z++) {
-        if (x === -hs || x === hs || z === -hs || z === hs) {
-          if (z === hs && x === 0 && y <= 2) continue; // door gap
-          setBlk(dimension, ox + x, oy + y, oz + z, wall);
-        }
-      }
-    }
-  }
-  for (let x = -hs; x <= hs; x++)
-    for (let z = -hs; z <= hs; z++)
-      setBlk(dimension, ox + x, oy + fullH + 1, oz + z, roof); // roof
-  setBlk(dimension, ox, oy + fullH, oz, "minecraft:sea_lantern"); // ceiling light
-  setBlk(dimension, ox + hs - 1, oy + 1, oz - hs + 1, "minecraft:chest");
-  setBlk(dimension, ox - hs + 1, oy + 1, oz - hs + 1, "minecraft:crafting_table");
-  setBlk(dimension, ox, oy + 1, oz + hs - 1, "minecraft:white_bed");
-  setBlk(dimension, ox + hs - 1, oy + 1, oz + hs - 2, "minecraft:furnace");
-}
-function buildNpcWell(dimension, ox, oy, oz) {
-  for (let x = -1; x <= 1; x++)
-    for (let z = -1; z <= 1; z++)
-      setBlk(dimension, ox + x, oy, oz + z, "minecraft:stone_bricks");
-  for (let x = -1; x <= 1; x++) {
-    setBlk(dimension, ox + x, oy + 1, oz - 1, "minecraft:stone_bricks");
-    setBlk(dimension, ox + x, oy + 1, oz + 1, "minecraft:stone_bricks");
-  }
-  for (let z = -1; z <= 1; z++) {
-    setBlk(dimension, ox - 1, oy + 1, oz + z, "minecraft:stone_bricks");
-    setBlk(dimension, ox + 1, oy + 1, oz + z, "minecraft:stone_bricks");
-  }
-  setBlk(dimension, ox, oy + 1, oz, "minecraft:water"); // water in centre
-  setBlk(dimension, ox - 1, oy + 2, oz, "minecraft:oak_fence");
-  setBlk(dimension, ox + 1, oy + 2, oz, "minecraft:oak_fence");
-  setBlk(dimension, ox, oy + 2, oz, "minecraft:oak_log");
-}
-function buildNpcFarm(dimension, ox, oy, oz, r) {
-  setBlk(dimension, ox, oy, oz, "minecraft:water");
-  for (let x = -r; x <= r; x++) {
-    for (let z = -r; z <= r; z++) {
-      if (x === 0 && z === 0) continue;
-      setBlk(dimension, ox + x, oy, oz + z, "minecraft:farmland");
-      if ((x + z) % 2 === 0) setBlk(dimension, ox + x, oy + 1, oz + z, "minecraft:wheat");
-    }
-  }
-  for (let i = -(r + 1); i <= r + 1; i++) {
-    setBlk(dimension, ox + i, oy + 1, oz - r - 1, "minecraft:oak_fence");
-    setBlk(dimension, ox + i, oy + 1, oz + r + 1, "minecraft:oak_fence");
-    setBlk(dimension, ox - r - 1, oy + 1, oz + i, "minecraft:oak_fence");
-    setBlk(dimension, ox + r + 1, oy + 1, oz + i, "minecraft:oak_fence");
-  }
-}
-function spawnNpcVillage(dimension, anchor, size) {
-  const isCity = size === "city";
-  const cx = Math.floor(anchor.x), cz = Math.floor(anchor.z);
-  const groundY = findGroundY(dimension, cx, Math.floor(anchor.y), cz);
-  const style = isCity ? "stone" : "wood";
-  const houseOffsets = isCity
-    ? [[-16, -2], [16, -2], [-2, -16], [-2, 16], [-12, -12], [12, -12], [-12, 12], [12, 12]]
-    : [[-9, 0], [9, 0], [0, -9]];
-  for (const [dx, dz] of houseOffsets) {
-    const gy = findGroundY(dimension, cx + dx, groundY, cz + dz);
-    buildNpcHouse(dimension, cx + dx, gy, cz + dz, style);
-  }
-  buildNpcWell(dimension, cx, groundY, cz);
-  const farmR = isCity ? 7 : 4;
-  buildNpcFarm(dimension, cx + (isCity ? 22 : 14), groundY, cz, farmR);
-  const villagerCount = isCity ? 10 : 5;
-  for (let i = 0; i < villagerCount; i++) {
-    const angle = (i / villagerCount) * Math.PI * 2;
-    const r = isCity ? 8 : 5;
-    try {
-      dimension.spawnEntity("minecraft:villager_v2", {
-        x: cx + Math.cos(angle) * r,
-        y: groundY + 1,
-        z: cz + Math.sin(angle) * r
-      });
-    } catch {}
-  }
-}
-
-function buildStarterHouse(dim, ox, oy, oz) {
-  for (let x = 0; x < 5; x++) {
-    for (let y = 1; y <= 3; y++) {
-      for (let z = 0; z < 5; z++) {
-        if (x === 0 || x === 4 || z === 0 || z === 4) {
-          if (!(z === 4 && x >= 1 && x <= 3 && y <= 2)) {
-            try { dim.getBlock({ x: ox + x, y: oy + y, z: oz + z })?.setType("minecraft:cobblestone"); } catch {}
-          }
-        }
-      }
-    }
-  }
-  for (let x = 0; x < 5; x++)
-    for (let z = 0; z < 5; z++)
-      try { dim.getBlock({ x: ox + x, y: oy, z: oz + z })?.setType("minecraft:cobblestone"); } catch {}
-  for (let x = 0; x < 5; x++)
-    for (let z = 0; z < 5; z++)
-      try { dim.getBlock({ x: ox + x, y: oy + 4, z: oz + z })?.setType("minecraft:oak_planks"); } catch {}
-  try { dim.getBlock({ x: ox + 2, y: oy + 3, z: oz + 2 })?.setType("minecraft:sea_lantern"); } catch {}
-}
-function generateStarterVillage(player) {
-  const dim = player.dimension;
-  const px = Math.floor(player.location.x);
-  const py = Math.floor(player.location.y);
-  const pz = Math.floor(player.location.z);
-  buildStarterHouse(dim, px + 8, py, pz);
-  buildStarterHouse(dim, px - 13, py, pz + 5);
-  for (let i = 0; i < 3; i++) {
-    try {
-      const angle = (i / 3) * Math.PI * 2;
-      const r = 7;
-      dim.spawnEntity("minecraft:villager_v2", {
-        x: px + Math.cos(angle) * r,
-        y: py,
-        z: pz + Math.sin(angle) * r
-      });
-    } catch {}
-  }
-  notifyPlayer(player.name, "\xA7a\u{1F3E1} Welcome to Kingdoms & Conquest! A starter village has been built near you.");
-  notifyPlayer(player.name, "\xA7e  \u2022 Check your inventory: you have a \xA7bTown Hall\xA7e block + \xA7b10 cobblestone\xA7e.");
-  notifyPlayer(player.name, "\xA7e  \u2022 Place the \xA7bTown Hall\xA7e block near the 3 villagers to claim your kingdom!");
-  notifyPlayer(player.name, "\xA7e  \u2022 Run \xA7f/scriptevent kc:tutorial start\xA7e for a full guide.");
-}
-world16.afterEvents.playerSpawn.subscribe((event) => {
-  if (!event.initialSpawn) return;
-  const player = event.player;
-  if (hasFirstSpawned(player.name)) return;
-  markFirstSpawned(player.name);
-  system3.runTimeout(() => {
-    try {
-      for (const { id, count } of [
-        { id: "kingdoms:town_hall_item", count: 1 },
-        { id: "kingdoms:village_spawner", count: 1 },
-        { id: "minecraft:cobblestone", count: 10 },
-        { id: "minecraft:emerald", count: 10 },
-        { id: "minecraft:bread", count: 8 }
-      ]) {
-        try { player.runCommand(`give @s ${id} ${count}`); } catch {}
-      }
-      generateStarterVillage(player);
-      system3.runTimeout(() => {
-        notifyPlayer(player.name, "\xA76\u2605 Welcome to Kingdoms & Conquest! \xA76\u2605");
-        notifyPlayer(player.name, "\xA7fYou received:\xA7a Town Hall\xA7f (place to claim your village) \xA7b+\xA7a Village Spawner\xA7f (right-click ground to summon a small village structure).");
-        notifyPlayer(player.name, "\xA77Step 1: Right-click the\xA7a Village Spawner\xA77 on the ground to generate your starter village.");
-        notifyPlayer(player.name, "\xA77Step 2: Place the\xA7a Town Hall\xA77 block inside it, then right-click to claim and name your kingdom.");
-        notifyPlayer(player.name, "\xA77Step 3: Use\xA7e /scriptevent kc:help\xA77 to see all commands.");
-        notifyPlayer(player.name, "\xA7c\u26A0 Soldiers from other kingdoms are hostile unless you are allied. Use\xA7e kc:ally <kingdom>\xA7c to establish peace.");
-      }, 120);
-    } catch {}
-  }, 60);
-});
-system3.runInterval(() => {
-  try {
-    const players = [...world16.getPlayers()];
-    if (players.length < 1) return;
-    for (const player of players) {
-      try {
-        const playerKingdom = getKingdomOf(player.name);
-        const nearEntities = player.dimension.getEntities({
-          location: player.location,
-          maxDistance: 24,
-          families: ["kingdoms_guard"]
-        });
-        for (const entity of nearEntities) {
-          try {
-            let ownerKingdom = null;
-            const directOwner = entity.getDynamicProperty("kc:owner")
-                             || entity.getDynamicProperty("kc:strat_raid_owner");
-            if (directOwner) {
-              if (directOwner === player.name) continue;
-              ownerKingdom = getKingdomOf(directOwner);
-            } else {
-              const villageId = entity.getDynamicProperty("kc:auto_dispatch");
-              if (villageId) {
-                const v = getVillage(villageId);
-                if (!v) continue;
-                if (v.owner === player.name) continue;
-                ownerKingdom = getKingdomOf(v.owner);
-              }
-            }
-            if (!ownerKingdom) continue;
-            if (playerKingdom && ownerKingdom.id === playerKingdom.id) continue;
-            if (playerKingdom && ownerKingdom.alliances?.includes(playerKingdom.id)) continue;
-            player.addTag("kc:aggro_target");
-            try { entity.runCommand("attack @p[r=25,tag=kc:aggro_target]"); } catch {}
-            player.removeTag("kc:aggro_target");
-          } catch {}
-        }
-      } catch {}
-    }
-  } catch {}
-}, 80);
 async function showClaimVillageForm(player, block) {
   const form = new ModalFormData().title("Claim Village").textField("Kingdom Name", "Enter your kingdom name...").textField("Village Name", "Enter a name for this village...");
   const response = await form.show(player);
@@ -8293,17 +7034,9 @@ async function showTownHallMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getVillageSummary(village);
-  let diploHint = "";
+  const form = new ActionFormData3().title(`${village.name} \u2014 Town Hall`).body(summary);
   if (isOwner) {
-    const myKingdom = getKingdomOf(player.name);
-    if (myKingdom) {
-      const pending = getPendingOffersFor(myKingdom.id);
-      if (pending.length > 0) diploHint = `\n\xA76\u26A0 ${pending.length} diplomatic offer(s) await your response! \u2192 Diplomacy`;
-    }
-  }
-  const form = new ActionFormData().title(`${village.name} \u2014 Town Hall`).body(summary + diploHint);
-  if (isOwner) {
-    form.button("Kingdom Overview").button("Diplomacy").button("Rename Village").button("\xA7a\uD83C\uDFDB Purchase Buildings");
+    form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village").button("\u{1F3EA} Shop");
   } else {
     form.button("Close");
   }
@@ -8314,129 +7047,50 @@ async function showTownHallMenu(player, block) {
       await showKingdomOverview(player);
       break;
     case 1:
-      await showDiplomacyMenu(player);
+      await showTreasuryMenu(player, village.id);
       break;
     case 2:
-      await showRenameForm(player, village.id);
+      await showDiplomacyMenu(player);
       break;
     case 3:
-      await new Promise((r) => system3.runTimeout(r, 3));
-      await showBuildingShopMenu(player, village);
+      await showReinforcementsMenu(player, village.id);
+      break;
+    case 4:
+      await showActiveMerchantsMenu(player, village);
+      break;
+    case 5:
+      await showRenameForm(player, village.id);
+      break;
+    case 6:
+      await showTownHallShop(player, village);
       break;
   }
 }
-var LOG_ITEM_TYPES = [
-  "minecraft:oak_log","minecraft:spruce_log","minecraft:birch_log","minecraft:jungle_log",
-  "minecraft:acacia_log","minecraft:dark_oak_log","minecraft:mangrove_log","minecraft:cherry_log",
-  "minecraft:bamboo_block","minecraft:crimson_stem","minecraft:warped_stem"
-];
-var SHOP_ITEMS = [
-  { id: "kingdoms:granary_item", label: "Granary", desc: "Stores food, enables market income and soldiers", prereq: false,
-    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
-  { id: "kingdoms:treasury_item", label: "Treasury", desc: "Stores emeralds, enables all village income", prereq: false,
-    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
-  { id: "kingdoms:house_item", label: "House (2-3 Beds)", desc: "Residential house with beds - required for population growth!", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 50, label: "50 Wood Logs (any type)" }] },
-  { id: "kingdoms:barracks_item", label: "Barracks", desc: "Train and manage your soldiers", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 100, label: "100 Stone" }, { itemId: "minecraft:iron_ingot", count: 5, label: "5 Iron Ingots" }] },
-  { id: "kingdoms:market_item", label: "Market", desc: "Generates passive income from food trade", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:copper_ingot", count: 20, label: "20 Copper Ingots" }] },
-  { id: "kingdoms:blacksmith_item", label: "Blacksmith", desc: "Forge and upgrade soldier weapons and armor", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 80, label: "80 Stone" }, { itemId: "minecraft:iron_ingot", count: 5, label: "5 Iron Ingots" }] },
-  { id: "kingdoms:storage_item", label: "Material Storage", desc: "Warehouse for iron, gold, diamond, coal, wood, stone", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
-  { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", prereq: true,
-    costs: [{ itemId: "minecraft:crafting_table", count: 10, label: "10 Crafting Tables" }, { itemId: "minecraft:smithing_table", count: 3, label: "3 Smithing Tables" }] },
-  { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 10, label: "10 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 20, label: "20 Torches" }] },
-  { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 20, label: "20 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 30, label: "30 Torches" }] },
-  { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 40, label: "40 Torches" }] },
-  { id: "kingdoms:tower_item", label: "Watch Tower", desc: "Tall stone tower for defense and visibility", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 30, label: "30 Stone" }, { itemId: "minecraft:torch", count: 60, label: "60 Torches" }] },
-  { id: "kingdoms:wall_long_item", label: "Long Stone Wall (10x5)", desc: "Wide defensive wall with battlements", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 40, label: "40 Stone" }] },
-  { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 20, label: "20 Stone" }] },
-  { id: "kingdoms:wall_tall_item", label: "Tall Stone Wall (5x10)", desc: "5-wide wall 10 blocks tall - matches short wall for seamless joining", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 40, label: "40 Stone" }] },
-  { id: "kingdoms:stone_gate_item", label: "Stone Gate", desc: "9-wide gate with towers arch and portcullis bars", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 30, label: "30 Stone" }, { itemId: "minecraft:iron_bars", count: 2, label: "2 Iron Bars" }] },
-  { id: "kingdoms:king_castle_item", label: "King's Castle", desc: "Grand two-story keep with throne hall royal chambers 4 towers and world leaderboard", prereq: true,
-    costs: [{ itemId: "minecraft:stone", count: 500, label: "500 Stone" }, { itemId: "minecraft:emerald", count: 50, label: "50 Emeralds" }] },
-  { id: "kingdoms:town_hall_item", label: "Occupy: Town Hall", desc: "Place in a defeated or unclaimed village to take ownership", prereq: true,
-    costs: [{ itemId: "minecraft:emerald", count: 100, label: "100 Emeralds" }] }
-];
-async function showBuildingShopMenu(player, village) {
-  const hasInfra = !!(village.granaryLocation && village.treasuryLocation);
-  const available = SHOP_ITEMS.filter((i) => !i.prereq || hasInfra);
-  let bodyText = hasInfra
-    ? `\xA77Village:\xA7f ${village.name}\n\xA77Villagers:\xA7f ${village.population}/${MAX_VILLAGE_POPULATION}\n\n\xA7fAll materials are taken from your inventory.\xA7f Select a structure to purchase.`
-    : `\xA7c! You must build a Granary and Treasury first!\n\xA7fAll other structures are locked until both are active.\n\nOnly Granary and Treasury are available for purchase.`;
-  const form = new ActionFormData().title(`${village.name} - Building Shop`).body(bodyText);
-  for (const item of available) {
-    const costStr = item.costs.map((r) => r.label).join(" + ");
-    form.button(`${item.label}\n\xA77Cost: ${costStr}`);
-  }
-  form.button("\xA77Close");
+async function showTownHallShop(player, village) {
+  const WAYPOINT_COST = 30;
+  const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(
+    `\xA77Treasury: \xA7f${village.treasury}\u{1F48E}
+
+Purchase items using your village treasury.`
+  ).button(`\u{1F5FA} Village Waypoint
+\xA77${WAYPOINT_COST}\u{1F48E} \u2014 place to set a fast-travel point`).button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0) return;
-  if (response.selection >= available.length) return;
-  const chosen = available[response.selection];
-  purchaseBuilding(player, village, chosen);
-}
-function purchaseBuilding(player, village, shopItem) {
+  if (response.canceled || response.selection !== 0) return;
+  if (village.treasury < WAYPOINT_COST) {
+    notifyPlayer(player.name, `\xA7cNot enough treasury funds. Need ${WAYPOINT_COST}\u{1F48E}, have ${village.treasury}\u{1F48E}.`);
+    return;
+  }
   const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const container = inv?.container;
-  if (!container) return;
-  const inventory = {};
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot) inventory[slot.typeId] = (inventory[slot.typeId] ?? 0) + slot.amount;
+  if (!inv?.container) return;
+  const waypointItem = new ItemStack6("kingdoms:waypoint", 1);
+  const added = inv.container.addItem(waypointItem);
+  if (added) {
+    notifyPlayer(player.name, "\xA7cYour inventory is full. Make room first.");
+    return;
   }
-  for (const req of shopItem.costs) {
-    const have = req.items
-      ? req.items.reduce((s, id) => s + (inventory[id] ?? 0), 0)
-      : (inventory[req.itemId] ?? 0);
-    if (have < req.count) {
-      notifyPlayer(player.name, `\xA7cNeed ${req.label} to purchase ${shopItem.label}. Have: ${have}.`);
-      return;
-    }
-  }
-  for (const req of shopItem.costs) {
-    let remaining = req.count;
-    const targetIds = req.items ?? [req.itemId];
-    for (let i = 0; i < container.size && remaining > 0; i++) {
-      const slot = container.getItem(i);
-      if (!slot || !targetIds.includes(slot.typeId)) continue;
-      const take = Math.min(slot.amount, remaining);
-      remaining -= take;
-      if (take >= slot.amount) {
-        container.setItem(i, void 0);
-      } else {
-        slot.amount -= take;
-        container.setItem(i, slot);
-      }
-    }
-  }
-  let placed = false;
-  for (let i = 0; i < container.size; i++) {
-    if (!container.getItem(i)) {
-      try { container.setItem(i, new ItemStack6(shopItem.id, 1)); placed = true; break; } catch {}
-    }
-  }
-  const costStr = shopItem.costs.map((r) => r.label).join(" + ");
-  if (placed) {
-    notifyPlayer(player.name, `\xA7aPurchased ${shopItem.label}! Cost: ${costStr}. Place it in your village to construct it.`);
-  } else {
-    notifyPlayer(player.name, `\xA7cInventory full - ${shopItem.label} could not be received. Materials have been refunded at your feet.`);
-    for (const req of shopItem.costs) {
-      const ids = req.items ?? [req.itemId];
-      const perType = Math.ceil(req.count / ids.length);
-      for (const id of ids) dropItemsAtLoc(world16.getDimension(village.location.dimension), player.location, id, perType);
-    }
-  }
+  village.treasury -= WAYPOINT_COST;
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7a\u{1F5FA} Village Waypoint purchased! Place it inside your village to activate.`);
 }
 async function showBarracksMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -8445,186 +7099,133 @@ async function showBarracksMenu(player, block) {
     return;
   }
   const t = village.troops;
+  const hk = t.heavyKnight ?? 0;
+  const sm = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const lg = t.legionary ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = (carried.cityGuards ?? 0) + (carried.spearmen ?? 0) + (carried.archers ?? 0) + (carried.cavalry ?? 0) +
-    (carried.samurai ?? 0) + (carried.heavyKnights ?? 0) + (carried.legionary ?? 0) + (carried.mercenaryLancer ?? 0);
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0) + (carried.samurai ?? 0) + (carried.mercenaryLancer ?? 0) + (carried.legionary ?? 0);
   const tick = getCurrentTick();
   const queueSummary = getTrainingQueueSummary(village, tick);
   const queueCount = village.trainingQueue?.length ?? 0;
-  const form = new ActionFormData().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
+  const rs = village.resourceStorage;
+  const hkLocked = village.barracksLevel < 3;
+  const castleBuilt = village.hasCastle ?? false;
+  const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
+  const eliteLine = castleBuilt ? `\xA76Samurai: ${sm}  Lancer: ${ml}  Legionary: ${lg}` : `\xA77Elite Troops: \xA7c\u{1F512} needs Castle`;
+  const form = new ActionFormData3().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
-Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
+City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
 Archers: ${t.archers}  Cavalry: ${t.cavalry}
-Samurai: ${t.samurai ?? 0}  Heavy Knights: ${t.heavyKnights ?? 0}
-Legionaries: ${t.legionary ?? 0}  Merc Lancers: ${t.mercenaryLancer ?? 0}
+${hkLine}
+${eliteLine}
 
 \xA77\u2500\u2500 Carried in Inventory \u2500\u2500
 Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}
-Archers: ${carried.archers}  Cavalry: ${carried.cavalry}
-Samurai: ${carried.samurai ?? 0}  Heavy Knights: ${carried.heavyKnights ?? 0}
-Legionaries: ${carried.legionary ?? 0}  Merc Lancers: ${carried.mercenaryLancer ?? 0}
+Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}
+Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}
 
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
-Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  Gold: ${village.resourceStorage.gold}
-\xA77Withdraw cost: \xA7b10\u{1F48E} per 10 soldiers`
-  );
-  form.button("Recruit City Guard (5\u{1F48E} each)");
-  form.button("Recruit Spearman (8\u{1F48E} each)");
-  form.button("Recruit Archer (8\u{1F48E} each)");
-  form.button("Recruit Cavalry (12\u{1F48E} each)");
-  form.button("Recruit Samurai (15\u{1F48E} each)");
-  form.button("Recruit Heavy Knight (15\u{1F48E} each)");
-  form.button("Recruit Legionary (15\u{1F48E} each)");
-  form.button("Disband Guards");
-  form.button("Disband Spearmen");
-  form.button("Disband Archers");
-  form.button("Disband Cavalry");
-  form.button("Disband Samurai");
-  form.button("Disband Heavy Knights");
-  form.button("Disband Legionaries");
-  form.button(`Upgrade Barracks (${Math.pow(village.barracksLevel, 2) * 15}\u{1F48E})`);
-  form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0)} total stationed`);
-  form.button(carriedTotal > 0 ? `\u{1F3F9} Return Troops (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
-  form.button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
-  form.button(`\xA76Get Formation Set x10 (Free)`);
-  form.button("\xA7eGet Recall Scroll (Free)");
-  form.button("\xA7b\uD83D\uDCDC Buy Formation Scroll\n\xA7715\u{1F48E} from inventory \u2014 opens Strategic Map");
+Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
+  ).button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)
+\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
-    case 0: await showRecruitSlider(player, village, "cityGuards", "City Guard", 5); break;
-    case 1: await showRecruitSlider(player, village, "spearmen", "Spearman", 8); break;
-    case 2: await showRecruitSlider(player, village, "archers", "Archer", 8); break;
-    case 3: await showRecruitSlider(player, village, "cavalry", "Cavalry", 12); break;
-    case 4: await showRecruitSlider(player, village, "samurai", "Samurai", 15); break;
-    case 5: await showRecruitSlider(player, village, "heavyKnights", "Heavy Knight", 15); break;
-    case 6: await showRecruitSlider(player, village, "legionary", "Legionary", 15); break;
-    case 7: await showDisbandSlider(player, village, "cityGuards", "City Guards"); break;
-    case 8: await showDisbandSlider(player, village, "spearmen", "Spearmen"); break;
-    case 9: await showDisbandSlider(player, village, "archers", "Archers"); break;
-    case 10: await showDisbandSlider(player, village, "cavalry", "Cavalry"); break;
-    case 11: await showDisbandSlider(player, village, "samurai", "Samurai"); break;
-    case 12: await showDisbandSlider(player, village, "heavyKnights", "Heavy Knights"); break;
-    case 13: await showDisbandSlider(player, village, "legionary", "Legionaries"); break;
-    case 14:
-      upgradeBarracks(village);
-      break;
-    case 15:
-      await showPickUpTroopsForm(player, village);
-      break;
-    case 16:
-      await showReturnTroopsForm(player, village);
-      break;
-    case 17:
+    case 0:
       await showTrainTroopsForm(player, village);
       break;
-    case 18:
-      await showGetFormationSetForm(player, village);
+    case 1:
+      await showPickUpTroopsForm(player, village);
       break;
-    case 19: {
-      const inv11 = player.getComponent(EntityInventoryComponent8.componentId);
-      const c11 = inv11?.container;
-      if (!c11) break;
-      let gave11 = false;
-      for (let i = 0; i < c11.size; i++) {
-        if (!c11.getItem(i)) { try { c11.setItem(i, new ItemStack6("kingdoms:recall_scroll", 1)); gave11 = true; } catch {} break; }
-      }
-      notifyPlayer(player.name, gave11 ? `\xA7eRecall Scroll obtained! Right-click to recall nearby troops.` : "\xA7cInventory full - no space for Recall Scroll.");
+    case 2:
+      await showReturnTroopsForm(player, village);
       break;
-    }
-    case 20: {
-      const inv20 = player.getComponent(EntityInventoryComponent8.componentId);
-      const c20 = inv20?.container;
-      if (!c20) break;
-      const scrollCost = 15;
-      let em20 = 0;
-      for (let i = 0; i < c20.size; i++) { const s = c20.getItem(i); if (s?.typeId === "minecraft:emerald") em20 += s.amount; }
-      if (em20 < scrollCost) {
-        notifyPlayer(player.name, `\xA7cNeed ${scrollCost}\u{1F48E} in your inventory to buy a Formation Scroll. Have: ${em20}.`);
-        break;
-      }
-      let rem20 = scrollCost;
-      for (let i = 0; i < c20.size && rem20 > 0; i++) {
-        const s = c20.getItem(i);
-        if (s?.typeId !== "minecraft:emerald") continue;
-        const take = Math.min(s.amount, rem20); rem20 -= take;
-        if (take >= s.amount) c20.setItem(i, void 0);
-        else { s.amount -= take; c20.setItem(i, s); }
-      }
-      let gave20 = false;
-      for (let i = 0; i < c20.size; i++) {
-        if (!c20.getItem(i)) { try { c20.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave20 = true; } catch {} break; }
-      }
-      notifyPlayer(player.name, gave20
-        ? `\xA7b\uD83D\uDCDC Formation Scroll purchased for ${scrollCost}\u{1F48E}! Right-click to open the Strategic Map.`
-        : "\xA7cInventory full \u2014 free up a slot. Emeralds refunded.");
-      if (!gave20) dropItemsAtLoc(player.dimension, player.location, "minecraft:emerald", scrollCost);
+    case 3:
+      upgradeBarracks(village);
       break;
-    }
+    case 4:
+      giveTacticsHorn(player);
+      break;
   }
 }
-async function showRecruitSlider(player, village, troopKey, label, costPer) {
-  const maxAfford = Math.floor(village.treasury / costPer);
-  if (maxAfford <= 0) {
-    notifyPlayer(player.name, `\xA7cNot enough treasury emeralds to recruit ${label}. Need ${costPer}\u{1F48E} each.`);
-    return;
+function giveTacticsHorn(player) {
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  if (!inv?.container) return;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === "kingdoms:tactics_horn") {
+      notifyPlayer(player.name, "\xA7eYou already have a Tactics Horn.");
+      return;
+    }
   }
-  const maxRecruit = Math.min(maxAfford, 50);
-  const form = new ModalFormData()
-    .title(`Recruit ${label}`)
-    .slider(`How many ${label}s? (${costPer}\u{1F48E} each, treasury: ${village.treasury}\u{1F48E})`, 1, maxRecruit, 1, 1);
-  const resp = await form.show(player);
-  if (resp.canceled) return;
-  const qty = resp.formValues[0];
-  for (let i = 0; i < qty; i++) recruitTroop(village, troopKey, 1);
-  notifyPlayer(player.name, `\xA7aRecruited ${qty}x ${label}. Treasury: ${village.treasury}\u{1F48E}`);
-}
-async function showDisbandSlider(player, village, troopKey, label) {
-  const available = village.troops[troopKey] ?? 0;
-  if (available <= 0) { notifyPlayer(player.name, `\xA7cNo ${label} to disband.`); return; }
-  const form = new ModalFormData()
-    .title(`Disband ${label}`)
-    .slider(`How many ${label} to disband?`, 1, available, 1, 1);
-  const resp = await form.show(player);
-  if (resp.canceled) return;
-  const qty = resp.formValues[0];
-  for (let i = 0; i < qty; i++) disbandTroop(village, troopKey, 1);
-  notifyPlayer(player.name, `\xA7eDisbanded ${qty}x ${label}.`);
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) {
+      container.setItem(i, new ItemStack6("kingdoms:tactics_horn", 1));
+      notifyPlayer(player.name, "\xA7a\u{1F4EF} Tactics Horn added to your inventory. Right-click to command your troops!");
+      return;
+    }
+  }
+  notifyPlayer(player.name, "\xA7cInventory full \u2014 make room and try again.");
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
-  const total = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
-    (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
+  const hk = t.heavyKnight ?? 0;
+  const sm2 = t.samurai ?? 0;
+  const ml2 = t.mercenaryLancer ?? 0;
+  const lg2 = t.legionary ?? 0;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm2 + ml2 + lg2;
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
   }
-  const form = new ModalFormData()
-    .title(`\u2694 Pick Up Troops \u2014 ${village.name}`)
-    .slider(`City Guards (${t.cityGuards} available)`, 0, Math.max(t.cityGuards, 1), 1, 0)
-    .slider(`Spearmen (${t.spearmen} available)`, 0, Math.max(t.spearmen, 1), 1, 0)
-    .slider(`Archers (${t.archers} available)`, 0, Math.max(t.archers, 1), 1, 0)
-    .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0)
-    .slider(`Samurai (${t.samurai ?? 0} available)`, 0, Math.max(t.samurai ?? 0, 1), 1, 0)
-    .slider(`Heavy Knights (${t.heavyKnights ?? 0} available)`, 0, Math.max(t.heavyKnights ?? 0, 1), 1, 0)
-    .slider(`Legionaries (${t.legionary ?? 0} available)`, 0, Math.max(t.legionary ?? 0, 1), 1, 0)
-    .slider(`Merc Lancers (${t.mercenaryLancer ?? 0} available)`, 0, Math.max(t.mercenaryLancer ?? 0, 1), 1, 0);
+  const entries = [
+    { key: "cityGuards", label: "City Guards", count: t.cityGuards },
+    { key: "spearmen", label: "Spearmen", count: t.spearmen },
+    { key: "archers", label: "Archers", count: t.archers },
+    { key: "cavalry", label: "Cavalry", count: t.cavalry },
+    { key: "heavyKnight", label: "Heavy Knights", count: hk },
+    { key: "samurai", label: "Samurai", count: sm2 },
+    { key: "mercenaryLancer", label: "Mercenary Lancers", count: ml2 },
+    { key: "legionary", label: "Legionaries", count: lg2 }
+  ].filter((e) => e.count > 0);
+  const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`);
+  for (const e of entries) {
+    form.slider(`${e.label} (${e.count} stationed)`, 0, e.count, 1, 0);
+  }
   const response = await form.show(player);
   if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry, samurai, heavyKnights, legionary, mercenaryLancer] = response.formValues;
-  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, samurai, heavyKnights, legionary, mercenaryLancer });
+  const values = response.formValues;
+  const pickup = {
+    cityGuards: 0,
+    spearmen: 0,
+    archers: 0,
+    cavalry: 0,
+    heavyKnight: 0,
+    samurai: 0,
+    mercenaryLancer: 0,
+    legionary: 0
+  };
+  entries.forEach((e, i) => {
+    pickup[e.key] = values[i] ?? 0;
+  });
+  pickupTroops(player, village, pickup);
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
-  const total = (carried.cityGuards ?? 0) + (carried.spearmen ?? 0) + (carried.archers ?? 0) + (carried.cavalry ?? 0) +
-    (carried.samurai ?? 0) + (carried.heavyKnights ?? 0) + (carried.legionary ?? 0) + (carried.mercenaryLancer ?? 0);
+  const hkCarried = carried.heavyKnight ?? 0;
+  const smCarried = carried.samurai ?? 0;
+  const mlCarried = carried.mercenaryLancer ?? 0;
+  const lgCarried = carried.legionary ?? 0;
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried + smCarried + mlCarried + lgCarried;
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
   }
-  const form = new ActionFormData().title(`Return Troops \u2014 ${village.name}`).body(
+  const form = new ActionFormData3().title(`Return Troops \u2014 ${village.name}`).body(
     `\xA77Return all carried troops to this barracks.
 
 \xA7fCarrying:
@@ -8632,10 +7233,10 @@ async function showReturnTroopsForm(player, village) {
   Spearmen: ${carried.spearmen}
   Archers: ${carried.archers}
   Cavalry: ${carried.cavalry}
-  Samurai: ${carried.samurai ?? 0}
-  Heavy Knights: ${carried.heavyKnights ?? 0}
-  Legionaries: ${carried.legionary ?? 0}
-  Merc Lancers: ${carried.mercenaryLancer ?? 0}
+  Heavy Knights: ${hkCarried}
+  Samurai: ${smCarried}
+  Mercenary Lancers: ${mlCarried}
+  Legionaries: ${lgCarried}
 
 \xA7aTotal: ${total} troops`
   ).button("Return All Troops").button("Cancel");
@@ -8649,7 +7250,7 @@ async function showReturnTroopsForm(player, village) {
     if (!slot) continue;
     const info = TROOP_TOKEN_MAP[slot.typeId];
     if (!info) continue;
-    village.troops[info.troopType] += slot.amount;
+    village.troops[info.troopType] = (village.troops[info.troopType] ?? 0) + slot.amount;
     container.setItem(i, void 0);
   }
   saveVillage(village);
@@ -8658,19 +7259,34 @@ async function showReturnTroopsForm(player, village) {
 async function showTrainTroopsForm(player, village) {
   const tick = getCurrentTick();
   const queueCount = village.trainingQueue?.length ?? 0;
-  const troopTypes = ["cityGuards", "spearmen", "archers", "cavalry", "legionary"];
+  const troopTypes = [
+    "cityGuards",
+    "spearmen",
+    "archers",
+    "cavalry",
+    "heavyKnight",
+    "samurai",
+    "mercenaryLancer",
+    "legionary"
+  ];
   const makeCostLine = (type) => {
     const c = TRAINING_COSTS[type];
     const secs = Math.ceil(TRAINING_TICKS[type] / 20);
-    const parts = [`${c.emeralds}\u{1F48E}`, `${c.iron} iron`];
+    const parts = [`${c.emeralds} emeralds`, `${c.iron} iron`];
     if (c.gold > 0) parts.push(`${c.gold} gold`);
+    if (c.diamonds > 0) parts.push(`${c.diamonds} diamonds`);
     return `${parts.join(", ")} | ~${secs}s/unit`;
   };
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
-  const form = new ActionFormData().title(`Train Troops \u2014 ${village.name}`).body(
+  const hkAvailable = village.barracksLevel >= 3;
+  const castleAvailable = village.hasCastle ?? false;
+  const playerVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const eliteAvailable = castleAvailable && playerVillages.length >= 3;
+  const eliteLockMsg = !castleAvailable ? "\u{1F512} needs Castle + 3 villages" : playerVillages.length < 3 ? `\u{1F512} needs 3 villages (you have ${playerVillages.length})` : "";
+  const form = new ActionFormData3().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
-Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}
+Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}  \xA77Di: \xA7f${rs.diamonds}
 
 \xA77\u2500\u2500 Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
@@ -8680,16 +7296,23 @@ ${queueSummary}
 \xA77${makeCostLine("cityGuards")}`).button(`Spearman
 \xA77${makeCostLine("spearmen")}`).button(`Archer
 \xA77${makeCostLine("archers")}`).button(`Cavalry
-\xA77${makeCostLine("cavalry")}`).button(`Legionary
+\xA77${makeCostLine("cavalry")}`).button(hkAvailable ? `Heavy Knight
+\xA77${makeCostLine("heavyKnight")}` : `\xA77Heavy Knight (\u{1F512} Barracks Lv3 needed)
+\xA77${makeCostLine("heavyKnight")}`).button(eliteAvailable ? `\u2B50 Samurai
+\xA77${makeCostLine("samurai")}` : `\xA77Samurai (${eliteLockMsg})
+\xA77${makeCostLine("samurai")}`).button(eliteAvailable ? `\u2B50 Mercenary Lancer
+\xA77${makeCostLine("mercenaryLancer")}` : `\xA77Mercenary Lancer (${eliteLockMsg})
+\xA77${makeCostLine("mercenaryLancer")}`).button(eliteAvailable ? `\u2B50 Legionary
+\xA77${makeCostLine("legionary")}` : `\xA77Legionary (${eliteLockMsg})
 \xA77${makeCostLine("legionary")}`).button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === 5) return;
+  if (response.canceled || response.selection === 8) return;
   const selectedType = troopTypes[response.selection];
   const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
   const countResponse = await countForm.show(player);
   if (countResponse.canceled || countResponse.formValues == null) return;
   const count = countResponse.formValues[0];
-  queueTraining(village, selectedType, count, tick);
+  queueTraining(village, selectedType, count, tick, playerVillages.length);
 }
 async function showMarketMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -8701,14 +7324,14 @@ async function showMarketMenu(player, block) {
   const merchantList = village.activeMerchants.map(
     (m, i) => `Merchant ${i + 1}: ${Object.entries(m.stock).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ")}`
   ).join("\n") || "No merchants present.";
-  const form = new ActionFormData().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
     `\xA7bTreasury: \xA76${village.treasury}\u{1F48E}\xA7r  |  Merchants: ${village.activeMerchants.length}/${maxMerchants}
 
 ${merchantList}
 
 \xA77Tip: hold food and right-click granary to deposit instantly.
 \xA77Hold emeralds and right-click treasury to deposit instantly.`
-  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("\u{1F33F} Bob's Farming Seeds").button("\uD83D\uDC04 Livestock Pen\n\xA7730\u{1F48E} \u2014 large fenced enclosure").button("\uD83D\uDED6 Barn\n\xA7740\u{1F48E} \u2014 multipurpose cattle barn").button("\u{1F33E} Farm Plot\n\xA7730\u{1F48E} \u2014 fenced crop plots + hire farmers").button("Close");
+  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8722,39 +7345,21 @@ ${merchantList}
       upgradeMarket(village);
       break;
     case 3:
-      if (village.marketLevel < 2) {
-        notifyPlayer(player.name, `\xA7cAbstract food trading requires Market Lv\xA7f2\xA7c. Upgrade your market first.`);
-      } else {
-        buyFood(village, 10);
-      }
+      buyFood(village, 10);
       break;
     case 4:
-      if (village.marketLevel < 2) {
-        notifyPlayer(player.name, `\xA7cAbstract food trading requires Market Lv\xA7f2\xA7c. Upgrade your market first.`);
-      } else {
-        sellFood(village, 10);
-      }
-      break;
-    case 5:
-      await showBobsFarmingShopMenu(player, village);
-      break;
-    case 6:
-      purchaseBuilding(player, village, { id: "kingdoms:fence_enclosure_item", label: "Livestock Pen", costs: [{ itemId: "minecraft:emerald", count: 30, label: "30 Emeralds" }] });
-      break;
-    case 7:
-      purchaseBuilding(player, village, { id: "kingdoms:barn_item", label: "Barn", costs: [{ itemId: "minecraft:emerald", count: 40, label: "40 Emeralds" }] });
-      break;
-    case 8:
-      purchaseBuilding(player, village, { id: "kingdoms:farm_plot_item", label: "Farm Plot", costs: [{ itemId: "minecraft:emerald", count: 30, label: "30 Emeralds" }] });
+      sellFood(village, 10);
       break;
   }
 }
 async function showSeedShopMenu(player, village) {
-  const form = new ActionFormData().title(`${village.name} \u2014 Seed Shop`).body(
-    `\xA7bBuy seeds with emeralds from your inventory.
+  const matLine = SEED_PURCHASE_MATERIALS.map((m) => m.label).join(" + ");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Seed Shop`).body(
+    `\xA7bBuy seeds for emeralds + farming materials.
 \xA77Market Lv${village.marketLevel} (needs Lv1+)
 
-Seeds help villager farmers auto-replant crops.`
+\xA7eEach purchase also requires:
+\xA7f${matLine}`
   );
   for (const entry of SEED_SHOP) {
     form.button(`${entry.label} \xD7${entry.quantityPerPurchase}  [${entry.emeraldCost}\u{1F48E}]`);
@@ -8766,7 +7371,7 @@ Seeds help villager farmers auto-replant crops.`
   buySeedsFromMarket(player, village, SEED_SHOP[response.selection]);
 }
 async function showFoodSellMenu(player, village) {
-  const form = new ActionFormData().title(`${village.name} \u2014 Sell Food`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Sell Food`).body(
     `\xA7bSell food in bulk for emeralds (to your inventory).
 \xA77Sources: granary first, then player inventory.
 \xA7cMinimum batch required \u2014 low rates by design.`
@@ -8787,53 +7392,6 @@ async function showFoodSellMenu(player, village) {
   const batches = batchResp.formValues[0];
   sellFoodBulk(player, village, entry, batches);
 }
-async function showBobsFarmingShopMenu(player, village) {
-  const BOB_SEEDS = [
-    { itemId: "twb_farm:garlic", label: "Garlic", qty: 6, cost: 2 },
-    { itemId: "twb_farm:onion", label: "Onion", qty: 6, cost: 2 },
-    { itemId: "twb_farm:rice", label: "Rice", qty: 8, cost: 2 },
-    { itemId: "twb_farm:broccoli", label: "Broccoli", qty: 6, cost: 2 },
-    { itemId: "twb_farm:cauliflower", label: "Cauliflower", qty: 6, cost: 3 },
-    { itemId: "twb_farm:chili", label: "Chili", qty: 6, cost: 3 },
-    { itemId: "twb_farm:eggplant", label: "Eggplant", qty: 6, cost: 2 },
-    { itemId: "twb_farm:leek", label: "Leek", qty: 6, cost: 2 },
-    { itemId: "twb_farm:grape", label: "Grape", qty: 8, cost: 3 },
-    { itemId: "twb_farm:pineapple", label: "Pineapple", qty: 4, cost: 5 }
-  ];
-  const form = new ActionFormData()
-    .title(`${village.name} \u2014 \u{1F33F} Bob's Farming`)
-    .body(`\xA7aBuy Bob's Farming seeds with treasury emeralds.\n\xA77Treasury: \xA76${village.treasury}\u{1F48E}\n\xA7cRequires Bob's Farming addon to be installed.`);
-  for (const s of BOB_SEEDS) {
-    form.button(`${s.label} \xD7${s.qty}  [${s.cost}\u{1F48E}]`);
-  }
-  form.button("Back");
-  const resp = await form.show(player);
-  if (resp.canceled || resp.selection === void 0 || resp.selection >= BOB_SEEDS.length) return;
-  const seed = BOB_SEEDS[resp.selection];
-  if (village.treasury < seed.cost) {
-    notifyPlayer(player.name, `\xA7cNeed \xA76${seed.cost}\u{1F48E}\xA7c but treasury has \xA76${village.treasury}\u{1F48E}`);
-    return;
-  }
-  try {
-    const inv = player.getComponent("minecraft:inventory");
-    const container = inv?.container;
-    if (!container) return;
-    let placed = false;
-    for (let i2 = 0; i2 < container.size; i2++) {
-      if (!container.getItem(i2)) {
-        container.setItem(i2, new ItemStack6(seed.itemId, seed.qty));
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) { notifyPlayer(player.name, "\xA7cInventory full! Make room first."); return; }
-    village.treasury -= seed.cost;
-    saveVillage(village);
-    notifyPlayer(player.name, `\xA7aBought \xA7b${seed.qty}\xD7${seed.label}\xA7a for \xA76${seed.cost}\u{1F48E}`);
-  } catch (e2) {
-    notifyPlayer(player.name, `\xA7cFailed to give item \u2014 ensure Bob's Farming addon is active. (${e2?.message ?? ""})`);
-  }
-}
 async function showBlacksmithMenu(player, block) {
   const village = findVillageAt2(block.location);
   if (!village || village.owner !== player.name) {
@@ -8841,20 +7399,7 @@ async function showBlacksmithMenu(player, block) {
     return;
   }
   const summary = getBlacksmithSummary(village);
-  const res = village.resourceStorage ?? { ...EMPTY_RESOURCE_STORAGE };
-  const storageLine = `\n\xA77Storage: Iron=${res.iron} Gold=${res.gold} \u{1F48E}=${res.diamonds}`;
-  const pathsNote =
-    `\n\n\xA7e\u2500\u2500 Two upgrade paths \u2500\u2500\xA7r\n` +
-    `\xA7aPath A \u2014 Upgrade buttons:\xA7r Pay from inventory \u2192 tier advances instantly.\n` +
-    `\xA77Path B \u2014 Craft \u2192 Deposit \u2192 Equip:\xA7r Use physical items from storage instead. Whichever sets the higher tier wins \u2014 you can\u2019t downgrade.`;
-  const form = new ActionFormData()
-    .title(`${village.name} \u2014 Blacksmith`)
-    .body(summary + storageLine + pathsNote)
-    .button("\u2B06 Upgrade Weapons")
-    .button("\u2B06 Upgrade Armor")
-    .button("\uD83D\uDD27 Bulk Repair (4 Iron)\n\xA77Re-applies Strength & Resistance to all soldiers")
-    .button("\u2694 Bulk Equip from Armory")
-    .button("Close");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8865,425 +7410,45 @@ async function showBlacksmithMenu(player, block) {
       upgradeArmor(player, village.id);
       break;
     case 2:
-      bulkRepair(player, village);
-      break;
-    case 3:
-      if (village.armoryLocation) {
-        await showArmoryEquipMenu(player, village);
-      } else {
-        notifyPlayer(player.name, "\xA7cNo Armory built in this village. Build one first.");
-      }
+      await showArmoryCraftMenu(player, village);
       break;
   }
 }
-function bulkForge(player, village, tier) {
-  const recipe = FORGE_RECIPES[tier];
-  if (!recipe) { notifyPlayer(player.name, "\xA7cUnknown tier."); return; }
-  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-  const res = village.resourceStorage;
-  const tr = village.troops;
-  const soldiers = Math.max(1, (tr?.cityGuards ?? 0) + (tr?.spearmen ?? 0) + (tr?.archers ?? 0) + (tr?.cavalry ?? 0) +
-    (tr?.samurai ?? 0) + (tr?.heavyKnights ?? 0) + (tr?.legionary ?? 0));
-  const wCost = recipe.weaponCost * soldiers;
-  const aCost = recipe.armorCost * soldiers;
-  const mat = res[recipe.materialKey] ?? 0;
-  if (mat < wCost + aCost) {
-    notifyPlayer(player.name, `\xA7cNeed ${wCost + aCost} ${recipe.materialKey} to forge ${soldiers} set(s). Have: ${mat}.`);
-    return;
-  }
-  res[recipe.materialKey] -= wCost + aCost;
-  village.armoryItems ?? (village.armoryItems = {});
-  village.armoryItems[recipe.weaponItem] = (village.armoryItems[recipe.weaponItem] ?? 0) + soldiers;
-  village.armoryItems[recipe.armorPiece] = (village.armoryItems[recipe.armorPiece] ?? 0) + soldiers;
-  saveVillage(village);
-  notifyPlayer(player.name, `\xA7aForged ${soldiers} ${tier} weapon(s) and armor piece(s)! Check the Armory to equip soldiers.`);
-}
-function bulkRepair(player, village) {
-  const cost = 4;
-  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-  const res = village.resourceStorage;
-  if ((res.iron ?? 0) < cost) {
-    notifyPlayer(player.name, `\xA7cNeed ${cost} iron ingots to repair. Have: ${res.iron ?? 0}.`);
-    return;
-  }
-  res.iron -= cost;
-  saveVillage(village);
-  applyBlacksmithBuffsToVillage(village);
-  notifyPlayer(player.name, "\xA7aAll soldiers refreshed! Strength & Resistance buffs re-applied to all stationed troops.");
-}
-async function showStorageMenu(player, block) {
-  const village = findVillageAt2(block.location);
-  if (!village || village.owner !== player.name) {
-    notifyPlayer(player.name, "\xA7cYou don't own this village.");
-    return;
-  }
-  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-  const res = village.resourceStorage;
-  const lines = Object.entries(RESOURCE_LABELS).map(([k, label]) => `${label}: ${res[k] ?? 0}`).join("\n");
-  const miners = village.workers?.miners ?? 0;
-  const toolTier = village.miningToolTier ?? 0;
-  const toolName = MINING_TOOL_TIER_NAMES[toolTier] ?? "Wooden";
-  const popOk = (village.population ?? 0) >= MIN_POP_FOR_MINERS;
-  const minerLine = popOk
-    ? `\u26CF Miners: \xA7a${miners}/${MAX_MINERS}\xA7r  Tool: \xA7b${toolName} Pickaxe`
-    : `\u26CF Mining: \xA7c\uD83D\uDD12 Needs ${MIN_POP_FOR_MINERS} population (have ${village.population ?? 0})`;
-  const form = new ActionFormData()
-    .title(`${village.name} \u2014 Material Storage`)
-    .body(lines + `\n\n${minerLine}\n\n\xA77Use buttons below:`)
-    .button("\xA7a\u2795 Deposit Materials")
-    .button("\xA7e\u2796 Withdraw Materials")
-    .button(`\u26CF Manage Miners\n\xA77Assign villagers to mine daily`)
-    .button(`\u2B06 Upgrade Mining Tools\n\xA77${toolName} Pickaxe (Tier ${toolTier}/4)`)
-    .button("Close");
-  const response = await form.show(player);
-  if (response.canceled || response.selection === void 0 || response.selection === 4) return;
-  if (response.selection === 0) {
-    await showStorageDepositSlider(player, village);
-  } else if (response.selection === 1) {
-    await showStorageWithdrawSlider(player, village);
-  } else if (response.selection === 2) {
-    await showMinerManageMenu(player, village);
-  } else if (response.selection === 3) {
-    await showMiningUpgradeMenu(player, village);
-  }
-}
-async function showStorageDepositSlider(player, village) {
-  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const container = inv?.container;
-  if (!container) return;
-  const available = {};
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (!slot) continue;
-    const key = MERCHANT_MATERIAL_MAP[slot.typeId];
-    if (key) available[key] = (available[key] ?? 0) + slot.amount;
-  }
-  const depositable = Object.entries(available).filter(([, v]) => v > 0);
-  if (depositable.length === 0) { notifyPlayer(player.name, "\xA7cNo storable materials in your inventory."); return; }
-  const matOpts = depositable.map(([k, v]) => `${RESOURCE_LABELS[k]} (have ${v})`);
-  const matForm = new ActionFormData().title("Deposit \u2014 Choose Material").body("Select which material to deposit:");
-  for (const opt of matOpts) matForm.button(opt);
-  matForm.button("Cancel");
-  const matResp = await matForm.show(player);
-  if (matResp.canceled || matResp.selection === void 0 || matResp.selection >= depositable.length) return;
-  const [key, maxAmt] = depositable[matResp.selection];
-  const sliderForm = new ModalFormData()
-    .title(`Deposit ${RESOURCE_LABELS[key]}`)
-    .slider(`Amount to deposit (have ${maxAmt}):`, 1, maxAmt, 1, maxAmt);
-  const sliderResp = await sliderForm.show(player);
-  if (sliderResp.canceled) return;
-  const qty = sliderResp.formValues[0];
-  const itemId = RESOURCE_ITEM_IDS[key];
-  if (!itemId) return;
-  let remaining = qty;
-  for (let i = 0; i < container.size && remaining > 0; i++) {
-    const slot = container.getItem(i);
-    if (slot?.typeId !== itemId) continue;
-    const take = Math.min(slot.amount, remaining); remaining -= take;
-    if (take >= slot.amount) container.setItem(i, void 0);
-    else { slot.amount -= take; container.setItem(i, slot); }
-  }
-  const deposited = qty - remaining;
-  village.resourceStorage[key] = (village.resourceStorage[key] ?? 0) + deposited;
-  saveVillage(village);
-  notifyPlayer(player.name, `\xA7aDeposited ${deposited}x ${RESOURCE_LABELS[key]} into storage.`);
-}
-async function showStorageWithdrawSlider(player, village) {
-  village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-  const res = village.resourceStorage;
-  const withdrawable = Object.entries(res).filter(([, v]) => v > 0);
-  if (withdrawable.length === 0) { notifyPlayer(player.name, "\xA7cStorage is empty."); return; }
-  const matForm = new ActionFormData().title("Withdraw \u2014 Choose Material").body("Select which material to withdraw:");
-  for (const [k, v] of withdrawable) matForm.button(`${RESOURCE_LABELS[k]} (${v} in storage)`);
-  matForm.button("Cancel");
-  const matResp = await matForm.show(player);
-  if (matResp.canceled || matResp.selection === void 0 || matResp.selection >= withdrawable.length) return;
-  const [key, maxAmt] = withdrawable[matResp.selection];
-  const sliderForm = new ModalFormData()
-    .title(`Withdraw ${RESOURCE_LABELS[key]}`)
-    .slider(`Amount to withdraw (${maxAmt} in storage):`, 1, maxAmt, 1, Math.min(16, maxAmt));
-  const sliderResp = await sliderForm.show(player);
-  if (sliderResp.canceled) return;
-  const qty = sliderResp.formValues[0];
-  const itemId = RESOURCE_ITEM_IDS[key];
-  if (!itemId) return;
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const container = inv?.container;
-  if (!container) return;
-  let given = 0;
-  for (let i = 0; i < container.size && given < qty; i++) {
-    const slot = container.getItem(i);
-    if (!slot) { const toGive = Math.min(qty - given, 64); try { container.setItem(i, new ItemStack6(itemId, toGive)); given += toGive; } catch {} }
-  }
-  res[key] = Math.max(0, (res[key] ?? 0) - given);
-  saveVillage(village);
-  if (given > 0) notifyPlayer(player.name, `\xA7aWithdrew ${given}x ${RESOURCE_LABELS[key]} from storage.`);
-  else notifyPlayer(player.name, "\xA7cInventory full \u2014 could not withdraw.");
-  if (given > 0 && given < qty) notifyPlayer(player.name, `\xA7eInventory partially full. Only ${given}/${qty} withdrawn.`);
-}
-async function showMinerManageMenu(player, village) {
-  const pop = village.population ?? 0;
-  if (pop < MIN_POP_FOR_MINERS) {
-    notifyPlayer(player.name, `\xA7cNeed ${MIN_POP_FOR_MINERS} population to assign miners. Current: ${pop}.`);
-    return;
-  }
-  const troops = village.troops;
-  const assignedSoldiers = (troops.cityGuards ?? 0) + (troops.spearmen ?? 0) + (troops.archers ?? 0) + (troops.cavalry ?? 0) +
-    (troops.heavyKnights ?? 0) + (troops.samurai ?? 0) + (troops.mercenaryLancer ?? 0) + (troops.legionary ?? 0);
-  const assignedFarmers = village.workers?.farmers ?? 0;
-  const assignedWorkers = village.workers?.workers ?? 0;
-  const currentMiners = village.workers?.miners ?? 0;
-  const otherAssigned = assignedSoldiers + assignedFarmers + assignedWorkers;
-  const freePop = Math.max(0, pop - otherAssigned - currentMiners);
-  const maxCanAssign = Math.min(MAX_MINERS, currentMiners + freePop);
-  const tier = village.miningToolTier ?? 0;
-  const tierName = MINING_TOOL_TIER_NAMES[tier] ?? "Wooden";
-  const outputDesc = MINING_OUTPUT_BY_TIER[tier];
-  const previewLines = Object.entries(outputDesc)
-    .filter(([, r]) => r[1] > 0)
-    .map(([k, r]) => `  ${RESOURCE_LABELS[k] ?? k}: ${r[0]}-${r[1]} per miner/day`)
-    .join("\n");
-  const form = new ModalFormData()
-    .title(`\u26CF Assign Miners \u2014 ${village.name}`)
-    .slider(
-      `Miners to assign (free pop: ${freePop + currentMiners}, max: ${MAX_MINERS}):`,
-      0, maxCanAssign, 1, currentMiners
-    );
-  const resp = await form.show(player);
-  if (resp.canceled || resp.formValues == null) return;
-  const newMiners = resp.formValues[0];
-  if (!village.workers) village.workers = { farmers: 0, workers: 0, miners: 0 };
-  village.workers.miners = newMiners;
-  saveVillage(village);
-  notifyPlayer(player.name,
-    `\xA7a\u26CF Assigned ${newMiners} miner(s) to \xA7b${village.name}\xA7a.\n` +
-    `\xA77Tool: ${tierName} Pickaxe | Daily output per miner:\n${previewLines}`
+async function showArmoryCraftMenu(player, village) {
+  const rs = village.resourceStorage;
+  const makeCostStr = (r) => {
+    const parts = [];
+    if (r.costIron > 0) parts.push(`${r.costIron} iron`);
+    if (r.costGold > 0) parts.push(`${r.costGold} gold`);
+    if (r.costDiamonds > 0) parts.push(`${r.costDiamonds} \u{1F4A0}`);
+    if (r.costWood > 0) parts.push(`${r.costWood} wood`);
+    if (r.costStone > 0) parts.push(`${r.costStone} stone`);
+    if (r.costEmeralds > 0) parts.push(`${r.costEmeralds}\u{1F48E}`);
+    return parts.join(", ");
+  };
+  const form = new ActionFormData3().title(`${village.name} \u2014 Craft for Armory`).body(
+    `\xA77Craft gear from village resource storage.
+\xA77Storage: \xA7fFe:${rs.iron} Au:${rs.gold} \u{1F4A0}:${rs.diamonds} W:${rs.wood} St:${rs.stone}
+\xA77Treasury: \xA7f${village.treasury}\u{1F48E}
+
+\xA77Select an item to craft (\xD71 batch):`
   );
-}
-async function showMiningUpgradeMenu(player, village) {
-  const tier = village.miningToolTier ?? 0;
-  const tierName = MINING_TOOL_TIER_NAMES[tier] ?? "Wooden";
-  if (tier >= MINING_TOOL_TIER_NAMES.length - 1) {
-    notifyPlayer(player.name, `\xA7aMining tools already at maximum tier (Diamond Pickaxe)!`);
-    return;
-  }
-  const cost = MINING_TOOL_UPGRADE_COSTS[tier];
-  if (!cost) return;
-  const nextName = MINING_TOOL_TIER_NAMES[tier + 1];
-  const costParts = [];
-  if (cost.iron > 0) costParts.push(`${cost.iron} iron`);
-  if (cost.gold > 0) costParts.push(`${cost.gold} gold`);
-  if (cost.diamonds > 0) costParts.push(`${cost.diamonds} diamonds`);
-  if (cost.emeralds > 0) costParts.push(`${cost.emeralds}\u{1F48E}`);
-  const nextOutput = MINING_OUTPUT_BY_TIER[tier + 1];
-  const previewLines = Object.entries(nextOutput)
-    .filter(([, r]) => r[1] > 0)
-    .map(([k, r]) => `  ${RESOURCE_LABELS[k] ?? k}: ${r[0]}-${r[1]} per miner/day`)
-    .join("\n");
-  const form = new ActionFormData()
-    .title(`\u2B06 Upgrade Mining Tools`)
-    .body(
-      `Current: \xA7b${tierName} Pickaxe\xA7r \u2192 \xA7a${nextName} Pickaxe\n\n` +
-      `Cost (from Material Storage):\n  ${costParts.join(", ")}\n\n` +
-      `After upgrade, each miner produces:\n${previewLines}`
-    )
-    .button(`\u2B06 Upgrade to ${nextName} Pickaxe`)
-    .button("Cancel");
-  const resp = await form.show(player);
-  if (resp.canceled || resp.selection !== 0) return;
-  const rs = village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
-  if (cost.iron > 0 && (rs.iron ?? 0) < cost.iron) {
-    notifyPlayer(player.name, `\xA7cNeed ${cost.iron} iron in storage (have ${rs.iron ?? 0}).`); return;
-  }
-  if (cost.gold > 0 && (rs.gold ?? 0) < cost.gold) {
-    notifyPlayer(player.name, `\xA7cNeed ${cost.gold} gold in storage (have ${rs.gold ?? 0}).`); return;
-  }
-  if (cost.diamonds > 0 && (rs.diamonds ?? 0) < cost.diamonds) {
-    notifyPlayer(player.name, `\xA7cNeed ${cost.diamonds} diamonds in storage (have ${rs.diamonds ?? 0}).`); return;
-  }
-  if (cost.emeralds > 0 && (village.treasury ?? 0) < cost.emeralds) {
-    notifyPlayer(player.name, `\xA7cNeed ${cost.emeralds}\u{1F48E} in treasury (have ${village.treasury ?? 0}).`); return;
-  }
-  rs.iron     = (rs.iron     ?? 0) - cost.iron;
-  rs.gold     = (rs.gold     ?? 0) - cost.gold;
-  rs.diamonds = (rs.diamonds ?? 0) - cost.diamonds;
-  village.treasury = (village.treasury ?? 0) - cost.emeralds;
-  village.miningToolTier = tier + 1;
-  saveVillage(village);
-  notifyPlayer(player.name,
-    `\xA7a\u26CF Mining tools upgraded to \xA7b${nextName} Pickaxe\xA7a in ${village.name}!\n` +
-    `\xA77New daily output per miner:\n${previewLines}`
-  );
-}
-async function showArmoryMenu(player, block) {
-  const village = findVillageAt2(block.location);
-  if (!village || village.owner !== player.name) {
-    notifyPlayer(player.name, "\xA7cYou don't own this village.");
-    return;
-  }
-  village.armoryItems ?? (village.armoryItems = {});
-  const items = Object.entries(village.armoryItems).filter(([, v]) => v > 0);
-  const trA = village.troops;
-  const soldiers = (trA?.cityGuards ?? 0) + (trA?.spearmen ?? 0) + (trA?.archers ?? 0) + (trA?.cavalry ?? 0) +
-    (trA?.samurai ?? 0) + (trA?.heavyKnights ?? 0) + (trA?.legionary ?? 0);
-  const bodyLines = items.length > 0 ? items.map(([id, cnt]) => `${id.replace("minecraft:", "")} \xD7${cnt}`).join("\n") : "\xA77Armory is empty.\nHold a weapon or armor piece and tap to deposit.";
-  const form = new ActionFormData()
-    .title(`${village.name} \u2014 Armory`)
-    .body(bodyLines + `\n\nSoldiers: ${soldiers}\n\xA77Hold a weapon/armor and tap block to deposit.`);
-  for (const [id] of items) form.button(`Withdraw 4x ${id.replace("minecraft:", "")}`);
-  form.button("\u2694 Equip Soldiers from Armory");
-  form.button("Close");
-  const response = await form.show(player);
-  if (response.canceled || response.selection === void 0) return;
-  if (response.selection < items.length) {
-    const [itemId] = items[response.selection];
-    const amount = Math.min(4, village.armoryItems[itemId] ?? 0);
-    if (amount <= 0) { notifyPlayer(player.name, "\xA7cNone in armory."); return; }
-    const inv = player.getComponent(EntityInventoryComponent8.componentId);
-    const container = inv?.container;
-    if (!container) return;
-    let given = 0;
-    for (let i = 0; i < container.size && given < amount; i++) {
-      const slot = container.getItem(i);
-      if (!slot) { const qty = Math.min(amount - given, 64); try { container.setItem(i, new ItemStack6(itemId, qty)); given += qty; } catch {} }
-    }
-    village.armoryItems[itemId] -= given;
-    saveVillage(village);
-    if (given > 0) notifyPlayer(player.name, `\xA7aWithdrew ${given}x ${itemId.replace("minecraft:", "")} from armory.`);
-  } else if (response.selection === items.length) {
-    await showArmoryEquipMenu(player, village);
-  }
-}
-async function showArmoryEquipMenu(player, village) {
-  village.armoryItems ?? (village.armoryItems = {});
-  const bsm = village.blacksmith ?? { weaponTier: "wood", armorTier: "leather" };
-  const trE = village.troops;
-  const soldiers = Math.max(1, (trE?.cityGuards ?? 0) + (trE?.spearmen ?? 0) + (trE?.archers ?? 0) + (trE?.cavalry ?? 0) +
-    (trE?.samurai ?? 0) + (trE?.heavyKnights ?? 0) + (trE?.legionary ?? 0));
-  const availWeapons = WEAPON_TIERS.filter((t) => (village.armoryItems[`minecraft:${t}_sword`] ?? 0) + (village.armoryItems[`minecraft:${t}_axe`] ?? 0) > 0);
-  const availArmors = ARMOR_TIERS.filter((t) => (village.armoryItems[`minecraft:${t}_chestplate`] ?? 0) + (village.armoryItems[`minecraft:${t}_helmet`] ?? 0) > 0);
-  const body = `Current: \xA7aWeapons: ${bsm.weaponTier}\xA7r | \xA7aArmor: ${bsm.armorTier}\xA7r\n\nSoldiers: ${soldiers}\nSelect what to equip (1 weapon or 4 armor pieces per soldier):`;
-  const form = new ActionFormData().title("Equip Soldiers \u2014 Armory").body(body);
-  const options = [];
-  for (const t of availWeapons) {
-    const cnt = (village.armoryItems[`minecraft:${t}_sword`] ?? 0) + (village.armoryItems[`minecraft:${t}_axe`] ?? 0);
-    form.button(`\u2694 ${t.charAt(0).toUpperCase() + t.slice(1)} Weapons (${cnt} avail)`);
-    options.push({ type: "weapon", tier: t });
-  }
-  for (const t of availArmors) {
-    const cnt = (village.armoryItems[`minecraft:${t}_chestplate`] ?? 0) + (village.armoryItems[`minecraft:${t}_helmet`] ?? 0);
-    form.button(`\uD83D\uDEE1 ${t.charAt(0).toUpperCase() + t.slice(1)} Armor (${cnt} avail)`);
-    options.push({ type: "armor", tier: t });
+  for (const recipe2 of ARMORY_RECIPES) {
+    const canCraft = canCraftArmoryRecipe(village, recipe2);
+    const icon = canCraft ? "\xA7a\u2714" : "\xA7c\u2718";
+    form.button(`${icon} ${recipe2.name}
+\xA77Cost: ${makeCostStr(recipe2)}`);
   }
   form.button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0 || response.selection >= options.length) return;
-  const chosen = options[response.selection];
-  if (chosen.type === "weapon") {
-    const swordId = `minecraft:${chosen.tier}_sword`;
-    const axeId = `minecraft:${chosen.tier}_axe`;
-    const total = (village.armoryItems[swordId] ?? 0) + (village.armoryItems[axeId] ?? 0);
-    if (total < soldiers) { notifyPlayer(player.name, `\xA7cNeed ${soldiers} weapons, have ${total}.`); return; }
-    let need = soldiers;
-    const fromSword = Math.min(need, village.armoryItems[swordId] ?? 0);
-    village.armoryItems[swordId] = (village.armoryItems[swordId] ?? 0) - fromSword;
-    need -= fromSword;
-    if (need > 0) village.armoryItems[axeId] = (village.armoryItems[axeId] ?? 0) - need;
-    const newWTier = Math.max(bsm.weaponTier ?? 0, WEAPON_TIERS.indexOf(chosen.tier));
-    bsm.weaponTier = newWTier;
-    village.blacksmith = bsm;
-    saveVillage(village);
-    applyBlacksmithBuffsToVillage(village);
-    const dmgBonus = getWeaponDamageBonus(newWTier);
-    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a weapons! Attack bonus: \xA7c+${dmgBonus} dmg\xA7a.`);
-  } else {
-    const piecesNeeded = soldiers * 4;
-    const totalArmor = Object.entries(village.armoryItems).filter(([id]) => id.includes(chosen.tier) && (id.includes("_helmet") || id.includes("_chestplate") || id.includes("_leggings") || id.includes("_boots"))).reduce((s, [, c]) => s + c, 0);
-    if (totalArmor < piecesNeeded) { notifyPlayer(player.name, `\xA7cNeed ${piecesNeeded} ${chosen.tier} armor pieces, have ${totalArmor}.`); return; }
-    let need2 = piecesNeeded;
-    for (const suffix of ["_helmet", "_chestplate", "_leggings", "_boots"]) {
-      const key = `minecraft:${chosen.tier}${suffix}`;
-      const take = Math.min(soldiers, village.armoryItems[key] ?? 0);
-      village.armoryItems[key] = (village.armoryItems[key] ?? 0) - take;
-      need2 -= take;
-    }
-    const newATier = Math.max(bsm.armorTier ?? 0, ARMOR_TIERS.indexOf(chosen.tier));
-    bsm.armorTier = newATier;
-    village.blacksmith = bsm;
-    saveVillage(village);
-    applyBlacksmithBuffsToVillage(village);
-    const resPct = getArmorResistancePct(newATier);
-    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a armor! Defense: \xA7b${resPct}%\xA7a damage reduction.`);
-  }
-}
-async function showFarmPlotMenu(player, block) {
-  const village = findVillageAt2(block.location);
-  if (!village || village.owner !== player.name) {
-    notifyPlayer(player.name, "\xA7cYou don\u2019t own this village.");
-    return;
-  }
-  const dim = block.dimension;
-  const plotX = block.location.x;
-  const plotY = block.location.y;
-  const plotZ = block.location.z;
-  const activeFarmers = [];
-  try {
-    for (const e of dim.getEntities({ type: "kingdoms:farmer" })) {
-      const fd = e.getDynamicProperty("kc:farmer_data");
-      if (!fd) continue;
-      const data = JSON.parse(fd);
-      if (data.plotX === plotX && data.plotZ === plotZ && data.villageId === village.id) {
-        activeFarmers.push(data);
-      }
-    }
-  } catch {}
-  const currentDay = getCurrentDay();
-  const farmerList = activeFarmers.length > 0
-    ? activeFarmers.map((d, i) => {
-        const daysLeft = (d.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS) - (currentDay - (d.spawnedDay ?? currentDay));
-        return `  Farmer ${i + 1}: ${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining`;
-      }).join("\n")
-    : "  No farmers assigned yet.";
-  const spawnCost = 10;
-  const canSpawn = village.treasury >= spawnCost;
-  const currentLifespan = getFarmerLifespan(village);
-  const currentYield = getFarmerYieldCap(village);
-  const fwLevel = village.fieldWorkerLevel ?? 0;
-  const form = new ActionFormData()
-    .title(`Farm Plot \u2014 ${village.name}`)
-    .body(`\xA7bActive Farmers: \xA7f${activeFarmers.length}\n${farmerList}\n\n\xA77Each farmer harvests up to \xA7f${currentYield}\xA77 crops/day and lives \xA7f${currentLifespan}\xA77 days.\n\xA77Field Worker Lv: \xA7f${fwLevel}/5\xA77 (upgrade at Granary costs 20💎)\n\xA77Extend lifespan (+5 days) from the Granary (20💎).\n\nTreasury: ${village.treasury}💎`)
-    .button(`\xA7aHire Farmer\n\xA77${spawnCost}\u{1F48E} from treasury${canSpawn ? "" : " \xA7c(insufficient funds)"}`)
-    .button("Close");
-  const response = await form.show(player);
-  if (response.canceled || response.selection !== 0) return;
-  if (!canSpawn) {
-    notifyPlayer(player.name, `\xA7cNeed ${spawnCost}\u{1F48E} in treasury to hire a farmer.`);
-    return;
-  }
-  village.treasury -= spawnCost;
-  saveVillage(village);
-  const spawnLoc = { x: plotX + 0.5, y: plotY + 1, z: plotZ + 0.5 };
-  let farmer;
-  try { farmer = dim.spawnEntity("kingdoms:farmer", spawnLoc); } catch {
-    notifyPlayer(player.name, "\xA7cFailed to spawn farmer \u2014 invalid spawn location?");
-    village.treasury += spawnCost;
-    saveVillage(village);
-    return;
-  }
-  farmer.nameTag = `\xA7a\u{1F9D1}\u200D\u{1F33E} Farmer (${village.name})`;
-  const farmerData = {
-    villageId: village.id,
-    plotX,
-    plotY,
-    plotZ,
-    plotDim: dim.id,
-    plotRadius: FARMER_PLOT_RADIUS,
-    spawnedDay: getCurrentDay(),
-    lifespanDays: FARMER_DEFAULT_LIFESPAN_DAYS
-  };
-  farmer.setDynamicProperty("kc:farmer_data", JSON.stringify(farmerData));
-  notifyPlayer(player.name, `\xA7aFarmer hired for \xA7b${village.name}\xA7a! They will harvest crops for ${FARMER_DEFAULT_LIFESPAN_DAYS} days. (${spawnCost}\u{1F48E} deducted)`);
+  if (response.canceled || response.selection === ARMORY_RECIPES.length) return;
+  const recipeIdx = response.selection;
+  const recipe = ARMORY_RECIPES[recipeIdx];
+  const countForm = new ModalFormData().title(`Craft ${recipe.name}`).slider(`How many batches? (cost \xD7N)`, 1, 20, 1, 1);
+  const countResp = await countForm.show(player);
+  if (countResp.canceled || countResp.formValues == null) return;
+  const batches = countResp.formValues[0];
+  craftForArmory(village, recipeIdx, batches);
 }
 async function showGranaryStorageMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -9295,63 +7460,72 @@ async function showGranaryStorageMenu(player, block) {
   const items = Object.entries(village.granaryItems).filter(([, count]) => count > 0);
   const prod = getFoodProduction(village);
   const cons = getFoodConsumption(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Granary`).body(
+  const fieldTotal = getFieldStorageTotal(village);
+  const fieldBtn = `\u{1F33E} Collect Field Harvest${fieldTotal > 0 ? ` (${fieldTotal} food units ready)` : " (empty)"}`;
+  const form = new ActionFormData3().title(`${village.name} \u2014 Granary`).body(
     `${report}
 
-Daily: +${prod}/-${cons}  |  Shortage: ${village.foodShortageStage}/4`
+Farmers: ${village.workers.farmers}  Daily: +${prod}/-${cons}
+Shortage: ${village.foodShortageStage}/4`
   );
   const withdrawable = [];
-  for (const [item, count] of items) {
-    form.button(`Withdraw from Granary\n\xA77${item.replace("minecraft:", "").replace("twb_farm:", "")} (${count} stored)`);
-    withdrawable.push({ item, count });
+  for (const [item] of items) {
+    form.button(`Withdraw 8x ${item.replace("minecraft:", "")}`);
+    withdrawable.push(item);
   }
-  form.button("\xA7a\u2795 Deposit Food from Inventory");
-  form.button("\u{1F9D1}\u200D\u{1F33E} Extend Farmer Lifespan (+5 days, 20\u{1F48E})");
+  const fwLevel = village.fieldWorkerLevel ?? 0;
+  const fwBtn = fwLevel >= 5 ? `\u{1F9D1}\u200D\u{1F33E} Field Workers Lv5 (maxed)` : `\u2B06 Upgrade Field Workers Lv${fwLevel}\u2192${fwLevel + 1} (20\u{1F48E})`;
+  form.button("Deposit Food from Inventory");
+  form.button(fieldBtn);
+  form.button("\u{1F4E6} View Field Storage");
+  form.button(fwBtn);
   form.button("Close");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
   if (response.selection < withdrawable.length) {
-    const { item, count } = withdrawable[response.selection];
-    const sliderForm = new ModalFormData()
-      .title(`Withdraw ${item.replace("minecraft:", "").replace("twb_farm:", "")}`)
-      .slider(`How many to withdraw? (${count} stored)`, 1, count, 1, Math.min(16, count));
-    const sliderResp = await sliderForm.show(player);
-    if (sliderResp.canceled) return;
-    const qty = sliderResp.formValues[0];
-    withdrawFromGranary(player, village, item, qty);
+    withdrawFromGranary(player, village, withdrawable[response.selection], 8);
   } else if (response.selection === withdrawable.length) {
     await showGranaryDepositMenu(player, village);
   } else if (response.selection === withdrawable.length + 1) {
-    extendFarmerLifespan(player, village);
+    collectFieldStorage(player, village);
+  } else if (response.selection === withdrawable.length + 2) {
+    const rpt = getFieldStorageReport(village);
+    for (const line of rpt.split("\n")) notifyPlayer(player.name, line);
+  } else if (response.selection === withdrawable.length + 3) {
+    upgradeFieldWorkers(village);
   }
 }
 async function showGranaryDepositMenu(player, village) {
   const foodItems = Object.keys(FOOD_ITEM_VALUES).filter((k) => (FOOD_ITEM_VALUES[k] ?? 0) > 0);
   const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const container = inv?.container;
-  const inInventory = {};
-  if (container) {
-    for (let i = 0; i < container.size; i++) {
-      const slot = container.getItem(i);
-      if (slot && foodItems.includes(slot.typeId)) inInventory[slot.typeId] = (inInventory[slot.typeId] ?? 0) + slot.amount;
+  if (!inv?.container) return;
+  const container = inv.container;
+  const inventoryCounts = {};
+  for (let i = 0; i < container.size; i++) {
+    const item = container.getItem(i);
+    if (!item) continue;
+    if (foodItems.includes(item.typeId)) {
+      inventoryCounts[item.typeId] = (inventoryCounts[item.typeId] ?? 0) + item.amount;
     }
   }
-  const available = foodItems.filter((k) => (inInventory[k] ?? 0) > 0);
-  if (available.length === 0) { notifyPlayer(player.name, "\xA7cNo depositable food in your inventory."); return; }
-  const form = new ActionFormData().title(`Deposit Food \u2014 ${village.name}`).body("Select a food type to deposit:");
-  for (const item of available) form.button(`${item.replace("minecraft:", "")} (have ${inInventory[item]})`);
-  form.button("Cancel");
+  const available = foodItems.filter((id) => (inventoryCounts[id] ?? 0) > 0);
+  if (available.length === 0) {
+    notifyPlayer(player.name, "\xA7cYou have no food in your inventory to deposit.");
+    return;
+  }
+  const form = new ModalFormData().title(`Deposit Food \u2014 ${village.name}`);
+  for (const id of available) {
+    const count = inventoryCounts[id];
+    const label = id.replace("minecraft:", "");
+    form.slider(`${label} (you have ${count})`, 0, count, 1, count);
+  }
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0 || response.selection >= available.length) return;
-  const chosen = available[response.selection];
-  const maxAmt = inInventory[chosen] ?? 0;
-  if (maxAmt <= 0) return;
-  const sliderForm = new ModalFormData()
-    .title(`Deposit ${chosen.replace("minecraft:", "")}`)
-    .slider(`How many to deposit? (have ${maxAmt})`, 1, maxAmt, 1, maxAmt);
-  const sliderResp = await sliderForm.show(player);
-  if (sliderResp.canceled) return;
-  depositPlayerItemsToGranary(player, village, chosen, sliderResp.formValues[0]);
+  if (response.canceled || response.formValues == null) return;
+  const values = response.formValues;
+  available.forEach((id, i) => {
+    const amt = values[i] ?? 0;
+    if (amt > 0) depositPlayerItemsToGranary(player, village, id, amt);
+  });
 }
 async function showTreasuryBlockMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -9360,7 +7534,7 @@ async function showTreasuryBlockMenu(player, block) {
     return;
   }
   const report = getTreasuryReport(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -9385,7 +7559,7 @@ async function showTreasuryMenu(player, villageId) {
   const village = getVillage(villageId);
   if (!village) return;
   const report = getTreasuryReport(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -9413,133 +7587,194 @@ async function showKingdomOverview(player) {
     return;
   }
   const summary = getKingdomSummary(kingdom.id);
-  const form = new ActionFormData().title(kingdom.name).body(summary).button("Diplomacy").button("Close");
+  const form = new ActionFormData3().title(kingdom.name).body(summary).button("Diplomacy").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   if (response.selection === 0) await showDiplomacyMenu(player);
 }
 async function showDiplomacyMenu(player) {
   const myKingdom = getKingdomOf(player.name);
-  if (!myKingdom) { notifyPlayer(player.name, "\xA7cYou don't have a kingdom."); return; }
+  if (!myKingdom) return;
   const others = getAllKingdoms().filter((k) => k.id !== myKingdom.id);
-  const pendingIn = getPendingOffersFor(myKingdom.id);
-  const neutral = Math.max(0, others.length - myKingdom.wars.length - myKingdom.alliances.length);
-  const body = `\xA77Kingdom: \xA7f${myKingdom.name}\n\xA7cWars: \xA7f${myKingdom.wars.length}  \xA7aAllies: \xA7f${myKingdom.alliances.length}  \xA77Neutral: \xA7f${neutral}\n${pendingIn.length > 0 ? `\n\xA76\u26A0 ${pendingIn.length} pending offer(s) awaiting your response!` : "\xA77No pending incoming offers."}`;
-  const form = new ActionFormData().title("\xA76Diplomacy").body(body);
-  if (pendingIn.length > 0) form.button(`\xA76\u{1F4EC} Incoming Offers (${pendingIn.length})`);
   if (others.length === 0) {
-    form.button("\xA77(No other kingdoms yet)");
-  } else {
-    for (const k of others) {
-      const rel = myKingdom.wars.includes(k.id) ? "\xA7c[WAR]" : myKingdom.alliances.includes(k.id) ? "\xA7a[ALLY]" : "\xA77[NEUTRAL]";
-      const hasPending = pendingIn.some((o) => o.fromKingdomId === k.id) ? " \xA76[\u2709 offer]" : "";
-      form.button(`${k.name} ${rel}${hasPending}`);
-    }
+    notifyPlayer(player.name, "\xA7eNo other kingdoms exist yet.");
+    return;
+  }
+  const form = new ActionFormData3().title("Diplomacy").body(`Kingdom: ${myKingdom.name}
+Wars: ${myKingdom.wars.length}  Alliances: ${myKingdom.alliances.length}`);
+  for (const k of others) {
+    const rel = myKingdom.wars.includes(k.id) ? "\xA7c[WAR]" : myKingdom.alliances.includes(k.id) ? "\xA7a[ALLY]" : "\xA77[NEUTRAL]";
+    form.button(`${k.name} ${rel}`);
   }
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  let sel = response.selection;
-  if (pendingIn.length > 0) {
-    if (sel === 0) { await showPendingOffersMenu(player, myKingdom); return; }
-    sel -= 1;
-  }
-  if (others.length === 0) return;
-  const target = others[sel];
-  if (target) await showDiplomacyActions(player, myKingdom, target);
-}
-async function showPendingOffersMenu(player, myKingdom) {
-  const offers = getPendingOffersFor(myKingdom.id);
-  if (offers.length === 0) { notifyPlayer(player.name, "\xA7eNo pending diplomatic offers."); return; }
-  const typeLabels = { peace: "\xA7aPeace Treaty", alliance: "\xA7aAlliance Proposal", tribute: "\xA76Tribute Demand" };
-  const form = new ActionFormData().title("\xA76Incoming Offers").body(`${offers.length} offer(s) from other kingdoms.\nSelect one to accept or decline.`);
-  for (const o of offers) {
-    const mins = Math.max(0, Math.floor((o.expiresAt - Date.now()) / 6e4));
-    const extra = o.type === "tribute" ? ` \u2014 ${o.amount}\u{1F48E}` : "";
-    form.button(`${o.fromKingdomName}\n${typeLabels[o.type] || o.type}${extra} (${mins}m left)`);
-  }
-  form.button("\xA77Back");
-  const response = await form.show(player);
-  if (response.canceled || response.selection === void 0 || response.selection >= offers.length) return;
-  await showRespondToOfferMenu(player, myKingdom, offers[response.selection]);
-}
-async function showRespondToOfferMenu(player, myKingdom, offer) {
-  const typeLabels = { peace: "Peace Treaty", alliance: "Alliance Proposal", tribute: "Tribute Demand" };
-  const descLines = {
-    peace: "Accepting ends the war between your kingdoms. Neither side may attack the other.",
-    alliance: "Accepting forms a mutual alliance. You cannot attack each other and will receive attack alerts.",
-    tribute: `Accepting transfers \xA76${offer.amount}\u{1F48E}\xA7r from your village treasuries to ${offer.fromKingdomName}. Ends any current war if paid.`
-  };
-  const form = new ActionFormData()
-    .title(`${typeLabels[offer.type] || offer.type}`)
-    .body(`From: \xA7b${offer.fromKingdomName}\xA7r (King: ${offer.fromKingdomKing})\n\n${descLines[offer.type] || ""}\n\n\xA77Choose your response:`)
-    .button("\xA7aAccept")
-    .button("\xA7cDecline");
-  const response = await form.show(player);
-  if (response.canceled) return;
-  if (response.selection === 0) {
-    acceptDiploOffer(offer, myKingdom);
-    notifyPlayer(player.name, `\xA7aOffer accepted.`);
-  } else {
-    declineDiploOffer(offer, myKingdom);
-    notifyPlayer(player.name, `\xA7cDeclined the ${typeLabels[offer.type] || offer.type} from ${offer.fromKingdomName}.`);
-  }
+  const target = others[response.selection];
+  await showDiplomacyActions(player, myKingdom, target);
 }
 async function showDiplomacyActions(player, myKingdom, target) {
   const atWar = myKingdom.wars.includes(target.id);
   const allied = myKingdom.alliances.includes(target.id);
-  const sentPeace = getPendingOfferFrom(myKingdom.id, target.id, "peace");
-  const sentAlliance = getPendingOfferFrom(myKingdom.id, target.id, "alliance");
-  const sentTribute = getPendingOfferFrom(myKingdom.id, target.id, "tribute");
-  const incomingPeace = getPendingOfferFrom(target.id, myKingdom.id, "peace");
-  const incomingAlliance = getPendingOfferFrom(target.id, myKingdom.id, "alliance");
-  const incomingTribute = getPendingOfferFrom(target.id, myKingdom.id, "tribute");
-  let offerStatus = "";
-  if (sentPeace) offerStatus += "\n\xA76\u2709 Peace offer sent \u2014 awaiting their reply";
-  if (sentAlliance) offerStatus += "\n\xA76\u2709 Alliance proposal sent \u2014 awaiting their reply";
-  if (sentTribute) offerStatus += "\n\xA76\u2709 Tribute demand sent \u2014 awaiting their reply";
-  if (incomingPeace) offerStatus += "\n\xA7a\u2709 They sent you a Peace offer! Check Incoming Offers.";
-  if (incomingAlliance) offerStatus += "\n\xA7a\u2709 They sent you an Alliance proposal! Check Incoming Offers.";
-  if (incomingTribute) offerStatus += "\n\xA76\u2709 They sent you a Tribute demand! Check Incoming Offers.";
-  const targetStrength = getKingdomStrength(target.id);
-  const myStrength = getKingdomStrength(myKingdom.id);
-  const relLabel = atWar ? "\xA7c\u2694 At War" : allied ? "\xA7a\uD83E\uDD1D Allied" : "\xA77Neutral";
-  const form = new ActionFormData()
-    .title(`\xA76Diplomacy \u2014 ${target.name}`)
-    .body(`\xA77King: \xA7f${target.king}\n\xA77Villages: \xA7f${target.villageIds.length}\n\xA77Military Strength: \xA7f${targetStrength}\xA77 (yours: \xA7f${myStrength}\xA77)\n\xA77Relation: ${relLabel}${offerStatus}`);
+  const form = new ActionFormData3().title(`Diplomacy \u2014 ${target.name}`).body(`King: ${target.king}
+Villages: ${target.villageIds.length}
+Relation: ${atWar ? "\xA7cAt War" : allied ? "\xA7aAllied" : "\xA77Neutral"}`);
   const actions = [];
-  if (!atWar && !allied) {
-    if (!sentPeace) { form.button("\xA7aSend Peace Treaty\n\xA77Formalise peaceful co-existence"); actions.push("peace"); }
-    if (!sentAlliance) { form.button("\xA7aPropose Alliance\n\xA77Request a mutual defence pact"); actions.push("alliance"); }
-    if (!sentTribute) { form.button("\xA76Demand Tribute (50\u{1F48E})\n\xA77They pay or face war"); actions.push("tribute50"); }
-    form.button("\xA7cDeclare War\n\xA77Immediate \u2014 no offer needed"); actions.push("war");
-  } else if (atWar) {
-    if (!sentPeace) { form.button("\xA7aOffer Peace Treaty\n\xA77Request an end to the war"); actions.push("peace"); }
-    if (!sentTribute) { form.button("\xA76Demand Reparations (75\u{1F48E})\n\xA77Pay up or war continues"); actions.push("tribute75"); }
-  } else if (allied) {
-    form.button("\xA7eRevoke Alliance\n\xA77Return to neutral standing"); actions.push("revoke");
-    form.button("\xA7cBetray & Declare War\n\xA77Break the alliance and attack"); actions.push("war");
+  if (!atWar) {
+    form.button("\xA7cDeclare War");
+    actions.push(() => declareWar(myKingdom.id, target.id));
   }
-  form.button("\xA77Cancel"); actions.push("cancel");
+  if (atWar) {
+    form.button("\xA7aSue for Peace");
+    actions.push(() => makePeace(myKingdom.id, target.id));
+  }
+  if (!allied && !atWar) {
+    form.button("\xA7aPropose Alliance");
+    actions.push(() => formAlliance(myKingdom.id, target.id));
+  }
+  form.button("Cancel");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  const action = actions[response.selection];
-  if (!action || action === "cancel") return;
-  if (action === "war") {
-    declareWar(myKingdom.id, target.id);
-  } else if (action === "revoke") {
-    revokeAlliance(myKingdom.id, target.id);
-  } else if (action === "peace") {
-    sendDiploOffer(myKingdom, target, "peace", 0);
-    notifyPlayer(player.name, `\xA7aPeace offer sent to ${target.name}. They will be notified.`);
-  } else if (action === "alliance") {
-    sendDiploOffer(myKingdom, target, "alliance", 0);
-    notifyPlayer(player.name, `\xA7aAlliance proposal sent to ${target.name}. They will be notified.`);
-  } else if (action === "tribute50") {
-    sendDiploOffer(myKingdom, target, "tribute", 50);
-    notifyPlayer(player.name, `\xA76Tribute demand of 50\u{1F48E} sent to ${target.name}.`);
-  } else if (action === "tribute75") {
-    sendDiploOffer(myKingdom, target, "tribute", 75);
-    notifyPlayer(player.name, `\xA76War reparations demand of 75\u{1F48E} sent to ${target.name}.`);
+  if (response.selection < actions.length) actions[response.selection]();
+}
+async function showReinforcementsMenu(player, villageId) {
+  const village = getVillage(villageId);
+  if (!village) return;
+  const kingdom = getKingdomOf(player.name);
+  if (!kingdom) return;
+  const otherVillages = kingdom.villageIds.filter((id) => id !== villageId).flatMap((id) => {
+    const v = getVillage(id);
+    return v ? [v] : [];
+  });
+  const inTransit = getInTransitMarches(player.name);
+  const inTransitLabel = inTransit.length > 0 ? `\u23F3 In-Transit Marches (${inTransit.length} active)` : `\u23F3 In-Transit Marches (none)`;
+  const troopLine = (v) => {
+    const t = v.troops;
+    const hk = t.heavyKnight ?? 0;
+    const sa = t.samurai ?? 0;
+    const ml = t.mercenaryLancer ?? 0;
+    const le = t.legionary ?? 0;
+    return `${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le} troops`;
+  };
+  const form = new ActionFormData3().title("Reinforcements & Resources").body(
+    `\xA77From: \xA7b${village.name}
+\xA77Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Food: \xA7f${village.foodStorage}\u{1F33E}
+\xA77Troops: \xA7f${troopLine(village)}
+
+\xA77Select destination to send, or view in-transit marches.`
+  ).button(inTransitLabel);
+  for (const v of otherVillages) {
+    form.button(`${v.name}
+\xA77${troopLine(v)}`);
+  }
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection === 0) {
+    await showInTransitMenu(player);
+  } else {
+    await showSendAmountsForm(player, villageId, otherVillages[response.selection - 1].id);
+  }
+}
+async function showInTransitMenu(player) {
+  const marches = getInTransitMarches(player.name);
+  const tick = getCurrentTick();
+  if (marches.length === 0) {
+    notifyPlayer(player.name, "\xA77No reinforcements currently in transit.");
+    return;
+  }
+  const form = new ActionFormData3().title("\u23F3 In-Transit Marches").body(
+    `\xA77You have \xA7f${marches.length}\xA77 active march(es).
+\xA77Click a march to recall it \u2014 troops will be instantly refunded.
+`
+  );
+  for (const { pr, toName } of marches) {
+    const troopSummary = Object.entries(pr.troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c}\xD7${t}`).join(", ");
+    const ticksLeft = Math.max(0, pr.arriveTick - tick);
+    const secsLeft = Math.ceil(ticksLeft / 20);
+    const etaLabel = secsLeft >= 60 ? `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s` : `${secsLeft}s`;
+    const status = ticksLeft <= 0 ? "\xA7aArriving\u2026" : `\xA7eETA ~${etaLabel}`;
+    form.button(
+      `\u21A9 ${pr.sourceVillageName} \u2192 ${toName}
+\xA77${troopSummary}  ${status}`
+    );
+  }
+  form.button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection === marches.length) return;
+  const chosen = marches[response.selection];
+  const confirm = new MessageFormData().title("\u21A9 Recall March?").body(
+    `Recall the march from \xA7b${chosen.pr.sourceVillageName}\xA7r \u2192 \xA7b${chosen.toName}\xA7r?
+
+\xA77All troops will be immediately returned to \xA7b${chosen.pr.sourceVillageName}\xA77.
+\xA77This cannot be undone.`
+  ).button1("\u21A9 Recall").button2("Cancel");
+  const confirmResp = await confirm.show(player);
+  if (confirmResp.canceled || confirmResp.selection !== 0) return;
+  const success = cancelReinforcement(chosen.pr.id, chosen.toVillageId);
+  if (!success) {
+    notifyPlayer(player.name, "\xA7cMarch already arrived or could not be recalled.");
+  }
+}
+async function showSendAmountsForm(player, fromId, toId) {
+  const from = getVillage(fromId);
+  const to = getVillage(toId);
+  if (!from || !to) return;
+  const sliders = [];
+  const troopDefs = [
+    { key: "cityGuards", label: "City Guards" },
+    { key: "spearmen", label: "Spearmen" },
+    { key: "archers", label: "Archers" },
+    { key: "cavalry", label: "Cavalry" },
+    { key: "heavyKnight", label: "Heavy Knights" },
+    { key: "samurai", label: "Samurai" },
+    { key: "mercenaryLancer", label: "Mercenary Lancers" },
+    { key: "legionary", label: "Legionaries" }
+  ];
+  for (const { key, label } of troopDefs) {
+    const count = from.troops[key] ?? 0;
+    if (count > 0) sliders.push({ key, label, max: count });
+  }
+  if (from.treasury > 0) sliders.push({ key: "emeralds", label: "Emeralds", max: from.treasury });
+  if (from.foodStorage > 0) sliders.push({ key: "food", label: "Food", max: from.foodStorage });
+  if (sliders.length === 0) {
+    notifyPlayer(player.name, `\xA7c\xA7b${from.name}\xA7c has no troops, emeralds, or food to send.`);
+    return;
+  }
+  const form = new ModalFormData().title(`${from.name} \u2192 ${to.name}`);
+  for (const s of sliders) {
+    form.slider(s.label, 0, Math.max(s.max, 1), 1, 0);
+  }
+  const response = await form.show(player);
+  if (response.canceled || !response.formValues) return;
+  const values = response.formValues;
+  const troops = {};
+  let emeralds = 0;
+  let food = 0;
+  sliders.forEach((s, i) => {
+    const v = Math.min(values[i] ?? 0, s.max);
+    if (v <= 0) return;
+    if (s.key === "emeralds") {
+      emeralds = v;
+    } else if (s.key === "food") {
+      food = v;
+    } else {
+      troops[s.key] = v;
+    }
+  });
+  if (Object.keys(troops).length > 0) {
+    sendReinforcements(fromId, toId, troops);
+  }
+  if (emeralds > 0 || food > 0) {
+    sendTradeCart(fromId, toId, {
+      emeralds,
+      food,
+      iron: 0,
+      gold: 0,
+      coal: 0,
+      wood: 0,
+      stone: 0,
+      diamonds: 0,
+      troops: {}
+    });
   }
 }
 async function showRenameForm(player, villageId) {
@@ -9554,7 +7789,7 @@ async function showActiveMerchantsMenu(player, village) {
     notifyPlayer(player.name, "\xA7eNo merchants are visiting \xA7b" + village.name + "\xA7e right now.");
     return;
   }
-  const form = new ActionFormData().title(`${village.name} \u2014 Merchants`).body(`Active merchants: ${village.activeMerchants.length}
+  const form = new ActionFormData3().title(`${village.name} \u2014 Merchants`).body(`Active merchants: ${village.activeMerchants.length}
 Select a merchant to trade with:`);
   for (const m of village.activeMerchants) {
     const stockSummary = Object.entries(m.stock).slice(0, 3).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ");
@@ -9568,236 +7803,27 @@ Select a merchant to trade with:`);
   await showMerchantTradeMenu(player, village, merchant, merchant.entityId);
 }
 async function showMerchantTradeMenu(player, village, merchant, entityId) {
-  const stockEntries = Object.entries(merchant.stock).filter(([, count]) => count > 0);
-  const stockText = stockEntries.length > 0
-    ? stockEntries.map(([item, count]) => {
-        const entry = MERCHANT_TRADE_TABLE[item];
-        const label = entry ? entry.label : item.replace("minecraft:", "").replace("twb_farm:", "");
-        const route = (() => {
-          if (MERCHANT_MATERIAL_MAP[item]) return "-> Material Storage";
-          if (FOOD_SELL_RATES?.find?.((e) => e.itemId === item)) return "-> Granary";
-          if (ALL_ARMORY_ITEMS?.has?.(item)) return "-> Armory";
-          return "";
-        })();
-        return `${label} x${count}  ${route}`;
-      }).join("\n")
-    : "Sold out!";
-  const tradeOptions = [];
-  const form = new ActionFormData()
-    .title(`Travelling Merchant - ${village.name}`)
-    .body(`Goods for sale:\n${stockText}\n\nVillage Treasury: ${village.treasury} emeralds\nItems auto-route to the correct storage when bought.`);
-  for (const [itemId, stockCount] of stockEntries) {
-    const entry = MERCHANT_TRADE_TABLE[itemId];
-    if (!entry) continue;
-    const canAfford = Math.floor(village.treasury / (entry.cost / entry.qty));
-    const available = Math.min(stockCount, Math.floor(canAfford / entry.qty) * entry.qty);
-    if (available <= 0) continue;
-    form.button(`Buy ${entry.label} x${entry.qty}\n${entry.cost} emeralds from treasury  (${stockCount} in stock)`);
-    tradeOptions.push({ itemId, qty: entry.qty });
-  }
-  form.button("Close");
-  const response = await form.show(player);
-  if (response.canceled || response.selection === void 0) return;
-  if (response.selection >= tradeOptions.length) return;
-  const chosen = tradeOptions[response.selection];
-  tradeMerchant(village, entityId, chosen.itemId, chosen.qty);
-}
-// ── Rail validator — scans a cube around location for any rail block ─────────
-function hasNearbyRail(dimension, location, radius) {
-  if (radius === void 0) radius = 8;
-  const railTypes = new Set([
-    "minecraft:rail", "minecraft:powered_rail",
-    "minecraft:detector_rail", "minecraft:activator_rail"
-  ]);
-  const cx = Math.floor(location.x), cy = Math.floor(location.y), cz = Math.floor(location.z);
-  for (let dx = -radius; dx <= radius; dx++) {
-    for (let dz = -radius; dz <= radius; dz++) {
-      for (let dy = -2; dy <= 2; dy++) {
-        try {
-          const b = dimension.getBlock({ x: cx + dx, y: cy + dy, z: cz + dz });
-          if (b && railTypes.has(b.typeId)) return true;
-        } catch {}
-      }
-    }
-  }
-  return false;
-}
+  const stockText = Object.entries(merchant.stock).map(([item, count]) => `${item.replace("minecraft:", "")} \xD7${count}`).join("\n") || "Sold out!";
+  const form = new ActionFormData3().title("Travelling Merchant").body(`Available:
+${stockText}
 
-// ── Power / leaderboard helpers ───────────────────────────────────────────────
-function calcKingdomPower(ownerName) {
-  let power = 0;
-  for (const v of getAllVillages().filter((v2) => v2.owner === ownerName)) {
-    power += 200; // base per village
-    power += (v.population ?? 0) * 3;
-    power += (v.prosperity ?? 0) * 2;
-    power += (v.troops?.cityGuards ?? 0) * 5;
-    power += (v.troops?.spearmen ?? 0) * 10;
-    power += (v.troops?.archers ?? 0) * 10;
-    power += (v.troops?.cavalry ?? 0) * 20;
-    power += Math.min(v.treasury ?? 0, 2000);
-    power += Math.floor((v.foodStorage ?? 0) * 0.2);
-    const armory = v.armoryItems ?? {};
-    power += Object.values(armory).reduce((s, n) => s + (n ?? 0), 0) * 2;
-    power += (v.tradePoles?.length ?? 0) * 20;
-    power += (v.guardPoles?.length ?? 0) * 10;
-  }
-  return Math.round(power);
-}
-function buildKingdomLeaderboard() {
-  const ownerVillages = new Map();
-  for (const v of getAllVillages()) {
-    if (!v.owner) continue;
-    ownerVillages.set(v.owner, (ownerVillages.get(v.owner) ?? 0) + 1);
-  }
-  return [...ownerVillages.keys()]
-    .map((name) => ({ name, villages: ownerVillages.get(name), power: calcKingdomPower(name) }))
-    .sort((a, b) => b.power - a.power)
-    .slice(0, 10);
-}
-
-async function showTradePoleMenu(player, block) {
-  const village = findVillageAt2(block.location);
-  if (!village) {
-    notifyPlayer(player.name, "\xA7cNo village here. Claim a village first.");
-    return;
-  }
-  const isOwner = village.owner === player.name;
-  const poleCount = village.tradePoles?.length ?? 0;
-  const spawnDist = TRADE_POLE_DETECT_RADIUS + 3;
-  const railsFound = hasNearbyRail(block.dimension, block.location);
-  const railStatus = railsFound
-    ? "\xA7aRails detected nearby \u2014 cart will be ready to push!"
-    : "\xA7c\u26A0 No rails within 8 blocks! Place rails before spawning.";
-  const form = new ActionFormData()
-    .title(`${village.name} \u2014 Trade Pole`)
-    .body(
-      `\xA77Village:\xA7f ${village.name}\n\xA77Trade Poles:\xA7f ${poleCount}\n\xA77Detection radius:\xA7f ${TRADE_POLE_DETECT_RADIUS} blocks\n\n` +
-      `\xA7fAuto-delivery routing (arriving carts):\n` +
-      `\xA7e Emeralds \xA7f\u2192 Treasury\n\xA7e Food \xA7f\u2192 Granary\n\xA7e Troop tokens \xA7f\u2192 Barracks\n\xA7e Resources \xA7f\u2192 Storage\n\n` +
-      railStatus + `\n\xA7eCarts spawn ${spawnDist} blocks north \u2014 load then push!`
-    );
-  if (isOwner) {
-    const btnLabel = railsFound
-      ? `\xA7a\u{1F682} Spawn Minecart with Chest\n\xA77Spawns ${spawnDist} blocks away \u2014 load then push!`
-      : `\xA7e\u{1F682} Spawn Minecart with Chest\n\xA7c\u26A0 No rails detected \u2014 spawn anyway?`;
-    form.button(btnLabel);
-  }
-  form.button("\xA77Close");
+Village Treasury: ${village.treasury}\u{1F48E}`).button("Buy Iron \xD78 (8\u{1F48E})").button("Buy Gold \xD74 (12\u{1F48E})").button("Buy Diamond \xD71 (8\u{1F48E})").button("Buy Bread \xD716 (16\u{1F48E})").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
-  if (!isOwner || response.selection !== 0) return;
-  try {
-    const poleLoc = block.location;
-    const dim = block.dimension;
-    const cart = dim.spawnEntity("minecraft:chest_minecart", {
-      x: poleLoc.x + 0.5,
-      y: poleLoc.y + 1,
-      z: poleLoc.z - spawnDist + 0.5
-    });
-    cart.nameTag = `\xA76\u{1F4E6} ${village.name} \u2014 Load me then push!`;
-    const msg = railsFound
-      ? `\xA7a\u{1F682} Cart spawned ${spawnDist} blocks north! Load supplies then push toward destination.`
-      : `\xA7e\u{1F682} Cart spawned! \xA7cNo rails nearby \u2014 lay track before pushing.`;
-    notifyPlayer(player.name, msg);
-  } catch {
-    notifyPlayer(player.name, "\xA7cCould not spawn minecart \u2014 is the area loaded?");
+  switch (response.selection) {
+    case 0:
+      tradeMerchant(village, entityId, "minecraft:iron_ingot", 8);
+      break;
+    case 1:
+      tradeMerchant(village, entityId, "minecraft:gold_ingot", 4);
+      break;
+    case 2:
+      tradeMerchant(village, entityId, "minecraft:diamond", 1);
+      break;
+    case 3:
+      tradeMerchant(village, entityId, "minecraft:bread", 16);
+      break;
   }
-}
-
-// ── King's Castle menu ────────────────────────────────────────────────────────
-async function showKingCastleMenu(player, block) {
-  const village = findVillageAt2(block.location);
-  const isOwner = village?.owner === player.name;
-  const leaderboard = buildKingdomLeaderboard();
-  const myRank = leaderboard.findIndex((r) => r.name === player.name);
-  const myPower = myRank >= 0 ? leaderboard[myRank].power : calcKingdomPower(player.name);
-  const rankText = myRank >= 0
-    ? `\xA7eRank #${myRank + 1}\xA7f with \xA7e${myPower.toLocaleString()} power`
-    : `\xA77No villages yet \u2014 conquer land to rank up!`;
-  const form = new ActionFormData()
-    .title("\u{1F451} King\u2019s Castle \u2014 Kingdom Registry")
-    .body(
-      `\xA76\xA7l${village?.name ?? "The Realm"}\xA7r\u2019s Castle\n\n` +
-      `${rankText}\n\n` +
-      `\xA77Power is earned from:\n` +
-      `\xA77\u2022 Villages owned (200 ea)\n` +
-      `\xA77\u2022 Troops (5\u201320 power ea)\n` +
-      `\xA77\u2022 Treasury emeralds & food\n` +
-      `\xA77\u2022 Population & prosperity\n` +
-      `\xA77\u2022 Trade poles & guard poles\n` +
-      `\xA77\u2022 Armory equipment\n\n` +
-      `\xA7aTip: Place a ladder on the north interior wall to reach the Royal Chambers above.`
-    );
-  form.button("\xA7e\u{1F4CA} World Kingdom Leaderboard");
-  if (isOwner) form.button("\xA7b\u{1F3F0} My Kingdom Overview");
-  form.button("\xA77Close");
-  const response = await form.show(player);
-  if (response.canceled) return;
-  if (response.selection === 0) {
-    void showLeaderboardMenu(player, leaderboard);
-  } else if (isOwner && response.selection === 1) {
-    void showKingdomOverviewMenu(player, village, leaderboard);
-  }
-}
-
-async function showLeaderboardMenu(player, leaderboard) {
-  const MEDALS = ["\xA7e\uD83E\uDD47", "\xA77\uD83E\uDD48", "\xA76\uD83E\uDD49", "\xA7f4.", "\xA7f5.", "\xA7f6.", "\xA7f7.", "\xA7f8.", "\xA7f9.", "\xA7f10."];
-  let body = "\xA76\xA7l\u2694 World Kingdom Power Rankings \u2694\xA7r\n\xA77Calculated from villages, troops, treasury & more\n\n";
-  if (leaderboard.length === 0) {
-    body += "\xA7cNo kingdoms registered yet.\nClaim a village to appear on the leaderboard!";
-  } else {
-    for (let i = 0; i < leaderboard.length; i++) {
-      const r = leaderboard[i];
-      body += `${MEDALS[i] ?? `\xA7f${i + 1}.`} \xA7f${r.name}\n`;
-      body += `\xA77   Power: \xA7e${r.power.toLocaleString()}\xA77 | Villages: \xA7a${r.villages}\n\n`;
-    }
-  }
-  const myRank = leaderboard.findIndex((r) => r.name === player.name);
-  if (myRank >= 0) {
-    body += `\xA7a\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n`;
-    body += `\xA7aYou are ranked \xA7e#${myRank + 1}\xA7a with \xA7e${leaderboard[myRank].power.toLocaleString()} power\xA7a.`;
-  } else {
-    body += `\xA77You have no villages. Conquer or claim territory to rank up!`;
-  }
-  const form = new ActionFormData()
-    .title("\xA7e\u{1F4CA} Kingdom Leaderboard")
-    .body(body)
-    .button("\xA77Close");
-  await form.show(player);
-}
-
-async function showKingdomOverviewMenu(player, village, leaderboard) {
-  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
-  const myRank = leaderboard.findIndex((r) => r.name === player.name);
-  const myPower = myRank >= 0 ? leaderboard[myRank].power : calcKingdomPower(player.name);
-  let soldiers = 0, totalTreasury = 0, totalPop = 0, totalProsperity = 0;
-  for (const v of myVillages) {
-    const t = v.troops ?? {};
-    soldiers += (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
-      (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
-    totalTreasury += v.treasury ?? 0;
-    totalPop += v.population ?? 0;
-    totalProsperity += v.prosperity ?? 0;
-  }
-  const avgProsperity = myVillages.length > 0 ? Math.round(totalProsperity / myVillages.length) : 0;
-  const body =
-    `\xA76\xA7l${player.name}\u2019s Kingdom\xA7r\n\n` +
-    `\xA7e\u26A1 Power: \xA7f${myPower.toLocaleString()} \xA77(Rank \xA7e#${myRank >= 0 ? myRank + 1 : "Unranked"}\xA77)\n\n` +
-    `\xA77Domains: \xA7f${myVillages.length}\n` +
-    `\xA77Population: \xA7f${totalPop}\n` +
-    `\xA77Army: \xA7f${soldiers} troops\n` +
-    `\xA77Treasury: \xA7f${totalTreasury} \xA77emeralds\n` +
-    `\xA77Avg Prosperity: \xA7f${avgProsperity}\n\n` +
-    `\xA77Power Breakdown:\n` +
-    `\xA77  Villages: \xA7e+${myVillages.length * 200}\n` +
-    `\xA77  Population: \xA7e+${totalPop * 3}\n` +
-    `\xA77  Treasury: \xA7e+${Math.min(totalTreasury, 2000)}\n` +
-    `\xA77  Prosperity: \xA7e+${avgProsperity * 2 * myVillages.length}`;
-  const form = new ActionFormData()
-    .title(`\u{1F451} Kingdom of ${player.name}`)
-    .body(body)
-    .button("\xA77Close");
-  await form.show(player);
 }
 async function showTradeStationMenu(player, block) {
   const village = findVillageAt2(block.location);
@@ -9807,54 +7833,20 @@ async function showTradeStationMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getTradeStationSummary(village);
-  const poles = village.tradePoles ?? [];
-  const poleStatus = poles.length > 0
-    ? `\xA7a\u2714 ${poles.length} Trade Pole(s) active \u2014 detect radius: ${TRADE_POLE_DETECT_RADIUS} blocks\n\xA77Place a chest minecart on rails within ${TRADE_POLE_DETECT_RADIUS} blocks of a pole.\n\xA77Poles auto-receive: \xA7aemerald\xA77\u2192treasury, \xA7afood\xA77\u2192granary, \xA7etroop tokens\xA77\u2192barracks.`
-    : `\xA7c\u26D4 No Trade Poles placed yet.\n\xA77Place a \xA7bkingdoms:trade_pole\xA77 block near rails to receive incoming minecarts.`;
-  const stationLoc = village.tradeStationLocation;
-  const stationStr = stationLoc
-    ? `\xA77Station at: \xA7f${Math.round(stationLoc.x)},${Math.round(stationLoc.y)},${Math.round(stationLoc.z)}`
-    : `\xA7cStation not registered.`;
-  const body = [
-    summary,
-    ``,
-    `\xA77\u2500\u2500 Rail Detection \u2500\u2500`,
-    poleStatus,
-    ``,
-    stationStr,
-    `\xA77\u2500\u2500 Manual Shipping \u2500\u2500`,
-    `\xA7fSpawn a chest minecart \u2192 fill with tokens or goods \u2192 push onto rails toward destination's Trade Pole.`
-  ].join("\n");
-  const form = new ActionFormData().title(`${village.name} \u2014 Trade Station`).body(body);
+  const form = new ActionFormData3().title(`${village.name} \u2014 Trade Station`).body(summary);
   if (isOwner) {
-    form
-      .button("\u{1F682} Spawn Chest Minecart\n\xA77Spawns at this station for manual shipping")
-      .button("\u{1F4E6} Dispatch Resources\n\xA77Send resources to another village via rail")
-      .button("\u{1F4CA} Resource Storage")
-      .button("\u{1F682} Active Shipments")
-      .button("\u{1F4CB} Trade History");
+    form.button("\u{1F4E6} Dispatch Resources").button("\u{1F5E1} Dispatch Reinforcements").button("\u{1F4CA} Resource Storage").button("\u{1F682} Active Shipments").button("\u{1F4CB} Trade History");
   } else {
     form.button("Close");
   }
   const response = await form.show(player);
   if (response.canceled || !isOwner) return;
   switch (response.selection) {
-    case 0: {
-      const spawnLoc = village.tradeStationLocation ?? block.location;
-      try {
-        player.dimension.spawnEntity("minecraft:chest_minecart", {
-          x: spawnLoc.x + 0.5,
-          y: spawnLoc.y + 0.5,
-          z: spawnLoc.z + 0.5
-        });
-        notifyPlayer(player.name, `\xA7a\u{1F682} Chest minecart spawned at the Trade Station! Fill it with troop tokens or goods, then push it onto rails toward your destination\u2019s Trade Pole.`);
-      } catch {
-        notifyPlayer(player.name, "\xA7cCould not spawn minecart \u2014 make sure the station chunk is loaded.");
-      }
-      break;
-    }
-    case 1:
+    case 0:
       await showDispatchResourceMenu(player, village.id);
+      break;
+    case 1:
+      await showDispatchMilitaryMenu(player, village.id);
       break;
     case 2:
       await showResourceStorageMenu(player, village.id);
@@ -9880,7 +7872,7 @@ async function showDispatchResourceMenu(player, fromVillageId) {
     );
     return;
   }
-  const form = new ActionFormData().title(`${from.name} \u2014 Dispatch Resources`).body(
+  const form = new ActionFormData3().title(`${from.name} \u2014 Dispatch Resources`).body(
     `\xA77Select destination village.
 
 \xA7bAvailable:
@@ -9925,6 +7917,66 @@ async function showResourceAmountsForm(player, fromId, toId) {
     troops: {}
   });
 }
+async function showDispatchMilitaryMenu(player, fromVillageId) {
+  const from = getVillage(fromVillageId);
+  if (!from) return;
+  const connected = getConnectedVillages(from);
+  if (connected.length === 0) {
+    notifyPlayer(
+      player.name,
+      `\xA7cNo villages with Trade Stations found. Build Trade Stations and connect with rails.`
+    );
+    return;
+  }
+  const t = from.troops;
+  const form = new ActionFormData3().title(`${from.name} \u2014 Dispatch Reinforcements`).body(
+    `\xA77Select destination village.
+
+\xA7bAvailable Troops:
+\xA7f  Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
+  Archers: ${t.archers}  Cavalry: ${t.cavalry}`
+  );
+  for (const v of connected) {
+    const vt = v.troops;
+    const total = vt.cityGuards + vt.spearmen + vt.archers + vt.cavalry;
+    form.button(`\u{1F689} ${v.name} (${total} troops)`);
+  }
+  form.button("Cancel");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= connected.length) return;
+  const to = connected[response.selection];
+  await showMilitaryAmountsForm(player, fromVillageId, to.id);
+}
+async function showMilitaryAmountsForm(player, fromId, toId) {
+  const from = getVillage(fromId);
+  const to = getVillage(toId);
+  if (!from || !to) return;
+  const t = from.troops;
+  const hk = t.heavyKnight ?? 0;
+  const sa = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const le = t.legionary ?? 0;
+  const form = new ModalFormData().title(`\u{1F5E1} ${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0).slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0).slider("Archers", 0, Math.max(t.archers, 1), 1, 0).slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0).slider("Heavy Knights", 0, Math.max(hk, 1), 1, 0).slider("Samurai", 0, Math.max(sa, 1), 1, 0).slider("Lancers", 0, Math.max(ml, 1), 1, 0).slider("Legionaries", 0, Math.max(le, 1), 1, 0);
+  const response = await form.show(player);
+  if (response.canceled) return;
+  const [guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues;
+  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0 && heavyKnight === 0 && samurai === 0 && mercenaryLancer === 0 && legionary === 0) {
+    notifyPlayer(player.name, "\xA7cNo troops selected.");
+    return;
+  }
+  sendRailShipment(fromId, toId, {
+    food: 0,
+    emeralds: 0,
+    iron: 0,
+    gold: 0,
+    coal: 0,
+    wood: 0,
+    stone: 0,
+    diamonds: 0,
+    troops: { cityGuards: guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary }
+  });
+}
 async function showResourceStorageMenu(player, villageId) {
   const village = getVillage(villageId);
   if (!village) return;
@@ -9932,7 +7984,7 @@ async function showResourceStorageMenu(player, villageId) {
   const rs = village.resourceStorage;
   const resourceKeys = Object.keys(RESOURCE_LABELS);
   const storageLines = resourceKeys.map((k) => `  ${RESOURCE_LABELS[k]}: ${rs[k]}`).join("\n");
-  const form = new ActionFormData().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
+  const form = new ActionFormData3().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
 
 \xA7b\u2500\u2500 Storage \u2500\u2500
 \xA7f${storageLines}
@@ -9950,37 +8002,13 @@ async function showResourceStorageMenu(player, villageId) {
   if (response.canceled || response.selection === void 0) return;
   if (response.selection >= depositOptions.length) return;
   const opt = depositOptions[response.selection];
-  const itemId = RESOURCE_ITEM_IDS[opt.key];
-  if (!itemId) {
-    notifyPlayer(player.name, `\xA7cNo item mapping found for ${opt.label}.`);
-    return;
+  const itemId = RESOURCE_DROP_MAP[opt.key];
+  if (itemId) {
+    dropItemsAtLocation(player.dimension, player.location, itemId, opt.amount);
+    notifyPlayer(player.name, `\xA7aWithdrew \xA7f${opt.amount}x ${opt.label}\xA7a from \xA7b${village.name}\xA7a's resource storage.`);
   }
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const container = inv?.container;
-  if (!container) return;
-  let given = 0;
-  const total = opt.amount;
-  for (let i = 0; i < container.size && given < total; i++) {
-    const slot = container.getItem(i);
-    if (!slot) {
-      const qty = Math.min(total - given, 64);
-      try { container.setItem(i, new ItemStack6(itemId, qty)); given += qty; } catch {}
-    } else if (slot.typeId === itemId && slot.amount < 64) {
-      const space = 64 - slot.amount;
-      const qty = Math.min(total - given, space);
-      slot.amount += qty;
-      try { container.setItem(i, slot); given += qty; } catch {}
-    }
-  }
-  rs[opt.key] = total - given;
+  rs[opt.key] = 0;
   saveVillage(village);
-  if (given === total) {
-    notifyPlayer(player.name, `\xA7aWithdrew \xA7f${given}x ${opt.label}\xA7a from storage.`);
-  } else if (given > 0) {
-    notifyPlayer(player.name, `\xA7ePartial withdraw: \xA7f${given}x ${opt.label}\xA7e given. \xA7c${total - given} left \u2014 inventory full.`);
-  } else {
-    notifyPlayer(player.name, `\xA7cInventory full \u2014 could not withdraw ${opt.label}.`);
-  }
 }
 async function showActiveShipmentsMenu(player, villageId) {
   const village = getVillage(villageId);
@@ -9992,15 +8020,16 @@ async function showActiveShipmentsMenu(player, villageId) {
   }
   const lines = railCarts.map((c, i) => {
     const dest = getVillage(c.destinationVillageId);
+    const type = c.isMilitary ? "\u{1F5E1}" : "\u{1F4E6}";
     const cargo = [
       c.cargo.food > 0 ? `${c.cargo.food}\u{1F33E}` : "",
       c.cargo.emeralds > 0 ? `${c.cargo.emeralds}\u{1F48E}` : "",
       c.cargo.iron > 0 ? `${c.cargo.iron}Fe` : "",
       c.cargo.gold > 0 ? `${c.cargo.gold}Au` : ""
     ].filter(Boolean).join(" ");
-    return `\u{1F4E6} #${i + 1} \u2192 ${dest?.name ?? "Unknown"}: ${cargo || "Resources"}`;
+    return `${type} #${i + 1} \u2192 ${dest?.name ?? "Unknown"}: ${cargo || "Troops"}`;
   }).join("\n");
-  const form = new ActionFormData().title(`${village.name} \u2014 Active Shipments`).body(`\xA7b${railCarts.length} rail shipment(s) in transit:
+  const form = new ActionFormData3().title(`${village.name} \u2014 Active Shipments`).body(`\xA7b${railCarts.length} rail shipment(s) in transit:
 
 \xA7f${lines}
 
@@ -10012,7 +8041,7 @@ async function showTradeHistoryMenu(player, villageId) {
   if (!village) return;
   const history = village.tradeHistory ?? [];
   if (history.length === 0) {
-    const form2 = new ActionFormData().title(`${village.name} \u2014 Trade History`).body("\xA77No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.").button("Close");
+    const form2 = new ActionFormData3().title(`${village.name} \u2014 Trade History`).body("\xA77No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.").button("Close");
     await form2.show(player);
     return;
   }
@@ -10027,467 +8056,8 @@ async function showTradeHistoryMenu(player, villageId) {
 \xA77Cargo: \xA7f${entry.summary}
 \xA78${timeLabel}`;
   });
-  const form = new ActionFormData().title(`${village.name} \u2014 Trade History`).body(`\xA7bLast ${history.length} arrival(s):
+  const form = new ActionFormData3().title(`${village.name} \u2014 Trade History`).body(`\xA7bLast ${history.length} arrival(s):
 
 ` + lines.join("\n\n")).button("Close");
   await form.show(player);
-}
-
-// ===== Black Wool War Declaration =====
-function hasWoolWarLine(loc, dim) {
-  const checks = [
-    [{dx:1,dz:0},{dx:2,dz:0}],
-    [{dx:-1,dz:0},{dx:-2,dz:0}],
-    [{dx:0,dz:1},{dx:0,dz:2}],
-    [{dx:0,dz:-1},{dx:0,dz:-2}],
-    [{dx:-1,dz:0},{dx:1,dz:0}],
-    [{dx:0,dz:-1},{dx:0,dz:1}],
-  ];
-  for (const [d1, d2] of checks) {
-    try {
-      const b1 = dim.getBlock({x:loc.x+d1.dx, y:loc.y, z:loc.z+d1.dz});
-      const b2 = dim.getBlock({x:loc.x+d2.dx, y:loc.y, z:loc.z+d2.dz});
-      if (b1?.typeId === "minecraft:black_wool" && b2?.typeId === "minecraft:black_wool") return true;
-    } catch {}
-  }
-  return false;
-}
-async function triggerWoolWarDeclaration(player, village) {
-  const myKingdom = getKingdomOf(player.name);
-  const enemyKingdom = getKingdom(village.kingdomId);
-  if (!myKingdom || !enemyKingdom) return;
-  if (myKingdom.id === enemyKingdom.id) return;
-  if (areAtWar(myKingdom.id, enemyKingdom.id)) {
-    notifyPlayer(player.name, `\xA7c\u2694 Already at war with ${enemyKingdom.name}.`);
-    return;
-  }
-  const form = new MessageFormData()
-    .title("\u2694 War Declaration")
-    .body(
-      `You have placed 3 black wool in ${village.name}'s territory!\n\n` +
-      `\xA7cDeclare WAR on kingdom "\xA7b${enemyKingdom.name}\xA7c" (owner: ${village.owner})?\n\n` +
-      `\xA77This cannot be undone without a peace treaty.`
-    )
-    .button1("\u2694 Declare War!")
-    .button2("Cancel");
-  const response = await form.show(player);
-  if (response.canceled) return;
-  if (response.selection === 0) {
-    declareWar(myKingdom.id, enemyKingdom.id);
-    for (const p of world16.getPlayers()) {
-      notifyPlayer(
-        p.name,
-        `\xA7c\u2694 WAR DECLARED! \xA7f${player.name} \xA77(${myKingdom.name}) \xA7chas declared war on \xA7b${enemyKingdom.name}\xA7c by placing black wool in their territory!`
-      );
-    }
-  } else {
-    notifyPlayer(player.name, "\xA77War declaration cancelled.");
-  }
-}
-
-// ===== Strategic Formation Map =====
-var STRAT_GRID = [
-  {id:1,  angle:0,   dist:10, label:"N  \xb710"},
-  {id:2,  angle:45,  dist:10, label:"NE \xb710"},
-  {id:3,  angle:90,  dist:10, label:"E  \xb710"},
-  {id:4,  angle:135, dist:10, label:"SE \xb710"},
-  {id:5,  angle:180, dist:10, label:"S  \xb710"},
-  {id:6,  angle:225, dist:10, label:"SW \xb710"},
-  {id:7,  angle:270, dist:10, label:"W  \xb710"},
-  {id:8,  angle:315, dist:10, label:"NW \xb710"},
-  {id:9,  angle:0,   dist:22, label:"N  \xb722"},
-  {id:10, angle:45,  dist:22, label:"NE \xb722"},
-  {id:11, angle:90,  dist:22, label:"E  \xb722"},
-  {id:12, angle:135, dist:22, label:"SE \xb722"},
-  {id:13, angle:180, dist:22, label:"S  \xb722"},
-  {id:14, angle:225, dist:22, label:"SW \xb722"},
-  {id:15, angle:270, dist:22, label:"W  \xb722"},
-  {id:16, angle:315, dist:22, label:"NW \xb722"},
-];
-var STRAT_MIN_TOWNHALL_DIST = 15;
-var STRAT_LEASH_DIST = 30;
-var stratFormations = new Map();
-var stratMarkerEntities = new Map();
-var STRAT_TROOP_LABELS = {
-  cityGuards:   "City Guards",
-  spearmen:     "Spearmen",
-  archers:      "Archers",
-  cavalry:      "Cavalry",
-  samurai:      "Samurai",
-  heavyKnights: "Heavy Knights"
-};
-var STRAT_TROOP_KEYS = ["cityGuards","spearmen","archers","cavalry","samurai","heavyKnights"];
-var STRAT_TOKEN_IDS  = {
-  cityGuards:   "kingdoms:guard_token",
-  spearmen:     "kingdoms:spearman_token",
-  archers:      "kingdoms:archer_token",
-  cavalry:      "kingdoms:cavalry_token",
-  samurai:      "kingdoms:samurai_token",
-  heavyKnights: "kingdoms:heavy_knight_token"
-};
-var STRAT_ENTITY_MAP = {
-  cityGuards:   "kingdoms:city_guard",
-  spearmen:     "kingdoms:spearman",
-  archers:      "kingdoms:archer",
-  cavalry:      "kingdoms:cavalry",
-  samurai:      "kingdoms:samurai",
-  heavyKnights: "kingdoms:heavy_knight"
-};
-function countInventoryTokens(player) {
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  const result = {cityGuards:0, spearmen:0, archers:0, cavalry:0};
-  if (!inv?.container) return result;
-  const c = inv.container;
-  for (let i = 0; i < c.size; i++) {
-    const slot = c.getItem(i);
-    if (!slot) continue;
-    const info = TROOP_TOKEN_MAP[slot.typeId];
-    if (info) result[info.troopType] += slot.amount;
-  }
-  return result;
-}
-function consumeInventoryTokens(player, toConsume) {
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  if (!inv?.container) return;
-  const c = inv.container;
-  for (const key of STRAT_TROOP_KEYS) {
-    let need = toConsume[key] ?? 0;
-    if (need <= 0) continue;
-    const tid = STRAT_TOKEN_IDS[key];
-    for (let i = 0; i < c.size && need > 0; i++) {
-      const slot = c.getItem(i);
-      if (!slot || slot.typeId !== tid) continue;
-      const take = Math.min(slot.amount, need);
-      need -= take;
-      if (slot.amount - take <= 0) { c.setItem(i, void 0); }
-      else { slot.amount -= take; c.setItem(i, slot); }
-    }
-  }
-}
-function getGridWorldPos(center, gp) {
-  const rad = (gp.angle * Math.PI) / 180;
-  return {
-    x: center.x + Math.sin(rad) * gp.dist,
-    y: center.y + 1,
-    z: center.z - Math.cos(rad) * gp.dist
-  };
-}
-function spawnStratMarkers(player, center, targetVillage) {
-  const markers = [];
-  try {
-    const dim = player.dimension;
-    for (const gp of STRAT_GRID) {
-      try {
-        const pos = getGridWorldPos(center, gp);
-        const e = dim.spawnEntity("minecraft:armor_stand", pos);
-        const blocked = !!targetVillage && gp.dist < STRAT_MIN_TOWNHALL_DIST;
-        e.nameTag = blocked
-          ? `\xA7c[${gp.id}] ${gp.label} BLOCKED`
-          : `\xA7e[${gp.id}]\xA7f ${gp.label}`;
-        e.setDynamicProperty("kc:strat_marker", "1");
-        markers.push(e);
-      } catch {}
-    }
-  } catch {}
-  stratMarkerEntities.set(player.name, markers);
-}
-function clearStratMarkers(player) {
-  const markers = stratMarkerEntities.get(player.name) ?? [];
-  for (const e of markers) { try { e.remove(); } catch {} }
-  stratMarkerEntities.delete(player.name);
-}
-async function cmdStratMap(player) {
-  const loc = player.location;
-  let targetVillage = null;
-  let minDist = 150;
-  for (const v of getAllVillages()) {
-    if (v.owner === player.name) continue;
-    const d = Math.hypot(v.townHallLocation.x - loc.x, v.townHallLocation.z - loc.z);
-    if (d < minDist) { targetVillage = v; minDist = d; }
-  }
-  const center = targetVillage
-    ? {x: targetVillage.townHallLocation.x, y: targetVillage.townHallLocation.y, z: targetVillage.townHallLocation.z}
-    : {x: Math.floor(loc.x), y: Math.floor(loc.y), z: Math.floor(loc.z)};
-  try {
-    player.camera.setCamera("minecraft:free", {
-      location: {x: center.x + 0.5, y: center.y + 45, z: center.z + 0.5},
-      rotation:  {x: 90, y: 0}
-    });
-  } catch {}
-  spawnStratMarkers(player, center, targetVillage);
-  await stratMapMainMenu(player, center, targetVillage);
-  clearStratMarkers(player);
-  try { player.camera.clear(); } catch {}
-}
-async function stratMapMainMenu(player, center, targetVillage) {
-  const isMobMode = !targetVillage;
-  const tt = countInventoryTokens(player);
-  const totalAvail = STRAT_TROOP_KEYS.reduce((s, k) => s + tt[k], 0);
-  const preset = stratFormations.get(player.name);
-  const placedTotal = preset ? preset.positions.reduce((s, p) => s + p.count, 0) : 0;
-
-  let presetStr = "\xA77No formation planned yet.";
-  if (preset && preset.positions.length > 0) {
-    presetStr = "\xA7aSaved formation:\n" + preset.positions.map((p) => {
-      const gp = STRAT_GRID.find((g) => g.id === p.gridId);
-      return `  \xA7f${p.count}x ${STRAT_TROOP_LABELS[p.troopType]} \xA77@ pos ${p.gridId} (${gp?.label ?? "?"})`;
-    }).join("\n");
-    if (preset.savedAt) {
-      presetStr += `\n\xA7e\u26A0 Stay within ${STRAT_LEASH_DIST} blocks of save point or formation resets!`;
-    }
-  }
-
-  const modeHeader = isMobMode
-    ? `\xA76[Anti-Mob] No player village in 150 blocks.\n\xA77Troops will engage nearby zombies, pillagers & hostiles.`
-    : `\xA7cTarget: \xA7f${targetVillage.name} \xA77(${targetVillage.owner})\n\xA7cPos 1-8 (inner ring) blocked \u2014 too close to townhall.`;
-
-  const body = [
-    modeHeader,
-    `\xA7eInventory tokens: \xA7fG:${tt.cityGuards}  Sp:${tt.spearmen}  Ar:${tt.archers}  Ca:${tt.cavalry} \xA77(${totalAvail})`,
-    `\xA77Planned: ${placedTotal}  Remaining: ${totalAvail - placedTotal}`,
-    "\xA77Get tokens from Barracks \u2192 'Get Formation Set x10'.",
-    "",
-    presetStr
-  ].join("\n");
-
-  const deployLabel = isMobMode
-    ? "\xA76[Anti-Mob] Deploy Formation"
-    : "\xA7c\u2694 Execute Raid";
-
-  const form = new ActionFormData()
-    .title("\xA76[Strategic Map]" + (isMobMode ? " Anti-Mob" : ` \u2014 ${targetVillage.name}`))
-    .body(body)
-    .button("\u2795 Plan Troop Position")
-    .button("[Clear] Formation")
-    .button("[Set] Lock Formation & Hold")
-    .button(deployLabel)
-    .button("[X] Close Map");
-
-  const response = await form.show(player);
-  if (response.canceled || response.selection === 4) return;
-
-  switch (response.selection) {
-    case 0:
-      await stratAddTroopForm(player, center, targetVillage, tt, totalAvail);
-      await stratMapMainMenu(player, center, targetVillage);
-      break;
-    case 1:
-      stratFormations.delete(player.name);
-      notifyPlayer(player.name, "\xA77Formation cleared.");
-      await stratMapMainMenu(player, center, targetVillage);
-      break;
-    case 2: {
-      const p2 = stratFormations.get(player.name);
-      if (!p2 || p2.positions.length === 0) {
-        notifyPlayer(player.name, "\xA7cNo positions planned. Add troops first.");
-        await stratMapMainMenu(player, center, targetVillage);
-      } else {
-        p2.targetVillageId = targetVillage?.id ?? null;
-        p2.center = center;
-        p2.savedAt = {x: player.location.x, y: player.location.y, z: player.location.z};
-        stratFormations.set(player.name, p2);
-        notifyPlayer(
-          player.name,
-          `\xA7a[Set] Formation locked (${p2.positions.length} pos). \xA7eDo NOT move more than ${STRAT_LEASH_DIST} blocks! Open Strategic Map then Deploy.`
-        );
-      }
-      break;
-    }
-    case 3:
-      await executeStratRaid(player, center, targetVillage, isMobMode);
-      break;
-  }
-}
-async function stratAddTroopForm(player, center, targetVillage, tt, totalAvail) {
-  const preset = stratFormations.get(player.name) ?? {positions:[]};
-  const placedTotal = preset.positions.reduce((s, p) => s + p.count, 0);
-  const remaining = totalAvail - placedTotal;
-  if (remaining <= 0) {
-    notifyPlayer(player.name, `\xA7cAll ${totalAvail} tokens are planned. Clear some positions first.`);
-    return;
-  }
-  // When targeting a village, block inner ring (< STRAT_MIN_TOWNHALL_DIST)
-  const availGrid = STRAT_GRID.filter((g) => !targetVillage || g.dist >= STRAT_MIN_TOWNHALL_DIST);
-  if (availGrid.length === 0) {
-    notifyPlayer(player.name, "\xA7cNo valid grid positions available.");
-    return;
-  }
-  const troopOpts = STRAT_TROOP_KEYS.map((k) => `${STRAT_TROOP_LABELS[k]} (${tt[k]} tokens)`);
-  const posOpts   = availGrid.map((g) => {
-    const placed = preset.positions.find((p) => p.gridId === g.id);
-    return placed
-      ? `[${g.id}] ${g.label} \u2014 ${placed.count}x ${STRAT_TROOP_LABELS[placed.troopType]}`
-      : `[${g.id}] ${g.label} (empty)`;
-  });
-  const form = new ModalFormData()
-    .title("Plan Troops on Map")
-    .dropdown("Troop Type", troopOpts, 0)
-    .dropdown("Grid Position (watch markers in world)", posOpts, 0)
-    .slider("Count", 1, Math.max(1, remaining), 1, 1);
-  const response = await form.show(player);
-  if (response.canceled) return;
-  const [typeIdx, posIdx, count] = response.formValues;
-  const troopType = STRAT_TROOP_KEYS[typeIdx];
-  const gridId    = availGrid[posIdx].id;
-  const alreadyOfType = preset.positions
-    .filter((p) => p.troopType === troopType)
-    .reduce((s, p) => s + p.count, 0);
-  const availOfType = tt[troopType] - alreadyOfType;
-  if (count > availOfType) {
-    notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[troopType]} tokens. Only ${availOfType} available.`);
-    return;
-  }
-  const existIdx = preset.positions.findIndex((p) => p.gridId === gridId);
-  if (existIdx >= 0) {
-    preset.positions[existIdx] = {gridId, troopType, count};
-  } else {
-    preset.positions.push({gridId, troopType, count});
-  }
-  stratFormations.set(player.name, preset);
-  const markers = stratMarkerEntities.get(player.name) ?? [];
-  const fullGridIdx = STRAT_GRID.findIndex((g) => g.id === gridId);
-  if (markers[fullGridIdx]) {
-    try { markers[fullGridIdx].nameTag = `\xA7a[${gridId}]\xA7f ${count}x ${STRAT_TROOP_LABELS[troopType]}`; } catch {}
-  }
-  notifyPlayer(player.name, `\xA7a[OK] ${count}x ${STRAT_TROOP_LABELS[troopType]} planned at pos ${gridId} (${availGrid[posIdx].label}).`);
-}
-async function executeStratRaid(player, center, targetVillage, isMobMode) {
-  const preset = stratFormations.get(player.name);
-  if (!preset || preset.positions.length === 0) {
-    notifyPlayer(player.name, "\xA7cNo formation set. Plan positions then press [Set] Formation.");
-    return;
-  }
-  // 30-block leash check
-  if (preset.savedAt) {
-    const dist = Math.hypot(player.location.x - preset.savedAt.x, player.location.z - preset.savedAt.z);
-    if (dist > STRAT_LEASH_DIST) {
-      stratFormations.delete(player.name);
-      notifyPlayer(player.name, `\xA7c[!] Formation RESET \u2014 moved more than ${STRAT_LEASH_DIST} blocks from save point.`);
-      return;
-    }
-  }
-  // Village raid requires war declaration
-  if (!isMobMode && targetVillage) {
-    const myKingdom = getKingdomOf(player.name);
-    if (!myKingdom || !areAtWar(myKingdom.id, targetVillage.kingdomId)) {
-      notifyPlayer(player.name, `\xA7cDeclare war on \xA7b${targetVillage.owner}\xA7c's kingdom first (place 3 black wool or /scriptevent kc:war).`);
-      return;
-    }
-  }
-  // Validate inventory tokens
-  const toConsume = {cityGuards:0, spearmen:0, archers:0, cavalry:0};
-  for (const pl of preset.positions) toConsume[pl.troopType] = (toConsume[pl.troopType] ?? 0) + pl.count;
-  const held = countInventoryTokens(player);
-  for (const key of STRAT_TROOP_KEYS) {
-    if ((toConsume[key] ?? 0) > held[key]) {
-      notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[key]} tokens! Need ${toConsume[key]}, have ${held[key]}.`);
-      return;
-    }
-  }
-  // Consume tokens from inventory
-  consumeInventoryTokens(player, toConsume);
-  // Deploy entities at formation positions
-  const dim = player.dimension;
-  let totalDeployed = 0;
-  for (const placement of preset.positions) {
-    const gp = STRAT_GRID.find((g) => g.id === placement.gridId);
-    if (!gp) continue;
-    const worldPos = getGridWorldPos(center, gp);
-    const entityType = STRAT_ENTITY_MAP[placement.troopType];
-    if (!entityType) continue;
-    for (let i = 0; i < placement.count; i++) {
-      try {
-        const e = dim.spawnEntity(entityType, {
-          x: worldPos.x + (Math.random() - 0.5) * 4,
-          y: worldPos.y,
-          z: worldPos.z + (Math.random() - 0.5) * 4
-        });
-        e.nameTag = isMobMode
-          ? `\xA76[${player.name}] Anti-Mob`
-          : `\xA7c\u2694 [${player.name} \u2192 ${targetVillage?.name}]`;
-        e.setDynamicProperty("kc:strat_raid_owner", player.name);
-        e.setDynamicProperty("kc:strat_mob_mode", isMobMode ? "1" : "0");
-        totalDeployed++;
-      } catch {}
-    }
-  }
-  stratFormations.delete(player.name);
-  if (isMobMode) {
-    notifyPlayer(player.name, `\xA76[Anti-Mob] ${totalDeployed} troop(s) deployed, engaging nearby hostiles.`);
-  } else {
-    notifyPlayer(player.name, `\xA7c\u2694 RAID LAUNCHED! ${totalDeployed} troop(s) in formation at \xA7b${targetVillage?.name}\xA7c!`);
-    if (targetVillage) notifyPlayer(targetVillage.owner, `\xA7c\u2694 TACTICAL RAID! ${player.name} launched a formation attack on \xA7b${targetVillage.name}\xA7c!`);
-  }
-}
-
-// Tick watcher: reset formation if player moves 30+ blocks from saved position
-system3.runInterval(() => {
-  const _onlinePlayers = new Set(world16.getPlayers().map((pl) => pl.name));
-  for (const [playerName, preset] of stratFormations) {
-    if (!_onlinePlayers.has(playerName)) {
-      stratFormations.delete(playerName);
-      for (const [eid] of stratMarkerEntities) {
-        if (eid.startsWith(playerName + ":")) stratMarkerEntities.delete(eid);
-      }
-      continue;
-    }
-    if (!preset.savedAt) continue;
-    const p = world16.getPlayers().find((pl) => pl.name === playerName);
-    if (!p) continue;
-    const dist = Math.hypot(p.location.x - preset.savedAt.x, p.location.z - preset.savedAt.z);
-    if (dist > STRAT_LEASH_DIST) {
-      stratFormations.delete(playerName);
-      notifyPlayer(playerName, `\xA7c[!] Formation RESET \u2014 moved more than ${STRAT_LEASH_DIST} blocks from save point.`);
-    }
-  }
-}, 40);
-
-// Barracks: Get Formation Set (1 set = 10 soldiers as tokens)
-async function showGetFormationSetForm(player, village) {
-  const t = village.troops;
-  const maxSetsPerType = STRAT_TROOP_KEYS.map((k) => Math.floor(t[k] / 10));
-  const maxSets = Math.max(...maxSetsPerType);
-  if (maxSets === 0) {
-    notifyPlayer(player.name, "\xA7cNeed at least 10 troops of one type in barracks to get a Formation Set (1 set = 10 soldiers).");
-    return;
-  }
-  const troopOpts = STRAT_TROOP_KEYS.map((k, i) => `${STRAT_TROOP_LABELS[k]} (${maxSetsPerType[i]} sets avail, ${t[k]} stored)`);
-  const form = new ModalFormData()
-    .title("Get Formation Set (x10)")
-    .dropdown("Troop type", troopOpts, 0)
-    .slider("Sets to withdraw (1 set = 10 soldiers)", 1, Math.max(1, maxSets), 1, 1);
-  const response = await form.show(player);
-  if (response.canceled) return;
-  const [typeIdx, sets] = response.formValues;
-  const troopType = STRAT_TROOP_KEYS[typeIdx];
-  const needed = sets * 10;
-  if (needed > village.troops[troopType]) {
-    notifyPlayer(player.name, `\xA7cNot enough ${STRAT_TROOP_LABELS[troopType]}. Need ${needed}, have ${village.troops[troopType]}.`);
-    return;
-  }
-  const tokenId = STRAT_TOKEN_IDS[troopType];
-  const inv = player.getComponent(EntityInventoryComponent8.componentId);
-  if (!inv?.container) { notifyPlayer(player.name, "\xA7cInventory unavailable."); return; }
-  const container = inv.container;
-  let leftToGive = needed;
-  for (let i = 0; i < container.size && leftToGive > 0; i++) {
-    const slot = container.getItem(i);
-    if (!slot) {
-      const give = Math.min(leftToGive, 64);
-      try { container.setItem(i, new ItemStack2(tokenId, give)); leftToGive -= give; } catch {}
-    } else if (slot.typeId === tokenId && slot.amount < 64) {
-      const give = Math.min(leftToGive, 64 - slot.amount);
-      slot.amount += give;
-      container.setItem(i, slot);
-      leftToGive -= give;
-    }
-  }
-  const actualGiven = needed - leftToGive;
-  village.troops[troopType] -= actualGiven;
-  saveVillage(village);
-  if (leftToGive > 0) {
-    notifyPlayer(player.name, `\xA7eInventory full! Gave ${actualGiven} tokens. Free up space and try again for the rest.`);
-  } else {
-    notifyPlayer(player.name, `\xA7a[OK] Got ${sets} set(s) = ${needed} ${STRAT_TROOP_LABELS[troopType]} tokens. Use /scriptevent kc:stratmap to deploy!`);
-  }
 }
