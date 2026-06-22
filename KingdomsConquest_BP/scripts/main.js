@@ -2683,10 +2683,12 @@ function upgradeWeapons(player, villageId) {
   }
   village.blacksmith.weaponTier++;
   saveVillage(village);
+  applyBlacksmithBuffsToVillage(village);
   const newTier = WEAPON_TIERS[village.blacksmith.weaponTier];
+  const newDmgBonus = getWeaponDamageBonus(village.blacksmith.weaponTier);
   notifyPlayer(
     player.name,
-    `\xA7aWeapons upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a!`
+    `\xA7aWeapons upgraded to \xA7b${newTier}\xA7a tier! Soldiers now deal \xA7c+${newDmgBonus}\xA7a bonus damage.`
   );
   return true;
 }
@@ -2717,10 +2719,12 @@ function upgradeArmor(player, villageId) {
   }
   village.blacksmith.armorTier++;
   saveVillage(village);
+  applyBlacksmithBuffsToVillage(village);
   const newTier = ARMOR_TIERS[village.blacksmith.armorTier];
+  const newResPct = getArmorResistancePct(village.blacksmith.armorTier);
   notifyPlayer(
     player.name,
-    `\xA7aArmor upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a!`
+    `\xA7aArmor upgraded to \xA7b${newTier}\xA7a tier! Soldiers now have \xA7b${newResPct}%\xA7a damage reduction.`
   );
   return true;
 }
@@ -2765,20 +2769,62 @@ function giveBackItems(player, typeId, amount) {
     }
   }
 }
+var SOLDIER_ENTITY_TYPES_FOR_BUFF = [
+  "kingdoms:city_guard", "kingdoms:spearman", "kingdoms:archer",
+  "kingdoms:cavalry", "kingdoms:samurai", "kingdoms:heavy_knight", "kingdoms:legionary"
+];
+function applyBlacksmithBuffsToEntity(entity, weaponTier, armorTier) {
+  try {
+    if (weaponTier > 0) {
+      entity.addEffect("strength", 72e3, { amplifier: weaponTier - 1, showParticles: false });
+    }
+    if (armorTier > 0) {
+      entity.addEffect("resistance", 72e3, { amplifier: armorTier - 1, showParticles: false });
+    }
+  } catch {}
+}
+function applyBlacksmithBuffsToVillage(village) {
+  const weaponTier = village.blacksmith?.weaponTier ?? 0;
+  const armorTier = village.blacksmith?.armorTier ?? 0;
+  if (weaponTier === 0 && armorTier === 0) return;
+  for (const dimId of ["overworld", "nether", "the_end"]) {
+    try {
+      const dim = world16.getDimension(dimId);
+      for (const type of SOLDIER_ENTITY_TYPES_FOR_BUFF) {
+        try {
+          for (const entity of dim.getEntities({ type })) {
+            if (entity.getDynamicProperty("kc:village_id") !== village.id) continue;
+            applyBlacksmithBuffsToEntity(entity, weaponTier, armorTier);
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+}
+function getWeaponDamageBonus(weaponTier) {
+  return weaponTier > 0 ? weaponTier * 3 : 0;
+}
+function getArmorResistancePct(armorTier) {
+  return armorTier > 0 ? armorTier * 20 : 0;
+}
 function getBlacksmithSummary(village) {
-  const wt = WEAPON_TIERS[village.blacksmith.weaponTier] ?? "unknown";
-  const at = ARMOR_TIERS[village.blacksmith.armorTier] ?? "unknown";
-  const nextWT = WEAPON_TIERS[village.blacksmith.weaponTier + 1];
-  const nextAT = ARMOR_TIERS[village.blacksmith.armorTier + 1];
-  const wCost = WEAPON_UPGRADE_COSTS[village.blacksmith.weaponTier];
-  const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const wIdx = typeof village.blacksmith.weaponTier === "number" ? village.blacksmith.weaponTier : WEAPON_TIERS.indexOf(village.blacksmith.weaponTier);
+  const aIdx = typeof village.blacksmith.armorTier === "number" ? village.blacksmith.armorTier : ARMOR_TIERS.indexOf(village.blacksmith.armorTier);
+  const wt = WEAPON_TIERS[wIdx] ?? "wood";
+  const at = ARMOR_TIERS[aIdx] ?? "leather";
+  const nextWT = WEAPON_TIERS[wIdx + 1];
+  const nextAT = ARMOR_TIERS[aIdx + 1];
+  const wCost = WEAPON_UPGRADE_COSTS[wIdx];
+  const aCost = ARMOR_UPGRADE_COSTS[aIdx];
+  const soldiers = (village.troops?.cityGuards ?? 0) + (village.troops?.spearmen ?? 0) + (village.troops?.archers ?? 0) + (village.troops?.cavalry ?? 0) + (village.troops?.samurai ?? 0) + (village.troops?.heavyKnights ?? 0) + (village.troops?.legionary ?? 0);
+  const dmgBonus = getWeaponDamageBonus(wIdx);
+  const resPct = getArmorResistancePct(aIdx);
   return [
     `\xA7b${village.name} Blacksmith\xA7r`,
-    `Weapon Tier: \xA7a${wt}\xA7r ${nextWT ? `\u2192 ${nextWT}` : "(MAX)"}`,
-    `Armor Tier: \xA7a${at}\xA7r ${nextAT ? `\u2192 ${nextAT}` : "(MAX)"}`,
-    soldiers > 0 && wCost ? `Weapon upgrade cost: ${wCost.materialCount * soldiers}x ${wCost.material.replace("minecraft:", "")} + ${wCost.emeralds * soldiers}\u{1F48E}` : "",
-    soldiers > 0 && aCost ? `Armor upgrade cost: ${aCost.materialCount * soldiers}x ${aCost.material.replace("minecraft:", "")} + ${aCost.emeralds * soldiers}\u{1F48E}` : ""
+    `\u2694 Weapons: \xA7a${wt}\xA7r ${nextWT ? `\u2192 ${nextWT}` : "(MAX)"} \xA77| Attack bonus: \xA7c+${dmgBonus} dmg\xA7r (Strength ${wIdx > 0 ? ["I","II","III","IV","V"][wIdx-1] : "—"})`,
+    `\uD83D\uDEE1 Armor: \xA7a${at}\xA7r ${nextAT ? `\u2192 ${nextAT}` : "(MAX)"} \xA77| Defense: \xA7b${resPct}% damage reduction\xA7r`,
+    soldiers > 0 && wCost ? `Weapon upgrade cost: \xA7e${wCost.materialCount * soldiers}\xA7rx ${wCost.material.replace("minecraft:", "")} + \xA7e${wCost.emeralds * soldiers}\xA7r\u{1F48E}` : "",
+    soldiers > 0 && aCost ? `Armor upgrade cost: \xA7e${aCost.materialCount * soldiers}\xA7rx ${aCost.material.replace("minecraft:", "")} + \xA7e${aCost.emeralds * soldiers}\xA7r\u{1F48E}` : ""
   ].filter(Boolean).join("\n");
 }
 
@@ -5448,6 +5494,11 @@ function spawnPoleGuards(village, pole) {
       entity.setDynamicProperty("kc:village_id", village.id);
       entity.nameTag = `${pole.troopType} [${village.name}]`;
       pole.entityIds.push(entity.id);
+      applyBlacksmithBuffsToEntity(
+        entity,
+        village.blacksmith?.weaponTier ?? 0,
+        village.blacksmith?.armorTier ?? 0
+      );
     } catch {
     }
   }
@@ -7623,6 +7674,11 @@ system3.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
+system3.runInterval(() => {
+  for (const village of getAllVillages()) {
+    applyBlacksmithBuffsToVillage(village);
+  }
+}, 36e3);
 // World merchant spawner — independent of villages, spawns travelling merchants + trade carts near players
 system3.runInterval(() => {
   const players = world16.getAllPlayers();
@@ -8879,10 +8935,13 @@ async function showArmoryEquipMenu(player, village) {
     village.armoryItems[swordId] = (village.armoryItems[swordId] ?? 0) - fromSword;
     need -= fromSword;
     if (need > 0) village.armoryItems[axeId] = (village.armoryItems[axeId] ?? 0) - need;
-    bsm.weaponTier = chosen.tier;
+    const newWTier = Math.max(bsm.weaponTier ?? 0, WEAPON_TIERS.indexOf(chosen.tier));
+    bsm.weaponTier = newWTier;
     village.blacksmith = bsm;
     saveVillage(village);
-    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a weapons!`);
+    applyBlacksmithBuffsToVillage(village);
+    const dmgBonus = getWeaponDamageBonus(newWTier);
+    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a weapons! Attack bonus: \xA7c+${dmgBonus} dmg\xA7a.`);
   } else {
     const piecesNeeded = soldiers * 4;
     const totalArmor = Object.entries(village.armoryItems).filter(([id]) => id.includes(chosen.tier) && (id.includes("_helmet") || id.includes("_chestplate") || id.includes("_leggings") || id.includes("_boots"))).reduce((s, [, c]) => s + c, 0);
@@ -8894,10 +8953,13 @@ async function showArmoryEquipMenu(player, village) {
       village.armoryItems[key] = (village.armoryItems[key] ?? 0) - take;
       need2 -= take;
     }
-    bsm.armorTier = chosen.tier;
+    const newATier = Math.max(bsm.armorTier ?? 0, ARMOR_TIERS.indexOf(chosen.tier));
+    bsm.armorTier = newATier;
     village.blacksmith = bsm;
     saveVillage(village);
-    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a armor!`);
+    applyBlacksmithBuffsToVillage(village);
+    const resPct = getArmorResistancePct(newATier);
+    notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a armor! Defense: \xA7b${resPct}%\xA7a damage reduction.`);
   }
 }
 async function showFarmPlotMenu(player, block) {
