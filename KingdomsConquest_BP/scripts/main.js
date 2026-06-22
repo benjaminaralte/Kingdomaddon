@@ -8362,6 +8362,7 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
   form.button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
   form.button(`\xA76Get Formation Set x10 (Free)`);
   form.button("\xA7eGet Recall Scroll (Free)");
+  form.button("\xA7b\uD83D\uDCDC Buy Formation Scroll\n\xA7715\u{1F48E} from inventory \u2014 opens Strategic Map");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8403,6 +8404,35 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
         if (!c11.getItem(i)) { try { c11.setItem(i, new ItemStack6("kingdoms:recall_scroll", 1)); gave11 = true; } catch {} break; }
       }
       notifyPlayer(player.name, gave11 ? `\xA7eRecall Scroll obtained! Right-click to recall nearby troops.` : "\xA7cInventory full - no space for Recall Scroll.");
+      break;
+    }
+    case 20: {
+      const inv20 = player.getComponent(EntityInventoryComponent8.componentId);
+      const c20 = inv20?.container;
+      if (!c20) break;
+      const scrollCost = 15;
+      let em20 = 0;
+      for (let i = 0; i < c20.size; i++) { const s = c20.getItem(i); if (s?.typeId === "minecraft:emerald") em20 += s.amount; }
+      if (em20 < scrollCost) {
+        notifyPlayer(player.name, `\xA7cNeed ${scrollCost}\u{1F48E} in your inventory to buy a Formation Scroll. Have: ${em20}.`);
+        break;
+      }
+      let rem20 = scrollCost;
+      for (let i = 0; i < c20.size && rem20 > 0; i++) {
+        const s = c20.getItem(i);
+        if (s?.typeId !== "minecraft:emerald") continue;
+        const take = Math.min(s.amount, rem20); rem20 -= take;
+        if (take >= s.amount) c20.setItem(i, void 0);
+        else { s.amount -= take; c20.setItem(i, s); }
+      }
+      let gave20 = false;
+      for (let i = 0; i < c20.size; i++) {
+        if (!c20.getItem(i)) { try { c20.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave20 = true; } catch {} break; }
+      }
+      notifyPlayer(player.name, gave20
+        ? `\xA7b\uD83D\uDCDC Formation Scroll purchased for ${scrollCost}\u{1F48E}! Right-click to open the Strategic Map.`
+        : "\xA7cInventory full \u2014 free up a slot. Emeralds refunded.");
+      if (!gave20) dropItemsAtLoc(player.dimension, player.location, "minecraft:emerald", scrollCost);
       break;
     }
   }
@@ -8681,17 +8711,13 @@ async function showBlacksmithMenu(player, block) {
   const summary = getBlacksmithSummary(village);
   const res = village.resourceStorage ?? { ...EMPTY_RESOURCE_STORAGE };
   const storageLine = `\n\xA77Storage: Iron=${res.iron} Gold=${res.gold} \u{1F48E}=${res.diamonds}`;
-  const scrollLabel = "\xA7b\uD83D\uDCDC Buy Formation Scroll\n\xA7715\u{1F48E} from inventory \u2014 opens Strategic Map";
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Blacksmith`)
     .body(summary + storageLine)
     .button("\u2B06 Upgrade Weapons")
     .button("\u2B06 Upgrade Armor")
-    .button("\uD83D\uDD28 Bulk Forge Iron Sets")
-    .button("\uD83D\uDD28 Bulk Forge Diamond Sets")
-    .button("\uD83D\uDD27 Bulk Repair (4 Iron)")
+    .button("\uD83D\uDD27 Bulk Repair (4 Iron)\n\xA77Re-applies Strength & Resistance to all soldiers")
     .button("\u2694 Bulk Equip from Armory")
-    .button(scrollLabel)
     .button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
@@ -8703,50 +8729,15 @@ async function showBlacksmithMenu(player, block) {
       upgradeArmor(player, village.id);
       break;
     case 2:
-      bulkForge(player, village, "iron");
-      break;
-    case 3:
-      bulkForge(player, village, "diamond");
-      break;
-    case 4:
       bulkRepair(player, village);
       break;
-    case 5:
+    case 3:
       if (village.armoryLocation) {
         await showArmoryEquipMenu(player, village);
       } else {
         notifyPlayer(player.name, "\xA7cNo Armory built in this village. Build one first.");
       }
       break;
-    case 6: {
-      const inv6 = player.getComponent(EntityInventoryComponent8.componentId);
-      const c6 = inv6?.container;
-      if (!c6) break;
-      const scrollCost = 15;
-      let em6 = 0;
-      for (let i = 0; i < c6.size; i++) { const s = c6.getItem(i); if (s?.typeId === "minecraft:emerald") em6 += s.amount; }
-      if (em6 < scrollCost) {
-        notifyPlayer(player.name, `\xA7cNeed ${scrollCost}\u{1F48E} in your inventory to buy a Formation Scroll. Have: ${em6}.`);
-        break;
-      }
-      let rem6 = scrollCost;
-      for (let i = 0; i < c6.size && rem6 > 0; i++) {
-        const s = c6.getItem(i);
-        if (s?.typeId !== "minecraft:emerald") continue;
-        const take = Math.min(s.amount, rem6); rem6 -= take;
-        if (take >= s.amount) c6.setItem(i, void 0);
-        else { s.amount -= take; c6.setItem(i, s); }
-      }
-      let gave6 = false;
-      for (let i = 0; i < c6.size; i++) {
-        if (!c6.getItem(i)) { try { c6.setItem(i, new ItemStack6("kingdoms:formation_scroll", 1)); gave6 = true; } catch {} break; }
-      }
-      notifyPlayer(player.name, gave6
-        ? `\xA7b\uD83D\uDCDC Formation Scroll purchased for ${scrollCost}\u{1F48E}! Right-click to open the Strategic Map.`
-        : "\xA7cInventory full \u2014 free up a slot. Emeralds refunded.");
-      if (!gave6) dropItemsAtLoc(player.dimension, player.location, "minecraft:emerald", scrollCost);
-      break;
-    }
   }
 }
 function bulkForge(player, village, tier) {
@@ -8779,7 +8770,8 @@ function bulkRepair(player, village) {
   }
   res.iron -= cost;
   saveVillage(village);
-  notifyPlayer(player.name, "\xA7aAll soldier equipment repaired! Soldiers fight at peak effectiveness.");
+  applyBlacksmithBuffsToVillage(village);
+  notifyPlayer(player.name, "\xA7aAll soldiers refreshed! Strength & Resistance buffs re-applied to all stationed troops.");
 }
 async function showStorageMenu(player, block) {
   const village = findVillageAt2(block.location);

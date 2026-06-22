@@ -1,0 +1,31 @@
+🔨 Blacksmith — 7 buttons
+Button	Status	What it actually does
+⬆ Upgrade Weapons	✅ Works	Spends materials from your inventory → increments weaponTier → applies Strength effect to all soldiers immediately
+⬆ Upgrade Armor	✅ Works	Same but for armorTier → applies Resistance effect
+🔨 Bulk Forge Iron Sets	❌ Broken + redundant	Supposed to forge 1 iron sword + 1 iron chestplate per soldier using village storage iron — but uses the wrong field (village.soldiers instead of village.troops) so it always forges exactly 1 set regardless of army size. Items land in armory, then you still have to equip separately — 2 steps for what Upgrade Weapons does in 1
+🔨 Bulk Forge Diamond Sets	❌ Same bug	Same problem, same wrong field
+🔧 Bulk Repair (4 Iron)	❌ Fake	Spends 4 iron from village storage, prints "Soldiers fight at peak effectiveness" — does absolutely nothing mechanically. No health restored, no effects applied, no stats changed
+⚔ Bulk Equip from Armory	✅ Useful shortcut	Opens the armory equip screen directly from the blacksmith — handy
+📜 Buy Formation Scroll	✅ Works, misplaced	15💎 → gives a Formation Scroll for the Strategic Map. Works fine but belongs in the Barracks not the Blacksmith
+🛡 Armory — dynamic buttons
+Button	Status	What it actually does
+Withdraw 4x [item]	✅ Works	Returns physical items to your inventory
+⚔ Equip Soldiers from Armory	✅ Works	Picks which material tier to equip from stored items — consumes the items, sets weaponTier/armorTier, applies Strength/Resistance buffs
+The Two Upgrade Paths — How They Relate
+There are actually two ways to upgrade soldier stats, which is fine but not explained to the player:
+
+Path A — Blacksmith Upgrade button:
+Pay from your inventory → tier advances linearly (wood → stone → iron → gold → diamond → netherite) → buff applied instantly. Fast and simple.
+
+Path B — Craft items → Deposit to Armory → Equip:
+You craft the swords/armor yourself (or get them from loot), deposit them, then equip. Uses physical items as cost instead of the blacksmith material cost. Gives the player a choice of path. Also works correctly.
+
+These two paths coexist fine — whichever sets a higher tier wins, so you can't accidentally downgrade.
+
+What I recommend fixing
+Remove "Bulk Forge" entirely — it's broken (wrong soldier count), redundant with Upgrade Weapons, and confusing since it requires a second step to actually equip
+Fix "Bulk Repair" — make it actually do something. The simplest fix: make it re-apply the current Strength/Resistance buffs to all soldiers (useful if soldiers respawned or lost their effect), costing 4 iron as a refresh fee
+Move Formation Scroll from Blacksmith to the Barracks menu where it makes more sense
+Want me to do all three of those cleanups now?
+
+You're out of credits.
