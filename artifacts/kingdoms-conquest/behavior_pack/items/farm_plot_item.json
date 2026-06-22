@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:farm_plot_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Farm Plot"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_farm_plot"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:farm_plot"
+      },
+      "minecraft:max_stack_size": 1
+    }
+  }
+}

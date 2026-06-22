@@ -1,0 +1,19 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "kingdoms:wall_tall",
+      "menu_category": { "category": "construction" }
+    },
+    "components": {
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 3.5 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 18 },
+      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
+      "minecraft:material_instances": {
+        "*": { "texture": "stone_bricks", "render_method": "opaque" }
+      },
+      "minecraft:map_color": "#777777",
+      "minecraft:display_name": "Tall Stone Wall"
+    }
+  }
+}

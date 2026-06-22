@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:stone_gate_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Stone Gate"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_stone_gate"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:stone_gate"
+      },
+      "minecraft:max_stack_size": 2
+    }
+  }
+}

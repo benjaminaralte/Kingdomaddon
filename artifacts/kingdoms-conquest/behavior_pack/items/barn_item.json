@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:barn_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Barn"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_barn"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:barn"
+      },
+      "minecraft:max_stack_size": 1
+    }
+  }
+}

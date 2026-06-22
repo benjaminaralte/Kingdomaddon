@@ -16,7 +16,11 @@
           "default": "kingdoms_tactics_horn"
         }
       },
-      "minecraft:max_stack_size": 1
+      "minecraft:max_stack_size": 1,
+      "minecraft:use_modifiers": {
+        "use_duration": 1,
+        "movement_modifier": 1.0
+      }
     }
   }
 }

@@ -1,0 +1,24 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "kingdoms:barn",
+      "menu_category": { "category": "construction" }
+    },
+    "components": {
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 3.0 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 10 },
+      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
+      "minecraft:material_instances": {
+        "up":    { "texture": "hay_block_top",  "render_method": "opaque" },
+        "down":  { "texture": "planks",         "render_method": "opaque" },
+        "north": { "texture": "log_oak",        "render_method": "opaque" },
+        "south": { "texture": "log_oak",        "render_method": "opaque" },
+        "east":  { "texture": "log_oak",        "render_method": "opaque" },
+        "west":  { "texture": "log_oak",        "render_method": "opaque" }
+      },
+      "minecraft:map_color": "#6B4B2A",
+      "minecraft:display_name": "Barn"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:fence_enclosure_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Livestock Pen"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_fence_enclosure"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:fence_enclosure"
+      },
+      "minecraft:max_stack_size": 1
+    }
+  }
+}
