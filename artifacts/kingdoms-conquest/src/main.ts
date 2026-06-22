@@ -345,20 +345,26 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
   }
 
   if (typeId === CUSTOM_BLOCKS.TRADE_STATION) {
-    const village = findVillageAt(block.location);
-    if (!village) {
-      notifyPlayer(player.name, "§cNo village territory here. Claim a village first.");
+    const tsVillage = findVillageAt(block.location);
+    const tsLoc = { x: block.location.x, y: block.location.y, z: block.location.z };
+    const tsDim = block.dimension;
+    let tsDenyMsg = "";
+    if (!tsVillage || tsVillage.owner !== player.name) {
+      tsDenyMsg = "§cClaim a village first before placing a Material Storage.";
+    } else if (tsVillage.hasTradeStation) {
+      tsDenyMsg = `§c§b${tsVillage.name}§c already has a Material Storage. Break the old one first.`;
+    }
+    if (tsDenyMsg) {
+      notifyPlayer(player.name, tsDenyMsg);
+      system.run(() => {
+        try {
+          tsDim.runCommand(`setblock ${tsLoc.x} ${tsLoc.y} ${tsLoc.z} air destroy`);
+          tsDim.spawnItem(new ItemStack(CUSTOM_BLOCKS.TRADE_STATION, 1), { x: tsLoc.x + 0.5, y: tsLoc.y + 1, z: tsLoc.z + 0.5 });
+        } catch { /* chunk issue */ }
+      });
       return;
     }
-    if (village.owner !== player.name) {
-      notifyPlayer(player.name, "§cThis is not your village.");
-      return;
-    }
-    if (village.hasTradeStation) {
-      notifyPlayer(player.name, `§c§b${village.name}§c already has a Trade Station.`);
-      return;
-    }
-    registerTradeStation(village, block.location);
+    registerTradeStation(tsVillage, block.location);
   }
 
   if (typeId === CUSTOM_BLOCKS.GRANARY) {
@@ -676,8 +682,18 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.granaryLocation) {
       const loc = village.granaryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = player.dimension;
+        // Drop all stored food items
+        if (village.granaryItems) {
+          for (const [itemId, amount] of Object.entries(village.granaryItems)) {
+            if (amount > 0) dropItemsAtLocation(dim, blockLoc, itemId, amount);
+          }
+          village.granaryItems = {};
+        }
+        village.foodStorage = 0;
         village.granaryLocation = undefined;
         saveVillage(village);
+        notifyPlayer(player.name, `§eStored food dropped from §b${village.name}§e Granary!`);
       }
     }
   }
@@ -687,8 +703,16 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.treasuryLocation) {
       const loc = village.treasuryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = player.dimension;
+        // Drop all stored emeralds
+        const emeraldCount = village.treasury ?? 0;
+        if (emeraldCount > 0) {
+          dropItemsAtLocation(dim, blockLoc, "minecraft:emerald", emeraldCount);
+          village.treasury = 0;
+        }
         village.treasuryLocation = undefined;
         saveVillage(village);
+        notifyPlayer(player.name, `§eStored emeralds dropped from §b${village.name}§e Treasury!`);
       }
     }
   }

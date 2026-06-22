@@ -10,14 +10,14 @@ export interface TrainingCost {
 }
 
 export const TRAINING_COSTS: Record<TroopType, TrainingCost> = {
-  cityGuards:      { emeralds: 4,  iron: 8,  gold: 0,  diamonds: 0  },
-  spearmen:        { emeralds: 6,  iron: 12, gold: 0,  diamonds: 0  },
-  archers:         { emeralds: 6,  iron: 10, gold: 4,  diamonds: 0  },
-  cavalry:         { emeralds: 12, iron: 18, gold: 6,  diamonds: 0  },
-  heavyKnight:     { emeralds: 20, iron: 25, gold: 10, diamonds: 5  },
-  samurai:         { emeralds: 40, iron: 30, gold: 15, diamonds: 10 },
-  mercenaryLancer: { emeralds: 35, iron: 25, gold: 12, diamonds: 8  },
-  legionary:       { emeralds: 35, iron: 25, gold: 12, diamonds: 8  },
+  cityGuards:      { emeralds: 2,  iron: 4,  gold: 0, diamonds: 0 },
+  spearmen:        { emeralds: 3,  iron: 6,  gold: 0, diamonds: 0 },
+  archers:         { emeralds: 3,  iron: 5,  gold: 2, diamonds: 0 },
+  cavalry:         { emeralds: 6,  iron: 8,  gold: 3, diamonds: 0 },
+  heavyKnight:     { emeralds: 10, iron: 12, gold: 5, diamonds: 2 },
+  samurai:         { emeralds: 20, iron: 15, gold: 8, diamonds: 5 },
+  mercenaryLancer: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
+  legionary:       { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
 };
 
 export const TRAINING_TICKS: Record<TroopType, number> = {

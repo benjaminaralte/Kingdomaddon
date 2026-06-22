@@ -42,22 +42,16 @@ export interface SeedShopEntry {
 }
 
 /** Materials consumed from player inventory on every seed/tool purchase. */
-export const SEED_PURCHASE_MATERIALS: MaterialCost[] = [
-  { itemId: "minecraft:copper_ingot", amount: 2, label: "Copper Ingot ×2" },
-  { itemId: "minecraft:flint",        amount: 1, label: "Flint ×1" },
-  { itemId: "minecraft:glass",        amount: 1, label: "Glass ×1" },
-  { itemId: "minecraft:leather",      amount: 1, label: "Leather ×1" },
-  { itemId: "minecraft:blue_orchid",  amount: 1, label: "Blue Orchid ×1" },
-];
+export const SEED_PURCHASE_MATERIALS: MaterialCost[] = [];
 
 export const SEED_SHOP: SeedShopEntry[] = [
-  { itemId: "minecraft:wheat_seeds",   label: "Wheat Seeds",    quantityPerPurchase: 8,  emeraldCost: 1 },
-  { itemId: "minecraft:carrot",        label: "Carrots (seed)", quantityPerPurchase: 8,  emeraldCost: 2 },
-  { itemId: "minecraft:potato",        label: "Potatoes (seed)",quantityPerPurchase: 8,  emeraldCost: 2 },
-  { itemId: "minecraft:beetroot_seeds",label: "Beetroot Seeds", quantityPerPurchase: 8,  emeraldCost: 1 },
-  { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds",  quantityPerPurchase: 8,  emeraldCost: 2 },
-  { itemId: "minecraft:melon_seeds",   label: "Melon Seeds",    quantityPerPurchase: 8,  emeraldCost: 2 },
-  { itemId: "minecraft:nether_wart",   label: "Nether Wart",    quantityPerPurchase: 4,  emeraldCost: 3 },
+  { itemId: "minecraft:wheat_seeds",   label: "Wheat Seeds",    quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:carrot",        label: "Carrots",        quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:potato",        label: "Potatoes",       quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:beetroot_seeds",label: "Beetroot Seeds", quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds",  quantityPerPurchase: 12, emeraldCost: 1 },
+  { itemId: "minecraft:melon_seeds",   label: "Melon Seeds",    quantityPerPurchase: 12, emeraldCost: 1 },
+  { itemId: "minecraft:nether_wart",   label: "Nether Wart",    quantityPerPurchase: 8,  emeraldCost: 2 },
 ];
 
 export interface FoodSellEntry {
@@ -353,9 +347,6 @@ export function buySeedsFromMarket(
   }
 
   removeItems(container, "minecraft:emerald", entry.emeraldCost);
-  for (const mat of SEED_PURCHASE_MATERIALS) {
-    removeItems(container, mat.itemId, mat.amount);
-  }
 
   let remaining = entry.quantityPerPurchase;
   for (let i = 0; i < container.size && remaining > 0; i++) {
@@ -375,7 +366,7 @@ export function buySeedsFromMarket(
   if (remaining > 0) notifyPlayer(player.name, "§cInventory full — some seeds couldn't be delivered.");
   notifyPlayer(
     player.name,
-    `§aBought §b${entry.quantityPerPurchase - remaining}x ${entry.label}§a for §6${entry.emeraldCost}💎§a + farming materials.`
+    `§aBought §b${entry.quantityPerPurchase - remaining}x ${entry.label}§a for §6${entry.emeraldCost} emerald(s)§a.`
   );
   return true;
 }

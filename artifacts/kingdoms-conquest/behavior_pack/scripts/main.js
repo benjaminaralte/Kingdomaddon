@@ -3800,21 +3800,15 @@ var MERCHANT_STOCK_TEMPLATES = {
     "minecraft:apple": 48
   }
 };
-var SEED_PURCHASE_MATERIALS = [
-  { itemId: "minecraft:copper_ingot", amount: 2, label: "Copper Ingot \xD72" },
-  { itemId: "minecraft:flint", amount: 1, label: "Flint \xD71" },
-  { itemId: "minecraft:glass", amount: 1, label: "Glass \xD71" },
-  { itemId: "minecraft:leather", amount: 1, label: "Leather \xD71" },
-  { itemId: "minecraft:blue_orchid", amount: 1, label: "Blue Orchid \xD71" }
-];
+var SEED_PURCHASE_MATERIALS = [];
 var SEED_SHOP = [
-  { itemId: "minecraft:wheat_seeds", label: "Wheat Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
-  { itemId: "minecraft:carrot", label: "Carrots (seed)", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "minecraft:potato", label: "Potatoes (seed)", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "minecraft:beetroot_seeds", label: "Beetroot Seeds", quantityPerPurchase: 8, emeraldCost: 1 },
-  { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 8, emeraldCost: 2 },
-  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 4, emeraldCost: 3 }
+  { itemId: "minecraft:wheat_seeds", label: "Wheat Seeds", quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:carrot", label: "Carrots", quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:potato", label: "Potatoes", quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:beetroot_seeds", label: "Beetroot Seeds", quantityPerPurchase: 16, emeraldCost: 1 },
+  { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 12, emeraldCost: 1 },
+  { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 12, emeraldCost: 1 },
+  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 8, emeraldCost: 2 }
 ];
 var FOOD_SELL_RATES = [
   { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 5, minBatch: 10 },
@@ -4053,9 +4047,6 @@ function buySeedsFromMarket(player, village, entry) {
     return false;
   }
   removeItems(container, "minecraft:emerald", entry.emeraldCost);
-  for (const mat of SEED_PURCHASE_MATERIALS) {
-    removeItems(container, mat.itemId, mat.amount);
-  }
   let remaining = entry.quantityPerPurchase;
   for (let i = 0; i < container.size && remaining > 0; i++) {
     const slot = container.getItem(i);
@@ -4073,7 +4064,7 @@ function buySeedsFromMarket(player, village, entry) {
   if (remaining > 0) notifyPlayer(player.name, "\xA7cInventory full \u2014 some seeds couldn't be delivered.");
   notifyPlayer(
     player.name,
-    `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost}\u{1F48E}\xA7a + farming materials.`
+    `\xA7aBought \xA7b${entry.quantityPerPurchase - remaining}x ${entry.label}\xA7a for \xA76${entry.emeraldCost} emerald(s)\xA7a.`
   );
   return true;
 }
@@ -4541,14 +4532,14 @@ function extractUntaggedMinecart(cart, village) {
 init_storage();
 init_notify();
 var TRAINING_COSTS = {
-  cityGuards: { emeralds: 4, iron: 8, gold: 0, diamonds: 0 },
-  spearmen: { emeralds: 6, iron: 12, gold: 0, diamonds: 0 },
-  archers: { emeralds: 6, iron: 10, gold: 4, diamonds: 0 },
-  cavalry: { emeralds: 12, iron: 18, gold: 6, diamonds: 0 },
-  heavyKnight: { emeralds: 20, iron: 25, gold: 10, diamonds: 5 },
-  samurai: { emeralds: 40, iron: 30, gold: 15, diamonds: 10 },
-  mercenaryLancer: { emeralds: 35, iron: 25, gold: 12, diamonds: 8 },
-  legionary: { emeralds: 35, iron: 25, gold: 12, diamonds: 8 }
+  cityGuards: { emeralds: 2, iron: 4, gold: 0, diamonds: 0 },
+  spearmen: { emeralds: 3, iron: 6, gold: 0, diamonds: 0 },
+  archers: { emeralds: 3, iron: 5, gold: 2, diamonds: 0 },
+  cavalry: { emeralds: 6, iron: 8, gold: 3, diamonds: 0 },
+  heavyKnight: { emeralds: 10, iron: 12, gold: 5, diamonds: 2 },
+  samurai: { emeralds: 20, iron: 15, gold: 8, diamonds: 5 },
+  mercenaryLancer: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
+  legionary: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 }
 };
 var TRAINING_TICKS = {
   cityGuards: 1200,
@@ -6546,20 +6537,27 @@ world20.afterEvents.playerPlaceBlock.subscribe((event) => {
     registerGuardPole(village, block.location, poleType);
   }
   if (typeId === CUSTOM_BLOCKS.TRADE_STATION) {
-    const village = findVillageAt2(block.location);
-    if (!village) {
-      notifyPlayer(player.name, "\xA7cNo village territory here. Claim a village first.");
+    const tsVillage = findVillageAt2(block.location);
+    const tsLoc = { x: block.location.x, y: block.location.y, z: block.location.z };
+    const tsDim = block.dimension;
+    let tsDenyMsg = "";
+    if (!tsVillage || tsVillage.owner !== player.name) {
+      tsDenyMsg = "\xA7cClaim a village first before placing a Material Storage.";
+    } else if (tsVillage.hasTradeStation) {
+      tsDenyMsg = `\xA7c\xA7b${tsVillage.name}\xA7c already has a Material Storage. Break the old one first.`;
+    }
+    if (tsDenyMsg) {
+      notifyPlayer(player.name, tsDenyMsg);
+      system6.run(() => {
+        try {
+          tsDim.runCommand(`setblock ${tsLoc.x} ${tsLoc.y} ${tsLoc.z} air destroy`);
+          tsDim.spawnItem(new ItemStack6(CUSTOM_BLOCKS.TRADE_STATION, 1), { x: tsLoc.x + 0.5, y: tsLoc.y + 1, z: tsLoc.z + 0.5 });
+        } catch {
+        }
+      });
       return;
     }
-    if (village.owner !== player.name) {
-      notifyPlayer(player.name, "\xA7cThis is not your village.");
-      return;
-    }
-    if (village.hasTradeStation) {
-      notifyPlayer(player.name, `\xA7c\xA7b${village.name}\xA7c already has a Trade Station.`);
-      return;
-    }
-    registerTradeStation(village, block.location);
+    registerTradeStation(tsVillage, block.location);
   }
   if (typeId === CUSTOM_BLOCKS.GRANARY) {
     const village = findVillageAt2(block.location);
@@ -6824,8 +6822,17 @@ world20.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.granaryLocation) {
       const loc = village.granaryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = player.dimension;
+        if (village.granaryItems) {
+          for (const [itemId, amount] of Object.entries(village.granaryItems)) {
+            if (amount > 0) dropItemsAtLocation(dim, blockLoc, itemId, amount);
+          }
+          village.granaryItems = {};
+        }
+        village.foodStorage = 0;
         village.granaryLocation = void 0;
         saveVillage(village);
+        notifyPlayer(player.name, `\xA7eStored food dropped from \xA7b${village.name}\xA7e Granary!`);
       }
     }
   }
@@ -6834,8 +6841,15 @@ world20.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village && village.treasuryLocation) {
       const loc = village.treasuryLocation;
       if (loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const dim = player.dimension;
+        const emeraldCount = village.treasury ?? 0;
+        if (emeraldCount > 0) {
+          dropItemsAtLocation(dim, blockLoc, "minecraft:emerald", emeraldCount);
+          village.treasury = 0;
+        }
         village.treasuryLocation = void 0;
         saveVillage(village);
+        notifyPlayer(player.name, `\xA7eStored emeralds dropped from \xA7b${village.name}\xA7e Treasury!`);
       }
     }
   }
