@@ -2579,8 +2579,8 @@ function withdrawEmeralds(player, villageId, amount) {
   return true;
 }
 function getTreasuryReport(village) {
-  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3 };
-  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry) / 3;
+  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3, samurai: 4, heavyKnights: 4, legionary: 4 };
+  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry + (village.troops.samurai ?? 0) * wages.samurai + (village.troops.heavyKnights ?? 0) * wages.heavyKnights + (village.troops.legionary ?? 0) * wages.legionary) / 3;
   return [
     `\xA7b${village.name} Treasury\xA7r`,
     `\xA77Balance: \xA76${village.treasury}\u{1F48E}`,
@@ -2618,7 +2618,7 @@ function upgradeWeapons(player, villageId) {
   }
   const cost = WEAPON_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2652,7 +2652,7 @@ function upgradeArmor(player, villageId) {
   }
   const cost = ARMOR_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -3818,6 +3818,23 @@ function buyFood(village, amount) {
   notifyPlayer(village.owner, `\xA7aBought ${amount} food for ${total}\u{1F48E} in \xA7b${village.name}\xA7a.`);
   return true;
 }
+function getDailyFoodSellCap(village) {
+  return (village.marketLevel ?? 1) * 40;
+}
+function checkAndConsumeDailyFoodSell(village, emeraldsToEarn) {
+  const today = getCurrentDay();
+  if ((village.lastFoodSellDay ?? -1) !== today) {
+    village.dailyFoodSoldEm = 0;
+    village.lastFoodSellDay = today;
+  }
+  const cap = getDailyFoodSellCap(village);
+  const used = village.dailyFoodSoldEm ?? 0;
+  const remaining = cap - used;
+  if (remaining <= 0) return 0;
+  const allowed = Math.min(emeraldsToEarn, remaining);
+  village.dailyFoodSoldEm = used + allowed;
+  return allowed;
+}
 function sellFood(village, amount) {
   if (!village.granaryLocation || !village.treasuryLocation) {
     notifyPlayer(village.owner, `\xA7c\u26A0 Market income halted in \xA7b${village.name}\xA7c \u2014 Granary and Treasury must both be active!`);
@@ -3825,10 +3842,16 @@ function sellFood(village, amount) {
   }
   const sellPricePerUnit = 1;
   if (village.foodStorage < amount) return false;
+  const cap = getDailyFoodSellCap(village);
+  const allowed = checkAndConsumeDailyFoodSell(village, amount * sellPricePerUnit);
+  if (allowed <= 0) {
+    notifyPlayer(village.owner, `\xA7c\u{1F4CA} Daily food sell limit reached in \xA7b${village.name}\xA7c (${cap}\u{1F48E}/day at Market Lv${village.marketLevel ?? 1}). Upgrade your market for a higher cap.`);
+    return false;
+  }
   village.foodStorage -= amount;
-  village.treasury += amount * sellPricePerUnit;
+  village.treasury += allowed;
   saveVillage(village);
-  notifyPlayer(village.owner, `\xA7aSold ${amount} food for ${amount * sellPricePerUnit}\u{1F48E}.`);
+  notifyPlayer(village.owner, `\xA7aSold ${amount} food for ${allowed}\u{1F48E}. Daily limit: \xA77${village.dailyFoodSoldEm}/${cap}\u{1F48E} used.`);
   return true;
 }
 function processAllFood() {
@@ -4475,12 +4498,22 @@ function sellFoodBulk(player, village, entry, batches) {
       allianceBonusMsg = ` \xA77(alliance bonus limit reached for today)`;
     }
   }
-  const totalEarned = emeraldsEarned + allianceBonus;
+  const cap = getDailyFoodSellCap(village);
+  const allowedBase = checkAndConsumeDailyFoodSell(village, emeraldsEarned);
+  if (allowedBase <= 0) {
+    notifyPlayer(
+      player.name,
+      `\xA7c\u{1F4CA} Daily food sell limit reached in \xA7b${village.name}\xA7c (${cap}\u{1F48E}/day at Market Lv${village.marketLevel ?? 1}). Upgrade your market to raise the cap.`
+    );
+    return false;
+  }
+  const totalEarned = allowedBase + allianceBonus;
   village.treasury += totalEarned;
   saveVillage(village);
+  const limitMsg = `\xA77 [${village.dailyFoodSoldEm}/${cap}\u{1F48E} daily limit]`;
   notifyPlayer(
     player.name,
-    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${totalEarned}\u{1F48E}\xA7a added to \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)${allianceBonusMsg}`
+    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${totalEarned}\u{1F48E}\xA7a added to \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)${allianceBonusMsg}${limitMsg}`
   );
   return true;
 }

@@ -47,3 +47,9 @@ id = "yqajgJeA1l6hKlI5s0vgh"
 uri = "file://KingdomsConquest_v1.6.0_full.zip"
 type = "unspecified"
 title = "KingdomsConquest v1.6.0 — Rename to .mcaddon to install"
+
+[[outputs]]
+id = "2QY3bYjeOLTKEyQ2cS1To"
+uri = "file://KingdomsConquest_v1.7.0_full.zip"
+type = "unspecified"
+title = "KingdomsConquest v1.7.0 — Economy Fixes"
