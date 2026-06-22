@@ -1181,12 +1181,12 @@ init_storage();
 // src/systems/bandit.ts
 import { world as world7, system } from "@minecraft/server";
 init_storage();
-var MAX_WORLD_CAMPS = 20;
+var MAX_WORLD_CAMPS = 28;
 var MIN_WORLD_SPAWN_DIST = 150;
 var MAX_WORLD_SPAWN_DIST = 500;
 var RAID_FOOD_STEAL_PER_STRENGTH = 3;
 var MAX_RAID_FOOD_PCT = 0.15;
-var MAX_ENTITIES_PER_CAMP = 15;
+var MAX_ENTITIES_PER_CAMP = 20;
 function spawnBanditDeserters(village, count) {
   const loc = village.location;
   const angle = Math.random() * Math.PI * 2;
@@ -1235,7 +1235,7 @@ function tryWorldSpawn() {
   for (const c of camps) {
     if (distance(c.location, { x: campX, y: c.location.y, z: campZ }) < 150) return;
   }
-  const strength = 3 + Math.floor(Math.random() * 5);
+  const strength = 5 + Math.floor(Math.random() * 8);
   const camp = {
     id: generateId(),
     location: { x: campX, y: anchor.location.y, z: campZ, dimension: anchor.location.dimension },
@@ -1303,7 +1303,7 @@ function tickBandits() {
       continue;
     }
     trySpawnEntities(fresh);
-    if (Math.random() < 0.3) {
+    if (Math.random() < 0.5) {
       raidNearbyTargets(fresh);
     }
   }
@@ -1365,6 +1365,7 @@ function raidNearbyTargets(camp) {
       target.owner,
       `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! They stole \xA7e${stolen}\u{1F33E}\xA7c food. (Camp strength: ${camp.strength})`
     );
+    logVillageEvent(target, "raid", `\u{1F3F4} Bandit raid \u2014 stole ${stolen}\u{1F33E} food (camp str: ${camp.strength})`);
   } else if (stolen === 0 && target.foodStorage === 0) {
     const emeraldStolen = Math.min(Math.floor(camp.strength * 0.5), target.treasury, 10);
     if (emeraldStolen > 0) {
@@ -1378,6 +1379,7 @@ function raidNearbyTargets(camp) {
         target.owner,
         `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! No food \u2014 they looted \xA76${emeraldStolen}\u{1F48E}\xA7c from the treasury.`
       );
+      logVillageEvent(target, "raid", `\u{1F3F4} Bandit raid \u2014 looted ${emeraldStolen}\u{1F48E} from treasury (no food)`);
     }
   }
 }
@@ -1661,6 +1663,7 @@ function tickWages(village) {
     village.missedWages = 0;
     village.lastWageDay = currentDay;
     notifyPlayer(village.owner, `\xA7aPaid wages (${totalWages}\u{1F48E}) in \xA7b${village.name}\xA7a.`);
+    logVillageEvent(village, "wages", `\u{1F4B0} Wages paid: ${totalWages}\u{1F48E}`);
   } else {
     village.missedWages++;
     village.lastWageDay = currentDay;
@@ -1670,6 +1673,7 @@ function tickWages(village) {
           village.owner,
           `\xA7e\u26A0 Missed wage payment in \xA7b${village.name}\xA7e! Soldiers are unhappy.`
         );
+        logVillageEvent(village, "wages", `\u26A0 Missed wages #1 \u2014 soldiers unhappy`);
         break;
       case 2:
         village.prosperity = Math.max(0, village.prosperity - 15);
@@ -1677,6 +1681,7 @@ function tickWages(village) {
           village.owner,
           `\xA7c\u26A0 Second missed payment in \xA7b${village.name}\xA7c! Morale is low.`
         );
+        logVillageEvent(village, "wages", `\u26A0 Missed wages #2 \u2014 morale -15`);
         break;
       case 3:
         handleDesertion(village);
@@ -1715,6 +1720,7 @@ function handleDesertion(village) {
     village.owner,
     `\xA7c${totalDeserters} soldiers deserted \xA7b${village.name}\xA7c! (${deserterLines.join(", ")}) They joined the bandits!`
   );
+  logVillageEvent(village, "desertion", `\u{1F3F3} ${totalDeserters} deserted: ${deserterLines.join(", ")}`);
   spawnBanditDeserters(village, banditStrength);
 }
 function upgradeBarracks(village) {
@@ -2838,6 +2844,12 @@ function handleKcCommand(player, subcommand, args) {
     case "reset":
       cmdReset(player);
       break;
+    case "log":
+      cmdLog(player, args[0]);
+      break;
+    case "assault":
+      void cmdAssaultBandit(player, args[0]);
+      break;
     default:
       notifyPlayer(player.name, `\xA7cUnknown /kc command: "${subcommand}". Use /scriptevent kc:help`);
   }
@@ -2872,6 +2884,8 @@ function showHelp(player) {
     "\xA7e/scriptevent kc:collect <id>\xA7r \u2014 collect NPC-harvested crops to your inventory",
     "\xA7e/scriptevent kc:achievements\xA7r \u2014 \xA76view your combat achievements (camps destroyed, rebel cities defeated)\xA7r",
     "\xA7e/scriptevent kc:bandits\xA7r \u2014 list active bandit camps \xA7cand rebel cities\xA7r",
+    "\xA7e/scriptevent kc:log [id]\xA7r \u2014 \xA7aview last 10 events for a village (raids, wages, desertions, trades)\xA7r",
+    "\xA7e/scriptevent kc:assault <campNumber>\xA7r \u2014 \xA7cstorm a bandit camp using troops from your inventory\xA7r",
     "\xA7c\u2694 WAR TIP: Place 3 black wool in a line inside an enemy village to declare war!",
     "\xA76\u{1F5FA} /scriptevent kc:stratmap\xA7r \u2014 open Strategic Formation Map (bird's-eye view, place troops)",
     "\xA77Troop types: cityGuards, spearmen, archers, cavalry"
@@ -3276,12 +3290,126 @@ function cmdBandits(player) {
   const summary = getBanditCampSummary();
   notifyPlayer(player.name, "\xA7c\u2550\u2550\u2550 Active Bandit Camps \u2550\u2550\u2550");
   for (const line of summary.split("\n")) notifyPlayer(player.name, line);
+  notifyPlayer(player.name, `\xA77Tip: use \xA7e/scriptevent kc:assault <number>\xA77 to storm a camp.`);
   const cities = getAllRebelCities();
   if (cities.length > 0) {
     notifyPlayer(player.name, `\xA74\u2550\u2550\u2550 Rebel Cities (${cities.length}) \u2550\u2550\u2550`);
     for (const city of cities) {
       notifyPlayer(player.name, `\xA74\u2694\u2694 Rebel City\xA7r  Strength: \xA7e${city.strength}\xA7r  Pos: \xA77${Math.round(city.location.x)},${Math.round(city.location.z)}`);
     }
+  }
+}
+function cmdLog(player, villageArg) {
+  const myVillages = getAllVillages().filter((v) => v.owner === player.name);
+  if (myVillages.length === 0) {
+    notifyPlayer(player.name, "\xA7cYou have no villages.");
+    return;
+  }
+  let village;
+  if (villageArg) {
+    village = myVillages.find((v) => v.id === villageArg || v.name.toLowerCase().includes(villageArg.toLowerCase()));
+  }
+  if (!village) village = myVillages[0];
+  const log = village.alertLog ?? [];
+  notifyPlayer(player.name, `\xA7b\u2550\u2550\u2550 ${village.name} \u2014 Event Log \u2550\u2550\u2550`);
+  if (log.length === 0) {
+    notifyPlayer(player.name, "\xA77No events recorded yet.");
+    return;
+  }
+  const CAT_COLOR = { raid: "\xA7c", wages: "\xA7e", desertion: "\xA7c", trade: "\xA7a", default: "\xA7f" };
+  for (const entry of log) {
+    const color = CAT_COLOR[entry.category] ?? CAT_COLOR.default;
+    notifyPlayer(player.name, `\xA77Day ${entry.day}  ${color}${entry.message}`);
+  }
+  if (myVillages.length > 1) {
+    notifyPlayer(player.name, `\xA77Other villages: ${myVillages.filter((v) => v.id !== village.id).map((v) => `${v.name} (${v.id})`).join(", ")}`);
+  }
+}
+async function cmdAssaultBandit(player, campArg) {
+  const camps = getAllBanditCamps();
+  if (camps.length === 0) {
+    notifyPlayer(player.name, "\xA7eNo active bandit camps to assault.");
+    return;
+  }
+  const campIndex = campArg ? Math.max(0, parseInt(campArg, 10) - 1) : 0;
+  const camp = camps[campIndex];
+  if (!camp) {
+    notifyPlayer(player.name, `\xA7cInvalid camp number. Use /scriptevent kc:bandits to see the list (1\u2013${camps.length}).`);
+    return;
+  }
+  const ASSAULT_TOKEN_POWER = {
+    "kingdoms:guard_token":            1,
+    "kingdoms:spearman_token":         2,
+    "kingdoms:archer_token":           2,
+    "kingdoms:cavalry_token":          3,
+    "kingdoms:samurai_token":          4,
+    "kingdoms:heavy_knight_token":     5,
+    "kingdoms:legionary_token":        4,
+    "kingdoms:mercenary_lancer_token": 4
+  };
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const container = inv?.container;
+  if (!container) {
+    notifyPlayer(player.name, "\xA7cInventory unavailable.");
+    return;
+  }
+  let totalPower = 0;
+  let totalTokens = 0;
+  const tokenCounts = {};
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    const power = ASSAULT_TOKEN_POWER[slot.typeId];
+    if (power === undefined) continue;
+    totalPower += slot.amount * power;
+    totalTokens += slot.amount;
+    tokenCounts[slot.typeId] = (tokenCounts[slot.typeId] ?? 0) + slot.amount;
+  }
+  const campPos = `${Math.round(camp.location.x)}, ${Math.round(camp.location.z)}`;
+  const reward = Math.floor(camp.strength * 3);
+  const form = new ActionFormData()
+    .title(`\u2694 Assault Bandit Camp`)
+    .body(
+      `\xA7c\u2550\u2550 Bandit Camp #${campIndex + 1} \u2550\u2550\xA7r\n` +
+      `Strength: \xA7e${camp.strength}\xA7r   Position: \xA77${campPos}\xA7r\n\n` +
+      `\xA7b\u2550\u2550 Your Forces \u2550\u2550\xA7r\n` +
+      `Tokens in inventory: \xA7f${totalTokens}\xA7r   Combat power: \xA7a${totalPower}\xA7r\n\n` +
+      `\xA77Victory requires \xA7e${camp.strength}\xA77 power (you have \xA7a${totalPower}\xA77).\n` +
+      `\xA7aReward if victorious: \xA76${reward}\u{1F48E}\xA7a + achievement.\n` +
+      `\xA7cAll tokens used are spent in the assault.`
+    )
+    .button(totalPower >= camp.strength ? `\xA7c\u2694 Launch Assault` : `\xA7c\u2694 Launch Assault (weak \u2014 risky!)`)
+    .button("Cancel");
+  const response = await form.show(player);
+  if (response.canceled || response.selection !== 0) return;
+  if (totalTokens === 0) {
+    notifyPlayer(player.name, "\xA7cYou have no troop tokens. Carry tokens in your inventory to assault a camp.");
+    return;
+  }
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot || !ASSAULT_TOKEN_POWER[slot.typeId]) continue;
+    try { container.setItem(i, void 0); } catch {}
+  }
+  const attackRoll = totalPower + Math.floor(Math.random() * Math.ceil(totalPower * 0.3));
+  const defenseRoll = camp.strength + Math.floor(Math.random() * Math.ceil(camp.strength * 0.3));
+  if (attackRoll >= defenseRoll) {
+    const myVillage = getAllVillages().find((v) => v.owner === player.name);
+    if (myVillage) {
+      myVillage.treasury += reward;
+      logVillageEvent(myVillage, "raid", `\u2694 Bandit camp #${campIndex + 1} assaulted \u2014 victory! +${reward}\u{1F48E}`);
+      saveVillage(myVillage);
+    }
+    const ach = getPlayerAchievements(player.name);
+    ach.campsDestroyed = (ach.campsDestroyed ?? 0) + 1;
+    savePlayerAchievements(player.name, ach);
+    disbandBanditCamp(camp.id, player.name);
+    notifyPlayer(player.name, `\xA7a\u2694 VICTORY! Camp #${campIndex + 1} destroyed. \xA76+${reward}\u{1F48E}\xA7a added to your treasury.`);
+  } else {
+    const weakened = Math.max(1, camp.strength - Math.floor(totalPower * 0.5));
+    camp.strength = weakened;
+    saveBanditCamp(camp);
+    notifyPlayer(player.name, `\xA7c\u2694 DEFEAT. Your forces were repelled. Camp weakened to strength \xA7e${weakened}\xA7c. Regroup and try again.`);
   }
 }
 function cmdAchievements(player) {
@@ -4325,11 +4453,32 @@ function sellFoodBulk(player, village, entry, batches) {
       }
     }
   }
-  village.treasury += emeraldsEarned;
+  const ALLIANCE_TRADE_DAILY_LIMIT = 5;
+  let allianceBonus = 0;
+  let allianceBonusMsg = "";
+  const playerKingdom = getKingdomOf(player.name);
+  if (playerKingdom && playerKingdom.alliances && playerKingdom.alliances.length > 0) {
+    const today = getCurrentDay();
+    if ((playerKingdom.allianceTradesDay ?? -1) !== today) {
+      playerKingdom.allianceTradesUsed = 0;
+      playerKingdom.allianceTradesDay = today;
+    }
+    const tradesLeft = ALLIANCE_TRADE_DAILY_LIMIT - (playerKingdom.allianceTradesUsed ?? 0);
+    if (tradesLeft > 0) {
+      allianceBonus = Math.ceil(emeraldsEarned * 0.1);
+      playerKingdom.allianceTradesUsed = (playerKingdom.allianceTradesUsed ?? 0) + 1;
+      saveKingdom(playerKingdom);
+      allianceBonusMsg = ` \xA7a(+${allianceBonus}\u{1F48E} alliance bonus \u2014 ${tradesLeft - 1} left today)`;
+    } else {
+      allianceBonusMsg = ` \xA77(alliance bonus limit reached for today)`;
+    }
+  }
+  const totalEarned = emeraldsEarned + allianceBonus;
+  village.treasury += totalEarned;
   saveVillage(village);
   notifyPlayer(
     player.name,
-    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${emeraldsEarned}\u{1F48E}\xA7a added to \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)`
+    `\xA7aSold \xA7b${totalItems}x ${entry.label}\xA7a \u2192 \xA76+${totalEarned}\u{1F48E}\xA7a added to \xA7b${village.name}\xA7a treasury. (Total: \xA76${village.treasury}\u{1F48E}\xA7a)${allianceBonusMsg}`
   );
   return true;
 }
@@ -4573,6 +4722,7 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
     `\xA7a\u{1F4E6} Shipment ready! Push the \xA7bchest minecart\xA7a at \xA7b${from.name}\xA7a's trade station along rails to \xA7b${to.name}\xA7a. [${summary}]`
   );
   notifyPlayer(to.owner, `\xA7e\u{1F682} Incoming shipment from \xA7b${from.name}\xA7e! [${summary}]`);
+  logVillageEvent(to, "trade", `\u{1F682} Shipment from ${from.name}: ${summary}`);
   return true;
 }
 var MAX_HISTORY_ENTRIES = 10;
@@ -4588,6 +4738,18 @@ function recordTradeHistory(village, fromVillageName, summary, isManual) {
   if (village.tradeHistory.length > MAX_HISTORY_ENTRIES) {
     village.tradeHistory.length = MAX_HISTORY_ENTRIES;
   }
+}
+var MAX_ALERT_LOG_ENTRIES = 10;
+function logVillageEvent(village, category, message) {
+  if (!village.alertLog) village.alertLog = [];
+  const entry = {
+    tick: getCurrentTick(),
+    day: getCurrentDay(),
+    category,
+    message
+  };
+  village.alertLog.unshift(entry);
+  if (village.alertLog.length > MAX_ALERT_LOG_ENTRIES) village.alertLog.length = MAX_ALERT_LOG_ENTRIES;
 }
 var lastPoleTick = 0;
 var POLE_TICK_INTERVAL = 40;
@@ -7313,7 +7475,7 @@ function tickWorldLife(currentTick) {
       saveWorldSeed({ x: cx, z: cz, type: "pillager" });
     } else {
       if (getAllBanditCamps().length < MAX_WORLD_CAMPS) {
-        const camp2 = { id: generateId(), location: { x: cx, y: loc.y, z: cz, dimension: dimId }, strength: 3 + Math.floor(Math.random() * 5), originKingdomId: "", entityIds: [] };
+        const camp2 = { id: generateId(), location: { x: cx, y: loc.y, z: cz, dimension: dimId }, strength: 5 + Math.floor(Math.random() * 8), originKingdomId: "", entityIds: [] };
         saveBanditCamp(camp2);
         trySpawnEntities(camp2);
         buildBanditCampStructure(dim, camp2.location);
