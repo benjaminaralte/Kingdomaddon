@@ -286,7 +286,12 @@ var RESOURCE_LABELS = {
 var TICKS_PER_DAY = 24e3;
 var CLAIM_COST_COBBLESTONE = 10;
 var VILLAGE_CLAIM_RADIUS = 64;
+var VILLAGE_MAX_RADIUS = 160;
 var MIN_VILLAGERS_TO_CLAIM = 3;
+function getVillageRadius(village) {
+  const pop = village?.population ?? 0;
+  return Math.min(VILLAGE_CLAIM_RADIUS + Math.floor(pop / 5) * 16, VILLAGE_MAX_RADIUS);
+}
 var FOOD_PER_VILLAGER_PER_DAY = 1;
 var FOOD_PER_SOLDIER_PER_DAY = 2;
 var POPULATION_GROWTH_INTERVAL_DAYS = 2;
@@ -624,9 +629,10 @@ Abstract food reserve: ${village.foodStorage}\u{1F33E}`;
   ].join("\n");
 }
 function findVillageAt(location, dimensionId) {
-  return getAllVillages().find(
-    (v) => v.location.dimension === dimensionId && Math.abs(v.location.x - location.x) < VILLAGE_CLAIM_RADIUS && Math.abs(v.location.z - location.z) < VILLAGE_CLAIM_RADIUS
-  );
+  return getAllVillages().find((v) => {
+    const r = getVillageRadius(v);
+    return v.location.dimension === dimensionId && Math.abs(v.location.x - location.x) < r && Math.abs(v.location.z - location.z) < r;
+  });
 }
 function addToFieldStorage(village, item, amount) {
   if (amount <= 0) return;
@@ -1028,11 +1034,12 @@ function getKingdomOf(playerName) {
 function claimVillage(player, townHallBlock, kingdomName) {
   const loc = townHallBlock.location;
   const dim = player.dimension;
-  const existing = getAllVillages().find(
-    (v) => v.location.dimension === dim.id && Math.abs(v.location.x - loc.x) < VILLAGE_CLAIM_RADIUS && Math.abs(v.location.z - loc.z) < VILLAGE_CLAIM_RADIUS
-  );
+  const existing = getAllVillages().find((v) => {
+    const r = getVillageRadius(v);
+    return v.location.dimension === dim.id && Math.abs(v.location.x - loc.x) < r && Math.abs(v.location.z - loc.z) < r;
+  });
   if (existing && existing.owner) {
-    notifyPlayer(player.name, `\xA7cThis territory already belongs to "${existing.name}".`);
+    notifyPlayer(player.name, `\xA7cThis territory already belongs to "${existing.name}" (radius: ${getVillageRadius(existing)} blocks).`);
     return false;
   }
   const query = {
@@ -1157,8 +1164,9 @@ function updateHousingCapacity(villageId) {
   const dim = world6.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   let beds = 0;
-  for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 4) {
-    for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 4) {
+  const _hcRadius = getVillageRadius(village);
+  for (let dx = -_hcRadius; dx <= _hcRadius; dx += 4) {
+    for (let dz = -_hcRadius; dz <= _hcRadius; dz += 4) {
       for (let dy = -5; dy <= 10; dy++) {
         try {
           const block = dim.getBlock({ x: loc.x + dx, y: loc.y + dy, z: loc.z + dz });
@@ -2260,8 +2268,9 @@ var lastParticleTick = 0;
 function intrusionKey(playerName, villageId) {
   return `${playerName}:${villageId}`;
 }
-function isInsideBorder(px, pz, vx, vz) {
-  return Math.abs(px - vx) <= BORDER_RADIUS && Math.abs(pz - vz) <= BORDER_RADIUS;
+function isInsideBorder(px, pz, vx, vz, radius) {
+  const r = radius ?? BORDER_RADIUS;
+  return Math.abs(px - vx) <= r && Math.abs(pz - vz) <= r;
 }
 function tickBorders(tick) {
   const players = world9.getPlayers();
@@ -2275,11 +2284,13 @@ function tickBorders(tick) {
       if (village.kingdomId === playerKingdom.id) continue;
       if (!areAtWar(playerKingdom.id, village.kingdomId)) continue;
       const { x: vx, z: vz } = village.location;
+      const vRadius = getVillageRadius(village);
       const inBorder = isInsideBorder(
         player.location.x,
         player.location.z,
         vx,
-        vz
+        vz,
+        vRadius
       );
       if (!inBorder) continue;
       const key = intrusionKey(player.name, village.id);
@@ -2366,10 +2377,11 @@ function renderBordersForPlayers() {
       if (!village.owner) continue;
       const vx = village.location.x;
       const vz = village.location.z;
+      const vr = getVillageRadius(village);
       const isEnemy = playerKingdom && village.kingdomId !== playerKingdom.id && areAtWar(playerKingdom.id, village.kingdomId);
       const edgeDist = Math.max(
-        Math.abs(px - vx) - BORDER_RADIUS,
-        Math.abs(pz - vz) - BORDER_RADIUS
+        Math.abs(px - vx) - vr,
+        Math.abs(pz - vz) - vr
       );
       if (edgeDist > 16 || edgeDist < -16) continue;
       const particleId = isEnemy ? "minecraft:basic_flame_particle" : "minecraft:villager_happy";
@@ -2380,7 +2392,7 @@ function renderBordersForPlayers() {
 function renderBorderParticles(village, dimension, playerY, particleId) {
   const cx = village.location.x;
   const cz = village.location.z;
-  const r = BORDER_RADIUS;
+  const r = getVillageRadius(village);
   const baseY = Math.floor(playerY);
   for (const yOff of PARTICLE_Y_OFFSETS) {
     const y = baseY + yOff;
@@ -5224,20 +5236,22 @@ function scanVillageThreat(village, currentTick, cachedPlayers, cachedKingdoms) 
   let mobCount = 0;
   let playerRaider = null;
   try {
+    const _vScanRadius = getVillageRadius(village);
     const hostiles = dim.getEntities({
       location: center,
-      maxDistance: VILLAGE_CLAIM_RADIUS,
+      maxDistance: _vScanRadius,
       families: ["monster"]
     });
     mobCount = hostiles.length;
   } catch {}
+  const _vThreatRadius = getVillageRadius(village);
   const _scanPlayers = cachedPlayers ?? world14.getPlayers();
   for (const p of _scanPlayers) {
     if (p.name === village.owner) continue;
     const theirKingdom = cachedKingdoms ? cachedKingdoms.get(p.name) : getKingdomOf(p.name);
     if (!theirKingdom) continue;
     if (!areAtWar(village.kingdomId, theirKingdom.id)) continue;
-    if (distance(p.location, center) <= VILLAGE_CLAIM_RADIUS) {
+    if (distance(p.location, center) <= _vThreatRadius) {
       if (!playerRaider) playerRaider = p.name;
     }
   }
@@ -5270,7 +5284,7 @@ function countAutoDispatched(village) {
   let count = 0;
   for (const entityType of Object.values(TROOP_ENTITY_MAP)) {
     try {
-      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: getVillageRadius(village) * 2 });
       for (const e of entities) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) === village.id) count++;
       }
@@ -5353,7 +5367,7 @@ function recallAutoDispatched(village) {
   let recalled = 0;
   for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP)) {
     try {
-      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: getVillageRadius(village) * 2 });
       for (const e of entities) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
         const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;
@@ -7568,20 +7582,22 @@ function tickVillagerRespawn(currentTick) {
         homeVillage = villages.find((v) => v.id === villageId && v.location.dimension === dimId);
       }
       if (!homeVillage) {
-        homeVillage = villages.find((v) =>
-          v.location.dimension === dimId &&
-          Math.abs(v.townHallLocation.x - vLoc.x) < VILLAGE_CLAIM_RADIUS &&
-          Math.abs(v.townHallLocation.z - vLoc.z) < VILLAGE_CLAIM_RADIUS
-        );
+        homeVillage = villages.find((v) => {
+          const r = getVillageRadius(v);
+          return v.location.dimension === dimId &&
+            Math.abs(v.townHallLocation.x - vLoc.x) < r &&
+            Math.abs(v.townHallLocation.z - vLoc.z) < r;
+        });
         if (homeVillage) {
           try { villager.setDynamicProperty("kc:village_id", homeVillage.id); } catch {}
         }
       }
       if (!homeVillage) continue;
       const th = homeVillage.townHallLocation;
+      const _vHomeRadius = getVillageRadius(homeVillage);
       const dx = Math.abs(vLoc.x - th.x);
       const dz = Math.abs(vLoc.z - th.z);
-      if (dx > VILLAGE_CLAIM_RADIUS || dz > VILLAGE_CLAIM_RADIUS) {
+      if (dx > _vHomeRadius || dz > _vHomeRadius) {
         const spawnX = th.x + (Math.random() * 10 - 5);
         const spawnZ = th.z + (Math.random() * 10 - 5);
         try {
