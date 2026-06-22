@@ -139,6 +139,61 @@ export function tickPendingReinforcements(currentTick: number): void {
   }
 }
 
+// ── Cancel an in-transit march and refund troops to the source ───────────────
+
+export function cancelReinforcement(
+  reinforcementId: string,
+  toVillageId:     string
+): boolean {
+  const to = getVillage(toVillageId);
+  if (!to || !to.pendingReinforcements) return false;
+
+  const idx = to.pendingReinforcements.findIndex((pr) => pr.id === reinforcementId);
+  if (idx === -1) return false;
+
+  const pr = to.pendingReinforcements[idx];
+  to.pendingReinforcements.splice(idx, 1);
+  saveVillage(to);
+
+  // Refund troops to source village
+  const from = getVillage(pr.sourceVillageId);
+  if (from) {
+    for (const [type, count] of Object.entries(pr.troops) as Array<[keyof TroopData, number]>) {
+      if ((count ?? 0) <= 0) continue;
+      from.troops[type] = (from.troops[type] ?? 0) + count;
+    }
+    saveVillage(from);
+    notifyPlayer(from.owner, `§e↩ March recalled — troops returned to §b${from.name}§e.`);
+  }
+
+  if (to.owner !== (from?.owner ?? "")) {
+    notifyPlayer(to.owner, `§e↩ Incoming march from §b${pr.sourceVillageName}§e to §b${to.name}§e was recalled.`);
+  }
+
+  return true;
+}
+
+// ── Get all pending reinforcements owned by a player ─────────────────────────
+
+export interface InTransitEntry {
+  pr:          PendingReinforcement;
+  toVillageId: string;
+  toName:      string;
+}
+
+export function getInTransitMarches(playerName: string): InTransitEntry[] {
+  const result: InTransitEntry[] = [];
+  for (const village of getAllVillages()) {
+    if (!village.pendingReinforcements) continue;
+    for (const pr of village.pendingReinforcements) {
+      if (pr.senderName === playerName) {
+        result.push({ pr, toVillageId: village.id, toName: village.name });
+      }
+    }
+  }
+  return result;
+}
+
 export function recallTroops(
   fromVillageId: string,
   toVillageId:   string,

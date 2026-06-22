@@ -78,7 +78,7 @@ import {
   upgradeWeapons, upgradeArmor, getBlacksmithSummary,
   craftForArmory, ARMORY_RECIPES, canCraftArmoryRecipe,
 } from "./systems/blacksmith.js";
-import { sendReinforcements, tickPendingReinforcements } from "./systems/reinforcements.js";
+import { sendReinforcements, tickPendingReinforcements, cancelReinforcement, getInTransitMarches } from "./systems/reinforcements.js";
 import {
   registerTradeStation,
   removeTradeStation,
@@ -1600,24 +1600,103 @@ async function showReinforcementsMenu(
     .filter((id) => id !== villageId)
     .flatMap((id) => { const v = getVillage(id); return v ? [v] : []; });
 
-  if (otherVillages.length === 0) {
-    notifyPlayer(player.name, "§cNo other villages in your kingdom.");
-    return;
-  }
+  const inTransit = getInTransitMarches(player.name);
+  const inTransitLabel = inTransit.length > 0
+    ? `⏳ In-Transit Marches (${inTransit.length} active)`
+    : `⏳ In-Transit Marches (none)`;
+
+  const troopLine = (v: VillageData): string => {
+    const t = v.troops;
+    const hk = t.heavyKnight ?? 0;
+    const sa = t.samurai ?? 0;
+    const ml = t.mercenaryLancer ?? 0;
+    const le = t.legionary ?? 0;
+    return `${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le} troops`;
+  };
 
   const form = new ActionFormData()
-    .title("Send Resources / Reinforcements")
-    .body(`From: §b${village.name}§r\nTreasury: ${village.treasury}💎  Food: ${village.foodStorage}🌾\nGuards: ${village.troops.cityGuards}  Spearmen: ${village.troops.spearmen}\nArchers: ${village.troops.archers}  Cavalry: ${village.troops.cavalry}\n\nSelect destination:`);
+    .title("Reinforcements & Resources")
+    .body(
+      `§7From: §b${village.name}\n` +
+      `§7Treasury: §f${village.treasury}💎  §7Food: §f${village.foodStorage}🌾\n` +
+      `§7Troops: §f${troopLine(village)}\n\n` +
+      `§7Select destination to send, or view in-transit marches.`
+    )
+    .button(inTransitLabel);
 
   for (const v of otherVillages) {
-    const total = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.cavalry;
-    form.button(`${v.name} (${total} troops)`);
+    form.button(`${v.name}\n§7${troopLine(v)}`);
   }
 
   const response = await form.show(player);
   if (response.canceled || response.selection === undefined) return;
 
-  await showSendAmountsForm(player, villageId, otherVillages[response.selection].id);
+  if (response.selection === 0) {
+    await showInTransitMenu(player);
+  } else {
+    await showSendAmountsForm(player, villageId, otherVillages[response.selection - 1].id);
+  }
+}
+
+async function showInTransitMenu(player: import("@minecraft/server").Player): Promise<void> {
+  const marches = getInTransitMarches(player.name);
+  const tick = getCurrentTick();
+
+  if (marches.length === 0) {
+    notifyPlayer(player.name, "§7No reinforcements currently in transit.");
+    return;
+  }
+
+  const form = new ActionFormData()
+    .title("⏳ In-Transit Marches")
+    .body(
+      `§7You have §f${marches.length}§7 active march(es).\n` +
+      `§7Click a march to recall it — troops will be instantly refunded.\n`
+    );
+
+  for (const { pr, toName } of marches) {
+    const troopSummary = Object.entries(pr.troops)
+      .filter(([, c]) => (c ?? 0) > 0)
+      .map(([t, c]) => `${c}×${t}`)
+      .join(", ");
+    const ticksLeft = Math.max(0, pr.arriveTick - tick);
+    const secsLeft  = Math.ceil(ticksLeft / 20);
+    const etaLabel  = secsLeft >= 60
+      ? `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`
+      : `${secsLeft}s`;
+    const status    = ticksLeft <= 0 ? "§aArriving…" : `§eETA ~${etaLabel}`;
+
+    form.button(
+      `↩ ${pr.sourceVillageName} → ${toName}\n§7${troopSummary}  ${status}`
+    );
+  }
+
+  form.button("Back");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection === marches.length) return; // Back
+
+  const chosen = marches[response.selection];
+
+  // Confirm before recalling
+  const confirm = new MessageFormData()
+    .title("↩ Recall March?")
+    .body(
+      `Recall the march from §b${chosen.pr.sourceVillageName}§r → §b${chosen.toName}§r?\n\n` +
+      `§7All troops will be immediately returned to §b${chosen.pr.sourceVillageName}§7.\n` +
+      `§7This cannot be undone.`
+    )
+    .button1("↩ Recall")
+    .button2("Cancel");
+
+  const confirmResp = await confirm.show(player);
+  if (confirmResp.canceled || confirmResp.selection !== 0) return;
+
+  const success = cancelReinforcement(chosen.pr.id, chosen.toVillageId);
+  if (!success) {
+    notifyPlayer(player.name, "§cMarch already arrived or could not be recalled.");
+  }
 }
 
 // FIX: shows all 8 troop types (not just the basic 4), only shows sliders for
