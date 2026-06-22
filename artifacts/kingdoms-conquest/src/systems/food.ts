@@ -1,8 +1,6 @@
 import type { VillageData, FoodShortageStage } from "../types/index.js";
 import {
   FOOD_PER_VILLAGER_PER_DAY,
-  FOOD_PER_SOLDIER_PER_DAY,
-  FOOD_PER_HEAVY_KNIGHT_PER_DAY,
 } from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
 import { getCurrentDay, isNewDay } from "../utils/tick.js";
@@ -29,26 +27,22 @@ export function getFoodProduction(village: VillageData): number {
   return village.workers.farmers * 4;
 }
 
+// FIX: Only count civilian consumption here.
+// Soldier food is handled exclusively by consumeSoldierFoodFromGranary (harvest.ts)
+// to avoid double-deducting food for troops.
 export function getFoodConsumption(village: VillageData): number {
-  const hk = village.troops.heavyKnight ?? 0;
-  const elites =
-    (village.troops.samurai        ?? 0) +
-    (village.troops.mercenaryLancer ?? 0) +
-    (village.troops.legionary       ?? 0);
-  const regularSoldiers =
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry;
+  const totalSoldiers =
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
 
-  const civilians = village.population - regularSoldiers - hk - elites;
-
-  return (
-    Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY +
-    regularSoldiers        * FOOD_PER_SOLDIER_PER_DAY +
-    hk                     * FOOD_PER_HEAVY_KNIGHT_PER_DAY +
-    elites                 * FOOD_PER_HEAVY_KNIGHT_PER_DAY
-  );
+  const civilians = Math.max(0, village.population - totalSoldiers);
+  return civilians * FOOD_PER_VILLAGER_PER_DAY;
 }
 
 export function tickFood(village: VillageData): boolean {

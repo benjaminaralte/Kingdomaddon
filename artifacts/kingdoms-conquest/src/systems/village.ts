@@ -183,6 +183,8 @@ export function getVillageSummary(village: VillageData): string {
   ].join("\n");
 }
 
+// FIX: scan step reduced to 1 so beds at any position inside the village are counted.
+// The previous step=4 skipped up to 93% of possible bed positions.
 export function updateHousingCapacity(villageId: string): void {
   const village = getVillage(villageId);
   if (!village) return;
@@ -191,8 +193,8 @@ export function updateHousingCapacity(villageId: string): void {
   const loc = village.townHallLocation;
 
   let beds = 0;
-  for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 4) {
-    for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 4) {
+  for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 1) {
+    for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 1) {
       try {
         const block = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
         if (block && block.typeId.includes("bed")) beds++;
@@ -206,6 +208,15 @@ export function updateHousingCapacity(villageId: string): void {
   saveVillage(village);
 }
 
+// FIX: check both king and village owners so a player who owns villages
+// but is not the kingdom king still gets their existing kingdom returned.
 function getKingdomOf(playerName: string): import("../types/index.js").KingdomData | undefined {
-  return getAllKingdoms().find((k) => k.king === playerName);
+  return getAllKingdoms().find(
+    (k) =>
+      k.king === playerName ||
+      k.villageIds.some((vid) => {
+        const v = getVillage(vid);
+        return v?.owner === playerName;
+      })
+  );
 }

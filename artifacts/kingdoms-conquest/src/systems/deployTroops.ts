@@ -283,7 +283,7 @@ export function recallNearbyTroops(player: Player): boolean {
 
   for (const entity of toRemove) {
     try {
-      const mount = entity.getVehicle();
+      const mount = (entity as unknown as { getVehicle?: () => import("@minecraft/server").Entity | undefined }).getVehicle?.();
       if (mount) mount.remove();
     } catch {}
     try { entity.remove(); } catch { /* already removed */ }

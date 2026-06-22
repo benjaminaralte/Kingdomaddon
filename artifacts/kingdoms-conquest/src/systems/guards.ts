@@ -187,7 +187,7 @@ function despawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
       const entity = nearby.find((e) => e.id === eid);
       if (entity) {
         try {
-          const mount = entity.getVehicle();
+          const mount = (entity as unknown as { getVehicle?: () => import("@minecraft/server").Entity | undefined }).getVehicle?.();
           if (mount) mount.remove();
         } catch {}
         entity.remove();

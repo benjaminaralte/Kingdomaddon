@@ -138,18 +138,27 @@ function findSolidY(dim: ReturnType<typeof world.getDimension>, x: number, start
   return startY;
 }
 
+// FIX: Only count villagers tagged to this specific village to avoid counting
+// villagers from neighbouring claimed villages toward this village's population cap.
 function spawnVillagerEntity(village: VillageData): void {
   const dim = world.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
 
-  const query = {
-    type: "minecraft:villager_v2",
-    location: { x: loc.x, y: loc.y, z: loc.z },
-    maxDistance: 64,
-  };
+  let villagerCount = 0;
+  try {
+    const nearby = dim.getEntities({
+      type: "minecraft:villager_v2",
+      location: { x: loc.x, y: loc.y, z: loc.z },
+      maxDistance: 64,
+    });
+    for (const e of nearby) {
+      try {
+        if (e.getDynamicProperty("kc:village_id") === village.id) villagerCount++;
+      } catch { /* skip */ }
+    }
+  } catch { return; }
 
-  const existingVillagers = dim.getEntities(query);
-  if (existingVillagers.length < village.population) {
+  if (villagerCount < village.population) {
     try {
       const spawnX = loc.x + (Math.random() * 6 - 3);
       const spawnZ = loc.z + (Math.random() * 6 - 3);

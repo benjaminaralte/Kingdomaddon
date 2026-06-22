@@ -178,7 +178,7 @@ function recallAutoDispatched(village: VillageData): void {
         const tt = (e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) as TroopType | undefined) ?? troopType;
         survivors[tt] = (survivors[tt] ?? 0) + 1;
         try {
-          const mount = e.getVehicle();
+          const mount = (e as unknown as { getVehicle?: () => import("@minecraft/server").Entity | undefined }).getVehicle?.();
           if (mount) mount.remove();
         } catch {}
         try { e.remove(); } catch {}

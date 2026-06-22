@@ -270,17 +270,28 @@ function processArrivingMinecarts(village: VillageData): void {
     const cartDataRaw = cart.getDynamicProperty("kc:cart_data") as string | undefined;
 
     if (cartDataRaw) {
-      // KC-tagged: deliver virtual cargo
+      // KC-tagged: deliver virtual cargo (full 5-block radius is fine)
       try {
         const cartData = JSON.parse(cartDataRaw) as TradeCartData;
         if (deliverTaggedMinecart(cartData, village, cart)) changed = true;
       } catch {
-        // Malformed data — treat as untagged
-        if (extractUntaggedMinecart(cart, village)) changed = true;
+        // Malformed data — treat as untagged with tight radius
+        const dx = cart.location.x - stationLoc.x;
+        const dy = cart.location.y - stationLoc.y;
+        const dz = cart.location.z - stationLoc.z;
+        if (dx * dx + dy * dy + dz * dz <= 4) {
+          if (extractUntaggedMinecart(cart, village)) changed = true;
+        }
       }
     } else {
-      // Player's own minecart — read its actual chest inventory
-      if (extractUntaggedMinecart(cart, village)) changed = true;
+      // FIX: Player's own chest minecart — only absorb if very close (≤2 blocks)
+      // to avoid vacuuming up minecarts that happen to pass near the trade station.
+      const dx = cart.location.x - stationLoc.x;
+      const dy = cart.location.y - stationLoc.y;
+      const dz = cart.location.z - stationLoc.z;
+      if (dx * dx + dy * dy + dz * dz <= 4) {
+        if (extractUntaggedMinecart(cart, village)) changed = true;
+      }
     }
   }
 

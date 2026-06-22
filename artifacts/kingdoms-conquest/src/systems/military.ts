@@ -5,6 +5,8 @@ import { getCurrentDay, daysSince } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
 import { spawnBanditDeserters } from "./bandit.js";
 
+const ELITE_TYPES: ReadonlySet<TroopType> = new Set(["samurai", "mercenaryLancer", "legionary"]);
+
 const RECRUIT_COSTS: Record<TroopType, number> = {
   cityGuards:      8,
   spearmen:        12,
@@ -21,9 +23,26 @@ export function getRecruitCost(type: TroopType): number {
 }
 
 export function recruitTroop(village: VillageData, type: TroopType, count: number = 1): boolean {
+  // Heavy Knight: barracks level gate
   if (type === "heavyKnight" && village.barracksLevel < 3) {
     notifyPlayer(village.owner, `§cHeavy Knights require §bBarracks Level 3§c (currently Lv${village.barracksLevel}).`);
     return false;
+  }
+
+  // FIX: Elite troops require castle + 3 villages (same as queueTraining)
+  if (ELITE_TYPES.has(type)) {
+    if (!village.hasCastle) {
+      notifyPlayer(village.owner, `§cElite troops require a §bCastle§c built in this village.`);
+      return false;
+    }
+    const playerVillageCount = getAllVillages().filter((v) => v.owner === village.owner).length;
+    if (playerVillageCount < 3) {
+      notifyPlayer(
+        village.owner,
+        `§cElite troops require §boccupation of 3 villages§c (you have §f${playerVillageCount}§c).`
+      );
+      return false;
+    }
   }
 
   const costEach = RECRUIT_COSTS[type];

@@ -135,7 +135,7 @@ export function registerChargeSystem(): void {
     // ── Spearmen counter — fires before the charge is consumed ───────────
     if (victim.typeId === SPEAR_ENTITY_ID) {
       try {
-        attacker.applyDamage(SPEAR_COUNTER_DAMAGE, { cause: "entityAttack", damagingEntity: victim });
+        attacker.applyDamage(SPEAR_COUNTER_DAMAGE, { cause: "entityAttack" as import("@minecraft/server").EntityDamageCause, damagingEntity: victim });
       } catch { /* attacker removed */ }
       try {
         const vPos = victim.location;
@@ -158,7 +158,7 @@ export function registerChargeSystem(): void {
 
     // ── Bonus damage ─────────────────────────────────────────────────────
     try {
-      victim.applyDamage(bonus, { cause: "entityAttack", damagingEntity: attacker });
+      victim.applyDamage(bonus, { cause: "entityAttack" as import("@minecraft/server").EntityDamageCause, damagingEntity: attacker });
     } catch { /* victim may already be dead from the base hit */ }
 
     // ── Knockback ────────────────────────────────────────────────────────

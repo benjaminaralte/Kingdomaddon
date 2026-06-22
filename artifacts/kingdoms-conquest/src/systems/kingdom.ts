@@ -5,6 +5,7 @@ import {
   getKingdom,
   getKingdomByKing,
   getVillage,
+  saveVillage,
   saveKingdom,
   deleteKingdom,
 } from "../storage/index.js";
@@ -54,12 +55,30 @@ export function collapseKingdom(kingdomId: string): void {
   notifyPlayer(kingdom.king, `§cYour kingdom "${kingdom.name}" has collapsed!`);
   notifyAllKingdomMembers(kingdom, `§cThe kingdom of "${kingdom.name}" has fallen!`);
 
+  // FIX: save villages after clearing ownership so data is persisted
   for (const vid of kingdom.villageIds) {
     const village = getVillage(vid);
     if (village) {
       village.kingdomId = "";
       village.owner = "";
+      saveVillage(village);
     }
+  }
+
+  // FIX: remove this kingdom from all other kingdoms' wars and alliances
+  // to prevent ghost war/alliance states after collapse
+  for (const other of getAllKingdoms()) {
+    if (other.id === kingdomId) continue;
+    let changed = false;
+    if (other.wars.includes(kingdomId)) {
+      other.wars = other.wars.filter((id) => id !== kingdomId);
+      changed = true;
+    }
+    if (other.alliances.includes(kingdomId)) {
+      other.alliances = other.alliances.filter((id) => id !== kingdomId);
+      changed = true;
+    }
+    if (changed) saveKingdom(other);
   }
 
   deleteKingdom(kingdomId);

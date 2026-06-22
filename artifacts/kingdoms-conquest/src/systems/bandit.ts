@@ -188,6 +188,10 @@ const TROOP_ENTITY_IDS: Record<string, string> = {
   legionary:       "kingdoms:legionary",
 };
 
+// FIX: Query all nearby entities by kc:camp_id tag rather than filtering to
+// only "kingdoms:bandit" type. Typed deserter entities (spearmen, archers, etc.)
+// also belong to camps and were previously invisible to this cleanup, causing
+// camp.strength to never decrease when those entities died.
 function getLiveEntities(
   dim: import("@minecraft/server").Dimension,
   camp: BanditCampData
@@ -195,7 +199,7 @@ function getLiveEntities(
   try {
     return dim.getEntities({
       location: camp.location,
-      maxDistance: 60,
+      maxDistance: 80,
     }).filter((e) => {
       try { return e.getDynamicProperty("kc:camp_id") === camp.id; } catch { return false; }
     });
@@ -205,14 +209,15 @@ function getLiveEntities(
 function cleanDeadEntities(camp: BanditCampData): void {
   try {
     const dim = world.getDimension(camp.location.dimension);
-    const liveIds = new Set(
-      dim.getEntities({ type: "kingdoms:bandit" }).map((e) => e.id)
-    );
+    // FIX: use kc:camp_id tag to identify live entities of ANY type belonging to
+    // this camp instead of only scanning for "kingdoms:bandit".
+    const liveEntities = getLiveEntities(dim, camp);
+    const liveIds = new Set(liveEntities.map((e) => e.id));
+
     const before = camp.entityIds.length;
     camp.entityIds = camp.entityIds.filter((id) => liveIds.has(id));
     const killed = before - camp.entityIds.length;
     if (killed > 0) {
-      // Reduce strength proportionally when players kill bandit entities
       camp.strength = Math.max(0, camp.strength - killed);
     }
     saveBanditCamp(camp);
@@ -303,7 +308,6 @@ function raidNearbyTargets(camp: BanditCampData): void {
     camp.strength = Math.min(camp.strength + 1, 30);
     saveBanditCamp(camp);
 
-    // Import saveVillage lazily to avoid circular deps at module level
     system.run(() => {
       try {
         void import("../storage/index.js").then(({ saveVillage }) => {

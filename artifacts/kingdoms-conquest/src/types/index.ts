@@ -120,6 +120,25 @@ export type ArmoryItemKey =
   | "goldArmor"
   | "diamondArmor";
 
+// FIX: persistent travel-time reinforcements stored on the destination village
+export interface PendingReinforcement {
+  id: string;
+  sourceVillageId: string;
+  sourceVillageName: string;
+  senderName: string;
+  troops: Partial<TroopData>;
+  arriveTick: number;
+}
+
+// FIX: persistent diplomacy request stored on the target kingdom
+export interface PendingDiplomacyData {
+  fromKingdomId: string;
+  toKingdomId: string;
+  type: "war" | "peace" | "alliance";
+  senderName: string;
+  cooldownKey: string;
+}
+
 export interface VillageData {
   id: string;
   name: string;
@@ -165,6 +184,7 @@ export interface VillageData {
   hasGranary?: boolean;
   hasTreasury?: boolean;
   missedSoldierFeedDays?: number;
+  pendingReinforcements?: PendingReinforcement[];
 }
 
 export interface KingdomData {
@@ -175,6 +195,7 @@ export interface KingdomData {
   wars: string[];
   alliances: string[];
   peaceCooldowns?: Record<string, number>;
+  pendingDiplomacy?: PendingDiplomacyData;
 }
 
 export interface BanditCampData {

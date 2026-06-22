@@ -1,10 +1,10 @@
 import { world, system, EntityInventoryComponent, ItemStack } from "@minecraft/server";
 import { ActionFormData, ModalFormData, MessageFormData } from "@minecraft/server-ui";
-import type { VillageData, KingdomData, MerchantData, ResourceStorage, TroopType } from "./types/index.js";
+import type { VillageData, KingdomData, MerchantData, ResourceStorage, TroopType, TroopData } from "./types/index.js";
 import { RESOURCE_LABELS } from "./types/index.js";
 import { getCurrentTick } from "./utils/tick.js";
 import { notifyPlayer } from "./utils/notify.js";
-import { getAllVillages, getVillage, getKingdom, getAllKingdoms, saveVillage } from "./storage/index.js";
+import { getAllVillages, getVillage, getKingdom, getAllKingdoms, saveVillage, saveKingdom } from "./storage/index.js";
 import {
   handleCropBreak,
   isCropBlock,
@@ -28,7 +28,7 @@ import {
   renameVillage,
 } from "./systems/village.js";
 import { processAllFood, getFoodProduction, getFoodConsumption, buyFood, sellFood } from "./systems/food.js";
-import { processAllWages, recruitTroop, disbandTroop, upgradeBarracks } from "./systems/military.js";
+import { processAllWages, upgradeBarracks } from "./systems/military.js";
 import { processAllPopulation } from "./systems/population.js";
 import {
   tickAllMerchantsSpawn,
@@ -78,7 +78,7 @@ import {
   upgradeWeapons, upgradeArmor, getBlacksmithSummary,
   craftForArmory, ARMORY_RECIPES, canCraftArmoryRecipe,
 } from "./systems/blacksmith.js";
-import { sendReinforcements } from "./systems/reinforcements.js";
+import { sendReinforcements, tickPendingReinforcements } from "./systems/reinforcements.js";
 import {
   registerTradeStation,
   removeTradeStation,
@@ -104,16 +104,9 @@ import { tickChargeSystem, registerChargeSystem } from "./systems/chargeAttack.j
 import { tickFormations, openTacticsMenu } from "./systems/formations.js";
 
 // ── Wool Diplomacy ────────────────────────────────────────────────────────────
-interface PendingDiplomacyRequest {
-  fromKingdomId: string;
-  toKingdomId: string;
-  type: "war" | "peace" | "alliance";
-  senderName: string;
-  cooldownKey: string;
-}
-
-const peaceCooldowns = new Map<string, number>();           // `${fromId}:${toId}` → tick expires
-const pendingDiplomacyRequests = new Map<string, PendingDiplomacyRequest>(); // targetKingName → req
+// FIX: Diplomacy state is now persisted in KingdomData so it survives world
+// reloads. The old in-memory Maps were wiped on every server restart, allowing
+// peace-cooldown bypass and silently dropping pending offers on relog.
 
 function checkThreeWool(woolType: string, loc: { x: number; y: number; z: number }, dim: import("@minecraft/server").Dimension): boolean {
   const dirs: [number, number][] = [[1, 0], [0, 1]];
@@ -166,7 +159,9 @@ async function triggerWoolDiplomacy(
   const atWar = areAtWar(myKingdom.id, enemyKingdom.id);
   const requestType: "peace" | "alliance" = atWar ? "peace" : "alliance";
   const cooldownKey = `${myKingdom.id}:${enemyKingdom.id}`;
-  const cooldownExpiry = peaceCooldowns.get(cooldownKey) ?? 0;
+
+  // FIX: read cooldown from persisted KingdomData instead of in-memory Map
+  const cooldownExpiry = myKingdom.peaceCooldowns?.[cooldownKey] ?? 0;
 
   if (getCurrentTick() < cooldownExpiry) {
     const days = ((cooldownExpiry - getCurrentTick()) / TICKS_PER_DAY).toFixed(1);
@@ -181,13 +176,15 @@ async function triggerWoolDiplomacy(
 
   const label = requestType === "peace" ? "✉ Peace Offer" : "✉ Alliance Offer";
 
-  pendingDiplomacyRequests.set(enemyKingdom.king, {
+  // FIX: persist pending diplomacy request on the target kingdom
+  enemyKingdom.pendingDiplomacy = {
     fromKingdomId: myKingdom.id,
-    toKingdomId: enemyKingdom.id,
-    type: requestType,
-    senderName: player.name,
+    toKingdomId:   enemyKingdom.id,
+    type:          requestType,
+    senderName:    player.name,
     cooldownKey,
-  });
+  };
+  saveKingdom(enemyKingdom);
 
   notifyPlayer(player.name, `§a${label} sent to §b${enemyKingdom.name}§a (${enemyKingdom.king}). Awaiting response...`);
   notifyPlayer(enemyKingdom.king, `§e📜 §b${myKingdom.name}§e sent a §f${label}§e. Interact with any waypoint or use /scriptevent kc:diplomacy to respond.`);
@@ -197,11 +194,17 @@ async function triggerWoolDiplomacy(
 }
 
 async function showPendingDiplomacyRequest(player: import("@minecraft/server").Player): Promise<void> {
-  const req = pendingDiplomacyRequests.get(player.name);
-  if (!req) return;
+  // FIX: load pending request from persisted KingdomData instead of in-memory Map
+  const playerKingdom = getKingdomOf(player.name);
+  const req = playerKingdom?.pendingDiplomacy;
+  if (!req || !playerKingdom) return;
 
   const senderKingdom = getKingdom(req.fromKingdomId);
-  if (!senderKingdom) { pendingDiplomacyRequests.delete(player.name); return; }
+  if (!senderKingdom) {
+    playerKingdom.pendingDiplomacy = undefined;
+    saveKingdom(playerKingdom);
+    return;
+  }
 
   const label = req.type === "peace" ? "✉ Peace Offer" : "✉ Alliance Offer";
   const body = req.type === "peace"
@@ -215,7 +218,10 @@ async function showPendingDiplomacyRequest(player: import("@minecraft/server").P
     .button2("❌ Deny");
 
   const resp = await form.show(player);
-  pendingDiplomacyRequests.delete(player.name);
+
+  // Clear the pending request regardless of response
+  playerKingdom.pendingDiplomacy = undefined;
+  saveKingdom(playerKingdom);
 
   if (resp.selection === 0) {
     if (req.type === "peace") {
@@ -228,7 +234,13 @@ async function showPendingDiplomacyRequest(player: import("@minecraft/server").P
       notifyPlayer(player.name, `§aAlliance formed with §b${senderKingdom.name}§a!`);
     }
   } else {
-    peaceCooldowns.set(req.cooldownKey, getCurrentTick() + TICKS_PER_DAY * 2);
+    // FIX: persist cooldown on the sender's KingdomData
+    const freshSender = getKingdom(req.fromKingdomId);
+    if (freshSender) {
+      freshSender.peaceCooldowns ??= {};
+      freshSender.peaceCooldowns[req.cooldownKey] = getCurrentTick() + TICKS_PER_DAY * 2;
+      saveKingdom(freshSender);
+    }
     notifyPlayer(req.senderName, `§c${player.name} denied your ${req.type} offer. Try again in 2 in-game days.`);
     notifyPlayer(player.name, `§eOffer denied.`);
   }
@@ -251,12 +263,15 @@ const CUSTOM_BLOCKS = {
   CASTLE: "kingdoms:castle",
 };
 
+// FIX: use proper circular radius instead of AABB so two villages near a corner
+// cannot simultaneously satisfy both territory checks (up to ~90 blocks diagonally
+// the old box allowed, vs the correct 64-block radius circle here).
 function findVillageAt(location: { x: number; y: number; z: number }): VillageData | undefined {
-  return getAllVillages().find(
-    (v) =>
-      Math.abs(v.location.x - location.x) < 64 &&
-      Math.abs(v.location.z - location.z) < 64
-  );
+  return getAllVillages().find((v) => {
+    const dx = v.location.x - location.x;
+    const dz = v.location.z - location.z;
+    return Math.sqrt(dx * dx + dz * dz) < 64;
+  });
 }
 
 // ── Troop type → token item ID ─────────────────────────────────────────────
@@ -411,18 +426,31 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
   }
 
   // Barracks placement prereq: requires Granary and Treasury already built
+  // FIX: invalid placements now actually remove the block and return the item
+  // instead of just showing a message while leaving the block in the world.
   if (typeId === CUSTOM_BLOCKS.BARRACKS) {
     const bVillage = findVillageAt(block.location);
+    let denyMsg = "";
     if (!bVillage || bVillage.owner !== player.name) {
-      notifyPlayer(player.name, "§cClaim a village first before building a Barracks.");
-      return;
+      denyMsg = "§cClaim a village first before building a Barracks.";
+    } else if (!bVillage.hasGranary) {
+      denyMsg = "§cBarracks requires a §bGranary§c to be built in this village first.";
+    } else if (!bVillage.hasTreasury) {
+      denyMsg = "§cBarracks requires a §bTreasury§c to be built in this village first.";
     }
-    if (!bVillage.hasGranary) {
-      notifyPlayer(player.name, "§cBarracks requires a Granary to be built in this village first.");
-      return;
-    }
-    if (!bVillage.hasTreasury) {
-      notifyPlayer(player.name, "§cBarracks requires a Treasury to be built in this village first.");
+    if (denyMsg) {
+      notifyPlayer(player.name, denyMsg);
+      const bLoc = { x: block.location.x, y: block.location.y, z: block.location.z };
+      const bDim = block.dimension;
+      system.run(() => {
+        try {
+          bDim.runCommand(`setblock ${bLoc.x} ${bLoc.y} ${bLoc.z} air destroy`);
+          bDim.spawnItem(
+            new ItemStack(CUSTOM_BLOCKS.BARRACKS, 1),
+            { x: bLoc.x + 0.5, y: bLoc.y + 1, z: bLoc.z + 0.5 }
+          );
+        } catch { /* chunk issue — silent */ }
+      });
       return;
     }
   }
@@ -512,7 +540,9 @@ world.afterEvents.itemStartUseOn.subscribe((event) => {
       const wpVillage = findVillageAt(block.location);
       if (wpVillage && wpVillage.waypointLocation) {
         void showWaypointMenu(player, wpVillage);
-        if (pendingDiplomacyRequests.has(player.name)) {
+        // FIX: check persisted KingdomData.pendingDiplomacy instead of in-memory Map
+        const wpKingdom = getKingdomOf(player.name);
+        if (wpKingdom?.pendingDiplomacy) {
           system.runTimeout(() => { void showPendingDiplomacyRequest(player); }, 40);
         }
       }
@@ -654,12 +684,14 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
 // Waypoint menu is opened from itemStartUseOn (same pattern as all other blocks).
 
 // ── Show pending diplomacy on player join ─────────────────────────────────────
+// FIX: check persisted KingdomData.pendingDiplomacy instead of in-memory Map
 world.afterEvents.playerJoin.subscribe((event) => {
   const playerName = event.playerName;
-  if (!pendingDiplomacyRequests.has(playerName)) return;
   system.runTimeout(() => {
     const player = world.getPlayers().find((p) => p.name === playerName);
-    if (player) void showPendingDiplomacyRequest(player);
+    if (!player) return;
+    const kingdom = getKingdomOf(playerName);
+    if (kingdom?.pendingDiplomacy) void showPendingDiplomacyRequest(player);
   }, 100);
 });
 
@@ -675,6 +707,7 @@ system.runInterval(() => {
   tickAutoDefense(tick);
   tickChargeSystem(tick);
   tickFormations(tick);
+  tickPendingReinforcements(tick);
 
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
@@ -1587,6 +1620,10 @@ async function showReinforcementsMenu(
   await showSendAmountsForm(player, villageId, otherVillages[response.selection].id);
 }
 
+// FIX: shows all 8 troop types (not just the basic 4), only shows sliders for
+// troops the village actually owns to avoid confusing 0-max sliders, and
+// correctly clamps values to actual available counts so you can never send more
+// than you have even if the slider max rounds up.
 async function showSendAmountsForm(
   player: import("@minecraft/server").Player,
   fromId: string,
@@ -1596,22 +1633,55 @@ async function showSendAmountsForm(
   const to = getVillage(toId);
   if (!from || !to) return;
 
-  const form = new ModalFormData()
-    .title(`${from.name} → ${to.name}`)
-    .slider("City Guards", 0, Math.max(from.troops.cityGuards, 1), 1, 0)
-    .slider("Spearmen", 0, Math.max(from.troops.spearmen, 1), 1, 0)
-    .slider("Archers", 0, Math.max(from.troops.archers, 1), 1, 0)
-    .slider("Cavalry", 0, Math.max(from.troops.cavalry, 1), 1, 0)
-    .slider("Emeralds", 0, Math.max(from.treasury, 1), 1, 0)
-    .slider("Food", 0, Math.max(from.foodStorage, 1), 1, 0);
+  type SliderSpec = { key: TroopType | "emeralds" | "food"; label: string; max: number };
+  const sliders: SliderSpec[] = [];
+
+  const troopDefs: Array<{ key: TroopType; label: string }> = [
+    { key: "cityGuards",      label: "City Guards" },
+    { key: "spearmen",        label: "Spearmen" },
+    { key: "archers",         label: "Archers" },
+    { key: "cavalry",         label: "Cavalry" },
+    { key: "heavyKnight",     label: "Heavy Knights" },
+    { key: "samurai",         label: "Samurai" },
+    { key: "mercenaryLancer", label: "Mercenary Lancers" },
+    { key: "legionary",       label: "Legionaries" },
+  ];
+
+  for (const { key, label } of troopDefs) {
+    const count = from.troops[key] ?? 0;
+    if (count > 0) sliders.push({ key, label, max: count });
+  }
+  if (from.treasury > 0)    sliders.push({ key: "emeralds", label: "Emeralds", max: from.treasury });
+  if (from.foodStorage > 0) sliders.push({ key: "food",     label: "Food",     max: from.foodStorage });
+
+  if (sliders.length === 0) {
+    notifyPlayer(player.name, `§c§b${from.name}§c has no troops, emeralds, or food to send.`);
+    return;
+  }
+
+  const form = new ModalFormData().title(`${from.name} → ${to.name}`);
+  for (const s of sliders) {
+    form.slider(s.label, 0, Math.max(s.max, 1), 1, 0);
+  }
 
   const response = await form.show(player);
-  if (response.canceled) return;
+  if (response.canceled || !response.formValues) return;
 
-  const [guards, spearmen, archers, cavalry, emeralds, food] = response.formValues as number[];
+  const values = response.formValues as number[];
+  const troops: Partial<TroopData> = {};
+  let emeralds = 0;
+  let food = 0;
 
-  if (guards > 0 || spearmen > 0 || archers > 0 || cavalry > 0) {
-    sendReinforcements(fromId, toId, { cityGuards: guards, spearmen, archers, cavalry });
+  sliders.forEach((s, i) => {
+    const v = Math.min(values[i] ?? 0, s.max);
+    if (v <= 0) return;
+    if (s.key === "emeralds") { emeralds = v; }
+    else if (s.key === "food") { food = v; }
+    else { (troops as Record<string, number>)[s.key] = v; }
+  });
+
+  if (Object.keys(troops).length > 0) {
+    sendReinforcements(fromId, toId, troops);
   }
 
   if (emeralds > 0 || food > 0) {
