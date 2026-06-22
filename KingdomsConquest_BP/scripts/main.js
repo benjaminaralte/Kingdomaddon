@@ -240,6 +240,22 @@ var EMPTY_RESOURCE_STORAGE = {
   stone: 0,
   diamonds: 0
 };
+var MAX_MINERS = 5;
+var MIN_POP_FOR_MINERS = 15;
+var MINING_TOOL_TIER_NAMES = ["Wooden", "Stone", "Iron", "Golden", "Diamond"];
+var MINING_TOOL_UPGRADE_COSTS = [
+  { iron: 5,  gold: 0, diamonds: 0, emeralds: 5  },
+  { iron: 10, gold: 0, diamonds: 0, emeralds: 10 },
+  { iron: 5,  gold: 3, diamonds: 0, emeralds: 15 },
+  { iron: 10, gold: 5, diamonds: 3, emeralds: 25 },
+];
+var MINING_OUTPUT_BY_TIER = [
+  { stone:[1,2], coal:[1,2], iron:[0,0], gold:[0,0], diamonds:[0,0] },
+  { stone:[1,3], coal:[1,2], iron:[0,1], gold:[0,0], diamonds:[0,0] },
+  { stone:[1,3], coal:[1,3], iron:[1,2], gold:[0,1], diamonds:[0,0] },
+  { stone:[2,4], coal:[1,3], iron:[1,3], gold:[0,1], diamonds:[0,1] },
+  { stone:[2,5], coal:[2,4], iron:[2,4], gold:[1,2], diamonds:[0,2] },
+];
 var MERCHANT_MATERIAL_MAP = {
   "minecraft:iron_ingot": "iron",
   "minecraft:gold_ingot": "gold",
@@ -3905,13 +3921,22 @@ function updateFoodShortageStage(village, dailyConsumption) {
           `\xA7c\u26A0 Food shortage in \xA7b${village.name}\xA7c! Population growth paused.`
         );
         break;
-      case 3:
+      case 3: {
         village.prosperity = Math.max(0, village.prosperity - 10);
+        const t3 = village.troops;
+        const soldierCount = (t3.cityGuards ?? 0) + (t3.spearmen ?? 0) + (t3.archers ?? 0) + (t3.cavalry ?? 0) +
+          (t3.heavyKnights ?? 0) + (t3.samurai ?? 0) + (t3.mercenaryLancer ?? 0) + (t3.legionary ?? 0);
+        const workerCount = (village.workers?.farmers ?? 0) + (village.workers?.workers ?? 0) + (village.workers?.miners ?? 0);
+        const atRisk = Math.max(0, soldierCount + workerCount - (village.population - 1));
+        const riskMsg = atRisk > 0
+          ? `\xA7c ${atRisk} soldier(s)/worker(s) will be auto-dismissed if famine hits!`
+          : `\xA7e No units at immediate risk yet.`;
         notifyPlayer(
           village.owner,
-          `\xA7c\u26A0 Severe food shortage in \xA7b${village.name}\xA7c! Morale dropping.`
+          `\xA7c\u26A0 Severe food shortage in \xA7b${village.name}\xA7c! Morale dropping.\n${riskMsg}\n\xA7eDeposit food NOW to avoid famine.`
         );
         break;
+      }
       case 4:
         notifyPlayer(
           village.owner,
@@ -4114,6 +4139,42 @@ function spawnVillagerEntity(village) {
 function processAllPopulation() {
   for (const village of getAllVillages()) {
     tickPopulation(village);
+  }
+}
+function tickAllMiners() {
+  const day = getCurrentDay();
+  for (const village of getAllVillages()) {
+    const lastDay = village.lastMiningDay ?? 0;
+    if (day <= lastDay) continue;
+    const miners = village.workers?.miners ?? 0;
+    if (miners <= 0) continue;
+    village.lastMiningDay = day;
+    const tier = village.miningToolTier ?? 0;
+    const outputs = MINING_OUTPUT_BY_TIER[tier] ?? MINING_OUTPUT_BY_TIER[0];
+    village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+    const rs = village.resourceStorage;
+    const gained = {};
+    for (const [res, range] of Object.entries(outputs)) {
+      const [min, max] = range;
+      if (max === 0) continue;
+      let total = 0;
+      for (let m = 0; m < miners; m++) {
+        total += min + Math.floor(Math.random() * (max - min + 1));
+      }
+      if (total > 0) {
+        rs[res] = (rs[res] ?? 0) + total;
+        gained[res] = total;
+      }
+    }
+    if (village.owner && Object.keys(gained).length > 0) {
+      const summary = Object.entries(gained)
+        .map(([k, v]) => `${v} ${RESOURCE_LABELS[k] ?? k}`)
+        .join(", ");
+      notifyPlayer(village.owner,
+        `\xA77\u26CF ${miners} miner(s) in \xA7b${village.name}\xA77 gathered: \xA7f${summary}\xA77 \u2192 Material Storage.`
+      );
+    }
+    saveVillage(village);
   }
 }
 
@@ -7677,6 +7738,7 @@ system3.runInterval(() => {
   tickBandits();
   processAllSoldierFood();
   tickAllFarmers();
+  tickAllMiners();
 }, 24e3);
 system3.runInterval(() => {
   refreshAllGuards();
@@ -8786,18 +8848,31 @@ async function showStorageMenu(player, block) {
   village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
   const res = village.resourceStorage;
   const lines = Object.entries(RESOURCE_LABELS).map(([k, label]) => `${label}: ${res[k] ?? 0}`).join("\n");
+  const miners = village.workers?.miners ?? 0;
+  const toolTier = village.miningToolTier ?? 0;
+  const toolName = MINING_TOOL_TIER_NAMES[toolTier] ?? "Wooden";
+  const popOk = (village.population ?? 0) >= MIN_POP_FOR_MINERS;
+  const minerLine = popOk
+    ? `\u26CF Miners: \xA7a${miners}/${MAX_MINERS}\xA7r  Tool: \xA7b${toolName} Pickaxe`
+    : `\u26CF Mining: \xA7c\uD83D\uDD12 Needs ${MIN_POP_FOR_MINERS} population (have ${village.population ?? 0})`;
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Material Storage`)
-    .body(lines + "\n\n\xA77Use Deposit or Withdraw buttons below:")
+    .body(lines + `\n\n${minerLine}\n\n\xA77Use buttons below:`)
     .button("\xA7a\u2795 Deposit Materials")
     .button("\xA7e\u2796 Withdraw Materials")
+    .button(`\u26CF Manage Miners\n\xA77Assign villagers to mine daily`)
+    .button(`\u2B06 Upgrade Mining Tools\n\xA77${toolName} Pickaxe (Tier ${toolTier}/4)`)
     .button("Close");
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0 || response.selection === 2) return;
+  if (response.canceled || response.selection === void 0 || response.selection === 4) return;
   if (response.selection === 0) {
     await showStorageDepositSlider(player, village);
   } else if (response.selection === 1) {
     await showStorageWithdrawSlider(player, village);
+  } else if (response.selection === 2) {
+    await showMinerManageMenu(player, village);
+  } else if (response.selection === 3) {
+    await showMiningUpgradeMenu(player, village);
   }
 }
 async function showStorageDepositSlider(player, village) {
@@ -8876,6 +8951,100 @@ async function showStorageWithdrawSlider(player, village) {
   if (given > 0 && given < qty) notifyPlayer(player.name, `\xA7eInventory partially full. Only ${given}/${qty} withdrawn.`);
 }
 function _storageMenuOld_unused() {
+}
+async function showMinerManageMenu(player, village) {
+  const pop = village.population ?? 0;
+  if (pop < MIN_POP_FOR_MINERS) {
+    notifyPlayer(player.name, `\xA7cNeed ${MIN_POP_FOR_MINERS} population to assign miners. Current: ${pop}.`);
+    return;
+  }
+  const troops = village.troops;
+  const assignedSoldiers = (troops.cityGuards ?? 0) + (troops.spearmen ?? 0) + (troops.archers ?? 0) + (troops.cavalry ?? 0) +
+    (troops.heavyKnights ?? 0) + (troops.samurai ?? 0) + (troops.mercenaryLancer ?? 0) + (troops.legionary ?? 0);
+  const assignedFarmers = village.workers?.farmers ?? 0;
+  const assignedWorkers = village.workers?.workers ?? 0;
+  const currentMiners = village.workers?.miners ?? 0;
+  const otherAssigned = assignedSoldiers + assignedFarmers + assignedWorkers;
+  const freePop = Math.max(0, pop - otherAssigned - currentMiners);
+  const maxCanAssign = Math.min(MAX_MINERS, currentMiners + freePop);
+  const tier = village.miningToolTier ?? 0;
+  const tierName = MINING_TOOL_TIER_NAMES[tier] ?? "Wooden";
+  const outputDesc = MINING_OUTPUT_BY_TIER[tier];
+  const previewLines = Object.entries(outputDesc)
+    .filter(([, r]) => r[1] > 0)
+    .map(([k, r]) => `  ${RESOURCE_LABELS[k] ?? k}: ${r[0]}-${r[1]} per miner/day`)
+    .join("\n");
+  const form = new ModalFormData()
+    .title(`\u26CF Assign Miners \u2014 ${village.name}`)
+    .slider(
+      `Miners to assign (free pop: ${freePop + currentMiners}, max: ${MAX_MINERS}):`,
+      0, maxCanAssign, 1, currentMiners
+    );
+  const resp = await form.show(player);
+  if (resp.canceled || resp.formValues == null) return;
+  const newMiners = resp.formValues[0];
+  if (!village.workers) village.workers = { farmers: 0, workers: 0, miners: 0 };
+  village.workers.miners = newMiners;
+  saveVillage(village);
+  notifyPlayer(player.name,
+    `\xA7a\u26CF Assigned ${newMiners} miner(s) to \xA7b${village.name}\xA7a.\n` +
+    `\xA77Tool: ${tierName} Pickaxe | Daily output per miner:\n${previewLines}`
+  );
+}
+async function showMiningUpgradeMenu(player, village) {
+  const tier = village.miningToolTier ?? 0;
+  const tierName = MINING_TOOL_TIER_NAMES[tier] ?? "Wooden";
+  if (tier >= MINING_TOOL_TIER_NAMES.length - 1) {
+    notifyPlayer(player.name, `\xA7aMining tools already at maximum tier (Diamond Pickaxe)!`);
+    return;
+  }
+  const cost = MINING_TOOL_UPGRADE_COSTS[tier];
+  if (!cost) return;
+  const nextName = MINING_TOOL_TIER_NAMES[tier + 1];
+  const costParts = [];
+  if (cost.iron > 0) costParts.push(`${cost.iron} iron`);
+  if (cost.gold > 0) costParts.push(`${cost.gold} gold`);
+  if (cost.diamonds > 0) costParts.push(`${cost.diamonds} diamonds`);
+  if (cost.emeralds > 0) costParts.push(`${cost.emeralds}\u{1F48E}`);
+  const nextOutput = MINING_OUTPUT_BY_TIER[tier + 1];
+  const previewLines = Object.entries(nextOutput)
+    .filter(([, r]) => r[1] > 0)
+    .map(([k, r]) => `  ${RESOURCE_LABELS[k] ?? k}: ${r[0]}-${r[1]} per miner/day`)
+    .join("\n");
+  const form = new ActionFormData()
+    .title(`\u2B06 Upgrade Mining Tools`)
+    .body(
+      `Current: \xA7b${tierName} Pickaxe\xA7r \u2192 \xA7a${nextName} Pickaxe\n\n` +
+      `Cost (from Material Storage):\n  ${costParts.join(", ")}\n\n` +
+      `After upgrade, each miner produces:\n${previewLines}`
+    )
+    .button(`\u2B06 Upgrade to ${nextName} Pickaxe`)
+    .button("Cancel");
+  const resp = await form.show(player);
+  if (resp.canceled || resp.selection !== 0) return;
+  const rs = village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
+  if (cost.iron > 0 && (rs.iron ?? 0) < cost.iron) {
+    notifyPlayer(player.name, `\xA7cNeed ${cost.iron} iron in storage (have ${rs.iron ?? 0}).`); return;
+  }
+  if (cost.gold > 0 && (rs.gold ?? 0) < cost.gold) {
+    notifyPlayer(player.name, `\xA7cNeed ${cost.gold} gold in storage (have ${rs.gold ?? 0}).`); return;
+  }
+  if (cost.diamonds > 0 && (rs.diamonds ?? 0) < cost.diamonds) {
+    notifyPlayer(player.name, `\xA7cNeed ${cost.diamonds} diamonds in storage (have ${rs.diamonds ?? 0}).`); return;
+  }
+  if (cost.emeralds > 0 && (village.treasury ?? 0) < cost.emeralds) {
+    notifyPlayer(player.name, `\xA7cNeed ${cost.emeralds}\u{1F48E} in treasury (have ${village.treasury ?? 0}).`); return;
+  }
+  rs.iron     = (rs.iron     ?? 0) - cost.iron;
+  rs.gold     = (rs.gold     ?? 0) - cost.gold;
+  rs.diamonds = (rs.diamonds ?? 0) - cost.diamonds;
+  village.treasury = (village.treasury ?? 0) - cost.emeralds;
+  village.miningToolTier = tier + 1;
+  saveVillage(village);
+  notifyPlayer(player.name,
+    `\xA7a\u26CF Mining tools upgraded to \xA7b${nextName} Pickaxe\xA7a in ${village.name}!\n` +
+    `\xA77New daily output per miner:\n${previewLines}`
+  );
 }
 async function showArmoryMenu(player, block) {
   const village = findVillageAt2(block.location);
