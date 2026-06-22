@@ -3369,6 +3369,10 @@ async function cmdAssaultBandit(player, campArg) {
   }
   const campPos = `${Math.round(camp.location.x)}, ${Math.round(camp.location.z)}`;
   const reward = Math.floor(camp.strength * 3);
+  const lootIron = Math.floor(camp.strength * 1.5);
+  const lootGold = Math.floor(camp.strength * 0.5);
+  const lootDiamonds = Math.floor(camp.strength / 6);
+  const lootPreview = `\xA76${reward}\u{1F48E} \xA77+ \xA7f${lootIron} iron\xA77, \xA76${lootGold} gold\xA77${lootDiamonds > 0 ? `, \xA7b${lootDiamonds} diamonds` : ""}`;
   const form = new ActionFormData()
     .title(`\u2694 Assault Bandit Camp`)
     .body(
@@ -3377,7 +3381,7 @@ async function cmdAssaultBandit(player, campArg) {
       `\xA7b\u2550\u2550 Your Forces \u2550\u2550\xA7r\n` +
       `Tokens in inventory: \xA7f${totalTokens}\xA7r   Combat power: \xA7a${totalPower}\xA7r\n\n` +
       `\xA77Victory requires \xA7e${camp.strength}\xA77 power (you have \xA7a${totalPower}\xA77).\n` +
-      `\xA7aReward if victorious: \xA76${reward}\u{1F48E}\xA7a + achievement.\n` +
+      `\xA7aReward if victorious: ${lootPreview}\xA7a + achievement.\n` +
       `\xA7cAll tokens used are spent in the assault.`
     )
     .button(totalPower >= camp.strength ? `\xA7c\u2694 Launch Assault` : `\xA7c\u2694 Launch Assault (weak \u2014 risky!)`)
@@ -3399,14 +3403,24 @@ async function cmdAssaultBandit(player, campArg) {
     const myVillage = getAllVillages().find((v) => v.owner === player.name);
     if (myVillage) {
       myVillage.treasury += reward;
-      logVillageEvent(myVillage, "raid", `\u2694 Bandit camp #${campIndex + 1} assaulted \u2014 victory! +${reward}\u{1F48E}`);
+      logVillageEvent(myVillage, "raid", `\u2694 Bandit camp #${campIndex + 1} assaulted \u2014 victory! +${reward}\u{1F48E} +${lootIron} iron +${lootGold} gold${lootDiamonds > 0 ? ` +${lootDiamonds} diamonds` : ""}`);
       saveVillage(myVillage);
     }
     const ach = getPlayerAchievements(player.name);
     ach.campsDestroyed = (ach.campsDestroyed ?? 0) + 1;
     savePlayerAchievements(player.name, ach);
     disbandBanditCamp(camp.id, player.name);
-    notifyPlayer(player.name, `\xA7a\u2694 VICTORY! Camp #${campIndex + 1} destroyed. \xA76+${reward}\u{1F48E}\xA7a added to your treasury.`);
+    try {
+      const dim = player.dimension;
+      if (lootIron > 0) dim.runCommand(`give "${player.name}" minecraft:iron_ingot ${lootIron}`);
+      if (lootGold > 0) dim.runCommand(`give "${player.name}" minecraft:gold_ingot ${lootGold}`);
+      if (lootDiamonds > 0) dim.runCommand(`give "${player.name}" minecraft:diamond ${lootDiamonds}`);
+    } catch {}
+    let lootMsg = `\xA76+${reward}\u{1F48E}\xA7a to treasury`;
+    lootMsg += `, \xA7f+${lootIron} iron\xA7a`;
+    lootMsg += `, \xA76+${lootGold} gold\xA7a`;
+    if (lootDiamonds > 0) lootMsg += `, \xA7b+${lootDiamonds} diamonds\xA7a`;
+    notifyPlayer(player.name, `\xA7a\u2694 VICTORY! Camp #${campIndex + 1} destroyed. ${lootMsg} \u2192 your inventory.`);
   } else {
     const weakened = Math.max(1, camp.strength - Math.floor(totalPower * 0.5));
     camp.strength = weakened;
