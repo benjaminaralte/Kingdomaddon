@@ -2239,7 +2239,11 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
     "kingdoms:city_guard": "cityGuards",
     "kingdoms:spearman": "spearmen",
     "kingdoms:archer": "archers",
-    "kingdoms:cavalry": "cavalry"
+    "kingdoms:cavalry": "cavalry",
+    "kingdoms:samurai": "samurai",
+    "kingdoms:heavy_knight": "heavyKnights",
+    "kingdoms:legionary": "legionary",
+    "kingdoms:mercenary_lancer": "mercenaryLancer"
   };
   const loc = village.townHallLocation;
   let total = 0;
@@ -5297,9 +5301,11 @@ var TROOP_ENTITY_MAP = {
   archers: "kingdoms:archer",
   cavalry: "kingdoms:cavalry",
   samurai: "kingdoms:samurai",
-  heavyKnights: "kingdoms:heavy_knight"
+  heavyKnights: "kingdoms:heavy_knight",
+  legionary: "kingdoms:legionary",
+  mercenaryLancer: "kingdoms:mercenary_lancer"
 };
-var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry", "samurai", "heavyKnights"];
+var TROOP_PRIORITY = ["spearmen", "archers", "cityGuards", "cavalry", "samurai", "heavyKnights", "legionary", "mercenaryLancer"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
   const _adPlayers = world14.getPlayers();
