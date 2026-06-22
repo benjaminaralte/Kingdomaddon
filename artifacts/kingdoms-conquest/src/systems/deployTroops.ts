@@ -14,11 +14,11 @@ export const TROOP_TOKEN_MAP: Record<string, { troopType: TroopType; entityId: s
   "kingdoms:legionary_token":           { troopType: "legionary",        entityId: "kingdoms:legionary",         label: "Legionary"        },
 };
 
-const MOUNTED_ENTITIES = new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer"]);
+export const MOUNTED_ENTITIES = new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer"]);
 
 let _horseCounter = 0;
 
-function spawnMountedUnit(
+export function spawnMountedUnit(
   dim: import("@minecraft/server").Dimension,
   entityId: string,
   offset: { x: number; y: number; z: number }
@@ -269,6 +269,10 @@ export function recallNearbyTroops(player: Player): boolean {
   }
 
   for (const entity of toRemove) {
+    try {
+      const mount = entity.getVehicle();
+      if (mount) mount.remove();
+    } catch {}
     try { entity.remove(); } catch { /* already removed */ }
   }
 

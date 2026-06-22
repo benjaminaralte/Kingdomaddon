@@ -1,5 +1,6 @@
 import { world } from "@minecraft/server";
 import type { VillageData, GuardPoleData, GuardPoleType, TroopType } from "../types/index.js";
+import { spawnMountedUnit, MOUNTED_ENTITIES } from "./deployTroops.js";
 import { MAX_GUARDS_PER_POLE } from "../types/index.js";
 import { generateId, saveVillage, getAllVillages } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
@@ -151,11 +152,14 @@ function spawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
     try {
       const count = Math.max(pole.assignedGuards, 1);
       const angle = (i / count) * Math.PI * 2;
-      const entity = dim.spawnEntity(entityType, {
+      const offset = {
         x: pole.location.x + Math.cos(angle) * 2,
         y: pole.location.y,
         z: pole.location.z + Math.sin(angle) * 2,
-      });
+      };
+      const entity = MOUNTED_ENTITIES.has(entityType)
+        ? spawnMountedUnit(dim, entityType, offset)
+        : dim.spawnEntity(entityType, offset);
 
       entity.setDynamicProperty("kc:pole_id", pole.id);
       entity.setDynamicProperty("kc:village_id", village.id);
@@ -178,7 +182,13 @@ function despawnPoleGuards(village: VillageData, pole: GuardPoleData): void {
         maxDistance: POLE_SEARCH_RADIUS,
       });
       const entity = nearby.find((e) => e.id === eid);
-      if (entity) entity.remove();
+      if (entity) {
+        try {
+          const mount = entity.getVehicle();
+          if (mount) mount.remove();
+        } catch {}
+        entity.remove();
+      }
     } catch { /* chunk not loaded or invalid query */ }
   }
   pole.entityIds = [];

@@ -5,6 +5,7 @@ import { getAllVillages, saveVillage } from "../storage/index.js";
 import { notifyPlayer, notifyAlert } from "../utils/notify.js";
 import { distance } from "../utils/tick.js";
 import { areAtWar, getKingdomOf, notifyAlliedKings } from "./kingdom.js";
+import { spawnMountedUnit, MOUNTED_ENTITIES } from "./deployTroops.js";
 
 const THREAT_SCAN_INTERVAL = 60;
 const RAID_NOTIFY_COOLDOWN = 300;
@@ -136,11 +137,15 @@ function dispatchTroops(village: VillageData, threatCount: number): void {
       try {
         const angle = Math.random() * Math.PI * 2;
         const r = 6 + Math.random() * 12;
-        const entity = dim.spawnEntity(TROOP_ENTITY_MAP[troopType], {
+        const offset = {
           x: center.x + Math.cos(angle) * r,
           y: center.y,
           z: center.z + Math.sin(angle) * r,
-        });
+        };
+        const entityId = TROOP_ENTITY_MAP[troopType];
+        const entity = MOUNTED_ENTITIES.has(entityId)
+          ? spawnMountedUnit(dim, entityId, offset)
+          : dim.spawnEntity(entityId, offset);
         entity.setDynamicProperty(AUTO_DISPATCH_PROP, village.id);
         entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType);
         entity.nameTag = `⚔ [${village.name}]`;
@@ -171,6 +176,10 @@ function recallAutoDispatched(village: VillageData): void {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
         const tt = (e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) as TroopType | undefined) ?? troopType;
         survivors[tt] = (survivors[tt] ?? 0) + 1;
+        try {
+          const mount = e.getVehicle();
+          if (mount) mount.remove();
+        } catch {}
         try { e.remove(); } catch {}
         recalled++;
       }

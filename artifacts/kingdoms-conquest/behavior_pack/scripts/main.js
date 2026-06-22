@@ -1936,6 +1936,11 @@ function recallNearbyTroops(player) {
   }
   for (const entity of toRemove) {
     try {
+      const mount = entity.getVehicle();
+      if (mount) mount.remove();
+    } catch {
+    }
+    try {
       entity.remove();
     } catch {
     }
@@ -4654,11 +4659,13 @@ function dispatchTroops(village, threatCount) {
       try {
         const angle = Math.random() * Math.PI * 2;
         const r = 6 + Math.random() * 12;
-        const entity = dim.spawnEntity(TROOP_ENTITY_MAP[troopType], {
+        const offset = {
           x: center.x + Math.cos(angle) * r,
           y: center.y,
           z: center.z + Math.sin(angle) * r
-        });
+        };
+        const entityId = TROOP_ENTITY_MAP[troopType];
+        const entity = MOUNTED_ENTITIES.has(entityId) ? spawnMountedUnit(dim, entityId, offset) : dim.spawnEntity(entityId, offset);
         entity.setDynamicProperty(AUTO_DISPATCH_PROP, village.id);
         entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType);
         entity.nameTag = `\u2694 [${village.name}]`;
@@ -4686,6 +4693,11 @@ function recallAutoDispatched(village) {
         const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;
         survivors[tt] = (survivors[tt] ?? 0) + 1;
         try {
+          const mount = e.getVehicle();
+          if (mount) mount.remove();
+        } catch {
+        }
+        try {
           e.remove();
         } catch {
         }
@@ -4704,10 +4716,10 @@ function recallAutoDispatched(village) {
 }
 
 // src/systems/guards.ts
+import { world as world15 } from "@minecraft/server";
 init_types();
 init_storage();
 init_notify();
-import { world as world15 } from "@minecraft/server";
 var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
@@ -4797,11 +4809,12 @@ function spawnPoleGuards(village, pole) {
     try {
       const count = Math.max(pole.assignedGuards, 1);
       const angle = i / count * Math.PI * 2;
-      const entity = dim.spawnEntity(entityType, {
+      const offset = {
         x: pole.location.x + Math.cos(angle) * 2,
         y: pole.location.y,
         z: pole.location.z + Math.sin(angle) * 2
-      });
+      };
+      const entity = MOUNTED_ENTITIES.has(entityType) ? spawnMountedUnit(dim, entityType, offset) : dim.spawnEntity(entityType, offset);
       entity.setDynamicProperty("kc:pole_id", pole.id);
       entity.setDynamicProperty("kc:village_id", village.id);
       entity.nameTag = `${pole.troopType} [${village.name}]`;
@@ -4821,7 +4834,14 @@ function despawnPoleGuards(village, pole) {
         maxDistance: POLE_SEARCH_RADIUS
       });
       const entity = nearby.find((e) => e.id === eid);
-      if (entity) entity.remove();
+      if (entity) {
+        try {
+          const mount = entity.getVehicle();
+          if (mount) mount.remove();
+        } catch {
+        }
+        entity.remove();
+      }
     } catch {
     }
   }
