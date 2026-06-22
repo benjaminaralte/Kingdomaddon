@@ -1858,15 +1858,16 @@ function notifyVillageUnderSiege(villageId) {
 init_storage();
 import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
-  "kingdoms:guard_token":        { troopType: "cityGuards",   entityId: "kingdoms:city_guard",   label: "City Guard" },
-  "kingdoms:spearman_token":     { troopType: "spearmen",     entityId: "kingdoms:spearman",     label: "Spearman" },
-  "kingdoms:archer_token":       { troopType: "archers",      entityId: "kingdoms:archer",       label: "Archer" },
-  "kingdoms:cavalry_token":      { troopType: "cavalry",      entityId: "kingdoms:cavalry",      label: "Cavalry" },
-  "kingdoms:samurai_token":      { troopType: "samurai",      entityId: "kingdoms:samurai",      label: "Samurai" },
-  "kingdoms:heavy_knight_token": { troopType: "heavyKnights", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" }
+  "kingdoms:guard_token":          { troopType: "cityGuards",   entityId: "kingdoms:city_guard",   label: "City Guard" },
+  "kingdoms:spearman_token":       { troopType: "spearmen",     entityId: "kingdoms:spearman",     label: "Spearman" },
+  "kingdoms:archer_token":         { troopType: "archers",      entityId: "kingdoms:archer",       label: "Archer" },
+  "kingdoms:cavalry_token":        { troopType: "cavalry",      entityId: "kingdoms:cavalry",      label: "Cavalry" },
+  "kingdoms:samurai_token":        { troopType: "samurai",      entityId: "kingdoms:samurai",      label: "Samurai" },
+  "kingdoms:heavy_knight_token":   { troopType: "heavyKnights", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" },
+  "kingdoms:legionary_token":      { troopType: "legionary",    entityId: "kingdoms:legionary",    label: "Legionary" }
 };
 function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0);
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0) + (pickup.legionary ?? 0);
   if (total <= 0) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
     return false;
@@ -2053,10 +2054,13 @@ function deploySingleToken(player, itemId) {
   }
 }
 var ENTITY_TO_TOKEN = {
-  "kingdoms:city_guard": "kingdoms:guard_token",
-  "kingdoms:spearman": "kingdoms:spearman_token",
-  "kingdoms:archer": "kingdoms:archer_token",
-  "kingdoms:cavalry": "kingdoms:cavalry_token"
+  "kingdoms:city_guard":   "kingdoms:guard_token",
+  "kingdoms:spearman":     "kingdoms:spearman_token",
+  "kingdoms:archer":       "kingdoms:archer_token",
+  "kingdoms:cavalry":      "kingdoms:cavalry_token",
+  "kingdoms:samurai":      "kingdoms:samurai_token",
+  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token",
+  "kingdoms:legionary":    "kingdoms:legionary_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
