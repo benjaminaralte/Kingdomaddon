@@ -722,6 +722,99 @@ function upgradeFieldWorkers(village) {
   );
   return true;
 }
+var FARMER_PLOT_RADIUS = 16;
+var FARMER_DEFAULT_LIFESPAN_DAYS = 10;
+var FARMER_HARVEST_CAP = 64;
+function tickAllFarmers() {
+  const currentDay = getCurrentDay();
+  const dimIds = ["overworld", "nether", "the_end"];
+  for (const dimId of dimIds) {
+    let dim;
+    try { dim = world5.getDimension(dimId); } catch { continue; }
+    let farmers;
+    try { farmers = dim.getEntities({ type: "kingdoms:farmer" }); } catch { continue; }
+    for (const farmer of farmers) {
+      try {
+        const dataStr = farmer.getDynamicProperty("kc:farmer_data");
+        if (!dataStr) { farmer.remove(); continue; }
+        const data = JSON.parse(dataStr);
+        const age = currentDay - (data.spawnedDay ?? 0);
+        const lifespan = data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS;
+        if (age >= lifespan) {
+          const village = getVillage(data.villageId);
+          if (village?.owner) notifyPlayer(village.owner, `\xA7e\u{1F9D1}\u200D\u{1F33E} A farmer in \xA7b${village.name}\xA7e has retired after ${age} days. Hire a new one from the farm plot.`);
+          farmer.remove();
+          continue;
+        }
+        const village = getVillage(data.villageId);
+        if (!village) continue;
+        const cx = data.plotX ?? Math.floor(farmer.location.x);
+        const cz = data.plotZ ?? Math.floor(farmer.location.z);
+        const baseY = data.plotY ?? Math.floor(farmer.location.y);
+        const radius = data.plotRadius ?? FARMER_PLOT_RADIUS;
+        let harvested = 0;
+        outer: for (let x = cx - radius; x <= cx + radius; x += 2) {
+          for (let z = cz - radius; z <= cz + radius; z += 2) {
+            if (harvested >= FARMER_HARVEST_CAP) break outer;
+            for (let y = baseY - 2; y <= baseY + 4; y++) {
+              try {
+                const block = dim.getBlock({ x, y, z });
+                if (!block || !isCropBlock(block.typeId)) continue;
+                const maxAge2 = CROP_MAX_AGES[block.typeId];
+                const blockAge = block.permutation.getState("age");
+                if (blockAge === void 0 || blockAge < maxAge2) continue;
+                block.setPermutation(block.permutation.withState("age", 0));
+                const drops = CROP_DROPS[block.typeId] ?? [];
+                for (const drop of drops) {
+                  const amt = drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1));
+                  if (amt > 0) addToGranary(village, drop.item, amt);
+                }
+                harvested++;
+              } catch {}
+            }
+          }
+        }
+        if (harvested > 0) {
+          const daysLeft = lifespan - age;
+          notifyPlayer(village.owner, `\xA77\u{1F33E} Farmer in \xA7b${village.name}\xA77 harvested ${harvested} crop(s) \u2192 Granary. (${daysLeft} day${daysLeft !== 1 ? "s" : ""} left)`);
+        }
+      } catch {}
+    }
+  }
+}
+function extendFarmerLifespan(player, village) {
+  const cost = 20;
+  if (village.treasury < cost) {
+    notifyPlayer(player.name, `\xA7cNeed 20\u{1F48E} in treasury to extend farmer lifespan.`);
+    return;
+  }
+  const dimIds = ["overworld", "nether", "the_end"];
+  let extended = 0;
+  for (const dimId of dimIds) {
+    let dim;
+    try { dim = world5.getDimension(dimId); } catch { continue; }
+    let farmers;
+    try { farmers = dim.getEntities({ type: "kingdoms:farmer" }); } catch { continue; }
+    for (const farmer of farmers) {
+      try {
+        const dataStr = farmer.getDynamicProperty("kc:farmer_data");
+        if (!dataStr) continue;
+        const data = JSON.parse(dataStr);
+        if (data.villageId !== village.id) continue;
+        data.lifespanDays = (data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS) + 5;
+        farmer.setDynamicProperty("kc:farmer_data", JSON.stringify(data));
+        extended++;
+      } catch {}
+    }
+  }
+  if (extended === 0) {
+    notifyPlayer(player.name, `\xA7eNo active farmers found in \xA7b${village.name}\xA7e. Hire farmers from a farm plot first.`);
+    return;
+  }
+  village.treasury -= cost;
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7aExtended ${extended} farmer(s) by 5 days in \xA7b${village.name}\xA7a! (cost: 20\u{1F48E})`);
+}
 function autoHarvestVillage(village) {
   if ((village.workers?.farmers ?? 0) === 0) return;
   const dim = world5.getDimension(village.location.dimension);
@@ -6172,6 +6265,11 @@ function farmPlotBlueprintWheat() {
   p.push(blk(19, 1, -10, "minecraft:chest"), blk(19, 1, -9, "minecraft:barrel")); // storage
   p.push(blk(19, 1, -7, "minecraft:composter"), blk(19, 1, -6, "minecraft:crafting_table"));
   p.push(blk(20, 3, -8, "minecraft:lantern"));
+  // Center farm pole (interact to spawn farmers)
+  p.push(blk(0, 1, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 2, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 3, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 4, 0, "minecraft:lantern"));
   return p;
 }
 function farmPlotBlueprintMixed() {
@@ -6211,7 +6309,7 @@ function farmPlotBlueprintMixed() {
   p.push(...fill(-11, 0, -1, 21, 0, 0, "minecraft:dirt_path")); // EW center path
   p.push(...fill(-1, 0, -11, 0, 0, 21, "minecraft:dirt_path")); // NS center path
   // Center water junction
-  p.push(blk(-1, 0, -1, "minecraft:water"), blk(-1, 0, 0, "minecraft:water"), blk(0, 0, -1, "minecraft:water"), blk(0, 0, 0, "minecraft:water"));
+  p.push(blk(-1, 0, -1, "minecraft:water"), blk(-1, 0, 0, "minecraft:water"), blk(0, 0, -1, "minecraft:water"));
   // === TOOL SHED east side ===
   p.push(...fill(12, 0, -11, 21, 0, -5, "minecraft:birch_planks"));
   p.push(...fill(12, 1, -11, 21, 3, -11, "minecraft:birch_planks"));
@@ -6222,6 +6320,11 @@ function farmPlotBlueprintMixed() {
   p.push(...fill(12, 4, -11, 21, 4, -5, "minecraft:birch_planks"));
   p.push(blk(12, 1, -10, "minecraft:chest"), blk(12, 1, -9, "minecraft:barrel"), blk(12, 1, -8, "minecraft:composter"));
   p.push(blk(16, 3, -8, "minecraft:lantern"));
+  // Center farm pole (interact to spawn farmers)
+  p.push(blk(0, 1, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 2, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 3, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 4, 0, "minecraft:lantern"));
   return p;
 }
 function farmPlotBlueprintPlantation() {
@@ -6274,6 +6377,11 @@ function farmPlotBlueprintPlantation() {
   p.push(blk(20, 1, 3, "minecraft:hay_block"), blk(20, 1, 4, "minecraft:hay_block"));
   p.push(blk(23, 1, -11, "minecraft:barrel"), blk(23, 1, -10, "minecraft:barrel"));
   p.push(blk(21, 5, -4, "minecraft:lantern"));
+  // Center farm pole (interact to spawn farmers)
+  p.push(blk(0, 1, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 2, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 3, 0, "minecraft:oak_fence"));
+  p.push(blk(0, 4, 0, "minecraft:lantern"));
   return p;
 }
 function farmPlotBlueprint() {
@@ -6337,7 +6445,8 @@ var CUSTOM_BLOCKS = {
   ARMORY: "kingdoms:armory",
   TOWER: "kingdoms:tower",
   WALL_LONG: "kingdoms:wall_long",
-  WALL_SHORT: "kingdoms:wall_short"
+  WALL_SHORT: "kingdoms:wall_short",
+  FARM_PLOT: "kingdoms:farm_plot"
 };
 function destroyStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -6717,6 +6826,9 @@ world16.afterEvents.itemStartUseOn.subscribe((event) => {
       break;
     case CUSTOM_BLOCKS.ARMORY:
       void showArmoryMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.FARM_PLOT:
+      void showFarmPlotMenu(player, block);
       break;
   }
 });
@@ -7136,7 +7248,7 @@ system3.runInterval(() => {
   processAllPopulation();
   tickBandits();
   processAllSoldierFood();
-  autoHarvestAllVillages();
+  tickAllFarmers();
 }, 24e3);
 system3.runInterval(() => {
   refreshAllGuards();
@@ -7533,10 +7645,6 @@ var SHOP_ITEMS = [
     costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
   { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", prereq: true,
     costs: [{ itemId: "minecraft:crafting_table", count: 10, label: "10 Crafting Tables" }, { itemId: "minecraft:smithing_table", count: 3, label: "3 Smithing Tables" }] },
-  { id: "kingdoms:barn_item", label: "Barn", desc: "Large barn for cattle and multipurpose livestock storage", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 60, label: "60 Wood Logs (any type)" }, { itemId: "minecraft:hay_block", count: 10, label: "10 Hay Bales" }] },
-  { id: "kingdoms:farm_plot_item", label: "Farm Plot", desc: "Instant farm: fenced crop plots, irrigation channels and tool shed", prereq: true,
-    costs: [{ items: LOG_ITEM_TYPES, count: 60, label: "60 Wood Logs (any type)" }] },
   { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", prereq: true,
     costs: [{ items: LOG_ITEM_TYPES, count: 10, label: "10 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 20, label: "20 Torches" }] },
   { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", prereq: true,
@@ -7844,7 +7952,7 @@ ${merchantList}
 
 \xA77Tip: hold food and right-click granary to deposit instantly.
 \xA77Hold emeralds and right-click treasury to deposit instantly.`
-  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("\u{1F33F} Bob's Farming Seeds").button("\uD83D\uDC04 Livestock Pen\n\xA7730\u{1F48E} \u2014 large fenced enclosure").button("\uD83D\uDED6 Barn\n\xA7740\u{1F48E} \u2014 multipurpose cattle barn").button("Close");
+  ).button("\u{1F331} Seed Shop").button("\u{1F33E} Sell Food (bulk)").button(`\u2B06 Upgrade Market (${village.marketLevel * 20}\u{1F48E})`).button("\u{1F35E} Buy Food (abstract, 20\u{1F48E}/10)").button("\u{1F4B0} Sell Food (abstract, 10\u{1F48E}/10)").button("\u{1F33F} Bob's Farming Seeds").button("\uD83D\uDC04 Livestock Pen\n\xA7730\u{1F48E} \u2014 large fenced enclosure").button("\uD83D\uDED6 Barn\n\xA7740\u{1F48E} \u2014 multipurpose cattle barn").button("\u{1F33E} Farm Plot\n\xA7730\u{1F48E} \u2014 fenced crop plots + hire farmers").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -7867,10 +7975,13 @@ ${merchantList}
       await showBobsFarmingShopMenu(player, village);
       break;
     case 6:
-      purchaseBuilding(player, village, { id: "kingdoms:fence_enclosure_item", label: "Livestock Pen", cost: 30, costItem: "minecraft:emerald" });
+      purchaseBuilding(player, village, { id: "kingdoms:fence_enclosure_item", label: "Livestock Pen", costs: [{ itemId: "minecraft:emerald", count: 30, label: "30 Emeralds" }] });
       break;
     case 7:
-      purchaseBuilding(player, village, { id: "kingdoms:barn_item", label: "Barn", cost: 40, costItem: "minecraft:emerald" });
+      purchaseBuilding(player, village, { id: "kingdoms:barn_item", label: "Barn", costs: [{ itemId: "minecraft:emerald", count: 40, label: "40 Emeralds" }] });
+      break;
+    case 8:
+      purchaseBuilding(player, village, { id: "kingdoms:farm_plot_item", label: "Farm Plot", costs: [{ itemId: "minecraft:emerald", count: 30, label: "30 Emeralds" }] });
       break;
   }
 }
@@ -8259,6 +8370,71 @@ async function showArmoryEquipMenu(player, village) {
     notifyPlayer(player.name, `\xA7aSoldiers equipped with \xA7b${chosen.tier}\xA7a armor!`);
   }
 }
+async function showFarmPlotMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  if (!village || village.owner !== player.name) {
+    notifyPlayer(player.name, "\xA7cYou don\u2019t own this village.");
+    return;
+  }
+  const dim = block.dimension;
+  const plotX = block.location.x;
+  const plotY = block.location.y;
+  const plotZ = block.location.z;
+  const activeFarmers = [];
+  try {
+    for (const e of dim.getEntities({ type: "kingdoms:farmer" })) {
+      const fd = e.getDynamicProperty("kc:farmer_data");
+      if (!fd) continue;
+      const data = JSON.parse(fd);
+      if (data.plotX === plotX && data.plotZ === plotZ && data.villageId === village.id) {
+        activeFarmers.push(data);
+      }
+    }
+  } catch {}
+  const currentDay = getCurrentDay();
+  const farmerList = activeFarmers.length > 0
+    ? activeFarmers.map((d, i) => {
+        const daysLeft = (d.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS) - (currentDay - (d.spawnedDay ?? currentDay));
+        return `  Farmer ${i + 1}: ${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining`;
+      }).join("\n")
+    : "  No farmers assigned yet.";
+  const spawnCost = 10;
+  const canSpawn = village.treasury >= spawnCost;
+  const form = new ActionFormData()
+    .title(`Farm Plot \u2014 ${village.name}`)
+    .body(`\xA7bActive Farmers: \xA7f${activeFarmers.length}\n${farmerList}\n\n\xA77Farmers auto-harvest ripe crops within this plot and send food directly to the Granary.\nFarmers retire after ${FARMER_DEFAULT_LIFESPAN_DAYS} days \u2014 extend lifespan from the Granary (20\u{1F48E}).\n\nTreasury: ${village.treasury}\u{1F48E}`)
+    .button(`\xA7aHire Farmer\n\xA77${spawnCost}\u{1F48E} from treasury${canSpawn ? "" : " \xA7c(insufficient funds)"}`)
+    .button("Close");
+  const response = await form.show(player);
+  if (response.canceled || response.selection !== 0) return;
+  if (!canSpawn) {
+    notifyPlayer(player.name, `\xA7cNeed ${spawnCost}\u{1F48E} in treasury to hire a farmer.`);
+    return;
+  }
+  village.treasury -= spawnCost;
+  saveVillage(village);
+  const spawnLoc = { x: plotX + 0.5, y: plotY + 1, z: plotZ + 0.5 };
+  let farmer;
+  try { farmer = dim.spawnEntity("kingdoms:farmer", spawnLoc); } catch {
+    notifyPlayer(player.name, "\xA7cFailed to spawn farmer \u2014 invalid spawn location?");
+    village.treasury += spawnCost;
+    saveVillage(village);
+    return;
+  }
+  farmer.nameTag = `\xA7a\u{1F9D1}\u200D\u{1F33E} Farmer (${village.name})`;
+  const farmerData = {
+    villageId: village.id,
+    plotX,
+    plotY,
+    plotZ,
+    plotDim: dim.id,
+    plotRadius: FARMER_PLOT_RADIUS,
+    spawnedDay: getCurrentDay(),
+    lifespanDays: FARMER_DEFAULT_LIFESPAN_DAYS
+  };
+  farmer.setDynamicProperty("kc:farmer_data", JSON.stringify(farmerData));
+  notifyPlayer(player.name, `\xA7aFarmer hired for \xA7b${village.name}\xA7a! They will harvest crops for ${FARMER_DEFAULT_LIFESPAN_DAYS} days. (${spawnCost}\u{1F48E} deducted)`);
+}
 async function showGranaryStorageMenu(player, block) {
   const village = findVillageAt2(block.location);
   if (!village || village.owner !== player.name) {
@@ -8269,32 +8445,25 @@ async function showGranaryStorageMenu(player, block) {
   const items = Object.entries(village.granaryItems).filter(([, count]) => count > 0);
   const prod = getFoodProduction(village);
   const cons = getFoodConsumption(village);
-  const fieldTotal = getFieldStorageTotal(village);
-  const fieldBtn = `\u{1F33E} Collect Field Harvest${fieldTotal > 0 ? ` (${fieldTotal} food units ready)` : " (empty)"}`;
   const form = new ActionFormData().title(`${village.name} \u2014 Granary`).body(
     `${report}
 
-Farmers: ${village.workers.farmers}  Daily: +${prod}/-${cons}
-Shortage: ${village.foodShortageStage}/4`
+Daily: +${prod}/-${cons}  |  Shortage: ${village.foodShortageStage}/4`
   );
   const withdrawable = [];
   for (const [item, count] of items) {
-    form.button(`Withdraw from Granary\n\xA77${item.replace("minecraft:", "")} (${count} stored)`);
+    form.button(`Withdraw from Granary\n\xA77${item.replace("minecraft:", "").replace("twb_farm:", "")} (${count} stored)`);
     withdrawable.push({ item, count });
   }
-  const fwLevel = village.fieldWorkerLevel ?? 0;
-  const fwBtn = fwLevel >= 5 ? `\u{1F9D1}\u200D\u{1F33E} Field Workers Lv5 (maxed)` : `\u2B06 Upgrade Field Workers Lv${fwLevel}\u2192${fwLevel + 1} (20\u{1F48E})`;
   form.button("\xA7a\u2795 Deposit Food from Inventory");
-  form.button(fieldBtn);
-  form.button("\u{1F4E6} View Field Storage");
-  form.button(fwBtn);
+  form.button("\u{1F9D1}\u200D\u{1F33E} Extend Farmer Lifespan (+5 days, 20\u{1F48E})");
   form.button("Close");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
   if (response.selection < withdrawable.length) {
     const { item, count } = withdrawable[response.selection];
     const sliderForm = new ModalFormData()
-      .title(`Withdraw ${item.replace("minecraft:", "")}`)
+      .title(`Withdraw ${item.replace("minecraft:", "").replace("twb_farm:", "")}`)
       .slider(`How many to withdraw? (${count} stored)`, 1, count, 1, Math.min(16, count));
     const sliderResp = await sliderForm.show(player);
     if (sliderResp.canceled) return;
@@ -8303,12 +8472,7 @@ Shortage: ${village.foodShortageStage}/4`
   } else if (response.selection === withdrawable.length) {
     await showGranaryDepositMenu(player, village);
   } else if (response.selection === withdrawable.length + 1) {
-    collectFieldStorage(player, village);
-  } else if (response.selection === withdrawable.length + 2) {
-    const rpt = getFieldStorageReport(village);
-    for (const line of rpt.split("\n")) notifyPlayer(player.name, line);
-  } else if (response.selection === withdrawable.length + 3) {
-    upgradeFieldWorkers(village);
+    extendFarmerLifespan(player, village);
   }
 }
 async function showGranaryDepositMenu(player, village) {
