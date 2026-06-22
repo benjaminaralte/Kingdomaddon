@@ -4,10 +4,18 @@
     "description": {
       "identifier": "kingdoms:military_transport",
       "min_engine_version": "1.16.0",
-      "materials": { "default": "entity_alphatest" },
-      "textures": { "default": "textures/entity/minecart" },
-      "geometry": { "default": "geometry.minecart" },
-      "render_controllers": [ "controller.render.minecart" ]
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/minecart"
+      },
+      "geometry": {
+        "default": "geometry.minecart"
+      },
+      "render_controllers": [
+        "controller.render.minecart"
+      ]
     }
   }
 }

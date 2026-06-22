@@ -20,12 +20,12 @@
         ]
       },
       "animations": {
-        "attack":      "animation.roman_bowman.attack",
-        "bobing":      "animation.roman_bowman.idle",
-        "setup":       "controller.animation.got_troop2",
-        "move":        "animation.roman_bowman.move",
+        "attack": "animation.roman_bowman.attack",
+        "bobing": "animation.roman_bowman.idle",
+        "setup": "controller.animation.got_troop2",
+        "move": "animation.roman_bowman.move",
         "move_target": "animation.roman_bowman.move_target",
-        "target":      "animation.roman_bowman.target"
+        "target": "animation.roman_bowman.target"
       },
       "render_controllers": [
         "controller.render.got1"

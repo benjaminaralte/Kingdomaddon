@@ -3,25 +3,36 @@
   "minecraft:client_entity": {
     "description": {
       "identifier": "kingdoms:samurai",
-      "materials": { "default": "skeleton" },
+      "materials": {
+        "default": "skeleton"
+      },
       "textures": {
         "var0": "textures/entity/pn_samurai",
         "var1": "textures/entity/pn_samurai_naginata"
       },
-      "geometry": { "default": "geometry.samurai_naginata" },
+      "geometry": {
+        "default": "geometry.samurai_naginata"
+      },
       "scripts": {
-        "animate": ["setup", "look_at_target"]
+        "animate": [
+          "movement_ctrl",
+          "setup",
+          "look_at_target"
+        ]
       },
       "animations": {
-        "attack":        "animation.samurai.sword_attack",
-        "bobing":        "animation.samurai.idle",
-        "setup":         "controller.animation.pn_samurai.setup",
-        "move":          "animation.samurai.move",
-        "move_target":   "animation.samurai.sword_move_target",
-        "target":        "animation.samurai.sword_stay_target",
-        "look_at_target": "animation.common.look_at_target"
+        "attack": "animation.samurai.sword_attack",
+        "bobing": "animation.samurai.idle",
+        "setup": "controller.animation.pn_samurai.setup",
+        "move": "animation.samurai.move",
+        "move_target": "animation.samurai.sword_move_target",
+        "target": "animation.samurai.sword_stay_target",
+        "look_at_target": "animation.common.look_at_target",
+        "movement_ctrl": "controller.animation.got_troop2"
       },
-      "render_controllers": ["controller.render.kingdoms.samurai"],
+      "render_controllers": [
+        "controller.render.kingdoms.samurai"
+      ],
       "spawn_egg": {
         "texture": "city_guard_spawn_egg",
         "texture_index": 0

@@ -3,28 +3,38 @@
   "minecraft:client_entity": {
     "description": {
       "identifier": "kingdoms:legionary",
-      "materials": { "default": "skeleton" },
+      "materials": {
+        "default": "skeleton"
+      },
       "textures": {
         "var0": "textures/entity/pn_mercenary",
         "var1": "textures/entity/pn_mercenary"
       },
-      "geometry": { "default": "geometry.mercenary_swordman" },
+      "geometry": {
+        "default": "geometry.mercenary_swordman"
+      },
       "scripts": {
         "animate": [
+          "movement_ctrl",
           "setup",
           "look_at_target",
-          { "target": "query.has_target" }
+          {
+            "target": "query.has_target"
+          }
         ]
       },
       "animations": {
-        "attack":        "animation.got_troop.attack",
-        "bobing":        "animation.got_troop.idle",
-        "setup":         "controller.animation.got_swordman",
-        "move":          "animation.mercenary_swordman.move",
-        "target":        "animation.mercenary_swordman.target",
-        "look_at_target": "animation.common.look_at_target"
+        "attack": "animation.got_troop.attack",
+        "bobing": "animation.got_troop.idle",
+        "setup": "controller.animation.got_swordman",
+        "move": "animation.mercenary_swordman.move",
+        "target": "animation.mercenary_swordman.target",
+        "look_at_target": "animation.common.look_at_target",
+        "movement_ctrl": "controller.animation.got_troop2"
       },
-      "render_controllers": ["controller.render.mercenary_pn.sword"],
+      "render_controllers": [
+        "controller.render.mercenary_pn.sword"
+      ],
       "spawn_egg": {
         "texture": "city_guard_spawn_egg",
         "texture_index": 0

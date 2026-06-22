@@ -288,15 +288,17 @@ export async function showWaypointMenu(player: Player, currentVillage?: VillageD
   const inventory = player.getComponent("inventory");
   if (inventory?.container) {
     const container = inventory.container;
-    let hasItems = false;
+    const disallowed: string[] = [];
     for (let i = 0; i < container.size; i++) {
       const item = container.getItem(i);
-      if (item) { hasItems = true; break; }
+      if (!item) continue;
+      if (item.typeId === "minecraft:flint_and_steel" && item.amount === 1) continue;
+      disallowed.push(item.typeId);
     }
-    if (hasItems) {
+    if (disallowed.length > 0) {
       notifyPlayer(
         player.name,
-        `§c✦ Waypoint travel requires an empty inventory! Use the §bchest§c beside the waypoint to store your items first.`
+        `§c✦ Waypoint travel only allows §f1 Flint & Steel§c. Store everything else in the §bchest§c first.`
       );
       return;
     }

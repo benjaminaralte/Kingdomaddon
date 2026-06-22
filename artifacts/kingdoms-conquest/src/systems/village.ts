@@ -118,7 +118,7 @@ export function claimVillage(
     foodShortageStage: 0,
     guardPoles: [],
     tradePoles: [],
-    workers: { farmers: Math.max(1, Math.floor(villagers.length * 0.5)), workers: 0 },
+    workers: { farmers: Math.max(1, Math.floor(villagers.length * 0.5)), workers: 0, miners: 0 },
     blacksmith: { weaponTier: 0, armorTier: 0 },
     activeMerchants: [],
     activeCarts: [],

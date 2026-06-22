@@ -87,10 +87,6 @@ export function queueTraining(
       notifyPlayer(village.owner, `§cElite troops require a §bCastle§c built in this village.`);
       return false;
     }
-    if (playerVillageCount < 3) {
-      notifyPlayer(village.owner, `§cElite troops require §boccupation of 3 villages§c (you have §f${playerVillageCount}§c).`);
-      return false;
-    }
   }
 
   const err = canAffordTraining(village, troopType, count);

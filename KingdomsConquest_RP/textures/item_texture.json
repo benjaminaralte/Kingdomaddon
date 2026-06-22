@@ -26,6 +26,12 @@
     "kingdoms_guard_pole_watchtower": {
       "textures": "textures/items/guard_pole_watchtower_tex"
     },
+    "kingdoms_guard_pole_gate": {
+      "textures": "textures/items/guard_pole_gate_tex"
+    },
+    "kingdoms_guard_pole_road": {
+      "textures": "textures/items/guard_pole_road_tex"
+    },
     "kingdoms_trade_pole": {
       "textures": "textures/items/trade_pole_tex"
     },
@@ -89,44 +95,50 @@
     "kingdoms_castle": {
       "textures": "textures/items/castle_tex"
     },
-    "kingdoms_armory": {
-      "textures": "textures/items/armory_tex"
-    },
-    "kingdoms_barn": {
-      "textures": "textures/items/barn_tex"
-    },
-    "kingdoms_fence_enclosure": {
-      "textures": "textures/items/fence_enclosure_tex"
-    },
-    "kingdoms_formation_scroll": {
-      "textures": "textures/items/formation_scroll_tex"
-    },
-    "kingdoms_house": {
-      "textures": "textures/items/house_tex"
-    },
-    "kingdoms_king_castle": {
-      "textures": "textures/items/king_castle_tex"
-    },
-    "kingdoms_stone_gate": {
-      "textures": "textures/items/stone_gate_tex"
+    "kingdoms_tactics_horn": {
+      "textures": "textures/items/tactics_horn_tex"
     },
     "kingdoms_storage": {
-      "textures": "textures/items/storage_tex"
+      "textures": "textures/items/barracks_tex"
     },
-    "kingdoms_tower": {
-      "textures": "textures/items/tower_tex"
+    "kingdoms_formation_scroll": {
+      "textures": "textures/items/recall_scroll_tex"
     },
-    "kingdoms_wall_long": {
-      "textures": "textures/items/wall_long_tex"
-    },
-    "kingdoms_wall_short": {
-      "textures": "textures/items/wall_short_tex"
-    },
-    "kingdoms_wall_tall": {
-      "textures": "textures/items/wall_tall_tex"
+    "kingdoms_fence_enclosure": {
+      "textures": "textures/items/guard_pole_village_tex"
     },
     "kingdoms_farm_plot": {
-      "textures": "textures/items/farm_plot_tex"
+      "textures": "textures/items/granary_tex"
+    },
+    "kingdoms_barn": {
+      "textures": "textures/items/granary_tex"
+    },
+    "kingdoms_armory": {
+      "textures": "textures/items/barracks_tex"
+    },
+    "kingdoms_trade_station": {
+      "textures": "textures/items/barracks_tex"
+    },
+    "kingdoms_house": {
+      "textures": "textures/items/town_hall_tex"
+    },
+    "kingdoms_tower": {
+      "textures": "textures/items/guard_pole_watchtower_tex"
+    },
+    "kingdoms_wall_long": {
+      "textures": "textures/items/guard_pole_village_tex"
+    },
+    "kingdoms_wall_short": {
+      "textures": "textures/items/guard_pole_village_tex"
+    },
+    "kingdoms_wall_tall": {
+      "textures": "textures/items/guard_pole_village_tex"
+    },
+    "kingdoms_stone_gate": {
+      "textures": "textures/items/guard_pole_gate_tex"
+    },
+    "kingdoms_king_castle": {
+      "textures": "textures/items/castle_tex"
     }
   }
 }

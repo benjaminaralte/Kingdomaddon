@@ -87,6 +87,12 @@ import {
   ensureResourceStorage,
 } from "./systems/tradeStation.js";
 import {
+  registerMaterialStorage,
+  removeMaterialStorage,
+  getMaterialStorageSummary,
+  tickAllMinerProduction,
+} from "./systems/materialStorage.js";
+import {
   pickupTroops,
   releaseTroops,
   recallNearbyTroops,
@@ -248,6 +254,7 @@ async function showPendingDiplomacyRequest(player: import("@minecraft/server").P
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CUSTOM_BLOCKS = {
+  MATERIAL_STORAGE: "kingdoms:storage",
   TOWN_HALL: "kingdoms:town_hall",
   GUARD_POLE_VILLAGE: "kingdoms:guard_pole_village",
   GUARD_POLE_GATE: "kingdoms:guard_pole_gate",
@@ -350,9 +357,9 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
     const tsDim = block.dimension;
     let tsDenyMsg = "";
     if (!tsVillage || tsVillage.owner !== player.name) {
-      tsDenyMsg = "§cClaim a village first before placing a Material Storage.";
+      tsDenyMsg = "§cClaim a village first before placing a Trade Station.";
     } else if (tsVillage.hasTradeStation) {
-      tsDenyMsg = `§c§b${tsVillage.name}§c already has a Material Storage. Break the old one first.`;
+      tsDenyMsg = `§c§b${tsVillage.name}§c already has a Trade Station. Break the old one first.`;
     }
     if (tsDenyMsg) {
       notifyPlayer(player.name, tsDenyMsg);
@@ -365,6 +372,29 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
       return;
     }
     registerTradeStation(tsVillage, block.location);
+  }
+
+  if (typeId === CUSTOM_BLOCKS.MATERIAL_STORAGE) {
+    const stVillage = findVillageAt(block.location);
+    const stLoc = { x: block.location.x, y: block.location.y, z: block.location.z };
+    const stDim = block.dimension;
+    let stDenyMsg = "";
+    if (!stVillage || stVillage.owner !== player.name) {
+      stDenyMsg = "§cClaim a village first before placing a Material Storage.";
+    } else if (stVillage.hasStorage) {
+      stDenyMsg = `§c§b${stVillage.name}§c already has a Material Storage. Break the old one first.`;
+    }
+    if (stDenyMsg) {
+      notifyPlayer(player.name, stDenyMsg);
+      system.run(() => {
+        try {
+          stDim.runCommand(`setblock ${stLoc.x} ${stLoc.y} ${stLoc.z} air destroy`);
+          stDim.spawnItem(new ItemStack(CUSTOM_BLOCKS.MATERIAL_STORAGE, 1), { x: stLoc.x + 0.5, y: stLoc.y + 1, z: stLoc.z + 0.5 });
+        } catch { /* chunk issue */ }
+      });
+      return;
+    }
+    registerMaterialStorage(stVillage, block.location);
   }
 
   if (typeId === CUSTOM_BLOCKS.GRANARY) {
@@ -583,6 +613,9 @@ world.afterEvents.itemStartUseOn.subscribe((event) => {
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
       break;
+    case CUSTOM_BLOCKS.MATERIAL_STORAGE:
+      void showMaterialStorageMenu(player, block);
+      break;
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt(block.location);
       if (wpVillage && wpVillage.waypointLocation) {
@@ -639,7 +672,16 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village) {
       const loc = village.tradeStationLocation;
       if (loc && loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
-        // Drop all material storage stocks as items
+        removeTradeStation(village);
+      }
+    }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.MATERIAL_STORAGE) {
+    const village = findVillageAt(blockLoc);
+    if (village) {
+      const loc = village.storageLocation;
+      if (loc && loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
         const rs = village.resourceStorage;
         if (rs) {
           const dim = player.dimension;
@@ -648,8 +690,8 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
           }
           village.resourceStorage = { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
         }
-        removeTradeStation(village);
-        notifyPlayer(player.name, `§eMaterial storage dropped from §b${village.name}§e Trade Station!`);
+        removeMaterialStorage(village);
+        notifyPlayer(player.name, `§eAll stored resources dropped from §b${village.name}§e Material Storage!`);
       }
     }
   }
@@ -790,6 +832,9 @@ world.afterEvents.playerInteractWithEntity.subscribe((event) => {
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
       break;
+    case CUSTOM_BLOCKS.MATERIAL_STORAGE:
+      void showMaterialStorageMenu(player, block);
+      break;
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt(blockLoc);
       if (wpVillage && wpVillage.waypointLocation) {
@@ -838,6 +883,7 @@ system.runInterval(() => {
   }
   tickAllMerchantsSpawn(tick);
   tickAllMerchantMovement();
+  tickAllMinerProduction(tick);
 }, 20);
 
 system.runInterval(() => {
@@ -1399,12 +1445,8 @@ async function showTrainTroopsForm(
   const hkAvailable = village.barracksLevel >= 3;
   const castleAvailable = village.hasCastle ?? false;
   const playerVillages = getAllVillages().filter(v => v.owner === player.name);
-  const eliteAvailable = castleAvailable && playerVillages.length >= 3;
-  const eliteLockMsg = !castleAvailable
-    ? "🔒 needs Castle + 3 villages"
-    : playerVillages.length < 3
-    ? `🔒 needs 3 villages (you have ${playerVillages.length})`
-    : "";
+  const eliteAvailable = castleAvailable;
+  const eliteLockMsg = !castleAvailable ? "🔒 needs Castle" : "";
 
   const form = new ActionFormData()
     .title(`Train Troops — ${village.name}`)
@@ -2149,7 +2191,6 @@ async function showTradeStationMenu(
     form
       .button("📦 Dispatch Resources")
       .button("🗡 Dispatch Reinforcements")
-      .button("📊 Resource Storage")
       .button("🚂 Active Shipments")
       .button("📋 Trade History");
   } else {
@@ -2162,10 +2203,73 @@ async function showTradeStationMenu(
   switch (response.selection) {
     case 0: await showDispatchResourceMenu(player, village.id); break;
     case 1: await showDispatchMilitaryMenu(player, village.id); break;
-    case 2: await showResourceStorageMenu(player, village.id); break;
-    case 3: await showActiveShipmentsMenu(player, village.id); break;
-    case 4: await showTradeHistoryMenu(player, village.id); break;
+    case 2: await showActiveShipmentsMenu(player, village.id); break;
+    case 3: await showTradeHistoryMenu(player, village.id); break;
   }
+}
+
+async function showMaterialStorageMenu(
+  player: import("@minecraft/server").Player,
+  block: import("@minecraft/server").Block
+): Promise<void> {
+  const village = findVillageAt(block.location);
+  if (!village) {
+    notifyPlayer(player.name, "§cNo village here. Claim a village first.");
+    return;
+  }
+
+  const isOwner = village.owner === player.name;
+  const summary = getMaterialStorageSummary(village);
+
+  const form = new ActionFormData()
+    .title(`${village.name} — Material Storage`)
+    .body(summary);
+
+  if (isOwner) {
+    form
+      .button("📤 Withdraw Resources")
+      .button("👷 Assign Miners");
+  } else {
+    form.button("Close");
+  }
+
+  const response = await form.show(player);
+  if (response.canceled || !isOwner) return;
+
+  switch (response.selection) {
+    case 0: await showResourceStorageMenu(player, village.id); break;
+    case 1: await showAssignMinersMenu(player, village.id); break;
+  }
+}
+
+async function showAssignMinersMenu(
+  player: import("@minecraft/server").Player,
+  villageId: string
+): Promise<void> {
+  const village = getVillage(villageId);
+  if (!village) return;
+
+  const totalWorkers = village.workers.workers;
+  const currentMiners = village.workers.miners ?? 0;
+
+  const form = new ModalFormData()
+    .title(`${village.name} — Assign Miners`)
+    .slider(`Miners (0–${totalWorkers})`, 0, Math.max(1, totalWorkers), 1, currentMiners);
+
+  const response = await form.show(player);
+  if (response.canceled || response.formValues === undefined) return;
+
+  const newMiners = response.formValues[0] as number;
+  if (newMiners > totalWorkers) {
+    notifyPlayer(player.name, `§cNot enough workers! §b${village.name}§c only has ${totalWorkers} workers total.`);
+    return;
+  }
+  village.workers.miners = newMiners;
+  saveVillage(village);
+  notifyPlayer(
+    player.name,
+    `§a${newMiners} miner(s) assigned in §b${village.name}§a. They will gather resources every minute into the Material Storage.`
+  );
 }
 
 async function showDispatchResourceMenu(

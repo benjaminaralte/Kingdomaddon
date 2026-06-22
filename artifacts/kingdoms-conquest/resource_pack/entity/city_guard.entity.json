@@ -16,19 +16,21 @@
       },
       "scripts": {
         "animate": [
+          "movement_ctrl",
           "setup",
           "bow_check"
         ]
       },
       "animations": {
-        "attack":        "animation.mercenary_templar_footman.attack",
-        "bobing":        "animation.mercenary_templar_footmanidle",
-        "setup":         "controller.animation.pn_roman.setup",
-        "move":          "animation.mercenary_templar_footmanmove",
-        "move_target":   "animation.mercenary_templar_footmanmove_target",
-        "target":        "animation.mercenary_templar_footmanstay_target",
-        "bow_greeting":  "animation.kingdoms.bow_greeting",
-        "bow_check":     "controller.animation.kingdoms.bow"
+        "attack": "animation.mercenary_templar_footman.attack",
+        "bobing": "animation.mercenary_templar_footmanidle",
+        "setup": "controller.animation.pn_roman.setup",
+        "move": "animation.mercenary_templar_footmanmove",
+        "move_target": "animation.mercenary_templar_footmanmove_target",
+        "target": "animation.mercenary_templar_footmanstay_target",
+        "bow_greeting": "animation.kingdoms.bow_greeting",
+        "bow_check": "controller.animation.kingdoms.bow",
+        "movement_ctrl": "controller.animation.got_troop2"
       },
       "render_controllers": [
         "controller.render.mercenary_pn.templar"

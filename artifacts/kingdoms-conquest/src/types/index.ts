@@ -32,6 +32,7 @@ export interface TroopData {
 export interface WorkerAssignments {
   farmers: number;
   workers: number;
+  miners: number;
 }
 
 export type GuardPoleType = "village" | "gate" | "road" | "watchtower";
@@ -154,6 +155,8 @@ export interface VillageData {
   lastSoldierFeedDay: number;
   granaryLocation?: Vec3;
   treasuryLocation?: Vec3;
+  storageLocation?: Vec3;
+  hasStorage?: boolean;
   marketLevel: number;
   barracksLevel: number;
   prosperity: number;

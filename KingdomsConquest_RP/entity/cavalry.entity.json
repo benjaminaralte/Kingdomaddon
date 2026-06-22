@@ -16,16 +16,18 @@
       },
       "scripts": {
         "animate": [
+          "movement_ctrl",
           "setup"
         ]
       },
       "animations": {
-        "attack":      "animation.mercenary_viking_axe.attack",
-        "bobing":      "animation.mercenary_viking_axe.idle",
-        "setup":       "controller.animation.pn_roman.setup",
-        "move":        "animation.mercenary_viking_axe.move",
+        "attack": "animation.mercenary_viking_axe.attack",
+        "bobing": "animation.mercenary_viking_axe.idle",
+        "setup": "controller.animation.pn_roman.setup",
+        "move": "animation.mercenary_viking_axe.move",
         "move_target": "animation.mercenary_viking_axe.move_target",
-        "target":      "animation.mercenary_viking_axe.stay_target"
+        "target": "animation.mercenary_viking_axe.stay_target",
+        "movement_ctrl": "controller.animation.got_troop2"
       },
       "render_controllers": [
         "controller.render.mercenary_pn.viking"

@@ -9,9 +9,6 @@ export function registerTradeStation(
 ): void {
   village.hasTradeStation = true;
   village.tradeStationLocation = { x: location.x, y: location.y, z: location.z };
-  if (!village.resourceStorage) {
-    village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE };
-  }
   saveVillage(village);
   notifyPlayer(village.owner, `§aTrade Station built in §b${village.name}§a. Railway logistics enabled!`);
 }

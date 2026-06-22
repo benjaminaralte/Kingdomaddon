@@ -1,4 +1,4 @@
-import { Dimension, Vector3 } from "@minecraft/server";
+import { Dimension, Vector3, BlockPermutation } from "@minecraft/server";
 
 export const STRUCTURE_BLOCK_IDS = new Set([
   "kingdoms:town_hall",
@@ -10,12 +10,20 @@ export const STRUCTURE_BLOCK_IDS = new Set([
   "kingdoms:treasury",
   "kingdoms:waypoint",
   "kingdoms:castle",
+  "kingdoms:storage",
 ]);
 
-type BP = { x: number; y: number; z: number; b: string };
+type BP = { x: number; y: number; z: number; b: string; states?: Record<string, string | number | boolean> };
 
 function blk(x: number, y: number, z: number, b: string): BP {
   return { x, y, z, b };
+}
+
+function door(x: number, y: number, z: number, type = "minecraft:oak_door", direction = 1): BP[] {
+  return [
+    { x, y,     z, b: type, states: { direction, door_hinge_bit: false, open_bit: false, upper_block_bit: false } },
+    { x, y: y + 1, z, b: type, states: { direction, door_hinge_bit: false, open_bit: false, upper_block_bit: true  } },
+  ];
 }
 
 function fill(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, b: string): BP[] {
@@ -137,6 +145,9 @@ function barracksBlueprint(): BP[] {
     p.push(blk( 4, 6, z, "minecraft:stone_bricks"));
   }
 
+  // Door on south face (x=0, z=3, y=1)
+  p.push(...door(0, 1, 3, "minecraft:iron_door", 1));
+
   // Interior
   p.push(blk(-3, 1, -2, "minecraft:chest"), blk(3, 1, -2, "minecraft:chest"));
   p.push(blk( 0, 1, -2, "minecraft:smithing_table"));
@@ -196,8 +207,9 @@ function granaryBlueprint(): BP[] {
 
   // Spruce plank walls y=1-4
   p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:spruce_planks"));
-  // Door gap south wall
+  // Door gap south wall + spruce door
   for (let y = 1; y <= 2; y++) p.push(blk(0, y, 3, "minecraft:air"));
+  p.push(...door(0, 1, 3, "minecraft:spruce_door", 1));
 
   // Windows
   p.push(blk(-3, 2, 0, "minecraft:glass"), blk(3, 2, 0, "minecraft:glass"));
@@ -263,6 +275,43 @@ function blacksmithBlueprint(): BP[] {
   return p;
 }
 
+// ─── MATERIAL STORAGE ─────────────────────────────────────────────────────────
+// 7×7 stone warehouse with iron bars windows, barrel walls, lantern interior
+function materialStorageBlueprint(): BP[] {
+  const p: BP[] = [];
+
+  p.push(...fill(-3, 1, -3, 3, 6, 3, "minecraft:air"));
+  p.push(...fill(-3, 0, -3, 3, 0, 3, "minecraft:stone_bricks")); // floor
+
+  // Cobblestone walls y=1-4
+  p.push(...ring(-3, -3, 3, 3, 1, 4, "minecraft:cobblestone"));
+  // Stone brick accent row at y=4
+  p.push(...ring(-3, -3, 3, 3, 4, 4, "minecraft:stone_bricks"));
+
+  // Door gap south wall
+  for (let y = 1; y <= 2; y++) p.push(blk(0, y, 3, "minecraft:air"));
+  p.push(...door(0, 1, 3, "minecraft:iron_door", 1));
+
+  // Iron bar windows north, east, west
+  p.push(blk(-2, 2, -3, "minecraft:iron_bars"), blk(0, 2, -3, "minecraft:iron_bars"), blk(2, 2, -3, "minecraft:iron_bars"));
+  p.push(blk(-3, 2, -1, "minecraft:iron_bars"), blk(-3, 2,  1, "minecraft:iron_bars"));
+  p.push(blk( 3, 2, -1, "minecraft:iron_bars"), blk( 3, 2,  1, "minecraft:iron_bars"));
+
+  // Stone slab roof y=5
+  p.push(...fill(-3, 5, -3, 3, 5, 3, "minecraft:stone_bricks"));
+  // Chimney-style raised center
+  p.push(...fill(-1, 6, -1, 1, 6, 1, "minecraft:stone_bricks"));
+
+  // Interior: barrels and chests for resource storage theme
+  for (const [bx, bz] of [[-2,-2],[2,-2],[-2,2],[2,2]] as [number,number][])
+    p.push(blk(bx, 1, bz, "minecraft:barrel"));
+  p.push(blk(-2, 1, 0, "minecraft:chest"), blk(2, 1, 0, "minecraft:chest"));
+  p.push(blk(0, 1, -2, "minecraft:chest"));
+  p.push(blk(0, 1, 1, "minecraft:sea_lantern"));
+
+  return p;
+}
+
 // ─── TRADE STATION ────────────────────────────────────────────────────────────
 // 9×7 trading post with birch plank walls, oak plank platform, open front
 function tradeStationBlueprint(): BP[] {
@@ -294,8 +343,10 @@ function tradeStationBlueprint(): BP[] {
   p.push(blk( 2, 1,  0, "minecraft:lectern"));
   p.push(blk( 0, 1, -1, "minecraft:sea_lantern"));
 
-  // Iron bar fence along front edge
-  for (let x = -3; x <= 3; x++) p.push(blk(x, 1, 3, "minecraft:iron_bars"));
+  // Front entrance: iron bars with a gate in the middle
+  for (let x = -3; x <= -1; x++) p.push(blk(x, 1, 3, "minecraft:iron_bars"));
+  for (let x =  1; x <=  3; x++) p.push(blk(x, 1, 3, "minecraft:iron_bars"));
+  p.push(...door(0, 1, 3, "minecraft:oak_door", 1));
 
   return p;
 }
@@ -318,7 +369,8 @@ function treasuryBlueprint(): BP[] {
     p.push(blk( 0, y, 3, "minecraft:air"));
     p.push(blk( 0, y, 2, "minecraft:air"));
   }
-  // Iron bars as vault door frame
+  // Iron door on outer wall, iron bars frame on inner wall
+  p.push(...door(0, 1, 3, "minecraft:iron_door", 1));
   p.push(blk(-1, 1, 2, "minecraft:iron_bars"), blk(1, 1, 2, "minecraft:iron_bars"));
   p.push(blk(-1, 2, 2, "minecraft:iron_bars"), blk(1, 2, 2, "minecraft:iron_bars"));
 
@@ -502,6 +554,7 @@ const BLUEPRINTS: Record<string, () => BP[]> = {
   "kingdoms:treasury":     treasuryBlueprint,
   "kingdoms:waypoint":     waypointBlueprint,
   "kingdoms:castle":       castleBlueprint,
+  "kingdoms:storage":      materialStorageBlueprint,
 };
 
 /**
@@ -528,7 +581,11 @@ export function generateStructure(
         y: origin.y + bp.y,
         z: origin.z + bp.z,
       };
-      dimension.getBlock(loc)?.setType(bp.b);
+      if (bp.states) {
+        dimension.getBlock(loc)?.setPermutation(BlockPermutation.resolve(bp.b, bp.states));
+      } else {
+        dimension.getBlock(loc)?.setType(bp.b);
+      }
     } catch {
       // Skip unloaded chunks or out-of-bounds positions
     }
