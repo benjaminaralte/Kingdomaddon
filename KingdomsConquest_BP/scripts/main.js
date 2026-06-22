@@ -776,7 +776,7 @@ function tickAllFarmers() {
         const village = getVillage(data.villageId);
         const lifespan = village ? getFarmerLifespan(village) : (data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS);
         if (age >= lifespan) {
-          if (village?.owner) notifyPlayer(village.owner, `\xA7e\\u{1F9D1}\u200D\u{1F33E} A farmer in \xA7b${village.name}\xA7e has retired after ${age} days. Hire a new one from the farm plot.`);
+          if (village?.owner) notifyPlayer(village.owner, `\xA7e🧑‍🌾 A farmer in \xA7b${village.name}\xA7e has retired after ${age} days. Hire a new one from the farm plot.`);
           farmer.remove();
           continue;
         }
@@ -1900,6 +1900,7 @@ function handleDesertion(village) {
     `\xA7c${totalDeserters} soldiers deserted \xA7b${village.name}\xA7c! (${deserterLines.join(", ")}) They joined the bandits!`
   );
   logVillageEvent(village, "desertion", `\u{1F3F3} ${totalDeserters} deserted: ${deserterLines.join(", ")}`);
+  saveVillage(village);
   spawnBanditDeserters(village, banditStrength);
 }
 function upgradeBarracks(village) {
@@ -2165,7 +2166,7 @@ function pickupTroops(player, village, pickup) {
     }
   }
   const summary = toGive.map(({ itemId, count }) => `${count} ${TROOP_TOKEN_MAP[itemId]?.label}`).join(", ");
-  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a (\xA7c-${cost}\\u{1F48E}\xA7a). Right-click any token to deploy!`);
+  notifyPlayer(player.name, `\xA7a\u2694 Picked up: \xA7f${summary}\xA7a from \xA7b${village.name}\xA7a (\xA7c-${cost}\u{1F48E}\xA7a). Right-click any token to deploy!`);
   return true;
 }
 function releaseTroops(player) {
@@ -9251,7 +9252,7 @@ async function showFarmPlotMenu(player, block) {
   const fwLevel = village.fieldWorkerLevel ?? 0;
   const form = new ActionFormData()
     .title(`Farm Plot \u2014 ${village.name}`)
-    .body(`\xA7bActive Farmers: \xA7f${activeFarmers.length}\n${farmerList}\n\n\xA77Each farmer harvests up to \xA7f${currentYield}\xA77 crops/day and lives \xA7f${currentLifespan}\xA77 days.\n\xA77Field Worker Lv: \xA7f${fwLevel}/5\xA77 (upgrade at Granary costs 20\u{1F48E})\n\xA77Extend lifespan (+5 days) from the Granary (20\u{1F48E}).\n\nTreasury: ${village.treasury}\\u{1F48E}`)
+    .body(`\xA7bActive Farmers: \xA7f${activeFarmers.length}\n${farmerList}\n\n\xA77Each farmer harvests up to \xA7f${currentYield}\xA77 crops/day and lives \xA7f${currentLifespan}\xA77 days.\n\xA77Field Worker Lv: \xA7f${fwLevel}/5\xA77 (upgrade at Granary costs 20💎)\n\xA77Extend lifespan (+5 days) from the Granary (20💎).\n\nTreasury: ${village.treasury}💎`)
     .button(`\xA7aHire Farmer\n\xA77${spawnCost}\u{1F48E} from treasury${canSpawn ? "" : " \xA7c(insufficient funds)"}`)
     .button("Close");
   const response = await form.show(player);
@@ -9422,7 +9423,7 @@ async function showDiplomacyMenu(player) {
   if (!myKingdom) { notifyPlayer(player.name, "\xA7cYou don't have a kingdom."); return; }
   const others = getAllKingdoms().filter((k) => k.id !== myKingdom.id);
   const pendingIn = getPendingOffersFor(myKingdom.id);
-  const neutral = others.length - myKingdom.wars.length - myKingdom.alliances.length;
+  const neutral = Math.max(0, others.length - myKingdom.wars.length - myKingdom.alliances.length);
   const body = `\xA77Kingdom: \xA7f${myKingdom.name}\n\xA7cWars: \xA7f${myKingdom.wars.length}  \xA7aAllies: \xA7f${myKingdom.alliances.length}  \xA77Neutral: \xA7f${neutral}\n${pendingIn.length > 0 ? `\n\xA76\u26A0 ${pendingIn.length} pending offer(s) awaiting your response!` : "\xA77No pending incoming offers."}`;
   const form = new ActionFormData().title("\xA76Diplomacy").body(body);
   if (pendingIn.length > 0) form.button(`\xA76\u{1F4EC} Incoming Offers (${pendingIn.length})`);
@@ -9538,7 +9539,7 @@ async function showDiplomacyActions(player, myKingdom, target) {
     notifyPlayer(player.name, `\xA76Tribute demand of 50\u{1F48E} sent to ${target.name}.`);
   } else if (action === "tribute75") {
     sendDiploOffer(myKingdom, target, "tribute", 75);
-    notifyPlayer(player.name, `\xA76War reparations demand of 75\\u{1F48E} sent to ${target.name}.`);
+    notifyPlayer(player.name, `\xA76War reparations demand of 75\u{1F48E} sent to ${target.name}.`);
   }
 }
 async function showRenameForm(player, villageId) {
