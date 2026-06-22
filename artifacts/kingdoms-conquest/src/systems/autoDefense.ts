@@ -4,7 +4,7 @@ import { VILLAGE_CLAIM_RADIUS } from "../types/index.js";
 import { getAllVillages, saveVillage } from "../storage/index.js";
 import { notifyPlayer, notifyAlert } from "../utils/notify.js";
 import { distance } from "../utils/tick.js";
-import { areAtWar, getKingdomOf } from "./kingdom.js";
+import { areAtWar, getKingdomOf, notifyAlliedKings } from "./kingdom.js";
 
 const THREAT_SCAN_INTERVAL = 60;
 const RAID_NOTIFY_COOLDOWN = 300;
@@ -65,6 +65,10 @@ function scanVillageThreat(village: VillageData, currentTick: number): void {
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
       notifyAlert(village.owner, `§c🔔 RAID ALERT! §f${playerRaider}§c has entered §b${village.name}§c!`);
+      notifyAlliedKings(
+        village.kingdomId,
+        `§c🔔 Allied village §b${village.name}§c is being raided by §f${playerRaider}§c!`
+      );
       lastRaidNotify.set(key, currentTick);
     }
   }

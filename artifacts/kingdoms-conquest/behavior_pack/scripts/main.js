@@ -367,6 +367,161 @@ var init_villageAlerts = __esm({
   }
 });
 
+// src/systems/kingdom.ts
+function createKingdom(king, name) {
+  const existing = getKingdomByKing(king);
+  if (existing) return existing;
+  const kingdom = {
+    id: generateId(),
+    name,
+    king,
+    villageIds: [],
+    wars: [],
+    alliances: []
+  };
+  saveKingdom(kingdom);
+  notifyPlayer(king, `Your kingdom "\xA7b${name}\xA7r" has been founded!`);
+  return kingdom;
+}
+function addVillageToKingdom(kingdomId, villageId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return;
+  if (!kingdom.villageIds.includes(villageId)) {
+    kingdom.villageIds.push(villageId);
+    saveKingdom(kingdom);
+  }
+}
+function removeVillageFromKingdom(kingdomId, villageId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return;
+  kingdom.villageIds = kingdom.villageIds.filter((id) => id !== villageId);
+  if (kingdom.villageIds.length === 0) {
+    collapseKingdom(kingdomId);
+  } else {
+    saveKingdom(kingdom);
+  }
+}
+function collapseKingdom(kingdomId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return;
+  notifyPlayer(kingdom.king, `\xA7cYour kingdom "${kingdom.name}" has collapsed!`);
+  notifyAllKingdomMembers(kingdom, `\xA7cThe kingdom of "${kingdom.name}" has fallen!`);
+  for (const vid of kingdom.villageIds) {
+    const village = getVillage(vid);
+    if (village) {
+      village.kingdomId = "";
+      village.owner = "";
+    }
+  }
+  deleteKingdom(kingdomId);
+}
+function declareWar(attackerId, defenderId) {
+  const attacker = getKingdom(attackerId);
+  const defender = getKingdom(defenderId);
+  if (!attacker || !defender) return;
+  if (!attacker.wars.includes(defenderId)) attacker.wars.push(defenderId);
+  if (!defender.wars.includes(attackerId)) defender.wars.push(attackerId);
+  attacker.alliances = attacker.alliances.filter((id) => id !== defenderId);
+  defender.alliances = defender.alliances.filter((id) => id !== attackerId);
+  saveKingdom(attacker);
+  saveKingdom(defender);
+  notifyPlayer(attacker.king, `\xA7cWar declared against "${defender.name}"!`);
+  notifyPlayer(defender.king, `\xA7c"${attacker.name}" has declared war on your kingdom!`);
+}
+function makePeace(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  const b = getKingdom(kingdomBId);
+  if (!a || !b) return;
+  a.wars = a.wars.filter((id) => id !== kingdomBId);
+  b.wars = b.wars.filter((id) => id !== kingdomAId);
+  saveKingdom(a);
+  saveKingdom(b);
+  notifyPlayer(a.king, `\xA7aPeace made with "${b.name}".`);
+  notifyPlayer(b.king, `\xA7aPeace made with "${a.name}".`);
+}
+function formAlliance(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  const b = getKingdom(kingdomBId);
+  if (!a || !b) return;
+  if (a.wars.includes(kingdomBId) || b.wars.includes(kingdomAId)) return;
+  if (!a.alliances.includes(kingdomBId)) a.alliances.push(kingdomBId);
+  if (!b.alliances.includes(kingdomAId)) b.alliances.push(kingdomAId);
+  saveKingdom(a);
+  saveKingdom(b);
+  notifyPlayer(a.king, `\xA7aAlliance formed with "${b.name}"!`);
+  notifyPlayer(b.king, `\xA7aAlliance formed with "${a.name}"!`);
+}
+function areAtWar(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  return a ? a.wars.includes(kingdomBId) : false;
+}
+function getKingdomStrength(kingdomId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return 0;
+  let total = 0;
+  for (const vid of kingdom.villageIds) {
+    const village = getVillage(vid);
+    if (village) {
+      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
+    }
+  }
+  return total;
+}
+function getKingdomSummary(kingdomId) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom) return "Unknown kingdom";
+  let totalPop = 0;
+  let totalTreasury = 0;
+  let totalFood = 0;
+  for (const vid of kingdom.villageIds) {
+    const v = getVillage(vid);
+    if (v) {
+      totalPop += v.population;
+      totalTreasury += v.treasury;
+      totalFood += v.foodStorage;
+    }
+  }
+  const strength = getKingdomStrength(kingdomId);
+  return [
+    `\xA7b${kingdom.name}\xA7r (King: ${kingdom.king})`,
+    `Villages: ${kingdom.villageIds.length}  Population: ${totalPop}`,
+    `Treasury: ${totalTreasury}\u{1F48E}  Food: ${totalFood}\u{1F33E}`,
+    `Military: ${strength} strength`,
+    `Wars: ${kingdom.wars.length}  Alliances: ${kingdom.alliances.length}`
+  ].join("\n");
+}
+function notifyAllKingdomMembers(kingdom, message) {
+  const owners = [];
+  for (const vid of kingdom.villageIds) {
+    const v = getVillage(vid);
+    if (v && v.owner) owners.push(v.owner);
+  }
+  notifyKingdom(kingdom.king, owners, message);
+}
+function notifyAlliedKings(kingdomId, message) {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom || kingdom.alliances.length === 0) return;
+  for (const allyId of kingdom.alliances) {
+    const ally = getKingdom(allyId);
+    if (ally) notifyAlert(ally.king, message);
+  }
+}
+function getKingdomOf(playerName) {
+  return getAllKingdoms().find(
+    (k) => k.king === playerName || k.villageIds.some((vid) => {
+      const v = getVillage(vid);
+      return v?.owner === playerName;
+    })
+  );
+}
+var init_kingdom = __esm({
+  "src/systems/kingdom.ts"() {
+    "use strict";
+    init_storage();
+    init_notify();
+  }
+});
+
 // src/systems/bandit.ts
 var bandit_exports = {};
 __export(bandit_exports, {
@@ -570,6 +725,10 @@ function raidNearbyTargets(camp) {
   }
   if (!target) return;
   triggerAttackAlert(target.owner, target.name, camp.strength);
+  notifyAlliedKings(
+    target.kingdomId,
+    `\xA7c\u{1F3F4} Allied village \xA7b${target.name}\xA7c is being raided by bandits! (Strength: ${camp.strength})`
+  );
   const dim = world5.getDimension(camp.location.dimension);
   const merchants = dim.getEntities({ type: "kingdoms:merchant" });
   for (const merchant of merchants) {
@@ -665,6 +824,7 @@ var init_bandit = __esm({
     init_tick();
     init_notify();
     init_villageAlerts();
+    init_kingdom();
     MAX_WORLD_CAMPS = 5;
     MIN_WORLD_SPAWN_DIST = 300;
     MAX_WORLD_SPAWN_DIST = 600;
@@ -1137,151 +1297,8 @@ init_types();
 init_storage();
 init_tick();
 init_notify();
+init_kingdom();
 import { world as world7, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
-
-// src/systems/kingdom.ts
-init_storage();
-init_notify();
-function createKingdom(king, name) {
-  const existing = getKingdomByKing(king);
-  if (existing) return existing;
-  const kingdom = {
-    id: generateId(),
-    name,
-    king,
-    villageIds: [],
-    wars: [],
-    alliances: []
-  };
-  saveKingdom(kingdom);
-  notifyPlayer(king, `Your kingdom "\xA7b${name}\xA7r" has been founded!`);
-  return kingdom;
-}
-function addVillageToKingdom(kingdomId, villageId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return;
-  if (!kingdom.villageIds.includes(villageId)) {
-    kingdom.villageIds.push(villageId);
-    saveKingdom(kingdom);
-  }
-}
-function removeVillageFromKingdom(kingdomId, villageId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return;
-  kingdom.villageIds = kingdom.villageIds.filter((id) => id !== villageId);
-  if (kingdom.villageIds.length === 0) {
-    collapseKingdom(kingdomId);
-  } else {
-    saveKingdom(kingdom);
-  }
-}
-function collapseKingdom(kingdomId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return;
-  notifyPlayer(kingdom.king, `\xA7cYour kingdom "${kingdom.name}" has collapsed!`);
-  notifyAllKingdomMembers(kingdom, `\xA7cThe kingdom of "${kingdom.name}" has fallen!`);
-  for (const vid of kingdom.villageIds) {
-    const village = getVillage(vid);
-    if (village) {
-      village.kingdomId = "";
-      village.owner = "";
-    }
-  }
-  deleteKingdom(kingdomId);
-}
-function declareWar(attackerId, defenderId) {
-  const attacker = getKingdom(attackerId);
-  const defender = getKingdom(defenderId);
-  if (!attacker || !defender) return;
-  if (!attacker.wars.includes(defenderId)) attacker.wars.push(defenderId);
-  if (!defender.wars.includes(attackerId)) defender.wars.push(attackerId);
-  attacker.alliances = attacker.alliances.filter((id) => id !== defenderId);
-  defender.alliances = defender.alliances.filter((id) => id !== attackerId);
-  saveKingdom(attacker);
-  saveKingdom(defender);
-  notifyPlayer(attacker.king, `\xA7cWar declared against "${defender.name}"!`);
-  notifyPlayer(defender.king, `\xA7c"${attacker.name}" has declared war on your kingdom!`);
-}
-function makePeace(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  const b = getKingdom(kingdomBId);
-  if (!a || !b) return;
-  a.wars = a.wars.filter((id) => id !== kingdomBId);
-  b.wars = b.wars.filter((id) => id !== kingdomAId);
-  saveKingdom(a);
-  saveKingdom(b);
-  notifyPlayer(a.king, `\xA7aPeace made with "${b.name}".`);
-  notifyPlayer(b.king, `\xA7aPeace made with "${a.name}".`);
-}
-function formAlliance(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  const b = getKingdom(kingdomBId);
-  if (!a || !b) return;
-  if (a.wars.includes(kingdomBId) || b.wars.includes(kingdomAId)) return;
-  if (!a.alliances.includes(kingdomBId)) a.alliances.push(kingdomBId);
-  if (!b.alliances.includes(kingdomAId)) b.alliances.push(kingdomAId);
-  saveKingdom(a);
-  saveKingdom(b);
-  notifyPlayer(a.king, `\xA7aAlliance formed with "${b.name}"!`);
-  notifyPlayer(b.king, `\xA7aAlliance formed with "${a.name}"!`);
-}
-function areAtWar(kingdomAId, kingdomBId) {
-  const a = getKingdom(kingdomAId);
-  return a ? a.wars.includes(kingdomBId) : false;
-}
-function getKingdomStrength(kingdomId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return 0;
-  let total = 0;
-  for (const vid of kingdom.villageIds) {
-    const village = getVillage(vid);
-    if (village) {
-      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
-    }
-  }
-  return total;
-}
-function getKingdomSummary(kingdomId) {
-  const kingdom = getKingdom(kingdomId);
-  if (!kingdom) return "Unknown kingdom";
-  let totalPop = 0;
-  let totalTreasury = 0;
-  let totalFood = 0;
-  for (const vid of kingdom.villageIds) {
-    const v = getVillage(vid);
-    if (v) {
-      totalPop += v.population;
-      totalTreasury += v.treasury;
-      totalFood += v.foodStorage;
-    }
-  }
-  const strength = getKingdomStrength(kingdomId);
-  return [
-    `\xA7b${kingdom.name}\xA7r (King: ${kingdom.king})`,
-    `Villages: ${kingdom.villageIds.length}  Population: ${totalPop}`,
-    `Treasury: ${totalTreasury}\u{1F48E}  Food: ${totalFood}\u{1F33E}`,
-    `Military: ${strength} strength`,
-    `Wars: ${kingdom.wars.length}  Alliances: ${kingdom.alliances.length}`
-  ].join("\n");
-}
-function notifyAllKingdomMembers(kingdom, message) {
-  const owners = [];
-  for (const vid of kingdom.villageIds) {
-    const v = getVillage(vid);
-    if (v && v.owner) owners.push(v.owner);
-  }
-  notifyKingdom(kingdom.king, owners, message);
-}
-function getKingdomOf(playerName) {
-  return getAllKingdoms().find(
-    (k) => k.king === playerName || k.villageIds.some((vid) => {
-      const v = getVillage(vid);
-      return v?.owner === playerName;
-    })
-  );
-}
-
-// src/systems/village.ts
 function claimVillage(player, townHallBlock, kingdomName) {
   const loc = townHallBlock.location;
   const dim = player.dimension;
@@ -1435,6 +1452,9 @@ function getKingdomOf2(playerName) {
   return getAllKingdoms().find((k) => k.king === playerName);
 }
 
+// src/systems/commands.ts
+init_kingdom();
+
 // src/systems/military.ts
 init_types();
 init_storage();
@@ -1573,6 +1593,7 @@ function processAllWages() {
 init_storage();
 init_tick();
 init_notify();
+init_kingdom();
 import { world as world10 } from "@minecraft/server";
 
 // src/systems/watchtower.ts
@@ -1983,9 +2004,10 @@ function countTroopTokens(player) {
 
 // src/systems/border.ts
 init_storage();
-import { world as world9 } from "@minecraft/server";
+init_kingdom();
 init_notify();
 init_types();
+import { world as world9 } from "@minecraft/server";
 var BORDER_RADIUS = VILLAGE_CLAIM_RADIUS;
 var SIEGE_ELIGIBILITY_TICKS = 2400;
 var REMINDER_INTERVAL_TICKS = 400;
@@ -3378,6 +3400,7 @@ init_types();
 init_storage();
 init_tick();
 init_notify();
+init_kingdom();
 function drainGranaryToFoodStorage(village) {
   let converted = 0;
   for (const [item, count] of Object.entries(village.granaryItems)) {
@@ -3451,6 +3474,10 @@ function updateFoodShortageStage(village, dailyConsumption) {
         notifyPlayer(
           village.owner,
           `\xA74\u26A0 FAMINE in \xA7b${village.name}\xA74! Population is dying!`
+        );
+        notifyAlliedKings(
+          village.kingdomId,
+          `\xA74\u26A0 Allied village \xA7b${village.name}\xA74 is suffering FAMINE!`
         );
         break;
     }
@@ -4519,6 +4546,7 @@ init_types();
 init_storage();
 init_notify();
 init_tick();
+init_kingdom();
 import { world as world14 } from "@minecraft/server";
 var THREAT_SCAN_INTERVAL = 60;
 var RAID_NOTIFY_COOLDOWN = 300;
@@ -4572,6 +4600,10 @@ function scanVillageThreat(village, currentTick) {
     const last = lastRaidNotify.get(key) ?? 0;
     if (currentTick - last > RAID_NOTIFY_COOLDOWN) {
       notifyAlert(village.owner, `\xA7c\u{1F514} RAID ALERT! \xA7f${playerRaider}\xA7c has entered \xA7b${village.name}\xA7c!`);
+      notifyAlliedKings(
+        village.kingdomId,
+        `\xA7c\u{1F514} Allied village \xA7b${village.name}\xA7c is being raided by \xA7f${playerRaider}\xA7c!`
+      );
       lastRaidNotify.set(key, currentTick);
     }
   }
@@ -4846,6 +4878,9 @@ function enforceGuardPositions() {
     }
   }
 }
+
+// src/main.ts
+init_kingdom();
 
 // src/systems/reinforcements.ts
 init_storage();
@@ -5502,6 +5537,7 @@ async function showWaypointMenu(player, currentVillage) {
 }
 
 // src/main.ts
+init_kingdom();
 init_types();
 
 // src/systems/villagerBow.ts

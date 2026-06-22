@@ -7,6 +7,7 @@ import {
 import { getAllVillages, saveVillage } from "../storage/index.js";
 import { getCurrentDay, isNewDay } from "../utils/tick.js";
 import { notifyPlayer } from "../utils/notify.js";
+import { notifyAlliedKings } from "./kingdom.js";
 import { FOOD_ITEM_VALUES, removeFromGranary } from "./harvest.js";
 
 function drainGranaryToFoodStorage(village: VillageData): number {
@@ -108,6 +109,10 @@ function updateFoodShortageStage(village: VillageData, dailyConsumption: number)
         notifyPlayer(
           village.owner,
           `§4⚠ FAMINE in §b${village.name}§4! Population is dying!`
+        );
+        notifyAlliedKings(
+          village.kingdomId,
+          `§4⚠ Allied village §b${village.name}§4 is suffering FAMINE!`
         );
         break;
     }

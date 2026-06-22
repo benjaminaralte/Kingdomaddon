@@ -12,6 +12,7 @@ import {
 import { distance } from "../utils/tick.js";
 import { notifyAlert } from "../utils/notify.js";
 import { triggerAttackAlert } from "./villageAlerts.js";
+import { notifyAlliedKings } from "./kingdom.js";
 
 const MAX_WORLD_CAMPS = 5;
 const MIN_WORLD_SPAWN_DIST = 300;
@@ -272,6 +273,10 @@ function raidNearbyTargets(camp: BanditCampData): void {
 
   // ── Crisis title alert ─────────────────────────────────────────────────────
   triggerAttackAlert(target.owner, target.name, camp.strength);
+  notifyAlliedKings(
+    target.kingdomId,
+    `§c🏴 Allied village §b${target.name}§c is being raided by bandits! (Strength: ${camp.strength})`
+  );
 
   const dim = world.getDimension(camp.location.dimension);
 

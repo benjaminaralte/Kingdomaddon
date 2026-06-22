@@ -8,7 +8,7 @@ import {
   saveKingdom,
   deleteKingdom,
 } from "../storage/index.js";
-import { notifyPlayer, notifyKingdom } from "../utils/notify.js";
+import { notifyPlayer, notifyKingdom, notifyAlert } from "../utils/notify.js";
 
 export function createKingdom(king: string, name: string): KingdomData {
   const existing = getKingdomByKing(king);
@@ -178,6 +178,15 @@ function notifyAllKingdomMembers(kingdom: KingdomData, message: string): void {
     if (v && v.owner) owners.push(v.owner);
   }
   notifyKingdom(kingdom.king, owners, message);
+}
+
+export function notifyAlliedKings(kingdomId: string, message: string): void {
+  const kingdom = getKingdom(kingdomId);
+  if (!kingdom || kingdom.alliances.length === 0) return;
+  for (const allyId of kingdom.alliances) {
+    const ally = getKingdom(allyId);
+    if (ally) notifyAlert(ally.king, message);
+  }
 }
 
 export function getKingdomOf(playerName: string): KingdomData | undefined {
