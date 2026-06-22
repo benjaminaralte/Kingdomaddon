@@ -31,7 +31,7 @@
         "within_radius": 28.0,
         "entity_types": [{ "filters": { "test": "is_family", "subject": "other", "value": "kingdoms_bandit" }, "max_dist": 28 }]
       },
-      "minecraft:behavior.random_stroll": { "priority": 7, "speed_multiplier": 1.0, "xz_dist": 20, "y_dist": 3 }
+      "minecraft:behavior.random_stroll": { "priority": 7, "speed_multiplier": 1.0, "xz_dist": 8, "y_dist": 2 }
     }
   }
 }

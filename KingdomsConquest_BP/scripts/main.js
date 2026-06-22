@@ -1723,7 +1723,7 @@ function upgradeBarracks(village) {
     notifyPlayer(village.owner, "\xA7cBarracks already at maximum level.");
     return false;
   }
-  const cost = village.barracksLevel * 15;
+  const cost = Math.pow(village.barracksLevel, 2) * 15;
   if (village.treasury < cost) {
     notifyPlayer(village.owner, `\xA7cNeed ${cost}\u{1F48E} to upgrade barracks.`);
     return false;
@@ -5222,6 +5222,41 @@ function refreshAllGuards() {
   }
 }
 
+var GUARD_TETHER_RADIUS = 24;
+var GUARD_TETHER_INTERVAL = 200;
+var lastGuardTetherTick = 0;
+function tickGuardTethers(currentTick) {
+  if (currentTick - lastGuardTetherTick < GUARD_TETHER_INTERVAL) return;
+  lastGuardTetherTick = currentTick;
+  for (const village of getAllVillages()) {
+    if (!village.guardPoles || village.guardPoles.length === 0) continue;
+    const dim = world15.getDimension(village.location.dimension);
+    for (const pole of village.guardPoles) {
+      if (!pole.entityIds || pole.entityIds.length === 0) continue;
+      const entityType = GUARD_ENTITY_MAP[pole.troopType];
+      if (!entityType) continue;
+      for (const eid of pole.entityIds) {
+        try {
+          const nearby = dim.getEntities({ type: entityType, location: pole.location, maxDistance: GUARD_TETHER_RADIUS * 2 });
+          const entity = nearby.find((e) => e.id === eid);
+          if (!entity) continue;
+          const dx = entity.location.x - pole.location.x;
+          const dz = entity.location.z - pole.location.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > GUARD_TETHER_RADIUS) {
+            const returnAngle = Math.atan2(-dz, -dx) + (Math.random() - 0.5) * 0.5;
+            entity.teleport({
+              x: pole.location.x + Math.cos(returnAngle) * 2,
+              y: pole.location.y,
+              z: pole.location.z + Math.sin(returnAngle) * 2
+            }, { keepVelocity: false });
+          }
+        } catch {}
+      }
+    }
+  }
+}
+
 // src/systems/reinforcements.ts
 init_storage();
 function sendReinforcements(fromVillageId, toVillageId, troops) {
@@ -7306,6 +7341,7 @@ system3.runInterval(() => {
   tickTradeCartMovement();
   tickWorldLife(tick);
   tickVillagerRespawn(tick);
+  tickGuardTethers(tick);
 }, 20);
 system3.runInterval(() => {
   processAllFood();
@@ -7845,7 +7881,7 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
   form.button("Disband Samurai");
   form.button("Disband Heavy Knights");
   form.button("Disband Legionaries");
-  form.button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`);
+  form.button(`Upgrade Barracks (${Math.pow(village.barracksLevel, 2) * 15}\u{1F48E})`);
   form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0)} total stationed`);
   form.button(carriedTotal > 0 ? `\u{1F3F9} Return Troops (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
   form.button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
@@ -8049,10 +8085,18 @@ ${merchantList}
       upgradeMarket(village);
       break;
     case 3:
-      buyFood(village, 10);
+      if (village.marketLevel < 2) {
+        notifyPlayer(player.name, `\xA7cAbstract food trading requires Market Lv\xA7f2\xA7c. Upgrade your market first.`);
+      } else {
+        buyFood(village, 10);
+      }
       break;
     case 4:
-      sellFood(village, 10);
+      if (village.marketLevel < 2) {
+        notifyPlayer(player.name, `\xA7cAbstract food trading requires Market Lv\xA7f2\xA7c. Upgrade your market first.`);
+      } else {
+        sellFood(village, 10);
+      }
       break;
     case 5:
       await showBobsFarmingShopMenu(player, village);

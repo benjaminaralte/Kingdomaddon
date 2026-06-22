@@ -85,8 +85,8 @@
       "minecraft:behavior.random_stroll": {
         "priority": 7,
         "speed_multiplier": 0.8,
-        "xz_dist": 16,
-        "y_dist": 3
+        "xz_dist": 6,
+        "y_dist": 2
       }
     }
   }
