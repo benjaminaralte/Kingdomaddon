@@ -14,14 +14,17 @@ const AUTO_DISPATCH_PROP = "kc:auto_dispatch";
 const AUTO_TROOP_TYPE_PROP = "kc:auto_troop_type";
 
 const TROOP_ENTITY_MAP: Record<TroopType, string> = {
-  cityGuards:  "kingdoms:city_guard",
-  spearmen:    "kingdoms:spearman",
-  archers:     "kingdoms:archer",
-  cavalry:     "kingdoms:cavalry",
-  heavyKnight: "kingdoms:heavy_knight",
+  cityGuards:      "kingdoms:city_guard",
+  spearmen:        "kingdoms:spearman",
+  archers:         "kingdoms:archer",
+  cavalry:         "kingdoms:cavalry",
+  heavyKnight:     "kingdoms:heavy_knight",
+  samurai:         "kingdoms:samurai",
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary:       "kingdoms:legionary",
 };
 
-const TROOP_PRIORITY: TroopType[] = ["heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
+const TROOP_PRIORITY: TroopType[] = ["samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
 
 export function tickAutoDefense(currentTick: number): void {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
@@ -100,9 +103,14 @@ function countAutoDispatched(village: VillageData): number {
 
 function dispatchTroops(village: VillageData, threatCount: number): void {
   const totalBarracks =
-    village.troops.cityGuards + village.troops.spearmen +
-    village.troops.archers + village.troops.cavalry +
-    (village.troops.heavyKnight ?? 0);
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
   if (totalBarracks <= 0) return;
 
   const alreadyOut = countAutoDispatched(village);
@@ -146,12 +154,15 @@ function dispatchTroops(village: VillageData, threatCount: number): void {
 function recallAutoDispatched(village: VillageData): void {
   const dim = world.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  const survivors: Record<TroopType, number> = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 };
+  const survivors: Partial<Record<TroopType, number>> = {};
   let recalled = 0;
+
+  // Large radius so stragglers that chased enemies far are still recovered
+  const RECALL_RADIUS = VILLAGE_CLAIM_RADIUS * 6;
 
   for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP) as [TroopType, string][]) {
     try {
-      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: RECALL_RADIUS });
       for (const e of entities) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
         const tt = (e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) as TroopType | undefined) ?? troopType;

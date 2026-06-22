@@ -34,7 +34,10 @@ export function recruitTroop(village: VillageData, type: TroopType, count: numbe
     village.troops.spearmen -
     village.troops.archers -
     village.troops.cavalry -
-    village.troops.heavyKnight -
+    (village.troops.heavyKnight      ?? 0) -
+    (village.troops.samurai          ?? 0) -
+    (village.troops.mercenaryLancer  ?? 0) -
+    (village.troops.legionary        ?? 0) -
     village.workers.farmers -
     village.workers.workers;
 

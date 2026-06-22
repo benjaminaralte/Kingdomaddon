@@ -1406,7 +1406,7 @@ function getVillageSummary(village) {
     `Pop: ${village.population}/${village.housingCapacity}  Prosperity: ${village.prosperity}`,
     `Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}`,
     `Market Lv${village.marketLevel}  Barracks Lv${village.barracksLevel}`,
-    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} HK:${hk})`,
+    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} HK:${hk}${sa > 0 ? ` Sa:${sa}` : ""}${ml > 0 ? ` ML:${ml}` : ""}${le > 0 ? ` Le:${le}` : ""})`,
     `Food Shortage: ${stages[village.foodShortageStage] ?? "Unknown"}`,
     `Weapon Tier: ${village.blacksmith.weaponTier}  Armor Tier: ${village.blacksmith.armorTier}`,
     `Trade Station: ${hasStation}`,
@@ -1458,7 +1458,7 @@ function recruitTroop(village, type, count = 1) {
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
-  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - village.troops.heavyKnight - village.workers.farmers - village.workers.workers;
+  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0) - village.workers.farmers - village.workers.workers;
   if (availableWorkers < count) {
     notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
     return false;
@@ -2490,7 +2490,7 @@ function upgradeWeapons(player, villageId) {
   }
   const cost = WEAPON_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2524,7 +2524,7 @@ function upgradeArmor(player, villageId) {
   }
   const cost = ARMOR_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2596,7 +2596,7 @@ function getBlacksmithSummary(village) {
   const nextAT = ARMOR_TIERS[village.blacksmith.armorTier + 1];
   const wCost = WEAPON_UPGRADE_COSTS[village.blacksmith.weaponTier];
   const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   const rs = village.resourceStorage;
   return [
     `\xA7b${village.name} Blacksmith\xA7r`,
@@ -4176,6 +4176,22 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
     notifyPlayer(from.owner, `\xA7cNot enough Cavalry.`);
     return false;
   }
+  if ((troops.heavyKnight ?? 0) > (from.troops.heavyKnight ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Heavy Knights.`);
+    return false;
+  }
+  if ((troops.samurai ?? 0) > (from.troops.samurai ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Samurai.`);
+    return false;
+  }
+  if ((troops.mercenaryLancer ?? 0) > (from.troops.mercenaryLancer ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Mercenary Lancers.`);
+    return false;
+  }
+  if ((troops.legionary ?? 0) > (from.troops.legionary ?? 0)) {
+    notifyPlayer(from.owner, `\xA7cNot enough Legionaries.`);
+    return false;
+  }
   from.treasury -= cargo.emeralds;
   from.foodStorage -= cargo.food;
   rs.iron -= cargo.iron ?? 0;
@@ -4188,6 +4204,10 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
   from.troops.spearmen -= troops.spearmen ?? 0;
   from.troops.archers -= troops.archers ?? 0;
   from.troops.cavalry -= troops.cavalry ?? 0;
+  from.troops.heavyKnight = (from.troops.heavyKnight ?? 0) - (troops.heavyKnight ?? 0);
+  from.troops.samurai = (from.troops.samurai ?? 0) - (troops.samurai ?? 0);
+  from.troops.mercenaryLancer = (from.troops.mercenaryLancer ?? 0) - (troops.mercenaryLancer ?? 0);
+  from.troops.legionary = (from.troops.legionary ?? 0) - (troops.legionary ?? 0);
   const dim = world13.getDimension(from.location.dimension);
   const spawnLoc = from.tradeStationLocation ?? from.townHallLocation;
   let cartEntity;
@@ -4210,6 +4230,10 @@ function sendRailShipment(fromVillageId, toVillageId, cargo) {
     from.troops.spearmen += troops.spearmen ?? 0;
     from.troops.archers += troops.archers ?? 0;
     from.troops.cavalry += troops.cavalry ?? 0;
+    from.troops.heavyKnight = (from.troops.heavyKnight ?? 0) + (troops.heavyKnight ?? 0);
+    from.troops.samurai = (from.troops.samurai ?? 0) + (troops.samurai ?? 0);
+    from.troops.mercenaryLancer = (from.troops.mercenaryLancer ?? 0) + (troops.mercenaryLancer ?? 0);
+    from.troops.legionary = (from.troops.legionary ?? 0) + (troops.legionary ?? 0);
     saveVillage(from);
     notifyPlayer(from.owner, "\xA7cCould not spawn minecart (chunk not loaded). Resources refunded.");
     return false;
@@ -4506,9 +4530,12 @@ var TROOP_ENTITY_MAP = {
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
   cavalry: "kingdoms:cavalry",
-  heavyKnight: "kingdoms:heavy_knight"
+  heavyKnight: "kingdoms:heavy_knight",
+  samurai: "kingdoms:samurai",
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary: "kingdoms:legionary"
 };
-var TROOP_PRIORITY = ["heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
+var TROOP_PRIORITY = ["samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
   for (const village of getAllVillages()) {
@@ -4578,7 +4605,7 @@ function countAutoDispatched(village) {
   return count;
 }
 function dispatchTroops(village, threatCount) {
-  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
+  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   if (totalBarracks <= 0) return;
   const alreadyOut = countAutoDispatched(village);
   const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
@@ -4616,11 +4643,12 @@ function dispatchTroops(village, threatCount) {
 function recallAutoDispatched(village) {
   const dim = world14.getDimension(village.location.dimension);
   const center = village.townHallLocation;
-  const survivors = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 };
+  const survivors = {};
   let recalled = 0;
+  const RECALL_RADIUS2 = VILLAGE_CLAIM_RADIUS * 6;
   for (const [troopType, entityType] of Object.entries(TROOP_ENTITY_MAP)) {
     try {
-      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: VILLAGE_CLAIM_RADIUS * 2 });
+      const entities = dim.getEntities({ type: entityType, location: center, maxDistance: RECALL_RADIUS2 });
       for (const e of entities) {
         if (e.getDynamicProperty(AUTO_DISPATCH_PROP) !== village.id) continue;
         const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;

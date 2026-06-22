@@ -141,11 +141,14 @@ export function upgradeWeapons(player: Player, villageId: string): boolean {
   if (!cost) return false;
 
   const totalSoldiers =
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry +
-    (village.troops.heavyKnight ?? 0);
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
 
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
@@ -189,11 +192,14 @@ export function upgradeArmor(player: Player, villageId: string): boolean {
   if (!cost) return false;
 
   const totalSoldiers =
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry +
-    (village.troops.heavyKnight ?? 0);
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
 
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
@@ -282,11 +288,14 @@ export function getBlacksmithSummary(village: VillageData): string {
   const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
 
   const soldiers =
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry +
-    (village.troops.heavyKnight ?? 0);
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
 
   const rs = village.resourceStorage;
 
