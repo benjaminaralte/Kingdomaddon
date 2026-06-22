@@ -112,6 +112,11 @@ export function tickChargeSystem(currentTick: number): void {
   }
 }
 
+// ── Spearmen counter-charge constants ────────────────────────────────────────
+
+const SPEAR_COUNTER_DAMAGE = 6;  // damage reflected back to the charger
+const SPEAR_ENTITY_ID      = "kingdoms:spearman";
+
 // ── Event registration — call ONCE at startup ────────────────────────────────
 
 export function registerChargeSystem(): void {
@@ -126,6 +131,27 @@ export function registerChargeSystem(): void {
 
     const tick = getCurrentTick();
     if (!isChargeReady(attacker, tick)) return;
+
+    // ── Spearmen counter — fires before the charge is consumed ───────────
+    if (victim.typeId === SPEAR_ENTITY_ID) {
+      try {
+        attacker.applyDamage(SPEAR_COUNTER_DAMAGE, { cause: "entityAttack", damagingEntity: victim });
+      } catch { /* attacker removed */ }
+      try {
+        const vPos = victim.location;
+        const aPos = attacker.location;
+        const dx   = aPos.x - vPos.x;
+        const dz   = aPos.z - vPos.z;
+        const mag  = Math.sqrt(dx * dx + dz * dz) || 1;
+        attacker.applyKnockback((dx / mag) * 1.0, (dz / mag) * 1.0, 0.5, 0.4);
+      } catch { /* attacker removed */ }
+      try {
+        victim.dimension.spawnParticle("minecraft:large_explosion", victim.location);
+        victim.runCommandAsync(
+          `title @a[r=32] actionbar §c🛡 Spearmen Counter!`
+        ).catch(() => {});
+      } catch { }
+    }
 
     // Consume the charge immediately so it can only fire once per gallop
     clearCharge(attacker);

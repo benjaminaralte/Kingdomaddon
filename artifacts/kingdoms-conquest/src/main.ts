@@ -101,6 +101,7 @@ import { areAtWar } from "./systems/kingdom.js";
 import { TICKS_PER_DAY } from "./types/index.js";
 import { startVillagerBowSystem } from "./systems/villagerBow.js";
 import { tickChargeSystem, registerChargeSystem } from "./systems/chargeAttack.js";
+import { tickFormations, openTacticsMenu } from "./systems/formations.js";
 
 // ── Wool Diplomacy ────────────────────────────────────────────────────────────
 interface PendingDiplomacyRequest {
@@ -673,6 +674,7 @@ system.runInterval(() => {
   tickBorders(tick);
   tickAutoDefense(tick);
   tickChargeSystem(tick);
+  tickFormations(tick);
 
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
@@ -752,6 +754,11 @@ world.afterEvents.itemUse.subscribe((event) => {
     system.run(() => {
       recallNearbyTroops(player);
     });
+    return;
+  }
+
+  if (itemId === "kingdoms:tactics_horn") {
+    openTacticsMenu(player);
     return;
   }
 
