@@ -3879,7 +3879,9 @@ function getFoodProduction(village) {
   return farmerOutput;
 }
 function getFoodConsumption(village) {
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const t = village.troops;
+  const soldiers = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
+    (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
   const civilians = village.population - soldiers;
   return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + soldiers * FOOD_PER_SOLDIER_PER_DAY;
 }
@@ -4047,14 +4049,21 @@ function tickPopulation(village) {
 function handlePopulationDecline(village) {
   if (village.population > 1 && Math.random() < MORTALITY_CHANCE) {
     village.population -= 1;
-    const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
-    if (village.population < totalSoldiers + village.workers.farmers + village.workers.workers) {
-      if (village.troops.cityGuards > 0) village.troops.cityGuards--;
-      else if (village.troops.spearmen > 0) village.troops.spearmen--;
-      else if (village.troops.archers > 0) village.troops.archers--;
-      else if (village.troops.cavalry > 0) village.troops.cavalry--;
-      else if (village.workers.workers > 0) village.workers.workers--;
-      else if (village.workers.farmers > 0) village.workers.farmers--;
+    const t = village.troops;
+    const totalSoldiers = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
+      (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
+    const totalWorkers = (village.workers?.farmers ?? 0) + (village.workers?.workers ?? 0) + (village.workers?.miners ?? 0);
+    if (village.population < totalSoldiers + totalWorkers) {
+      if ((t.cityGuards ?? 0) > 0) t.cityGuards--;
+      else if ((t.spearmen ?? 0) > 0) t.spearmen--;
+      else if ((t.archers ?? 0) > 0) t.archers--;
+      else if ((t.cavalry ?? 0) > 0) t.cavalry--;
+      else if ((t.samurai ?? 0) > 0) t.samurai--;
+      else if ((t.heavyKnights ?? 0) > 0) t.heavyKnights--;
+      else if ((t.legionary ?? 0) > 0) t.legionary--;
+      else if ((village.workers?.miners ?? 0) > 0) village.workers.miners--;
+      else if ((village.workers?.workers ?? 0) > 0) village.workers.workers--;
+      else if ((village.workers?.farmers ?? 0) > 0) village.workers.farmers--;
     }
     notifyPlayer(
       village.owner,
@@ -8816,7 +8825,9 @@ function bulkForge(player, village, tier) {
   if (!recipe) { notifyPlayer(player.name, "\xA7cUnknown tier."); return; }
   village.resourceStorage ?? (village.resourceStorage = { ...EMPTY_RESOURCE_STORAGE });
   const res = village.resourceStorage;
-  const soldiers = Math.max(1, (village.soldiers?.cityGuards ?? 0) + (village.soldiers?.spearmen ?? 0) + (village.soldiers?.archers ?? 0) + (village.soldiers?.cavalry ?? 0));
+  const tr = village.troops;
+  const soldiers = Math.max(1, (tr?.cityGuards ?? 0) + (tr?.spearmen ?? 0) + (tr?.archers ?? 0) + (tr?.cavalry ?? 0) +
+    (tr?.samurai ?? 0) + (tr?.heavyKnights ?? 0) + (tr?.legionary ?? 0));
   const wCost = recipe.weaponCost * soldiers;
   const aCost = recipe.armorCost * soldiers;
   const mat = res[recipe.materialKey] ?? 0;
@@ -8955,8 +8966,6 @@ async function showStorageWithdrawSlider(player, village) {
   else notifyPlayer(player.name, "\xA7cInventory full \u2014 could not withdraw.");
   if (given > 0 && given < qty) notifyPlayer(player.name, `\xA7eInventory partially full. Only ${given}/${qty} withdrawn.`);
 }
-function _storageMenuOld_unused() {
-}
 async function showMinerManageMenu(player, village) {
   const pop = village.population ?? 0;
   if (pop < MIN_POP_FOR_MINERS) {
@@ -9059,7 +9068,9 @@ async function showArmoryMenu(player, block) {
   }
   village.armoryItems ?? (village.armoryItems = {});
   const items = Object.entries(village.armoryItems).filter(([, v]) => v > 0);
-  const soldiers = (village.soldiers?.cityGuards ?? 0) + (village.soldiers?.spearmen ?? 0) + (village.soldiers?.archers ?? 0) + (village.soldiers?.cavalry ?? 0);
+  const trA = village.troops;
+  const soldiers = (trA?.cityGuards ?? 0) + (trA?.spearmen ?? 0) + (trA?.archers ?? 0) + (trA?.cavalry ?? 0) +
+    (trA?.samurai ?? 0) + (trA?.heavyKnights ?? 0) + (trA?.legionary ?? 0);
   const bodyLines = items.length > 0 ? items.map(([id, cnt]) => `${id.replace("minecraft:", "")} \xD7${cnt}`).join("\n") : "\xA77Armory is empty.\nHold a weapon or armor piece and tap to deposit.";
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Armory`)
@@ -9091,7 +9102,9 @@ async function showArmoryMenu(player, block) {
 async function showArmoryEquipMenu(player, village) {
   village.armoryItems ?? (village.armoryItems = {});
   const bsm = village.blacksmith ?? { weaponTier: "wood", armorTier: "leather" };
-  const soldiers = Math.max(1, (village.soldiers?.cityGuards ?? 0) + (village.soldiers?.spearmen ?? 0) + (village.soldiers?.archers ?? 0) + (village.soldiers?.cavalry ?? 0));
+  const trE = village.troops;
+  const soldiers = Math.max(1, (trE?.cityGuards ?? 0) + (trE?.spearmen ?? 0) + (trE?.archers ?? 0) + (trE?.cavalry ?? 0) +
+    (trE?.samurai ?? 0) + (trE?.heavyKnights ?? 0) + (trE?.legionary ?? 0));
   const availWeapons = WEAPON_TIERS.filter((t) => (village.armoryItems[`minecraft:${t}_sword`] ?? 0) + (village.armoryItems[`minecraft:${t}_axe`] ?? 0) > 0);
   const availArmors = ARMOR_TIERS.filter((t) => (village.armoryItems[`minecraft:${t}_chestplate`] ?? 0) + (village.armoryItems[`minecraft:${t}_helmet`] ?? 0) > 0);
   const body = `Current: \xA7aWeapons: ${bsm.weaponTier}\xA7r | \xA7aArmor: ${bsm.armorTier}\xA7r\n\nSoldiers: ${soldiers}\nSelect what to equip (1 weapon or 4 armor pieces per soldier):`;
