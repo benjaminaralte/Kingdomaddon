@@ -698,9 +698,15 @@ var AUTO_HARVEST_SCAN_STEP = 2;
 var AUTO_HARVEST_Y_RANGE = 3;
 var FIELD_WORKER_UPGRADE_COST = 20;
 var FIELD_WORKER_MAX_LEVEL = 5;
-var FIELD_WORKER_CAP_PER_LEVEL = 50;
-function getHarvestCap(village) {
-  return FIELD_WORKER_CAP_PER_LEVEL + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_CAP_PER_LEVEL;
+var FIELD_WORKER_YIELD_BASE = 32;
+var FIELD_WORKER_YIELD_PER_LEVEL = 16;
+var FIELD_WORKER_LIFESPAN_BASE = 10;
+var FIELD_WORKER_LIFESPAN_PER_LEVEL = 5;
+function getFarmerYieldCap(village) {
+  return FIELD_WORKER_YIELD_BASE + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_YIELD_PER_LEVEL;
+}
+function getFarmerLifespan(village) {
+  return FIELD_WORKER_LIFESPAN_BASE + (village.fieldWorkerLevel ?? 0) * FIELD_WORKER_LIFESPAN_PER_LEVEL;
 }
 function upgradeFieldWorkers(village) {
   const currentLevel = village.fieldWorkerLevel ?? 0;
@@ -715,10 +721,11 @@ function upgradeFieldWorkers(village) {
   village.treasury -= FIELD_WORKER_UPGRADE_COST;
   village.fieldWorkerLevel = currentLevel + 1;
   saveVillage(village);
-  const newCap = getHarvestCap(village);
+  const newYield = getFarmerYieldCap(village);
+  const newLife = getFarmerLifespan(village);
   notifyPlayer(
     village.owner,
-    `\xA7aField Workers upgraded to \xA7bLv${village.fieldWorkerLevel}\xA7a in \xA7b${village.name}\xA7a! NPC farmers now harvest up to \xA7f${newCap}\xA7a crops per day.`
+    `\xA7aField Workers upgraded to \xA7bLv${village.fieldWorkerLevel}\xA7a in \xA7b${village.name}\xA7a! Farmers now yield up to \xA7f${newYield}\xA7a crops/day and live \xA7f${newLife}\xA7a days.`
   );
   return true;
 }
@@ -739,15 +746,15 @@ function tickAllFarmers() {
         if (!dataStr) { farmer.remove(); continue; }
         const data = JSON.parse(dataStr);
         const age = currentDay - (data.spawnedDay ?? 0);
-        const lifespan = data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS;
+        const village = getVillage(data.villageId);
+        const lifespan = village ? getFarmerLifespan(village) : (data.lifespanDays ?? FARMER_DEFAULT_LIFESPAN_DAYS);
         if (age >= lifespan) {
-          const village = getVillage(data.villageId);
-          if (village?.owner) notifyPlayer(village.owner, `\xA7e\u{1F9D1}\u200D\u{1F33E} A farmer in \xA7b${village.name}\xA7e has retired after ${age} days. Hire a new one from the farm plot.`);
+          if (village?.owner) notifyPlayer(village.owner, `\xA7e\\u{1F9D1}\u200D\u{1F33E} A farmer in \xA7b${village.name}\xA7e has retired after ${age} days. Hire a new one from the farm plot.`);
           farmer.remove();
           continue;
         }
-        const village = getVillage(data.villageId);
         if (!village) continue;
+        const yieldCap = getFarmerYieldCap(village);
         const cx = data.plotX ?? Math.floor(farmer.location.x);
         const cz = data.plotZ ?? Math.floor(farmer.location.z);
         const baseY = data.plotY ?? Math.floor(farmer.location.y);
@@ -755,7 +762,7 @@ function tickAllFarmers() {
         let harvested = 0;
         outer: for (let x = cx - radius; x <= cx + radius; x += 2) {
           for (let z = cz - radius; z <= cz + radius; z += 2) {
-            if (harvested >= FARMER_HARVEST_CAP) break outer;
+            if (harvested >= yieldCap) break outer;
             for (let y = baseY - 2; y <= baseY + 4; y++) {
               try {
                 const block = dim.getBlock({ x, y, z });
@@ -776,7 +783,7 @@ function tickAllFarmers() {
         }
         if (harvested > 0) {
           const daysLeft = lifespan - age;
-          notifyPlayer(village.owner, `\xA77\u{1F33E} Farmer in \xA7b${village.name}\xA77 harvested ${harvested} crop(s) \u2192 Granary. (${daysLeft} day${daysLeft !== 1 ? "s" : ""} left)`);
+          notifyPlayer(village.owner, `\xA77\u{1F33E} Farmer in \xA7b${village.name}\xA77 harvested ${harvested} crop(s) \u2192 Granary. (${daysLeft} day${daysLeft !== 1 ? "s" : ""} left, cap: ${yieldCap})`);
         }
       } catch {}
     }
@@ -1719,6 +1726,30 @@ function getTotalTroops(village) {
 function processAllWages() {
   for (const village of getAllVillages()) {
     tickWages(village);
+  }
+}
+var VILLAGER_TAX_INTERVAL_DAYS = 10;
+function tickVillagerTax(village) {
+  const currentDay = getCurrentDay();
+  const lastTax = village.lastTaxDay ?? 0;
+  if (currentDay - lastTax < VILLAGER_TAX_INTERVAL_DAYS) return;
+  const pop = village.population ?? 0;
+  if (pop <= 0) {
+    village.lastTaxDay = currentDay;
+    saveVillage(village);
+    return;
+  }
+  const collected = pop;
+  village.treasury += collected;
+  village.lastTaxDay = currentDay;
+  saveVillage(village);
+  if (village.owner) {
+    notifyPlayer(village.owner, `\xA76\u{1F4B0} Tax collected in \xA7b${village.name}\xA76: ${collected}\u{1F48E} (${pop} villager${pop !== 1 ? "s" : ""} \xD7 1\u{1F48E}) \u2192 Treasury.`);
+  }
+}
+function processAllTaxes() {
+  for (const village of getAllVillages()) {
+    tickVillagerTax(village);
   }
 }
 
@@ -7246,6 +7277,7 @@ system3.runInterval(() => {
   processAllFood();
   processAllWages();
   processAllPopulation();
+  processAllTaxes();
   tickBandits();
   processAllSoldierFood();
   tickAllFarmers();
@@ -7771,6 +7803,10 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
   form.button("Recruit Heavy Knight (15\u{1F48E} each)");
   form.button("Disband Guards");
   form.button("Disband Spearmen");
+  form.button("Disband Archers");
+  form.button("Disband Cavalry");
+  form.button("Disband Samurai");
+  form.button("Disband Heavy Knights");
   form.button(`Upgrade Barracks (${village.barracksLevel * 15}\u{1F48E})`);
   form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)} total stationed`);
   form.button(carriedTotal > 0 ? `\u{1F3F9} Return Troops (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
@@ -7788,22 +7824,26 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
     case 5: await showRecruitSlider(player, village, "heavyKnights", "Heavy Knight", 15); break;
     case 6: await showDisbandSlider(player, village, "cityGuards", "City Guards"); break;
     case 7: await showDisbandSlider(player, village, "spearmen", "Spearmen"); break;
-    case 8:
+    case 8: await showDisbandSlider(player, village, "archers", "Archers"); break;
+    case 9: await showDisbandSlider(player, village, "cavalry", "Cavalry"); break;
+    case 10: await showDisbandSlider(player, village, "samurai", "Samurai"); break;
+    case 11: await showDisbandSlider(player, village, "heavyKnights", "Heavy Knights"); break;
+    case 12:
       upgradeBarracks(village);
       break;
-    case 9:
+    case 13:
       await showPickUpTroopsForm(player, village);
       break;
-    case 10:
+    case 14:
       await showReturnTroopsForm(player, village);
       break;
-    case 11:
+    case 15:
       await showTrainTroopsForm(player, village);
       break;
-    case 12:
+    case 16:
       await showGetFormationSetForm(player, village);
       break;
-    case 13: {
+    case 17: {
       const inv11 = player.getComponent(EntityInventoryComponent8.componentId);
       const c11 = inv11?.container;
       if (!c11) break;
@@ -8400,9 +8440,12 @@ async function showFarmPlotMenu(player, block) {
     : "  No farmers assigned yet.";
   const spawnCost = 10;
   const canSpawn = village.treasury >= spawnCost;
+  const currentLifespan = getFarmerLifespan(village);
+  const currentYield = getFarmerYieldCap(village);
+  const fwLevel = village.fieldWorkerLevel ?? 0;
   const form = new ActionFormData()
     .title(`Farm Plot \u2014 ${village.name}`)
-    .body(`\xA7bActive Farmers: \xA7f${activeFarmers.length}\n${farmerList}\n\n\xA77Farmers auto-harvest ripe crops within this plot and send food directly to the Granary.\nFarmers retire after ${FARMER_DEFAULT_LIFESPAN_DAYS} days \u2014 extend lifespan from the Granary (20\u{1F48E}).\n\nTreasury: ${village.treasury}\u{1F48E}`)
+    .body(`\xA7bActive Farmers: \xA7f${activeFarmers.length}\n${farmerList}\n\n\xA77Each farmer harvests up to \xA7f${currentYield}\xA77 crops/day and lives \xA7f${currentLifespan}\xA77 days.\n\xA77Field Worker Lv: \xA7f${fwLevel}/5\xA77 (upgrade at Granary costs 20\u{1F48E})\n\xA77Extend lifespan (+5 days) from the Granary (20\u{1F48E}).\n\nTreasury: ${village.treasury}\\u{1F48E}`)
     .button(`\xA7aHire Farmer\n\xA77${spawnCost}\u{1F48E} from treasury${canSpawn ? "" : " \xA7c(insufficient funds)"}`)
     .button("Close");
   const response = await form.show(player);
