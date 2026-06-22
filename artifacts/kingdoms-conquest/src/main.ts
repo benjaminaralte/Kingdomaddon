@@ -53,7 +53,7 @@ import {
   TROOP_LABELS,
 } from "./systems/training.js";
 import { tickWatchtowers } from "./systems/watchtower.js";
-import { tickSieges, captureVillageByForce } from "./systems/conquest.js";
+import { tickSieges, captureVillageByForce, loadSiegesFromStorage } from "./systems/conquest.js";
 import { tickBorders } from "./systems/border.js";
 import { tickAutoDefense } from "./systems/autoDefense.js";
 import {
@@ -697,6 +697,7 @@ world.afterEvents.playerJoin.subscribe((event) => {
 
 startVillagerBowSystem();
 registerChargeSystem();
+loadSiegesFromStorage();
 
 system.runInterval(() => {
   const tick = getCurrentTick();

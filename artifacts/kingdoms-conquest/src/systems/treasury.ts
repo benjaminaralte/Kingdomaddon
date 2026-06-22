@@ -1,5 +1,6 @@
 import { Player, ItemStack, EntityInventoryComponent } from "@minecraft/server";
 import type { VillageData } from "../types/index.js";
+import { WAGE_INTERVAL_DAYS } from "../types/index.js";
 import { getVillage, saveVillage } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
@@ -101,12 +102,16 @@ export function transferEmeralds(
 }
 
 export function getTreasuryReport(village: VillageData): string {
-  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3 };
+  const wages = { cityGuards: 2, spearmen: 3, archers: 3, cavalry: 5, heavyKnight: 8, samurai: 12, mercenaryLancer: 10, legionary: 10 };
   const dailyWages =
-    (village.troops.cityGuards * wages.cityGuards +
-      village.troops.spearmen * wages.spearmen +
-      village.troops.archers * wages.archers +
-      village.troops.cavalry * wages.cavalry) / 3;
+    (village.troops.cityGuards          * wages.cityGuards      +
+     village.troops.spearmen            * wages.spearmen        +
+     village.troops.archers             * wages.archers         +
+     village.troops.cavalry             * wages.cavalry         +
+     (village.troops.heavyKnight      ?? 0) * wages.heavyKnight     +
+     (village.troops.samurai          ?? 0) * wages.samurai         +
+     (village.troops.mercenaryLancer  ?? 0) * wages.mercenaryLancer +
+     (village.troops.legionary        ?? 0) * wages.legionary) / WAGE_INTERVAL_DAYS;
 
   return [
     `§b${village.name} Treasury§r`,

@@ -14,7 +14,7 @@ import { getActiveBorderIntrusions, isSiegeEligible } from "./border.js";
 import { toggleAlerts, getPlayerSettings } from "./playerSettings.js";
 import type { TroopType } from "../types/index.js";
 
-const TROOP_TYPES: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry"];
+const TROOP_TYPES: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
 
 export function registerCommands(): void {
   system.afterEvents.scriptEventReceive.subscribe(
@@ -267,7 +267,15 @@ function cmdSetWorkers(player: Player, args: string[]): void {
     return;
   }
 
-  const available = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry;
+  const available = village.population
+    - village.troops.cityGuards
+    - village.troops.spearmen
+    - village.troops.archers
+    - village.troops.cavalry
+    - (village.troops.heavyKnight     ?? 0)
+    - (village.troops.samurai         ?? 0)
+    - (village.troops.mercenaryLancer ?? 0)
+    - (village.troops.legionary       ?? 0);
   if (farmers + workers > available) {
     notifyPlayer(player.name, `§cNot enough available workers (${available} free).`);
     return;

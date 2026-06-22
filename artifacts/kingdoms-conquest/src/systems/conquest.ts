@@ -2,6 +2,7 @@ import { world, Player } from "@minecraft/server";
 import type { VillageData, KingdomData } from "../types/index.js";
 import {
   getAllKingdoms,
+  getAllVillages,
   getKingdom,
   getVillage,
   saveVillage,
@@ -26,9 +27,26 @@ export interface SiegeData {
   targetVillageId: string;
   startTick: number;
   progress: number;
+  offlineTicks: number;
 }
 
 const activeSieges = new Map<string, SiegeData>();
+
+/** Rebuild the in-memory siege map from persisted VillageData. Call once at startup. */
+export function loadSiegesFromStorage(): void {
+  for (const village of getAllVillages()) {
+    if (!village.activeSiegeData) continue;
+    const d = village.activeSiegeData;
+    activeSieges.set(village.id, {
+      attackerKingdomId: d.attackerKingdomId,
+      attackerName:      d.attackerName,
+      targetVillageId:   village.id,
+      startTick:         d.startTick,
+      progress:          d.progress,
+      offlineTicks:      d.offlineTicks,
+    });
+  }
+}
 
 export function initiateSiege(attacker: Player, targetVillageId: string): boolean {
   const target = getVillage(targetVillageId);
@@ -73,9 +91,11 @@ export function initiateSiege(attacker: Player, targetVillageId: string): boolea
     targetVillageId,
     startTick: world.getAbsoluteTime(),
     progress: 0,
+    offlineTicks: 0,
   };
 
   activeSieges.set(targetVillageId, siege);
+  persistSiege(target, siege);
   clearBorderIntrusion(attacker.name, targetVillageId);
 
   notifyPlayer(attacker.name, `§c⚔ Siege of §b${target.name}§c has begun!`);
@@ -83,6 +103,25 @@ export function initiateSiege(attacker: Player, targetVillageId: string): boolea
   notifyVillageUnderSiege(targetVillageId);
 
   return true;
+}
+
+/** Ticks of attacker being offline before the siege is automatically lifted (~30 s). */
+const SIEGE_OFFLINE_ABANDON_TICKS = 600;
+
+function persistSiege(village: VillageData, siege: SiegeData): void {
+  village.activeSiegeData = {
+    attackerKingdomId: siege.attackerKingdomId,
+    attackerName:      siege.attackerName,
+    startTick:         siege.startTick,
+    progress:          siege.progress,
+    offlineTicks:      siege.offlineTicks,
+  };
+  saveVillage(village);
+}
+
+function clearSiegePersist(village: VillageData): void {
+  village.activeSiegeData = undefined;
+  saveVillage(village);
 }
 
 export function tickSieges(_currentTick: number): void {
@@ -97,13 +136,18 @@ export function tickSieges(_currentTick: number): void {
     const attacker = players.find((p) => p.name === siege.attackerName);
 
     if (!attacker) {
-      siege.progress = Math.max(0, siege.progress - 1);
-      if (siege.progress <= 0) {
+      siege.offlineTicks++;
+      if (siege.offlineTicks >= SIEGE_OFFLINE_ABANDON_TICKS) {
         activeSieges.delete(villageId);
-        notifyPlayer(target.owner, `§aSiege of §b${target.name}§a has been lifted.`);
+        clearSiegePersist(target);
+        notifyPlayer(target.owner, `§aSiege of §b${target.name}§a has been lifted — attacker went offline.`);
+      } else {
+        persistSiege(target, siege);
       }
       continue;
     }
+
+    siege.offlineTicks = 0;
 
     const d = distance(attacker.location, target.townHallLocation);
 
@@ -112,13 +156,18 @@ export function tickSieges(_currentTick: number): void {
       if (siege.progress >= 600) {
         captureVillage(siege, target);
         activeSieges.delete(villageId);
-      } else if (siege.progress % 100 === 0) {
-        const percent = Math.floor((siege.progress / 600) * 100);
-        notifyPlayer(siege.attackerName, `§6Capturing... ${percent}%`);
-        notifyAlert(target.owner, `§cTown Hall being captured! (${percent}%)`);
+        clearSiegePersist(target);
+      } else {
+        if (siege.progress % 100 === 0) {
+          const percent = Math.floor((siege.progress / 600) * 100);
+          notifyPlayer(siege.attackerName, `§6Capturing... ${percent}%`);
+          notifyAlert(target.owner, `§cTown Hall being captured! (${percent}%)`);
+        }
+        persistSiege(target, siege);
       }
     } else if (d > SIEGE_RADIUS * 2) {
       siege.progress = Math.max(0, siege.progress - 2);
+      persistSiege(target, siege);
     }
   }
 }
@@ -182,6 +231,7 @@ export function captureVillageByForce(attacker: Player, target: VillageData): bo
     targetVillageId: target.id,
     startTick: world.getAbsoluteTime(),
     progress: 600,
+    offlineTicks: 0,
   };
 
   activeSieges.delete(target.id);

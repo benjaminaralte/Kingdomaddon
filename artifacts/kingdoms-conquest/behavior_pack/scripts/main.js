@@ -9,7 +9,7 @@ var __export = (target, all) => {
 };
 
 // src/types/index.ts
-var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, FOOD_PER_HEAVY_KNIGHT_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, BANDIT_MIGRATE_DISTANCE;
+var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, BANDIT_MIGRATE_DISTANCE;
 var init_types = __esm({
   "src/types/index.ts"() {
     "use strict";
@@ -46,8 +46,6 @@ var init_types = __esm({
     VILLAGE_CLAIM_RADIUS = 64;
     MIN_VILLAGERS_TO_CLAIM = 3;
     FOOD_PER_VILLAGER_PER_DAY = 1;
-    FOOD_PER_SOLDIER_PER_DAY = 2;
-    FOOD_PER_HEAVY_KNIGHT_PER_DAY = 4;
     POPULATION_GROWTH_INTERVAL_DAYS = 2;
     WAGE_INTERVAL_DAYS = 3;
     MAX_GUARDS_PER_POLE = 3;
@@ -411,7 +409,21 @@ function collapseKingdom(kingdomId) {
     if (village) {
       village.kingdomId = "";
       village.owner = "";
+      saveVillage(village);
     }
+  }
+  for (const other of getAllKingdoms()) {
+    if (other.id === kingdomId) continue;
+    let changed = false;
+    if (other.wars.includes(kingdomId)) {
+      other.wars = other.wars.filter((id) => id !== kingdomId);
+      changed = true;
+    }
+    if (other.alliances.includes(kingdomId)) {
+      other.alliances = other.alliances.filter((id) => id !== kingdomId);
+      changed = true;
+    }
+    if (changed) saveKingdom(other);
   }
   deleteKingdom(kingdomId);
 }
@@ -663,7 +675,7 @@ function getLiveEntities(dim, camp) {
   try {
     return dim.getEntities({
       location: camp.location,
-      maxDistance: 60
+      maxDistance: 80
     }).filter((e) => {
       try {
         return e.getDynamicProperty("kc:camp_id") === camp.id;
@@ -678,9 +690,8 @@ function getLiveEntities(dim, camp) {
 function cleanDeadEntities(camp) {
   try {
     const dim = world5.getDimension(camp.location.dimension);
-    const liveIds = new Set(
-      dim.getEntities({ type: "kingdoms:bandit" }).map((e) => e.id)
-    );
+    const liveEntities = getLiveEntities(dim, camp);
+    const liveIds = new Set(liveEntities.map((e) => e.id));
     const before = camp.entityIds.length;
     camp.entityIds = camp.entityIds.filter((id) => liveIds.has(id));
     const killed = before - camp.entityIds.length;
@@ -849,8 +860,8 @@ init_types();
 init_tick();
 init_notify();
 init_storage();
-import { world as world18, system as system5, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
-import { ActionFormData as ActionFormData2, ModalFormData, MessageFormData } from "@minecraft/server-ui";
+import { world as world20, system as system6, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
+import { ActionFormData as ActionFormData3, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/systems/harvest.ts
 init_storage();
@@ -1138,9 +1149,12 @@ Abstract food reserve: ${village.foodStorage}\u{1F33E}`;
   ].join("\n");
 }
 function findVillageAt(location, dimensionId) {
-  return getAllVillages().find(
-    (v) => v.location.dimension === dimensionId && Math.abs(v.location.x - location.x) < VILLAGE_CLAIM_RADIUS && Math.abs(v.location.z - location.z) < VILLAGE_CLAIM_RADIUS
-  );
+  return getAllVillages().find((v) => {
+    if (v.location.dimension !== dimensionId) return false;
+    const dx = v.location.x - location.x;
+    const dz = v.location.z - location.z;
+    return Math.sqrt(dx * dx + dz * dz) < VILLAGE_CLAIM_RADIUS;
+  });
 }
 function addToFieldStorage(village, item, amount) {
   if (amount <= 0) return;
@@ -1436,8 +1450,8 @@ function updateHousingCapacity(villageId) {
   const dim = world7.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   let beds = 0;
-  for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 4) {
-    for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 4) {
+  for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 1) {
+    for (let dz = -VILLAGE_CLAIM_RADIUS; dz <= VILLAGE_CLAIM_RADIUS; dz += 1) {
       try {
         const block = dim.getBlock({ x: loc.x + dx, y: loc.y, z: loc.z + dz });
         if (block && block.typeId.includes("bed")) beds++;
@@ -1449,7 +1463,12 @@ function updateHousingCapacity(villageId) {
   saveVillage(village);
 }
 function getKingdomOf2(playerName) {
-  return getAllKingdoms().find((k) => k.king === playerName);
+  return getAllKingdoms().find(
+    (k) => k.king === playerName || k.villageIds.some((vid) => {
+      const v = getVillage(vid);
+      return v?.owner === playerName;
+    })
+  );
 }
 
 // src/systems/commands.ts
@@ -1461,6 +1480,7 @@ init_storage();
 init_tick();
 init_notify();
 init_bandit();
+var ELITE_TYPES = /* @__PURE__ */ new Set(["samurai", "mercenaryLancer", "legionary"]);
 var RECRUIT_COSTS = {
   cityGuards: 8,
   spearmen: 12,
@@ -1475,6 +1495,20 @@ function recruitTroop(village, type, count = 1) {
   if (type === "heavyKnight" && village.barracksLevel < 3) {
     notifyPlayer(village.owner, `\xA7cHeavy Knights require \xA7bBarracks Level 3\xA7c (currently Lv${village.barracksLevel}).`);
     return false;
+  }
+  if (ELITE_TYPES.has(type)) {
+    if (!village.hasCastle) {
+      notifyPlayer(village.owner, `\xA7cElite troops require a \xA7bCastle\xA7c built in this village.`);
+      return false;
+    }
+    const playerVillageCount = getAllVillages().filter((v) => v.owner === village.owner).length;
+    if (playerVillageCount < 3) {
+      notifyPlayer(
+        village.owner,
+        `\xA7cElite troops require \xA7boccupation of 3 villages\xA7c (you have \xA7f${playerVillageCount}\xA7c).`
+      );
+      return false;
+    }
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
@@ -1631,19 +1665,33 @@ function scanFromWatchtower(village, tower, currentTick) {
   };
   const nearby = dim.getEntities(query);
   const kingdom = getKingdom(village.kingdomId);
+  const BANDIT_TYPE_IDS = /* @__PURE__ */ new Set([
+    "kingdoms:bandit",
+    "kingdoms:deserter",
+    "kingdoms:city_guard",
+    "kingdoms:spearman",
+    "kingdoms:archer",
+    "kingdoms:cavalry",
+    "kingdoms:heavy_knight",
+    "kingdoms:samurai",
+    "kingdoms:mercenary_lancer",
+    "kingdoms:legionary"
+  ]);
   for (const entity of nearby) {
-    if (entity.typeId === "kingdoms:bandit") {
+    if (BANDIT_TYPE_IDS.has(entity.typeId) && !entity.getDynamicProperty("kc:village_id")) {
       const alertKey = `${village.id}:bandits`;
       const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
       if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
         const d = Math.round(distance(entity.location, tower.location));
-        notifyAlert(village.owner, `\xA7c\u26A0 Watchtower detected bandits near \xA7b${village.name}\xA7c! (${d}m away)`);
+        notifyAlert(village.owner, `\xA7c\u26A0 Watchtower detected hostiles near \xA7b${village.name}\xA7c! (${d}m away)`);
         lastAlertedThreat.set(alertKey, currentTick);
       }
       return;
     }
     if (entity.typeId === "minecraft:player") {
-      const playerName = entity.name;
+      const playerEntity = world8.getPlayers().find((p) => p.id === entity.id);
+      if (!playerEntity) continue;
+      const playerName = playerEntity.name;
       if (playerName === village.owner) continue;
       if (kingdom && isAllied(playerName, kingdom.id)) continue;
       if (isEnemyPlayer(playerName, village.kingdomId)) {
@@ -1836,15 +1884,10 @@ function releaseTroops(player) {
   }
   const total = Object.values(found).reduce((a, b) => a + b, 0);
   if (total === 0) return false;
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot && TROOP_TOKEN_MAP[slot.typeId]) {
-      container.setItem(i, void 0);
-    }
-  }
   const loc = player.location;
   const dim = player.dimension;
   const parts = [];
+  const actuallySpawned = {};
   for (const [itemId, count] of Object.entries(found)) {
     const info = TROOP_TOKEN_MAP[itemId];
     if (!info) continue;
@@ -1866,13 +1909,32 @@ function releaseTroops(player) {
         entity.setDynamicProperty("kc:owner", player.name);
         spawned++;
       } catch {
+        break;
       }
     }
-    if (spawned > 0) parts.push(`${spawned} ${info.label}`);
+    if (spawned > 0) {
+      actuallySpawned[itemId] = spawned;
+      parts.push(`${spawned} ${info.label}`);
+    }
   }
   if (parts.length === 0) {
     notifyPlayer(player.name, "\xA7cCould not deploy troops (chunk not loaded).");
     return false;
+  }
+  for (const [itemId, spawnedCount] of Object.entries(actuallySpawned)) {
+    let toRemove = spawnedCount;
+    for (let i = 0; i < container.size && toRemove > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot || slot.typeId !== itemId) continue;
+      if (slot.amount <= toRemove) {
+        toRemove -= slot.amount;
+        container.setItem(i, void 0);
+      } else {
+        slot.amount -= toRemove;
+        container.setItem(i, slot);
+        toRemove = 0;
+      }
+    }
   }
   notifyPlayer(player.name, `\xA7c\u2694 DEPLOYED: \xA7f${parts.join(", ")}\xA7c into battle!`);
   return true;
@@ -1936,7 +1998,7 @@ function recallNearbyTroops(player) {
   }
   for (const entity of toRemove) {
     try {
-      const mount = entity.getVehicle();
+      const mount = entity.getVehicle?.();
       if (mount) mount.remove();
     } catch {
     }
@@ -2179,6 +2241,20 @@ function clearBorderIntrusion(playerName, villageId) {
 var SIEGE_RADIUS = 48;
 var CAPTURE_PROXIMITY = 5;
 var activeSieges = /* @__PURE__ */ new Map();
+function loadSiegesFromStorage() {
+  for (const village of getAllVillages()) {
+    if (!village.activeSiegeData) continue;
+    const d = village.activeSiegeData;
+    activeSieges.set(village.id, {
+      attackerKingdomId: d.attackerKingdomId,
+      attackerName: d.attackerName,
+      targetVillageId: village.id,
+      startTick: d.startTick,
+      progress: d.progress,
+      offlineTicks: d.offlineTicks
+    });
+  }
+}
 function initiateSiege(attacker, targetVillageId) {
   const target = getVillage(targetVillageId);
   if (!target || !target.owner) {
@@ -2215,14 +2291,31 @@ function initiateSiege(attacker, targetVillageId) {
     attackerName: attacker.name,
     targetVillageId,
     startTick: world10.getAbsoluteTime(),
-    progress: 0
+    progress: 0,
+    offlineTicks: 0
   };
   activeSieges.set(targetVillageId, siege);
+  persistSiege(target, siege);
   clearBorderIntrusion(attacker.name, targetVillageId);
   notifyPlayer(attacker.name, `\xA7c\u2694 Siege of \xA7b${target.name}\xA7c has begun!`);
   notifyAlert(target.owner, `\xA74\u{1F514} \xA7b${target.name}\xA74 is under siege by \xA7c${attacker.name}\xA74!`);
   notifyVillageUnderSiege(targetVillageId);
   return true;
+}
+var SIEGE_OFFLINE_ABANDON_TICKS = 600;
+function persistSiege(village, siege) {
+  village.activeSiegeData = {
+    attackerKingdomId: siege.attackerKingdomId,
+    attackerName: siege.attackerName,
+    startTick: siege.startTick,
+    progress: siege.progress,
+    offlineTicks: siege.offlineTicks
+  };
+  saveVillage(village);
+}
+function clearSiegePersist(village) {
+  village.activeSiegeData = void 0;
+  saveVillage(village);
 }
 function tickSieges(_currentTick) {
   for (const [villageId, siege] of activeSieges.entries()) {
@@ -2234,26 +2327,35 @@ function tickSieges(_currentTick) {
     const players = world10.getPlayers();
     const attacker = players.find((p) => p.name === siege.attackerName);
     if (!attacker) {
-      siege.progress = Math.max(0, siege.progress - 1);
-      if (siege.progress <= 0) {
+      siege.offlineTicks++;
+      if (siege.offlineTicks >= SIEGE_OFFLINE_ABANDON_TICKS) {
         activeSieges.delete(villageId);
-        notifyPlayer(target.owner, `\xA7aSiege of \xA7b${target.name}\xA7a has been lifted.`);
+        clearSiegePersist(target);
+        notifyPlayer(target.owner, `\xA7aSiege of \xA7b${target.name}\xA7a has been lifted \u2014 attacker went offline.`);
+      } else {
+        persistSiege(target, siege);
       }
       continue;
     }
+    siege.offlineTicks = 0;
     const d = distance(attacker.location, target.townHallLocation);
     if (d <= CAPTURE_PROXIMITY) {
       siege.progress++;
       if (siege.progress >= 600) {
         captureVillage(siege, target);
         activeSieges.delete(villageId);
-      } else if (siege.progress % 100 === 0) {
-        const percent = Math.floor(siege.progress / 600 * 100);
-        notifyPlayer(siege.attackerName, `\xA76Capturing... ${percent}%`);
-        notifyAlert(target.owner, `\xA7cTown Hall being captured! (${percent}%)`);
+        clearSiegePersist(target);
+      } else {
+        if (siege.progress % 100 === 0) {
+          const percent = Math.floor(siege.progress / 600 * 100);
+          notifyPlayer(siege.attackerName, `\xA76Capturing... ${percent}%`);
+          notifyAlert(target.owner, `\xA7cTown Hall being captured! (${percent}%)`);
+        }
+        persistSiege(target, siege);
       }
     } else if (d > SIEGE_RADIUS * 2) {
       siege.progress = Math.max(0, siege.progress - 2);
+      persistSiege(target, siege);
     }
   }
 }
@@ -2300,7 +2402,8 @@ function captureVillageByForce(attacker, target) {
     attackerName: attacker.name,
     targetVillageId: target.id,
     startTick: world10.getAbsoluteTime(),
-    progress: 600
+    progress: 600,
+    offlineTicks: 0
   };
   activeSieges.delete(target.id);
   captureVillage(siege, target);
@@ -2325,6 +2428,7 @@ function getAttackerKingdom(playerName) {
 init_bandit();
 
 // src/systems/treasury.ts
+init_types();
 init_storage();
 init_notify();
 import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
@@ -2395,8 +2499,8 @@ function withdrawEmeralds(player, villageId, amount) {
   return true;
 }
 function getTreasuryReport(village) {
-  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3 };
-  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry) / 3;
+  const wages = { cityGuards: 2, spearmen: 3, archers: 3, cavalry: 5, heavyKnight: 8, samurai: 12, mercenaryLancer: 10, legionary: 10 };
+  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry + (village.troops.heavyKnight ?? 0) * wages.heavyKnight + (village.troops.samurai ?? 0) * wages.samurai + (village.troops.mercenaryLancer ?? 0) * wages.mercenaryLancer + (village.troops.legionary ?? 0) * wages.legionary) / WAGE_INTERVAL_DAYS;
   return [
     `\xA7b${village.name} Treasury\xA7r`,
     `\xA77Balance: \xA76${village.treasury}\u{1F48E}`,
@@ -2642,7 +2746,7 @@ Iron: \xA7f${rs.iron}\xA77  Gold: \xA7f${rs.gold}\xA77  Diamonds: \xA7f${rs.diam
 // src/systems/commands.ts
 init_notify();
 init_playerSettings();
-var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry"];
+var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
 function registerCommands() {
   system3.afterEvents.scriptEventReceive.subscribe(
     (event) => {
@@ -2876,7 +2980,7 @@ function cmdSetWorkers(player, args) {
     notifyPlayer(player.name, "\xA7cUsage: /scriptevent kc:workers <id> f:<n> w:<n>");
     return;
   }
-  const available = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry;
+  const available = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0);
   if (farmers + workers > available) {
     notifyPlayer(player.name, `\xA7cNot enough available workers (${available} free).`);
     return;
@@ -3424,11 +3528,9 @@ function getFoodProduction(village) {
   return village.workers.farmers * 4;
 }
 function getFoodConsumption(village) {
-  const hk = village.troops.heavyKnight ?? 0;
-  const elites = (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
-  const regularSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
-  const civilians = village.population - regularSoldiers - hk - elites;
-  return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + regularSoldiers * FOOD_PER_SOLDIER_PER_DAY + hk * FOOD_PER_HEAVY_KNIGHT_PER_DAY + elites * FOOD_PER_HEAVY_KNIGHT_PER_DAY;
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  const civilians = Math.max(0, village.population - totalSoldiers);
+  return civilians * FOOD_PER_VILLAGER_PER_DAY;
 }
 function tickFood(village) {
   const currentDay = getCurrentDay();
@@ -3630,13 +3732,23 @@ function findSolidY(dim, x, startY, z) {
 function spawnVillagerEntity(village) {
   const dim = world11.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
-  const query = {
-    type: "minecraft:villager_v2",
-    location: { x: loc.x, y: loc.y, z: loc.z },
-    maxDistance: 64
-  };
-  const existingVillagers = dim.getEntities(query);
-  if (existingVillagers.length < village.population) {
+  let villagerCount = 0;
+  try {
+    const nearby = dim.getEntities({
+      type: "minecraft:villager_v2",
+      location: { x: loc.x, y: loc.y, z: loc.z },
+      maxDistance: 64
+    });
+    for (const e of nearby) {
+      try {
+        if (e.getDynamicProperty("kc:village_id") === village.id) villagerCount++;
+      } catch {
+      }
+    }
+  } catch {
+    return;
+  }
+  if (villagerCount < village.population) {
     try {
       const spawnX = loc.x + (Math.random() * 6 - 3);
       const spawnZ = loc.z + (Math.random() * 6 - 3);
@@ -4335,10 +4447,20 @@ function processArrivingMinecarts(village) {
         const cartData = JSON.parse(cartDataRaw);
         if (deliverTaggedMinecart(cartData, village, cart)) changed = true;
       } catch {
-        if (extractUntaggedMinecart(cart, village)) changed = true;
+        const dx = cart.location.x - stationLoc.x;
+        const dy = cart.location.y - stationLoc.y;
+        const dz = cart.location.z - stationLoc.z;
+        if (dx * dx + dy * dy + dz * dz <= 4) {
+          if (extractUntaggedMinecart(cart, village)) changed = true;
+        }
       }
     } else {
-      if (extractUntaggedMinecart(cart, village)) changed = true;
+      const dx = cart.location.x - stationLoc.x;
+      const dy = cart.location.y - stationLoc.y;
+      const dz = cart.location.z - stationLoc.z;
+      if (dx * dx + dy * dy + dz * dz <= 4) {
+        if (extractUntaggedMinecart(cart, village)) changed = true;
+      }
     }
   }
   if (changed) saveVillage(village);
@@ -4652,8 +4774,8 @@ function dispatchTroops(village, threatCount) {
   let dispatched = 0;
   for (const troopType of TROOP_PRIORITY) {
     if (dispatched >= needed) break;
-    if (village.troops[troopType] <= 0) continue;
-    const toSend = Math.min(village.troops[troopType], needed - dispatched);
+    if ((village.troops[troopType] ?? 0) <= 0) continue;
+    const toSend = Math.min(village.troops[troopType] ?? 0, needed - dispatched);
     village.troops[troopType] -= toSend;
     for (let i = 0; i < toSend; i++) {
       try {
@@ -4693,7 +4815,7 @@ function recallAutoDispatched(village) {
         const tt = e.getDynamicProperty(AUTO_TROOP_TYPE_PROP) ?? troopType;
         survivors[tt] = (survivors[tt] ?? 0) + 1;
         try {
-          const mount = e.getVehicle();
+          const mount = e.getVehicle?.();
           if (mount) mount.remove();
         } catch {
         }
@@ -4725,10 +4847,13 @@ var GUARD_ENTITY_MAP = {
   spearmen: "kingdoms:spearman",
   archers: "kingdoms:archer",
   cavalry: "kingdoms:cavalry",
-  heavyKnight: "kingdoms:heavy_knight"
+  heavyKnight: "kingdoms:heavy_knight",
+  samurai: "kingdoms:samurai",
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary: "kingdoms:legionary"
 };
 function getBestAvailableTroopType(village) {
-  const types = ["heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
+  const types = ["samurai", "legionary", "mercenaryLancer", "heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
   for (const t of types) {
     if (village.troops[t] > 0) return t;
   }
@@ -4836,7 +4961,7 @@ function despawnPoleGuards(village, pole) {
       const entity = nearby.find((e) => e.id === eid);
       if (entity) {
         try {
-          const mount = entity.getVehicle();
+          const mount = entity.getVehicle?.();
           if (mount) mount.remove();
         } catch {
         }
@@ -4904,46 +5029,125 @@ init_kingdom();
 
 // src/systems/reinforcements.ts
 init_storage();
+init_tick();
 init_notify();
+var BASE_TRAVEL_TICKS = 600;
+var TICKS_PER_5_BLOCKS = 20;
+var TICKS_PER_TROOP = 15;
+function calcTravelTicks(from, to, totalTroops) {
+  const dist = distance(from, to);
+  return BASE_TRAVEL_TICKS + Math.floor(dist / 5) * TICKS_PER_5_BLOCKS + totalTroops * TICKS_PER_TROOP;
+}
 function sendReinforcements(fromVillageId, toVillageId, troops) {
   const from = getVillage(fromVillageId);
   const to = getVillage(toVillageId);
   if (!from || !to) return false;
   for (const [type, count] of Object.entries(troops)) {
     if ((count ?? 0) <= 0) continue;
-    if (from.troops[type] < (count ?? 0)) {
+    if ((from.troops[type] ?? 0) < (count ?? 0)) {
       notifyPlayer(from.owner, `\xA7cNot enough ${type} in \xA7b${from.name}\xA7c to send.`);
       return false;
     }
   }
+  const totalTroops = Object.values(troops).reduce((s, c) => s + (c ?? 0), 0);
+  if (totalTroops === 0) return false;
   for (const [type, count] of Object.entries(troops)) {
     if ((count ?? 0) <= 0) continue;
     from.troops[type] -= count ?? 0;
   }
-  saveVillage(from);
-  const cargo = {
-    food: 0,
-    emeralds: 0,
-    iron: 0,
-    gold: 0,
-    coal: 0,
-    wood: 0,
-    stone: 0,
-    diamonds: 0,
-    troops
+  const travelTicks = calcTravelTicks(from.location, to.location, totalTroops);
+  const arriveTick = getCurrentTick() + travelTicks;
+  const etaSecs = Math.ceil(travelTicks / 20);
+  const etaMins = Math.floor(etaSecs / 60);
+  const etaLabel = etaMins > 0 ? `${etaMins}m ${etaSecs % 60}s` : `${etaSecs}s`;
+  const pr = {
+    id: generateId(),
+    sourceVillageId: fromVillageId,
+    sourceVillageName: from.name,
+    senderName: from.owner,
+    troops,
+    arriveTick
   };
-  const success = sendTradeCart(fromVillageId, toVillageId, cargo);
-  if (!success) {
-    for (const [type, count] of Object.entries(troops)) {
+  to.pendingReinforcements ?? (to.pendingReinforcements = []);
+  to.pendingReinforcements.push(pr);
+  saveVillage(from);
+  saveVillage(to);
+  const summary = Object.entries(troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c} ${t}`).join(", ");
+  notifyPlayer(
+    from.owner,
+    `\xA7a\u2694 Reinforcements dispatched (${summary}) from \xA7b${from.name}\xA7a \u2192 \xA7b${to.name}\xA7a. ETA: \xA7e~${etaLabel}\xA7a.`
+  );
+  if (to.owner !== from.owner) {
+    notifyAlert(
+      to.owner,
+      `\xA7e\u2694 Incoming reinforcements (${summary}) from \xA7b${from.name}\xA7e. ETA: \xA7e~${etaLabel}\xA7e.`
+    );
+  }
+  return true;
+}
+function tickPendingReinforcements(currentTick) {
+  for (const village of getAllVillages()) {
+    if (!village.pendingReinforcements || village.pendingReinforcements.length === 0) continue;
+    const remaining = [];
+    let changed = false;
+    for (const pr of village.pendingReinforcements) {
+      if (currentTick < pr.arriveTick) {
+        remaining.push(pr);
+        continue;
+      }
+      for (const [type, count] of Object.entries(pr.troops)) {
+        if ((count ?? 0) <= 0) continue;
+        village.troops[type] = (village.troops[type] ?? 0) + count;
+      }
+      const summary = Object.entries(pr.troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c} ${t}`).join(", ");
+      notifyPlayer(
+        village.owner,
+        `\xA7a\u2694 Reinforcements arrived at \xA7b${village.name}\xA7a! (${summary}) from \xA7b${pr.sourceVillageName}\xA7a.`
+      );
+      if (pr.senderName !== village.owner) {
+        notifyPlayer(pr.senderName, `\xA7a\u2694 Your reinforcements reached \xA7b${village.name}\xA7a!`);
+      }
+      changed = true;
+    }
+    if (changed) {
+      village.pendingReinforcements = remaining;
+      saveVillage(village);
+    }
+  }
+}
+function cancelReinforcement(reinforcementId, toVillageId) {
+  const to = getVillage(toVillageId);
+  if (!to || !to.pendingReinforcements) return false;
+  const idx = to.pendingReinforcements.findIndex((pr2) => pr2.id === reinforcementId);
+  if (idx === -1) return false;
+  const pr = to.pendingReinforcements[idx];
+  to.pendingReinforcements.splice(idx, 1);
+  saveVillage(to);
+  const from = getVillage(pr.sourceVillageId);
+  if (from) {
+    for (const [type, count] of Object.entries(pr.troops)) {
       if ((count ?? 0) <= 0) continue;
-      from.troops[type] += count ?? 0;
+      from.troops[type] = (from.troops[type] ?? 0) + count;
     }
     saveVillage(from);
-    return false;
+    notifyPlayer(from.owner, `\xA7e\u21A9 March recalled \u2014 troops returned to \xA7b${from.name}\xA7e.`);
   }
-  const summary = Object.entries(troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c} ${t}`).join(", ");
-  notifyPlayer(from.owner, `\xA7aSent reinforcements (${summary}) from \xA7b${from.name}\xA7a to \xA7b${to.name}\xA7a.`);
+  if (to.owner !== (from?.owner ?? "")) {
+    notifyPlayer(to.owner, `\xA7e\u21A9 Incoming march from \xA7b${pr.sourceVillageName}\xA7e to \xA7b${to.name}\xA7e was recalled.`);
+  }
   return true;
+}
+function getInTransitMarches(playerName) {
+  const result = [];
+  for (const village of getAllVillages()) {
+    if (!village.pendingReinforcements) continue;
+    for (const pr of village.pendingReinforcements) {
+      if (pr.senderName === playerName) {
+        result.push({ pr, toVillageId: village.id, toName: village.name });
+      }
+    }
+  }
+  return result;
 }
 
 // src/systems/structureBuilder.ts
@@ -5597,9 +5801,559 @@ function startVillagerBowSystem() {
   }, CHECK_INTERVAL_TICKS);
 }
 
+// src/systems/chargeAttack.ts
+init_tick();
+import { world as world18 } from "@minecraft/server";
+var VELOCITY_CHECK_INTERVAL = 5;
+var GALLOP_THRESHOLD = 0.18;
+var CHARGE_WINDOW_TICKS = 60;
+var CHARGE_BONUS = {
+  "kingdoms:cavalry": 5,
+  // base 5 → effective 10 on charge
+  "kingdoms:mercenary_lancer": 8
+  // base 7 → effective 15 on charge
+};
+var CHARGE_KNOCKBACK = {
+  "kingdoms:cavalry": 0.9,
+  "kingdoms:mercenary_lancer": 1.3
+};
+var PROP_READY = "kc:charge_ready";
+var PROP_TICK = "kc:charge_tick";
+function horizontalSpeed(entity) {
+  try {
+    const v = entity.getVelocity();
+    return Math.sqrt(v.x * v.x + v.z * v.z);
+  } catch {
+    return 0;
+  }
+}
+function setChargeReady(entity, tick) {
+  try {
+    entity.setDynamicProperty(PROP_READY, true);
+    entity.setDynamicProperty(PROP_TICK, tick);
+  } catch {
+  }
+}
+function clearCharge(entity) {
+  try {
+    entity.setDynamicProperty(PROP_READY, false);
+  } catch {
+  }
+}
+function isChargeReady(entity, currentTick) {
+  try {
+    if (!entity.getDynamicProperty(PROP_READY)) return false;
+    const set = entity.getDynamicProperty(PROP_TICK);
+    if (set === void 0) return false;
+    return currentTick - set <= CHARGE_WINDOW_TICKS;
+  } catch {
+    return false;
+  }
+}
+function tickChargeSystem(currentTick) {
+  if (currentTick % VELOCITY_CHECK_INTERVAL !== 0) return;
+  for (const entityId of Object.keys(CHARGE_BONUS)) {
+    for (const dim of ["overworld", "nether", "the_end"]) {
+      try {
+        const entities = world18.getDimension(dim).getEntities({ type: entityId });
+        for (const entity of entities) {
+          const speed = horizontalSpeed(entity);
+          if (speed >= GALLOP_THRESHOLD) {
+            setChargeReady(entity, currentTick);
+          } else {
+            const set = entity.getDynamicProperty(PROP_TICK);
+            if (entity.getDynamicProperty(PROP_READY) && set !== void 0 && currentTick - set > CHARGE_WINDOW_TICKS) {
+              clearCharge(entity);
+            }
+          }
+        }
+      } catch {
+      }
+    }
+  }
+}
+var SPEAR_COUNTER_DAMAGE = 6;
+var SPEAR_ENTITY_ID = "kingdoms:spearman";
+function registerChargeSystem() {
+  world18.afterEvents.entityHitEntity.subscribe((event) => {
+    const attacker = event.damagingEntity;
+    const victim = event.hitEntity;
+    if (!attacker || !victim) return;
+    const typeId = attacker.typeId;
+    const bonus = CHARGE_BONUS[typeId];
+    if (bonus === void 0) return;
+    const tick = getCurrentTick();
+    if (!isChargeReady(attacker, tick)) return;
+    if (victim.typeId === SPEAR_ENTITY_ID) {
+      try {
+        attacker.applyDamage(SPEAR_COUNTER_DAMAGE, { cause: "entityAttack", damagingEntity: victim });
+      } catch {
+      }
+      try {
+        const vPos = victim.location;
+        const aPos = attacker.location;
+        const dx = aPos.x - vPos.x;
+        const dz = aPos.z - vPos.z;
+        const mag = Math.sqrt(dx * dx + dz * dz) || 1;
+        attacker.applyKnockback(dx / mag * 1, dz / mag * 1, 0.5, 0.4);
+      } catch {
+      }
+      try {
+        victim.dimension.spawnParticle("minecraft:large_explosion", victim.location);
+        victim.runCommandAsync(
+          `title @a[r=32] actionbar \xA7c\u{1F6E1} Spearmen Counter!`
+        ).catch(() => {
+        });
+      } catch {
+      }
+    }
+    clearCharge(attacker);
+    try {
+      victim.applyDamage(bonus, { cause: "entityAttack", damagingEntity: attacker });
+    } catch {
+    }
+    const kb = CHARGE_KNOCKBACK[typeId] ?? 0.9;
+    try {
+      const aPos = attacker.location;
+      const vPos = victim.location;
+      const dx = vPos.x - aPos.x;
+      const dz = vPos.z - aPos.z;
+      const mag = Math.sqrt(dx * dx + dz * dz) || 1;
+      victim.applyKnockback(
+        dx / mag * kb,
+        dz / mag * kb,
+        kb * 0.5,
+        // horizontal magnitude
+        0.35
+        // vertical kick
+      );
+    } catch {
+    }
+    const chargeLabel = typeId === "kingdoms:mercenary_lancer" ? "\xA76\u2694 Lancer Charge!" : "\xA7e\u26A1 Cavalry Charge!";
+    const { x, y, z } = victim.location;
+    try {
+      victim.dimension.spawnParticle("minecraft:large_explosion", { x, y, z });
+    } catch {
+    }
+    try {
+      attacker.runCommandAsync(
+        `playsound random.explode @a[r=24] ${x} ${y} ${z} 0.6 1.4`
+      ).catch(() => {
+      });
+    } catch {
+    }
+    try {
+      attacker.runCommandAsync(
+        `title @a[r=32] actionbar ${chargeLabel}`
+      ).catch(() => {
+      });
+    } catch {
+    }
+  });
+}
+
+// src/systems/formations.ts
+init_notify();
+import { world as world19, system as system5 } from "@minecraft/server";
+import { ActionFormData as ActionFormData2 } from "@minecraft/server-ui";
+var SEARCH_RADIUS = 48;
+var HOLD_TICK_INTERVAL = 20;
+var LINE_SPACING = 2.5;
+var LINE_FORWARD_DIST = 5;
+var PERIMETER_RADIUS = 6;
+var BODYGUARD_RADIUS = 3;
+var VANGUARD_FORWARD = 4;
+var FLANK_LATERAL = 8;
+var ARC_BACK_DIST = 8;
+var ARC_SPACING = 3;
+var ESCORT_LATERAL = 3;
+var SCATTER_RADIUS = 10;
+var RALLY_RADIUS = 4;
+var HOLD_MODES = /* @__PURE__ */ new Set([
+  "spear_line_hold",
+  "spear_perimeter",
+  "cavalry_escort",
+  "heavy_vanguard",
+  "heavy_bodyguard"
+]);
+var FORMATION_TARGETS = {
+  spear_line_attack: ["kingdoms:spearman"],
+  spear_line_hold: ["kingdoms:spearman"],
+  spear_perimeter: ["kingdoms:spearman"],
+  cavalry_flanks: ["kingdoms:cavalry", "kingdoms:mercenary_lancer"],
+  cavalry_escort: ["kingdoms:cavalry", "kingdoms:mercenary_lancer"],
+  archer_arc: ["kingdoms:archer"],
+  archer_scatter: ["kingdoms:archer"],
+  heavy_vanguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
+  heavy_bodyguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
+  all_rally: [
+    "kingdoms:spearman",
+    "kingdoms:cavalry",
+    "kingdoms:mercenary_lancer",
+    "kingdoms:archer",
+    "kingdoms:heavy_knight",
+    "kingdoms:samurai",
+    "kingdoms:legionary",
+    "kingdoms:city_guard"
+  ]
+};
+var PROP_F_MODE = "kc:formation_mode";
+var PROP_F_INDEX = "kc:formation_index";
+var PROP_F_OWNER = "kc:formation_owner";
+function xzNorm(v) {
+  const len = Math.sqrt(v.x * v.x + v.z * v.z) || 1;
+  return { x: v.x / len, z: v.z / len };
+}
+function right90(f) {
+  return { x: f.z, z: -f.x };
+}
+function computePositions(mode, base, viewDir, count) {
+  const fwd = xzNorm(viewDir);
+  const rgt = right90(fwd);
+  const positions = [];
+  switch (mode) {
+    case "spear_line_attack":
+    case "spear_line_hold": {
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * LINE_SPACING;
+        positions.push({
+          x: base.x + fwd.x * LINE_FORWARD_DIST + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * LINE_FORWARD_DIST + rgt.z * offset
+        });
+      }
+      break;
+    }
+    case "spear_perimeter": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * PERIMETER_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * PERIMETER_RADIUS
+        });
+      }
+      break;
+    }
+    case "cavalry_flanks": {
+      const half = Math.ceil(count / 2);
+      for (let i = 0; i < count; i++) {
+        const side = i < half ? -1 : 1;
+        const depth = (i < half ? i : i - half) * 2;
+        positions.push({
+          x: base.x + rgt.x * side * FLANK_LATERAL + fwd.x * depth,
+          y: base.y,
+          z: base.z + rgt.z * side * FLANK_LATERAL + fwd.z * depth
+        });
+      }
+      break;
+    }
+    case "cavalry_escort": {
+      for (let i = 0; i < count; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        const depth = Math.floor(i / 2) * 2;
+        positions.push({
+          x: base.x + rgt.x * side * ESCORT_LATERAL + fwd.x * depth,
+          y: base.y,
+          z: base.z + rgt.z * side * ESCORT_LATERAL + fwd.z * depth
+        });
+      }
+      break;
+    }
+    case "archer_arc": {
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * ARC_SPACING;
+        positions.push({
+          x: base.x - fwd.x * ARC_BACK_DIST + rgt.x * offset,
+          y: base.y,
+          z: base.z - fwd.z * ARC_BACK_DIST + rgt.z * offset
+        });
+      }
+      break;
+    }
+    case "archer_scatter": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * SCATTER_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * SCATTER_RADIUS
+        });
+      }
+      break;
+    }
+    case "heavy_vanguard": {
+      for (let i = 0; i < count; i++) {
+        const offset = (i - (count - 1) / 2) * 2;
+        positions.push({
+          x: base.x + fwd.x * VANGUARD_FORWARD + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * VANGUARD_FORWARD + rgt.z * offset
+        });
+      }
+      break;
+    }
+    case "heavy_bodyguard": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * BODYGUARD_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * BODYGUARD_RADIUS
+        });
+      }
+      break;
+    }
+    case "all_rally": {
+      for (let i = 0; i < count; i++) {
+        const angle = i / count * Math.PI * 2;
+        const r = RALLY_RADIUS + i % 3;
+        positions.push({
+          x: base.x + Math.cos(angle) * r,
+          y: base.y,
+          z: base.z + Math.sin(angle) * r
+        });
+      }
+      break;
+    }
+  }
+  return positions;
+}
+function findOwnedTroops(player, entityTypes) {
+  const dim = player.dimension;
+  const loc = player.location;
+  const found = [];
+  for (const entityType of entityTypes) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: SEARCH_RADIUS });
+      for (const e of entities) {
+        if (e.getDynamicProperty("kc:owner") === player.name) {
+          found.push(e);
+        }
+      }
+    } catch {
+    }
+  }
+  return found;
+}
+function clearFormationTag(entity) {
+  try {
+    entity.setDynamicProperty(PROP_F_MODE, "");
+  } catch {
+  }
+}
+function applyFormation(player, mode) {
+  const troops = findOwnedTroops(player, FORMATION_TARGETS[mode]);
+  if (troops.length === 0) return 0;
+  const positions = computePositions(
+    mode,
+    player.location,
+    player.getViewDirection(),
+    troops.length
+  );
+  const isHold = HOLD_MODES.has(mode);
+  troops.forEach((troop, i) => {
+    const pos = positions[i];
+    if (!pos) return;
+    try {
+      troop.teleport(pos, { dimension: player.dimension });
+    } catch {
+    }
+    if (isHold) {
+      try {
+        troop.setDynamicProperty(PROP_F_MODE, mode);
+        troop.setDynamicProperty(PROP_F_INDEX, i);
+        troop.setDynamicProperty(PROP_F_OWNER, player.name);
+      } catch {
+      }
+    } else {
+      clearFormationTag(troop);
+    }
+  });
+  return troops.length;
+}
+function dismissAllFormations(player) {
+  const all = findOwnedTroops(player, FORMATION_TARGETS["all_rally"]);
+  for (const e of all) clearFormationTag(e);
+  return all.length;
+}
+function tickFormations(currentTick) {
+  if (currentTick % HOLD_TICK_INTERVAL !== 0) return;
+  for (const player of world19.getPlayers()) {
+    for (const entityTypes of Object.values(FORMATION_TARGETS)) {
+      try {
+        const dim = player.dimension;
+        const loc = player.location;
+        const viewDir = player.getViewDirection();
+        const groups = /* @__PURE__ */ new Map();
+        for (const entityType of entityTypes) {
+          try {
+            const entities = dim.getEntities({
+              type: entityType,
+              location: loc,
+              maxDistance: SEARCH_RADIUS * 2
+            });
+            for (const e of entities) {
+              if (e.getDynamicProperty(PROP_F_OWNER) !== player.name) continue;
+              const mode = e.getDynamicProperty(PROP_F_MODE);
+              if (!mode || !HOLD_MODES.has(mode)) continue;
+              if (!groups.has(mode)) groups.set(mode, []);
+              groups.get(mode).push(e);
+            }
+          } catch {
+          }
+        }
+        for (const [mode, troops] of groups) {
+          const positions = computePositions(
+            mode,
+            loc,
+            viewDir,
+            troops.length
+          );
+          troops.forEach((troop, i) => {
+            const idx = troop.getDynamicProperty(PROP_F_INDEX) ?? i;
+            const pos = positions[idx] ?? positions[i];
+            if (!pos) return;
+            try {
+              troop.teleport(pos, { dimension: dim });
+            } catch {
+            }
+          });
+        }
+      } catch {
+      }
+    }
+  }
+}
+var MENU_COOLDOWN_MS = 500;
+var lastMenuTime = /* @__PURE__ */ new Map();
+function openTacticsMenu(player) {
+  const now = Date.now();
+  const last = lastMenuTime.get(player.name) ?? 0;
+  if (now - last < MENU_COOLDOWN_MS) return;
+  lastMenuTime.set(player.name, now);
+  void showMainMenu(player);
+}
+async function showMainMenu(player) {
+  const form = new ActionFormData2().title("\u2694 Tactical Command").body("\xA77Choose a unit type to issue orders to your nearby troops.\n\xA78Range: 48 blocks \xB7 Only your deployed soldiers respond.").button("\u{1F5E1} Spearmen Tactics").button("\u{1F434} Cavalry / Lancer Tactics").button("\u{1F3F9} Archer Tactics").button("\u{1F6E1} Heavy Infantry Tactics").button("\u{1F514} Rally All Troops").button("\u2716 Dismiss All Formations");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      await showSpearmenMenu(player);
+      break;
+    case 1:
+      await showCavalryMenu(player);
+      break;
+    case 2:
+      await showArcherMenu(player);
+      break;
+    case 3:
+      await showHeavyMenu(player);
+      break;
+    case 4: {
+      const n = applyFormation(player, "all_rally");
+      if (n === 0) notifyPlayer(player.name, "\xA7eNo deployed troops nearby to rally.");
+      else notifyPlayer(player.name, `\xA7a\u{1F514} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} rallied to your position!`);
+      break;
+    }
+    case 5: {
+      const n = dismissAllFormations(player);
+      if (n === 0) notifyPlayer(player.name, "\xA7eNo troops in formation nearby.");
+      else notifyPlayer(player.name, `\xA7e\u2716 Formations dismissed. \xA7f${n}\xA7e troop${n > 1 ? "s" : ""} released.`);
+      break;
+    }
+  }
+}
+async function showSpearmenMenu(player) {
+  const form = new ActionFormData2().title("\u{1F5E1} Spearmen Tactics").body(
+    "\xA7eSpearmen excel in defensive lines and perimeter control.\n\n\xA7f\u25B6 Line + Attack \xA77\u2014 Line up ahead of you, then charge enemies.\n\xA7f\u25B6 Line + Hold \xA77\u2014 Hold a defensive line. Re-enforced every second.\n\xA7f\u25B6 Perimeter \xA77\u2014 Ring of pikes around you. Ideal vs. surrounded attacks.\n\xA78Counter-charge: Spearmen deal \xA7c+6 damage \xA78back to charging cavalry!"
+  ).button("\u2694 Line Formation \u2014 Attack").button("\u{1F6E1} Line Formation \u2014 Hold").button("\u{1F504} Perimeter Defense").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "spear_line_attack", "\xA7aSpearmen advance in line!");
+      break;
+    case 1:
+      issueOrder(player, "spear_line_hold", "\xA7aSpearmen holding the line!");
+      break;
+    case 2:
+      issueOrder(player, "spear_perimeter", "\xA7aSpearmen forming perimeter!");
+      break;
+    case 3:
+      await showMainMenu(player);
+      break;
+  }
+}
+async function showCavalryMenu(player) {
+  const form = new ActionFormData2().title("\u{1F434} Cavalry / Lancer Tactics").body(
+    "\xA7eMounted units are fast and devastating on the charge.\n\n\xA7f\u25B6 Charge Flanks \xA77\u2014 Split left & right, then unleash AI. Best for open battles.\n\xA7f\u25B6 Escort \xA77\u2014 Ride alongside you. Re-enforced. Great for moving through enemy territory.\n\xA78Charge bonus: \xA76+5 dmg \xA78(Cavalry) / \xA76+8 dmg \xA78(Lancer) + knockback on first hit after gallop."
+  ).button("\u26A1 Charge Flanks").button("\u{1F40E} Escort Formation").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "cavalry_flanks", "\xA7aCavalry splitting to flanks!");
+      break;
+    case 1:
+      issueOrder(player, "cavalry_escort", "\xA7aCavalry moving to escort position!");
+      break;
+    case 2:
+      await showMainMenu(player);
+      break;
+  }
+}
+async function showArcherMenu(player) {
+  const form = new ActionFormData2().title("\u{1F3F9} Archer Tactics").body(
+    "\xA7eArchers deal sustained ranged damage from a distance.\n\n\xA7f\u25B6 Ranged Arc \xA77\u2014 Arched line behind you, firing over your front line.\n\xA7f\u25B6 Scatter & Cover \xA77\u2014 Spread wide around the battlefield."
+  ).button("\u{1F3F9} Ranged Arc").button("\u{1F310} Scatter & Cover").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "archer_arc", "\xA7aArchers forming ranged arc!");
+      break;
+    case 1:
+      issueOrder(player, "archer_scatter", "\xA7aArchers scattering to cover positions!");
+      break;
+    case 2:
+      await showMainMenu(player);
+      break;
+  }
+}
+async function showHeavyMenu(player) {
+  const form = new ActionFormData2().title("\u{1F6E1} Heavy Infantry Tactics").body(
+    "\xA7eHeavy Knights, Samurai & Legionaries are elite front-line fighters.\n\n\xA7f\u25B6 Vanguard \xA77\u2014 Form a wall just ahead of you. Re-enforced. Ideal for sieges.\n\xA7f\u25B6 Bodyguard \xA77\u2014 Tight ring around you. Re-enforced. Maximum personal protection."
+  ).button("\u2694 Vanguard Line").button("\u{1F6E1} Bodyguard Ring").button("\u2190 Back");
+  const resp = await form.show(player);
+  if (resp.canceled) return;
+  switch (resp.selection) {
+    case 0:
+      issueOrder(player, "heavy_vanguard", "\xA7aHeavy infantry moving to vanguard!");
+      break;
+    case 1:
+      issueOrder(player, "heavy_bodyguard", "\xA7aElite guard forming bodyguard ring!");
+      break;
+    case 2:
+      await showMainMenu(player);
+      break;
+  }
+}
+function issueOrder(player, mode, successMsg) {
+  system5.run(() => {
+    const n = applyFormation(player, mode);
+    if (n === 0) {
+      const targets = FORMATION_TARGETS[mode];
+      const label = targets.map((t) => t.replace("kingdoms:", "").replace(/_/g, " ")).join(", ");
+      notifyPlayer(player.name, `\xA7eNo ${label} found within ${SEARCH_RADIUS} blocks.`);
+    } else {
+      notifyPlayer(player.name, `${successMsg} \xA7f(${n} unit${n > 1 ? "s" : ""})`);
+    }
+  });
+}
+
 // src/main.ts
-var peaceCooldowns = /* @__PURE__ */ new Map();
-var pendingDiplomacyRequests = /* @__PURE__ */ new Map();
 function checkThreeWool(woolType, loc, dim) {
   const dirs = [[1, 0], [0, 1]];
   for (const [dx, dz] of dirs) {
@@ -5634,7 +6388,7 @@ This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king})
     const resp = await form.show(player);
     if (resp.selection === 0) {
       declareWar(myKingdom.id, enemyKingdom.id);
-      for (const p of world18.getPlayers()) {
+      for (const p of world20.getPlayers()) {
         notifyPlayer(p.name, `\xA7c\u2694 WAR DECLARED! \xA7f${player.name} \xA77(${myKingdom.name}) \xA7chas declared war on \xA7b${enemyKingdom.name}\xA7c!`);
       }
     }
@@ -5643,7 +6397,7 @@ This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king})
   const atWar = areAtWar(myKingdom.id, enemyKingdom.id);
   const requestType = atWar ? "peace" : "alliance";
   const cooldownKey = `${myKingdom.id}:${enemyKingdom.id}`;
-  const cooldownExpiry = peaceCooldowns.get(cooldownKey) ?? 0;
+  const cooldownExpiry = myKingdom.peaceCooldowns?.[cooldownKey] ?? 0;
   if (getCurrentTick() < cooldownExpiry) {
     const days = ((cooldownExpiry - getCurrentTick()) / TICKS_PER_DAY).toFixed(1);
     notifyPlayer(player.name, `\xA7c${enemyKingdom.name} denied your last request. Wait \xA7e${days}\xA7c more in-game days.`);
@@ -5654,24 +6408,27 @@ This declares WAR on \xA7c${enemyKingdom.name}\xA7r (King: ${enemyKingdom.king})
     return;
   }
   const label = requestType === "peace" ? "\u2709 Peace Offer" : "\u2709 Alliance Offer";
-  pendingDiplomacyRequests.set(enemyKingdom.king, {
+  enemyKingdom.pendingDiplomacy = {
     fromKingdomId: myKingdom.id,
     toKingdomId: enemyKingdom.id,
     type: requestType,
     senderName: player.name,
     cooldownKey
-  });
+  };
+  saveKingdom(enemyKingdom);
   notifyPlayer(player.name, `\xA7a${label} sent to \xA7b${enemyKingdom.name}\xA7a (${enemyKingdom.king}). Awaiting response...`);
   notifyPlayer(enemyKingdom.king, `\xA7e\u{1F4DC} \xA7b${myKingdom.name}\xA7e sent a \xA7f${label}\xA7e. Interact with any waypoint or use /scriptevent kc:diplomacy to respond.`);
-  const targetOnline = world18.getPlayers().find((p) => p.name === enemyKingdom.king);
+  const targetOnline = world20.getPlayers().find((p) => p.name === enemyKingdom.king);
   if (targetOnline) void showPendingDiplomacyRequest(targetOnline);
 }
 async function showPendingDiplomacyRequest(player) {
-  const req = pendingDiplomacyRequests.get(player.name);
-  if (!req) return;
+  const playerKingdom = getKingdomOf(player.name);
+  const req = playerKingdom?.pendingDiplomacy;
+  if (!req || !playerKingdom) return;
   const senderKingdom = getKingdom(req.fromKingdomId);
   if (!senderKingdom) {
-    pendingDiplomacyRequests.delete(player.name);
+    playerKingdom.pendingDiplomacy = void 0;
+    saveKingdom(playerKingdom);
     return;
   }
   const label = req.type === "peace" ? "\u2709 Peace Offer" : "\u2709 Alliance Offer";
@@ -5686,7 +6443,8 @@ Accept = form alliance (soldiers won't clash).
 Deny = block requests for 2 in-game days.`;
   const form = new MessageFormData().title(label).body(body).button1("\u2705 Accept").button2("\u274C Deny");
   const resp = await form.show(player);
-  pendingDiplomacyRequests.delete(player.name);
+  playerKingdom.pendingDiplomacy = void 0;
+  saveKingdom(playerKingdom);
   if (resp.selection === 0) {
     if (req.type === "peace") {
       makePeace(req.fromKingdomId, req.toKingdomId);
@@ -5698,7 +6456,12 @@ Deny = block requests for 2 in-game days.`;
       notifyPlayer(player.name, `\xA7aAlliance formed with \xA7b${senderKingdom.name}\xA7a!`);
     }
   } else {
-    peaceCooldowns.set(req.cooldownKey, getCurrentTick() + TICKS_PER_DAY * 2);
+    const freshSender = getKingdom(req.fromKingdomId);
+    if (freshSender) {
+      freshSender.peaceCooldowns ?? (freshSender.peaceCooldowns = {});
+      freshSender.peaceCooldowns[req.cooldownKey] = getCurrentTick() + TICKS_PER_DAY * 2;
+      saveKingdom(freshSender);
+    }
     notifyPlayer(req.senderName, `\xA7c${player.name} denied your ${req.type} offer. Try again in 2 in-game days.`);
     notifyPlayer(player.name, `\xA7eOffer denied.`);
   }
@@ -5719,9 +6482,11 @@ var CUSTOM_BLOCKS = {
   CASTLE: "kingdoms:castle"
 };
 function findVillageAt2(location) {
-  return getAllVillages().find(
-    (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
-  );
+  return getAllVillages().find((v) => {
+    const dx = v.location.x - location.x;
+    const dz = v.location.z - location.z;
+    return Math.sqrt(dx * dx + dz * dz) < 64;
+  });
 }
 var TROOP_TYPE_TO_TOKEN = {
   cityGuards: "kingdoms:guard_token",
@@ -5754,7 +6519,7 @@ function dropItemsAtLocation(dimension, location, itemId, totalCount) {
     remaining -= stackSize;
   }
 }
-world18.afterEvents.playerPlaceBlock.subscribe((event) => {
+world20.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
   const typeId = block.typeId;
@@ -5854,16 +6619,28 @@ world18.afterEvents.playerPlaceBlock.subscribe((event) => {
   }
   if (typeId === CUSTOM_BLOCKS.BARRACKS) {
     const bVillage = findVillageAt2(block.location);
+    let denyMsg = "";
     if (!bVillage || bVillage.owner !== player.name) {
-      notifyPlayer(player.name, "\xA7cClaim a village first before building a Barracks.");
-      return;
+      denyMsg = "\xA7cClaim a village first before building a Barracks.";
+    } else if (!bVillage.hasGranary) {
+      denyMsg = "\xA7cBarracks requires a \xA7bGranary\xA7c to be built in this village first.";
+    } else if (!bVillage.hasTreasury) {
+      denyMsg = "\xA7cBarracks requires a \xA7bTreasury\xA7c to be built in this village first.";
     }
-    if (!bVillage.hasGranary) {
-      notifyPlayer(player.name, "\xA7cBarracks requires a Granary to be built in this village first.");
-      return;
-    }
-    if (!bVillage.hasTreasury) {
-      notifyPlayer(player.name, "\xA7cBarracks requires a Treasury to be built in this village first.");
+    if (denyMsg) {
+      notifyPlayer(player.name, denyMsg);
+      const bLoc = { x: block.location.x, y: block.location.y, z: block.location.z };
+      const bDim = block.dimension;
+      system6.run(() => {
+        try {
+          bDim.runCommand(`setblock ${bLoc.x} ${bLoc.y} ${bLoc.z} air destroy`);
+          bDim.spawnItem(
+            new ItemStack6(CUSTOM_BLOCKS.BARRACKS, 1),
+            { x: bLoc.x + 0.5, y: bLoc.y + 1, z: bLoc.z + 0.5 }
+          );
+        } catch {
+        }
+      });
       return;
     }
   }
@@ -5871,7 +6648,7 @@ world18.afterEvents.playerPlaceBlock.subscribe((event) => {
     const origin = { x: block.location.x, y: block.location.y, z: block.location.z };
     const dimension = block.dimension;
     notifyPlayer(player.name, `\xA77Building \xA7b${typeId.replace("kingdoms:", "").replace(/_/g, " ")}\xA77\u2026`);
-    system5.run(() => {
+    system6.run(() => {
       generateStructure(dimension, origin, typeId);
     });
   }
@@ -5885,7 +6662,7 @@ function canOpenMenu(playerName) {
   lastMenuTick.set(playerName, tick);
   return true;
 }
-world18.afterEvents.itemStartUseOn.subscribe((event) => {
+world20.afterEvents.itemStartUseOn.subscribe((event) => {
   const player = event.source;
   const block = event.block;
   const itemStack = event.itemStack;
@@ -5935,8 +6712,9 @@ world18.afterEvents.itemStartUseOn.subscribe((event) => {
       const wpVillage = findVillageAt2(block.location);
       if (wpVillage && wpVillage.waypointLocation) {
         void showWaypointMenu(player, wpVillage);
-        if (pendingDiplomacyRequests.has(player.name)) {
-          system5.runTimeout(() => {
+        const wpKingdom = getKingdomOf(player.name);
+        if (wpKingdom?.pendingDiplomacy) {
+          system6.runTimeout(() => {
             void showPendingDiplomacyRequest(player);
           }, 40);
         }
@@ -5945,7 +6723,7 @@ world18.afterEvents.itemStartUseOn.subscribe((event) => {
     }
   }
 });
-world18.afterEvents.playerBreakBlock.subscribe((event) => {
+world20.afterEvents.playerBreakBlock.subscribe((event) => {
   const { player } = event;
   if (!player) return;
   const typeId = event.brokenBlockPermutation.type.id;
@@ -6052,34 +6830,40 @@ world18.afterEvents.playerBreakBlock.subscribe((event) => {
   if (STRUCTURE_BLOCK_IDS.has(typeId)) {
     const origin = { x: blockLoc.x, y: blockLoc.y, z: blockLoc.z };
     const dimension = player.dimension;
-    system5.run(() => {
+    system6.run(() => {
       demolishStructure(dimension, origin, typeId);
     });
   }
 });
-world18.afterEvents.playerJoin.subscribe((event) => {
+world20.afterEvents.playerJoin.subscribe((event) => {
   const playerName = event.playerName;
-  if (!pendingDiplomacyRequests.has(playerName)) return;
-  system5.runTimeout(() => {
-    const player = world18.getPlayers().find((p) => p.name === playerName);
-    if (player) void showPendingDiplomacyRequest(player);
+  system6.runTimeout(() => {
+    const player = world20.getPlayers().find((p) => p.name === playerName);
+    if (!player) return;
+    const kingdom = getKingdomOf(playerName);
+    if (kingdom?.pendingDiplomacy) void showPendingDiplomacyRequest(player);
   }, 100);
 });
 startVillagerBowSystem();
-system5.runInterval(() => {
+registerChargeSystem();
+loadSiegesFromStorage();
+system6.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
   tickTradeStations(tick);
   tickSieges(tick);
   tickBorders(tick);
   tickAutoDefense(tick);
+  tickChargeSystem(tick);
+  tickFormations(tick);
+  tickPendingReinforcements(tick);
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
   }
   tickAllMerchantsSpawn(tick);
   tickAllMerchantMovement();
 }, 20);
-system5.runInterval(() => {
+system6.runInterval(() => {
   processAllFood();
   processAllWages();
   processAllPopulation();
@@ -6088,18 +6872,18 @@ system5.runInterval(() => {
   autoHarvestAllVillages();
   checkDailyCrisisAlerts();
 }, 24e3);
-system5.runInterval(() => {
+system6.runInterval(() => {
   refreshAllGuards();
 }, 12e3);
-system5.runInterval(() => {
+system6.runInterval(() => {
   enforceGuardPositions();
 }, 600);
-system5.runInterval(() => {
+system6.runInterval(() => {
   for (const village of getAllVillages()) {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
-world18.beforeEvents.playerBreakBlock.subscribe((event) => {
+world20.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;
   const permutation = block.permutation;
@@ -6114,9 +6898,9 @@ world18.beforeEvents.playerBreakBlock.subscribe((event) => {
   const blockAge = age;
   const loc = { x: block.location.x, y: block.location.y, z: block.location.z };
   const dimId = player.dimension.id;
-  system5.run(() => {
+  system6.run(() => {
     try {
-      const dim = world18.getDimension(dimId);
+      const dim = world20.getDimension(dimId);
       const freshBlock = dim.getBlock(loc);
       if (!freshBlock) return;
       const freshAge = freshBlock.permutation.getState("age");
@@ -6128,19 +6912,23 @@ world18.beforeEvents.playerBreakBlock.subscribe((event) => {
     }
   });
 });
-world18.afterEvents.itemUse.subscribe((event) => {
+world20.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   if (!player) return;
   const itemId = event.itemStack?.typeId;
   if (!itemId) return;
   if (itemId === "kingdoms:recall_scroll") {
-    system5.run(() => {
+    system6.run(() => {
       recallNearbyTroops(player);
     });
     return;
   }
+  if (itemId === "kingdoms:tactics_horn") {
+    openTacticsMenu(player);
+    return;
+  }
   if (TROOP_TOKEN_MAP[itemId]) {
-    system5.run(() => {
+    system6.run(() => {
       releaseTroops(player);
     });
   }
@@ -6162,7 +6950,7 @@ async function showTownHallMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getVillageSummary(village);
-  const form = new ActionFormData2().title(`${village.name} \u2014 Town Hall`).body(summary);
+  const form = new ActionFormData3().title(`${village.name} \u2014 Town Hall`).body(summary);
   if (isOwner) {
     form.button("Kingdom Overview").button("Treasury").button("Diplomacy").button("Send Reinforcements").button("Merchants").button("Rename Village").button("\u{1F3EA} Shop");
   } else {
@@ -6196,7 +6984,7 @@ async function showTownHallMenu(player, block) {
 }
 async function showTownHallShop(player, village) {
   const WAYPOINT_COST = 30;
-  const form = new ActionFormData2().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(
+  const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(
     `\xA77Treasury: \xA7f${village.treasury}\u{1F48E}
 
 Purchase items using your village treasury.`
@@ -6241,7 +7029,7 @@ async function showBarracksMenu(player, block) {
   const castleBuilt = village.hasCastle ?? false;
   const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
   const eliteLine = castleBuilt ? `\xA76Samurai: ${sm}  Lancer: ${ml}  Legionary: ${lg}` : `\xA77Elite Troops: \xA7c\u{1F512} needs Castle`;
-  const form = new ActionFormData2().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
 City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
 Archers: ${t.archers}  Cavalry: ${t.cavalry}
@@ -6258,7 +7046,7 @@ ${queueSummary}
 
 Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
   ).button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)
-\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`);
+\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6274,7 +7062,30 @@ Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diam
     case 3:
       upgradeBarracks(village);
       break;
+    case 4:
+      giveTacticsHorn(player);
+      break;
   }
+}
+function giveTacticsHorn(player) {
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  if (!inv?.container) return;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === "kingdoms:tactics_horn") {
+      notifyPlayer(player.name, "\xA7eYou already have a Tactics Horn.");
+      return;
+    }
+  }
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) {
+      container.setItem(i, new ItemStack6("kingdoms:tactics_horn", 1));
+      notifyPlayer(player.name, "\xA7a\u{1F4EF} Tactics Horn added to your inventory. Right-click to command your troops!");
+      return;
+    }
+  }
+  notifyPlayer(player.name, "\xA7cInventory full \u2014 make room and try again.");
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
@@ -6330,7 +7141,7 @@ async function showReturnTroopsForm(player, village) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
   }
-  const form = new ActionFormData2().title(`Return Troops \u2014 ${village.name}`).body(
+  const form = new ActionFormData3().title(`Return Troops \u2014 ${village.name}`).body(
     `\xA77Return all carried troops to this barracks.
 
 \xA7fCarrying:
@@ -6389,7 +7200,7 @@ async function showTrainTroopsForm(player, village) {
   const playerVillages = getAllVillages().filter((v) => v.owner === player.name);
   const eliteAvailable = castleAvailable && playerVillages.length >= 3;
   const eliteLockMsg = !castleAvailable ? "\u{1F512} needs Castle + 3 villages" : playerVillages.length < 3 ? `\u{1F512} needs 3 villages (you have ${playerVillages.length})` : "";
-  const form = new ActionFormData2().title(`Train Troops \u2014 ${village.name}`).body(
+  const form = new ActionFormData3().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
 Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Gold: \xA7f${rs.gold}  \xA77Di: \xA7f${rs.diamonds}
 
@@ -6429,7 +7240,7 @@ async function showMarketMenu(player, block) {
   const merchantList = village.activeMerchants.map(
     (m, i) => `Merchant ${i + 1}: ${Object.entries(m.stock).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ")}`
   ).join("\n") || "No merchants present.";
-  const form = new ActionFormData2().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Market Lv${village.marketLevel}`).body(
     `\xA7bTreasury: \xA76${village.treasury}\u{1F48E}\xA7r  |  Merchants: ${village.activeMerchants.length}/${maxMerchants}
 
 ${merchantList}
@@ -6459,7 +7270,7 @@ ${merchantList}
 }
 async function showSeedShopMenu(player, village) {
   const matLine = SEED_PURCHASE_MATERIALS.map((m) => m.label).join(" + ");
-  const form = new ActionFormData2().title(`${village.name} \u2014 Seed Shop`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Seed Shop`).body(
     `\xA7bBuy seeds for emeralds + farming materials.
 \xA77Market Lv${village.marketLevel} (needs Lv1+)
 
@@ -6476,7 +7287,7 @@ async function showSeedShopMenu(player, village) {
   buySeedsFromMarket(player, village, SEED_SHOP[response.selection]);
 }
 async function showFoodSellMenu(player, village) {
-  const form = new ActionFormData2().title(`${village.name} \u2014 Sell Food`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Sell Food`).body(
     `\xA7bSell food in bulk for emeralds (to your inventory).
 \xA77Sources: granary first, then player inventory.
 \xA7cMinimum batch required \u2014 low rates by design.`
@@ -6504,7 +7315,7 @@ async function showBlacksmithMenu(player, block) {
     return;
   }
   const summary = getBlacksmithSummary(village);
-  const form = new ActionFormData2().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6531,7 +7342,7 @@ async function showArmoryCraftMenu(player, village) {
     if (r.costEmeralds > 0) parts.push(`${r.costEmeralds}\u{1F48E}`);
     return parts.join(", ");
   };
-  const form = new ActionFormData2().title(`${village.name} \u2014 Craft for Armory`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Craft for Armory`).body(
     `\xA77Craft gear from village resource storage.
 \xA77Storage: \xA7fFe:${rs.iron} Au:${rs.gold} \u{1F4A0}:${rs.diamonds} W:${rs.wood} St:${rs.stone}
 \xA77Treasury: \xA7f${village.treasury}\u{1F48E}
@@ -6567,7 +7378,7 @@ async function showGranaryStorageMenu(player, block) {
   const cons = getFoodConsumption(village);
   const fieldTotal = getFieldStorageTotal(village);
   const fieldBtn = `\u{1F33E} Collect Field Harvest${fieldTotal > 0 ? ` (${fieldTotal} food units ready)` : " (empty)"}`;
-  const form = new ActionFormData2().title(`${village.name} \u2014 Granary`).body(
+  const form = new ActionFormData3().title(`${village.name} \u2014 Granary`).body(
     `${report}
 
 Farmers: ${village.workers.farmers}  Daily: +${prod}/-${cons}
@@ -6639,7 +7450,7 @@ async function showTreasuryBlockMenu(player, block) {
     return;
   }
   const report = getTreasuryReport(village);
-  const form = new ActionFormData2().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6664,7 +7475,7 @@ async function showTreasuryMenu(player, villageId) {
   const village = getVillage(villageId);
   if (!village) return;
   const report = getTreasuryReport(village);
-  const form = new ActionFormData2().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Treasury`).body(report).button("Deposit 10\u{1F48E} from inventory").button("Deposit 64\u{1F48E} from inventory").button("Deposit all emeralds").button("Withdraw 10\u{1F48E} to inventory").button("Withdraw 64\u{1F48E} to inventory").button("Back");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -6692,7 +7503,7 @@ async function showKingdomOverview(player) {
     return;
   }
   const summary = getKingdomSummary(kingdom.id);
-  const form = new ActionFormData2().title(kingdom.name).body(summary).button("Diplomacy").button("Close");
+  const form = new ActionFormData3().title(kingdom.name).body(summary).button("Diplomacy").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   if (response.selection === 0) await showDiplomacyMenu(player);
@@ -6705,7 +7516,7 @@ async function showDiplomacyMenu(player) {
     notifyPlayer(player.name, "\xA7eNo other kingdoms exist yet.");
     return;
   }
-  const form = new ActionFormData2().title("Diplomacy").body(`Kingdom: ${myKingdom.name}
+  const form = new ActionFormData3().title("Diplomacy").body(`Kingdom: ${myKingdom.name}
 Wars: ${myKingdom.wars.length}  Alliances: ${myKingdom.alliances.length}`);
   for (const k of others) {
     const rel = myKingdom.wars.includes(k.id) ? "\xA7c[WAR]" : myKingdom.alliances.includes(k.id) ? "\xA7a[ALLY]" : "\xA77[NEUTRAL]";
@@ -6719,7 +7530,7 @@ Wars: ${myKingdom.wars.length}  Alliances: ${myKingdom.alliances.length}`);
 async function showDiplomacyActions(player, myKingdom, target) {
   const atWar = myKingdom.wars.includes(target.id);
   const allied = myKingdom.alliances.includes(target.id);
-  const form = new ActionFormData2().title(`Diplomacy \u2014 ${target.name}`).body(`King: ${target.king}
+  const form = new ActionFormData3().title(`Diplomacy \u2014 ${target.name}`).body(`King: ${target.king}
 Villages: ${target.villageIds.length}
 Relation: ${atWar ? "\xA7cAt War" : allied ? "\xA7aAllied" : "\xA77Neutral"}`);
   const actions = [];
@@ -6749,34 +7560,124 @@ async function showReinforcementsMenu(player, villageId) {
     const v = getVillage(id);
     return v ? [v] : [];
   });
-  if (otherVillages.length === 0) {
-    notifyPlayer(player.name, "\xA7cNo other villages in your kingdom.");
-    return;
-  }
-  const form = new ActionFormData2().title("Send Resources / Reinforcements").body(`From: \xA7b${village.name}\xA7r
-Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}
-Guards: ${village.troops.cityGuards}  Spearmen: ${village.troops.spearmen}
-Archers: ${village.troops.archers}  Cavalry: ${village.troops.cavalry}
+  const inTransit = getInTransitMarches(player.name);
+  const inTransitLabel = inTransit.length > 0 ? `\u23F3 In-Transit Marches (${inTransit.length} active)` : `\u23F3 In-Transit Marches (none)`;
+  const troopLine = (v) => {
+    const t = v.troops;
+    const hk = t.heavyKnight ?? 0;
+    const sa = t.samurai ?? 0;
+    const ml = t.mercenaryLancer ?? 0;
+    const le = t.legionary ?? 0;
+    return `${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le} troops`;
+  };
+  const form = new ActionFormData3().title("Reinforcements & Resources").body(
+    `\xA77From: \xA7b${village.name}
+\xA77Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Food: \xA7f${village.foodStorage}\u{1F33E}
+\xA77Troops: \xA7f${troopLine(village)}
 
-Select destination:`);
+\xA77Select destination to send, or view in-transit marches.`
+  ).button(inTransitLabel);
   for (const v of otherVillages) {
-    const total = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.cavalry;
-    form.button(`${v.name} (${total} troops)`);
+    form.button(`${v.name}
+\xA77${troopLine(v)}`);
   }
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  await showSendAmountsForm(player, villageId, otherVillages[response.selection].id);
+  if (response.selection === 0) {
+    await showInTransitMenu(player);
+  } else {
+    await showSendAmountsForm(player, villageId, otherVillages[response.selection - 1].id);
+  }
+}
+async function showInTransitMenu(player) {
+  const marches = getInTransitMarches(player.name);
+  const tick = getCurrentTick();
+  if (marches.length === 0) {
+    notifyPlayer(player.name, "\xA77No reinforcements currently in transit.");
+    return;
+  }
+  const form = new ActionFormData3().title("\u23F3 In-Transit Marches").body(
+    `\xA77You have \xA7f${marches.length}\xA77 active march(es).
+\xA77Click a march to recall it \u2014 troops will be instantly refunded.
+`
+  );
+  for (const { pr, toName } of marches) {
+    const troopSummary = Object.entries(pr.troops).filter(([, c]) => (c ?? 0) > 0).map(([t, c]) => `${c}\xD7${t}`).join(", ");
+    const ticksLeft = Math.max(0, pr.arriveTick - tick);
+    const secsLeft = Math.ceil(ticksLeft / 20);
+    const etaLabel = secsLeft >= 60 ? `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s` : `${secsLeft}s`;
+    const status = ticksLeft <= 0 ? "\xA7aArriving\u2026" : `\xA7eETA ~${etaLabel}`;
+    form.button(
+      `\u21A9 ${pr.sourceVillageName} \u2192 ${toName}
+\xA77${troopSummary}  ${status}`
+    );
+  }
+  form.button("Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection === marches.length) return;
+  const chosen = marches[response.selection];
+  const confirm = new MessageFormData().title("\u21A9 Recall March?").body(
+    `Recall the march from \xA7b${chosen.pr.sourceVillageName}\xA7r \u2192 \xA7b${chosen.toName}\xA7r?
+
+\xA77All troops will be immediately returned to \xA7b${chosen.pr.sourceVillageName}\xA77.
+\xA77This cannot be undone.`
+  ).button1("\u21A9 Recall").button2("Cancel");
+  const confirmResp = await confirm.show(player);
+  if (confirmResp.canceled || confirmResp.selection !== 0) return;
+  const success = cancelReinforcement(chosen.pr.id, chosen.toVillageId);
+  if (!success) {
+    notifyPlayer(player.name, "\xA7cMarch already arrived or could not be recalled.");
+  }
 }
 async function showSendAmountsForm(player, fromId, toId) {
   const from = getVillage(fromId);
   const to = getVillage(toId);
   if (!from || !to) return;
-  const form = new ModalFormData().title(`${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(from.troops.cityGuards, 1), 1, 0).slider("Spearmen", 0, Math.max(from.troops.spearmen, 1), 1, 0).slider("Archers", 0, Math.max(from.troops.archers, 1), 1, 0).slider("Cavalry", 0, Math.max(from.troops.cavalry, 1), 1, 0).slider("Emeralds", 0, Math.max(from.treasury, 1), 1, 0).slider("Food", 0, Math.max(from.foodStorage, 1), 1, 0);
+  const sliders = [];
+  const troopDefs = [
+    { key: "cityGuards", label: "City Guards" },
+    { key: "spearmen", label: "Spearmen" },
+    { key: "archers", label: "Archers" },
+    { key: "cavalry", label: "Cavalry" },
+    { key: "heavyKnight", label: "Heavy Knights" },
+    { key: "samurai", label: "Samurai" },
+    { key: "mercenaryLancer", label: "Mercenary Lancers" },
+    { key: "legionary", label: "Legionaries" }
+  ];
+  for (const { key, label } of troopDefs) {
+    const count = from.troops[key] ?? 0;
+    if (count > 0) sliders.push({ key, label, max: count });
+  }
+  if (from.treasury > 0) sliders.push({ key: "emeralds", label: "Emeralds", max: from.treasury });
+  if (from.foodStorage > 0) sliders.push({ key: "food", label: "Food", max: from.foodStorage });
+  if (sliders.length === 0) {
+    notifyPlayer(player.name, `\xA7c\xA7b${from.name}\xA7c has no troops, emeralds, or food to send.`);
+    return;
+  }
+  const form = new ModalFormData().title(`${from.name} \u2192 ${to.name}`);
+  for (const s of sliders) {
+    form.slider(s.label, 0, Math.max(s.max, 1), 1, 0);
+  }
   const response = await form.show(player);
-  if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry, emeralds, food] = response.formValues;
-  if (guards > 0 || spearmen > 0 || archers > 0 || cavalry > 0) {
-    sendReinforcements(fromId, toId, { cityGuards: guards, spearmen, archers, cavalry });
+  if (response.canceled || !response.formValues) return;
+  const values = response.formValues;
+  const troops = {};
+  let emeralds = 0;
+  let food = 0;
+  sliders.forEach((s, i) => {
+    const v = Math.min(values[i] ?? 0, s.max);
+    if (v <= 0) return;
+    if (s.key === "emeralds") {
+      emeralds = v;
+    } else if (s.key === "food") {
+      food = v;
+    } else {
+      troops[s.key] = v;
+    }
+  });
+  if (Object.keys(troops).length > 0) {
+    sendReinforcements(fromId, toId, troops);
   }
   if (emeralds > 0 || food > 0) {
     sendTradeCart(fromId, toId, {
@@ -6804,7 +7705,7 @@ async function showActiveMerchantsMenu(player, village) {
     notifyPlayer(player.name, "\xA7eNo merchants are visiting \xA7b" + village.name + "\xA7e right now.");
     return;
   }
-  const form = new ActionFormData2().title(`${village.name} \u2014 Merchants`).body(`Active merchants: ${village.activeMerchants.length}
+  const form = new ActionFormData3().title(`${village.name} \u2014 Merchants`).body(`Active merchants: ${village.activeMerchants.length}
 Select a merchant to trade with:`);
   for (const m of village.activeMerchants) {
     const stockSummary = Object.entries(m.stock).slice(0, 3).map(([k, v]) => `${k.replace("minecraft:", "")}\xD7${v}`).join(", ");
@@ -6819,7 +7720,7 @@ Select a merchant to trade with:`);
 }
 async function showMerchantTradeMenu(player, village, merchant, entityId) {
   const stockText = Object.entries(merchant.stock).map(([item, count]) => `${item.replace("minecraft:", "")} \xD7${count}`).join("\n") || "Sold out!";
-  const form = new ActionFormData2().title("Travelling Merchant").body(`Available:
+  const form = new ActionFormData3().title("Travelling Merchant").body(`Available:
 ${stockText}
 
 Village Treasury: ${village.treasury}\u{1F48E}`).button("Buy Iron \xD78 (8\u{1F48E})").button("Buy Gold \xD74 (12\u{1F48E})").button("Buy Diamond \xD71 (8\u{1F48E})").button("Buy Bread \xD716 (16\u{1F48E})").button("Close");
@@ -6848,7 +7749,7 @@ async function showTradeStationMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getTradeStationSummary(village);
-  const form = new ActionFormData2().title(`${village.name} \u2014 Trade Station`).body(summary);
+  const form = new ActionFormData3().title(`${village.name} \u2014 Trade Station`).body(summary);
   if (isOwner) {
     form.button("\u{1F4E6} Dispatch Resources").button("\u{1F5E1} Dispatch Reinforcements").button("\u{1F4CA} Resource Storage").button("\u{1F682} Active Shipments").button("\u{1F4CB} Trade History");
   } else {
@@ -6887,7 +7788,7 @@ async function showDispatchResourceMenu(player, fromVillageId) {
     );
     return;
   }
-  const form = new ActionFormData2().title(`${from.name} \u2014 Dispatch Resources`).body(
+  const form = new ActionFormData3().title(`${from.name} \u2014 Dispatch Resources`).body(
     `\xA77Select destination village.
 
 \xA7bAvailable:
@@ -6944,7 +7845,7 @@ async function showDispatchMilitaryMenu(player, fromVillageId) {
     return;
   }
   const t = from.troops;
-  const form = new ActionFormData2().title(`${from.name} \u2014 Dispatch Reinforcements`).body(
+  const form = new ActionFormData3().title(`${from.name} \u2014 Dispatch Reinforcements`).body(
     `\xA77Select destination village.
 
 \xA7bAvailable Troops:
@@ -6968,11 +7869,15 @@ async function showMilitaryAmountsForm(player, fromId, toId) {
   const to = getVillage(toId);
   if (!from || !to) return;
   const t = from.troops;
-  const form = new ModalFormData().title(`\u{1F5E1} ${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0).slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0).slider("Archers", 0, Math.max(t.archers, 1), 1, 0).slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0);
+  const hk = t.heavyKnight ?? 0;
+  const sa = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const le = t.legionary ?? 0;
+  const form = new ModalFormData().title(`\u{1F5E1} ${from.name} \u2192 ${to.name}`).slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0).slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0).slider("Archers", 0, Math.max(t.archers, 1), 1, 0).slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0).slider("Heavy Knights", 0, Math.max(hk, 1), 1, 0).slider("Samurai", 0, Math.max(sa, 1), 1, 0).slider("Lancers", 0, Math.max(ml, 1), 1, 0).slider("Legionaries", 0, Math.max(le, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry] = response.formValues;
-  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0) {
+  const [guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues;
+  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0 && heavyKnight === 0 && samurai === 0 && mercenaryLancer === 0 && legionary === 0) {
     notifyPlayer(player.name, "\xA7cNo troops selected.");
     return;
   }
@@ -6985,7 +7890,7 @@ async function showMilitaryAmountsForm(player, fromId, toId) {
     wood: 0,
     stone: 0,
     diamonds: 0,
-    troops: { cityGuards: guards, spearmen, archers, cavalry }
+    troops: { cityGuards: guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary }
   });
 }
 async function showResourceStorageMenu(player, villageId) {
@@ -6995,7 +7900,7 @@ async function showResourceStorageMenu(player, villageId) {
   const rs = village.resourceStorage;
   const resourceKeys = Object.keys(RESOURCE_LABELS);
   const storageLines = resourceKeys.map((k) => `  ${RESOURCE_LABELS[k]}: ${rs[k]}`).join("\n");
-  const form = new ActionFormData2().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
+  const form = new ActionFormData3().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
 
 \xA7b\u2500\u2500 Storage \u2500\u2500
 \xA7f${storageLines}
@@ -7013,7 +7918,11 @@ async function showResourceStorageMenu(player, villageId) {
   if (response.canceled || response.selection === void 0) return;
   if (response.selection >= depositOptions.length) return;
   const opt = depositOptions[response.selection];
-  notifyPlayer(player.name, `\xA7aWithdrew ${opt.amount} ${opt.label} from storage. (Note: use /give for actual items)`);
+  const itemId = RESOURCE_DROP_MAP[opt.key];
+  if (itemId) {
+    dropItemsAtLocation(player.dimension, player.location, itemId, opt.amount);
+    notifyPlayer(player.name, `\xA7aWithdrew \xA7f${opt.amount}x ${opt.label}\xA7a from \xA7b${village.name}\xA7a's resource storage.`);
+  }
   rs[opt.key] = 0;
   saveVillage(village);
 }
@@ -7036,7 +7945,7 @@ async function showActiveShipmentsMenu(player, villageId) {
     ].filter(Boolean).join(" ");
     return `${type} #${i + 1} \u2192 ${dest?.name ?? "Unknown"}: ${cargo || "Troops"}`;
   }).join("\n");
-  const form = new ActionFormData2().title(`${village.name} \u2014 Active Shipments`).body(`\xA7b${railCarts.length} rail shipment(s) in transit:
+  const form = new ActionFormData3().title(`${village.name} \u2014 Active Shipments`).body(`\xA7b${railCarts.length} rail shipment(s) in transit:
 
 \xA7f${lines}
 
@@ -7048,7 +7957,7 @@ async function showTradeHistoryMenu(player, villageId) {
   if (!village) return;
   const history = village.tradeHistory ?? [];
   if (history.length === 0) {
-    const form2 = new ActionFormData2().title(`${village.name} \u2014 Trade History`).body("\xA77No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.").button("Close");
+    const form2 = new ActionFormData3().title(`${village.name} \u2014 Trade History`).body("\xA77No trade deliveries recorded yet.\n\nPush a chest minecart to this trade station to log an arrival.").button("Close");
     await form2.show(player);
     return;
   }
@@ -7063,7 +7972,7 @@ async function showTradeHistoryMenu(player, villageId) {
 \xA77Cargo: \xA7f${entry.summary}
 \xA78${timeLabel}`;
   });
-  const form = new ActionFormData2().title(`${village.name} \u2014 Trade History`).body(`\xA7bLast ${history.length} arrival(s):
+  const form = new ActionFormData3().title(`${village.name} \u2014 Trade History`).body(`\xA7bLast ${history.length} arrival(s):
 
 ` + lines.join("\n\n")).button("Close");
   await form.show(player);

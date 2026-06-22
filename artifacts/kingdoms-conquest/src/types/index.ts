@@ -185,6 +185,13 @@ export interface VillageData {
   hasTreasury?: boolean;
   missedSoldierFeedDays?: number;
   pendingReinforcements?: PendingReinforcement[];
+  activeSiegeData?: {
+    attackerKingdomId: string;
+    attackerName: string;
+    startTick: number;
+    progress: number;
+    offlineTicks: number;
+  };
 }
 
 export interface KingdomData {

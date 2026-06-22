@@ -381,12 +381,12 @@ export function getGranaryReport(village: VillageData): string {
 }
 
 function findVillageAt(location: Vec3, dimensionId: string): VillageData | undefined {
-  return getAllVillages().find(
-    (v) =>
-      v.location.dimension === dimensionId &&
-      Math.abs(v.location.x - location.x) < VILLAGE_CLAIM_RADIUS &&
-      Math.abs(v.location.z - location.z) < VILLAGE_CLAIM_RADIUS
-  );
+  return getAllVillages().find((v) => {
+    if (v.location.dimension !== dimensionId) return false;
+    const dx = v.location.x - location.x;
+    const dz = v.location.z - location.z;
+    return Math.sqrt(dx * dx + dz * dz) < VILLAGE_CLAIM_RADIUS;
+  });
 }
 
 // ── Field Storage ─────────────────────────────────────────────────────────────

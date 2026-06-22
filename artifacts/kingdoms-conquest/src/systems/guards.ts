@@ -100,7 +100,7 @@ export function assignGuardsToPole(
     return false;
   }
 
-  if (availableTroops(village, troopType) + pole.assignedGuards < count) {
+  if (availableTroops(village, troopType) + (pole.troopType === troopType ? pole.assignedGuards : 0) < count) {
     notifyPlayer(village.owner, `§cNot enough available ${troopType} (need ${count}, free: ${availableTroops(village, troopType) + (pole.troopType === troopType ? pole.assignedGuards : 0)}).`);
     return false;
   }

@@ -43,13 +43,26 @@ function scanFromWatchtower(village: VillageData, tower: GuardPoleData, currentT
   const nearby = dim.getEntities(query);
   const kingdom = getKingdom(village.kingdomId);
 
+  const BANDIT_TYPE_IDS = new Set([
+    "kingdoms:bandit",
+    "kingdoms:deserter",
+    "kingdoms:city_guard",
+    "kingdoms:spearman",
+    "kingdoms:archer",
+    "kingdoms:cavalry",
+    "kingdoms:heavy_knight",
+    "kingdoms:samurai",
+    "kingdoms:mercenary_lancer",
+    "kingdoms:legionary",
+  ]);
+
   for (const entity of nearby) {
-    if (entity.typeId === "kingdoms:bandit") {
+    if (BANDIT_TYPE_IDS.has(entity.typeId) && !entity.getDynamicProperty("kc:village_id")) {
       const alertKey = `${village.id}:bandits`;
       const lastAlert = lastAlertedThreat.get(alertKey) ?? 0;
       if (currentTick - lastAlert >= THREAT_ALERT_COOLDOWN) {
         const d = Math.round(distance(entity.location, tower.location));
-        notifyAlert(village.owner, `§c⚠ Watchtower detected bandits near §b${village.name}§c! (${d}m away)`);
+        notifyAlert(village.owner, `§c⚠ Watchtower detected hostiles near §b${village.name}§c! (${d}m away)`);
         lastAlertedThreat.set(alertKey, currentTick);
       }
       return;

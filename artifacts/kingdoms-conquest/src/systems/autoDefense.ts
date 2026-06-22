@@ -128,9 +128,9 @@ function dispatchTroops(village: VillageData, threatCount: number): void {
 
   for (const troopType of TROOP_PRIORITY) {
     if (dispatched >= needed) break;
-    if (village.troops[troopType] <= 0) continue;
+    if ((village.troops[troopType] ?? 0) <= 0) continue;
 
-    const toSend = Math.min(village.troops[troopType], needed - dispatched);
+    const toSend = Math.min(village.troops[troopType] ?? 0, needed - dispatched);
     village.troops[troopType] -= toSend;
 
     for (let i = 0; i < toSend; i++) {
