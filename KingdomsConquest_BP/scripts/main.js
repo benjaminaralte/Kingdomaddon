@@ -8583,7 +8583,8 @@ async function showPickUpTroopsForm(player, village) {
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.samurai ?? 0) + (carried.heavyKnights ?? 0) + (carried.legionary ?? 0);
+  const total = (carried.cityGuards ?? 0) + (carried.spearmen ?? 0) + (carried.archers ?? 0) + (carried.cavalry ?? 0) +
+    (carried.samurai ?? 0) + (carried.heavyKnights ?? 0) + (carried.legionary ?? 0) + (carried.mercenaryLancer ?? 0);
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
@@ -8599,6 +8600,7 @@ async function showReturnTroopsForm(player, village) {
   Samurai: ${carried.samurai ?? 0}
   Heavy Knights: ${carried.heavyKnights ?? 0}
   Legionaries: ${carried.legionary ?? 0}
+  Merc Lancers: ${carried.mercenaryLancer ?? 0}
 
 \xA7aTotal: ${total} troops`
   ).button("Return All Troops").button("Cancel");
