@@ -3,7 +3,7 @@
   "minecraft:entity": {
     "description": {
       "identifier": "kingdoms:merchant",
-      "runtime_identifier": "minecraft:wandering_trader",
+      "runtime_identifier": "minecraft:villager_v2",
       "is_spawnable": false,
       "is_summonable": true,
       "is_experimental": false
@@ -70,7 +70,7 @@
       "minecraft:behavior.panic": {
         "priority": 1,
         "speed_multiplier": 1.4,
-        "panic_sound": "mob.wanderingtrader.hurt",
+        "panic_sound": "mob.villager.hurt",
         "sound_interval": {
           "range_min": 1.0,
           "range_max": 3.0

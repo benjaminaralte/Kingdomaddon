@@ -10,7 +10,7 @@
       "animations": {
         "walk": "animation.humanoid.walk",
         "idle": "animation.humanoid.base_pose",
-        "move": "controller.animation.humanoid.move"
+        "move": "controller.animation.kingdoms.villager.move"
       },
       "scripts": {
         "animate": [ "move" ]
