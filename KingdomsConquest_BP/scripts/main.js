@@ -230,7 +230,8 @@ var TROOP_WAGES = {
   cavalry: 3,
   samurai: 4,
   heavyKnights: 4,
-  legionary: 4
+  legionary: 4,
+  mercenaryLancer: 4
 };
 var EMPTY_RESOURCE_STORAGE = {
   iron: 0,
@@ -1724,7 +1725,7 @@ function tickWages(village) {
   const currentDay = getCurrentDay();
   const daysSinceWage = daysSince(village.lastWageDay);
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + (village.troops.samurai ?? 0) * TROOP_WAGES.samurai + (village.troops.heavyKnights ?? 0) * TROOP_WAGES.heavyKnights + (village.troops.legionary ?? 0) * TROOP_WAGES.legionary;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + (village.troops.samurai ?? 0) * TROOP_WAGES.samurai + (village.troops.heavyKnights ?? 0) * TROOP_WAGES.heavyKnights + (village.troops.legionary ?? 0) * TROOP_WAGES.legionary + (village.troops.mercenaryLancer ?? 0) * TROOP_WAGES.mercenaryLancer;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -2655,8 +2656,8 @@ function withdrawEmeralds(player, villageId, amount) {
   return true;
 }
 function getTreasuryReport(village) {
-  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3, samurai: 4, heavyKnights: 4, legionary: 4 };
-  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry + (village.troops.samurai ?? 0) * wages.samurai + (village.troops.heavyKnights ?? 0) * wages.heavyKnights + (village.troops.legionary ?? 0) * wages.legionary) / 3;
+  const wages = { cityGuards: 1, spearmen: 2, archers: 2, cavalry: 3, samurai: 4, heavyKnights: 4, legionary: 4, mercenaryLancer: 4 };
+  const dailyWages = (village.troops.cityGuards * wages.cityGuards + village.troops.spearmen * wages.spearmen + village.troops.archers * wages.archers + village.troops.cavalry * wages.cavalry + (village.troops.samurai ?? 0) * wages.samurai + (village.troops.heavyKnights ?? 0) * wages.heavyKnights + (village.troops.legionary ?? 0) * wages.legionary + (village.troops.mercenaryLancer ?? 0) * wages.mercenaryLancer) / 3;
   return [
     `\xA7b${village.name} Treasury\xA7r`,
     `\xA77Balance: \xA76${village.treasury}\u{1F48E}`,
