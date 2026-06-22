@@ -7708,6 +7708,41 @@ world16.afterEvents.itemUseOn.subscribe((event) => {
     system3.run(() => { void cmdStratMap(player); });
     return;
   }
+  if (itemId === "kingdoms:village_spawner") {
+    system3.run(async () => {
+      const form = new ActionFormData()
+        .title("\xA76\u{1F3D9} Village Spawner")
+        .body("Select what to build near you:\n\n\xA76Big City\xA7r: Walled stone buildings, 10 villagers, large farm\n\xA7aSmall Village\xA7r: 3 wooden houses, 5 villagers, small farm")
+        .button("\xA76\u{1F3D9} Spawn Big City")
+        .button("\xA7a\u{1F3E0} Spawn Small Village")
+        .button("Cancel");
+      const resp = await form.show(player);
+      if (resp.canceled || resp.selection === 2) return;
+      const size = resp.selection === 0 ? "city" : "village";
+      const d = size === "city" ? 80 : 50;
+      const ang = Math.random() * Math.PI * 2;
+      const anchor = {
+        x: player.location.x + Math.cos(ang) * d,
+        y: player.location.y,
+        z: player.location.z + Math.sin(ang) * d
+      };
+      const dim2 = world16.getDimension(player.dimension.id);
+      spawnNpcVillage(dim2, anchor, size);
+      notifyPlayer(player.name, `\xA7a\u2714 ${size === "city" ? "\xA76City" : "\xA7aVillage"}\xA7a building \xA7b~${Math.round(d)}\xA7a blocks away!`);
+      try {
+        const inv2 = player.getComponent("minecraft:inventory");
+        if (inv2?.container) {
+          const si = player.selectedSlotIndex;
+          const it = inv2.container.getItem(si);
+          if (it && it.typeId === "kingdoms:village_spawner") {
+            it.amount -= 1;
+            inv2.container.setItem(si, it.amount <= 0 ? void 0 : it);
+          }
+        }
+      } catch {}
+    });
+    return;
+  }
   if (TROOP_TOKEN_MAP[itemId]) {
     system3.run(() => { deploySingleToken(player, itemId); });
   }
@@ -7736,6 +7771,110 @@ function hasFirstSpawned(playerName) {
 function markFirstSpawned(playerName) {
   try { world16.setDynamicProperty(KC_FIRST_SPAWN_PROP + playerName, true); } catch {}
 }
+// ── NPC Village Spawner helpers ────────────────────────────────────────────────
+function findGroundY(dimension, x, startY, z) {
+  for (let y = Math.min(startY + 10, 319); y >= Math.max(startY - 40, -64); y--) {
+    try {
+      const b = dimension.getBlock({ x, y, z });
+      const above = dimension.getBlock({ x, y: y + 1, z });
+      if (b && b.typeId !== "minecraft:air" && b.typeId !== "minecraft:water" &&
+          above && above.typeId === "minecraft:air") return y;
+    } catch {}
+  }
+  return startY;
+}
+function setBlk(dimension, x, y, z, typeId) {
+  try { dimension.getBlock({ x: Math.floor(x), y: Math.floor(y), z: Math.floor(z) })?.setType(typeId); } catch {}
+}
+function buildNpcHouse(dimension, ox, oy, oz, style) {
+  const wall = style === "stone" ? "minecraft:stone_bricks" : "minecraft:oak_planks";
+  const roof = style === "stone" ? "minecraft:stone_bricks" : "minecraft:dark_oak_planks";
+  const hs = style === "stone" ? 3 : 2; // half-size
+  const fullH = 4;
+  for (let x = -hs; x <= hs; x++)
+    for (let z = -hs; z <= hs; z++)
+      setBlk(dimension, ox + x, oy, oz + z, "minecraft:cobblestone"); // floor
+  for (let y = 1; y <= fullH; y++) {
+    for (let x = -hs; x <= hs; x++) {
+      for (let z = -hs; z <= hs; z++) {
+        if (x === -hs || x === hs || z === -hs || z === hs) {
+          if (z === hs && x === 0 && y <= 2) continue; // door gap
+          setBlk(dimension, ox + x, oy + y, oz + z, wall);
+        }
+      }
+    }
+  }
+  for (let x = -hs; x <= hs; x++)
+    for (let z = -hs; z <= hs; z++)
+      setBlk(dimension, ox + x, oy + fullH + 1, oz + z, roof); // roof
+  setBlk(dimension, ox, oy + fullH, oz, "minecraft:sea_lantern"); // ceiling light
+  setBlk(dimension, ox + hs - 1, oy + 1, oz - hs + 1, "minecraft:chest");
+  setBlk(dimension, ox - hs + 1, oy + 1, oz - hs + 1, "minecraft:crafting_table");
+  setBlk(dimension, ox, oy + 1, oz + hs - 1, "minecraft:white_bed");
+  setBlk(dimension, ox + hs - 1, oy + 1, oz + hs - 2, "minecraft:furnace");
+}
+function buildNpcWell(dimension, ox, oy, oz) {
+  for (let x = -1; x <= 1; x++)
+    for (let z = -1; z <= 1; z++)
+      setBlk(dimension, ox + x, oy, oz + z, "minecraft:stone_bricks");
+  for (let x = -1; x <= 1; x++) {
+    setBlk(dimension, ox + x, oy + 1, oz - 1, "minecraft:stone_bricks");
+    setBlk(dimension, ox + x, oy + 1, oz + 1, "minecraft:stone_bricks");
+  }
+  for (let z = -1; z <= 1; z++) {
+    setBlk(dimension, ox - 1, oy + 1, oz + z, "minecraft:stone_bricks");
+    setBlk(dimension, ox + 1, oy + 1, oz + z, "minecraft:stone_bricks");
+  }
+  setBlk(dimension, ox, oy + 1, oz, "minecraft:water"); // water in centre
+  setBlk(dimension, ox - 1, oy + 2, oz, "minecraft:oak_fence");
+  setBlk(dimension, ox + 1, oy + 2, oz, "minecraft:oak_fence");
+  setBlk(dimension, ox, oy + 2, oz, "minecraft:oak_log");
+}
+function buildNpcFarm(dimension, ox, oy, oz, r) {
+  setBlk(dimension, ox, oy, oz, "minecraft:water");
+  for (let x = -r; x <= r; x++) {
+    for (let z = -r; z <= r; z++) {
+      if (x === 0 && z === 0) continue;
+      setBlk(dimension, ox + x, oy, oz + z, "minecraft:farmland");
+      if ((x + z) % 2 === 0) setBlk(dimension, ox + x, oy + 1, oz + z, "minecraft:wheat");
+    }
+  }
+  for (let i = -(r + 1); i <= r + 1; i++) {
+    setBlk(dimension, ox + i, oy + 1, oz - r - 1, "minecraft:oak_fence");
+    setBlk(dimension, ox + i, oy + 1, oz + r + 1, "minecraft:oak_fence");
+    setBlk(dimension, ox - r - 1, oy + 1, oz + i, "minecraft:oak_fence");
+    setBlk(dimension, ox + r + 1, oy + 1, oz + i, "minecraft:oak_fence");
+  }
+}
+function spawnNpcVillage(dimension, anchor, size) {
+  const isCity = size === "city";
+  const cx = Math.floor(anchor.x), cz = Math.floor(anchor.z);
+  const groundY = findGroundY(dimension, cx, Math.floor(anchor.y), cz);
+  const style = isCity ? "stone" : "wood";
+  const houseOffsets = isCity
+    ? [[-16, -2], [16, -2], [-2, -16], [-2, 16], [-12, -12], [12, -12], [-12, 12], [12, 12]]
+    : [[-9, 0], [9, 0], [0, -9]];
+  for (const [dx, dz] of houseOffsets) {
+    const gy = findGroundY(dimension, cx + dx, groundY, cz + dz);
+    buildNpcHouse(dimension, cx + dx, gy, cz + dz, style);
+  }
+  buildNpcWell(dimension, cx, groundY, cz);
+  const farmR = isCity ? 7 : 4;
+  buildNpcFarm(dimension, cx + (isCity ? 22 : 14), groundY, cz, farmR);
+  const villagerCount = isCity ? 10 : 5;
+  for (let i = 0; i < villagerCount; i++) {
+    const angle = (i / villagerCount) * Math.PI * 2;
+    const r = isCity ? 8 : 5;
+    try {
+      dimension.spawnEntity("minecraft:villager_v2", {
+        x: cx + Math.cos(angle) * r,
+        y: groundY + 1,
+        z: cz + Math.sin(angle) * r
+      });
+    } catch {}
+  }
+}
+
 function buildStarterHouse(dim, ox, oy, oz) {
   for (let x = 0; x < 5; x++) {
     for (let y = 1; y <= 3; y++) {
@@ -7787,9 +7926,10 @@ world16.afterEvents.playerSpawn.subscribe((event) => {
   system3.runTimeout(() => {
     try {
       for (const { id, count } of [
-        { id: "kingdoms:town_hall", count: 1 },
+        { id: "kingdoms:town_hall_item", count: 1 },
         { id: "kingdoms:village_spawner", count: 1 },
         { id: "minecraft:cobblestone", count: 10 },
+        { id: "minecraft:emerald", count: 10 },
         { id: "minecraft:bread", count: 8 }
       ]) {
         try { player.runCommand(`give @s ${id} ${count}`); } catch {}
