@@ -20,7 +20,62 @@ const RAID_FOOD_STEAL_PER_STRENGTH = 3;
 const MAX_RAID_FOOD_PCT = 0.15;
 const MAX_ENTITIES_PER_CAMP = 10;
 
-// ── Deserter Spawn (triggered by military.ts on food shortage) ────────────────
+// ── Typed Deserter Spawn (starvation — preserves troop type) ─────────────────
+
+export function spawnTypedDeserters(
+  village: VillageData,
+  deserters: Partial<Record<string, number>>
+): void {
+  const loc = village.location;
+  const angle = Math.random() * Math.PI * 2;
+  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
+  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
+
+  let camp: BanditCampData | undefined;
+  let nearestDist = 80;
+  for (const c of getAllBanditCamps()) {
+    if (c.location.dimension !== loc.dimension) continue;
+    const d = distance(c.location, { x: campX, y: loc.y, z: campZ });
+    if (d < nearestDist) { nearestDist = d; camp = c; }
+  }
+
+  let totalCount = 0;
+  for (const n of Object.values(deserters)) totalCount += (n ?? 0);
+
+  if (!camp) {
+    camp = {
+      id: generateId(),
+      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
+      strength: 0,
+      originKingdomId: village.kingdomId,
+      entityIds: [],
+    };
+    saveBanditCamp(camp);
+  }
+
+  camp.strength += totalCount;
+
+  const dim = world.getDimension(loc.dimension);
+  for (const [troopKey, count] of Object.entries(deserters)) {
+    if (!count || count <= 0) continue;
+    const entityId = TROOP_ENTITY_IDS[troopKey] ?? "kingdoms:bandit";
+    for (let i = 0; i < count; i++) {
+      try {
+        const entity = dim.spawnEntity(entityId, {
+          x: camp.location.x + (Math.random() * 10 - 5),
+          y: camp.location.y,
+          z: camp.location.z + (Math.random() * 10 - 5),
+        });
+        entity.setDynamicProperty("kc:camp_id", camp.id);
+        if (!camp.entityIds.includes(entity.id)) camp.entityIds.push(entity.id);
+      } catch { /* chunk not loaded */ }
+    }
+  }
+
+  saveBanditCamp(camp);
+}
+
+// ── Deserter Spawn (triggered by military.ts on wage failure) ─────────────────
 
 export function spawnBanditDeserters(village: VillageData, count: number): void {
   const loc = village.location;
@@ -121,13 +176,29 @@ function trySpawnEntities(camp: BanditCampData): void {
   saveBanditCamp(camp);
 }
 
+const TROOP_ENTITY_IDS: Record<string, string> = {
+  cityGuards:      "kingdoms:city_guard",
+  spearmen:        "kingdoms:spearman",
+  archers:         "kingdoms:archer",
+  cavalry:         "kingdoms:cavalry",
+  heavyKnight:     "kingdoms:heavy_knight",
+  samurai:         "kingdoms:samurai",
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary:       "kingdoms:legionary",
+};
+
 function getLiveEntities(
   dim: import("@minecraft/server").Dimension,
   camp: BanditCampData
 ): import("@minecraft/server").Entity[] {
-  const all = dim.getEntities({ type: "kingdoms:bandit" });
-  const alive = all.filter((e) => camp.entityIds.includes(e.id));
-  return alive;
+  try {
+    return dim.getEntities({
+      location: camp.location,
+      maxDistance: 60,
+    }).filter((e) => {
+      try { return e.getDynamicProperty("kc:camp_id") === camp.id; } catch { return false; }
+    });
+  } catch { return []; }
 }
 
 function cleanDeadEntities(camp: BanditCampData): void {

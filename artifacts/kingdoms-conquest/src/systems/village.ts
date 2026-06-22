@@ -124,6 +124,7 @@ export function claimVillage(
     activeCarts: [],
     granaryItems: {},
     lastSoldierFeedDay: getCurrentDay(),
+    missedSoldierFeedDays: 0,
     builtHousingUnits: 0,
     hasTradeStation: false,
     resourceStorage: { ...EMPTY_RESOURCE_STORAGE },

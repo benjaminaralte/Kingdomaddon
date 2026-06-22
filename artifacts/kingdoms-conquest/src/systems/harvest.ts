@@ -222,23 +222,26 @@ export function consumeSoldierFoodFromGranary(village: VillageData): void {
   if (daysSinceFeed < 3) return;
 
   const soldiers =
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry;
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
 
   if (soldiers === 0) {
     village.lastSoldierFeedDay = currentDay;
+    village.missedSoldierFeedDays = 0;
     saveVillage(village);
     return;
   }
 
   const foodNeeded = soldiers * 6;
-
   let foodPaid = 0;
-  const items = Object.keys(village.granaryItems);
 
-  for (const item of items) {
+  for (const item of Object.keys(village.granaryItems)) {
     if (foodPaid >= foodNeeded) break;
     const value = FOOD_ITEM_VALUES[item] ?? 0;
     if (value <= 0) continue;
@@ -248,24 +251,65 @@ export function consumeSoldierFoodFromGranary(village: VillageData): void {
   }
 
   if (foodPaid < foodNeeded) {
-    const shortfall = foodNeeded - foodPaid;
-    const abstractFood = Math.ceil(shortfall);
-    if (village.foodStorage >= abstractFood) {
-      village.foodStorage -= abstractFood;
-      foodPaid += abstractFood;
+    const shortfall = Math.ceil(foodNeeded - foodPaid);
+    if (village.foodStorage >= shortfall) {
+      village.foodStorage -= shortfall;
+      foodPaid += shortfall;
     } else {
       village.foodStorage = 0;
-      notifyPlayer(
-        village.owner,
-        `§c⚠ Soldiers in §b${village.name}§c couldn't be fully fed! Morale dropping.`
-      );
-      village.prosperity = Math.max(0, village.prosperity - 10);
     }
-  } else {
+  }
+
+  const fed = foodPaid >= foodNeeded;
+
+  if (fed) {
+    village.missedSoldierFeedDays = 0;
     notifyPlayer(
       village.owner,
       `§e${soldiers} soldiers in §b${village.name}§e consumed food from granary.`
     );
+  } else {
+    village.missedSoldierFeedDays = (village.missedSoldierFeedDays ?? 0) + 1;
+
+    if (village.missedSoldierFeedDays === 1) {
+      notifyPlayer(
+        village.owner,
+        `§c⚠ Soldiers in §b${village.name}§c couldn't be fully fed! They are starving — feed them or they will desert.`
+      );
+      village.prosperity = Math.max(0, village.prosperity - 10);
+    } else {
+      // Second consecutive missed feeding — troops desert as typed bandits
+      const deserters: Partial<Record<string, number>> = {};
+      const troopKeys: Array<keyof typeof village.troops> = [
+        "cityGuards", "spearmen", "archers", "cavalry",
+        "heavyKnight", "samurai", "mercenaryLancer", "legionary",
+      ];
+
+      let totalDeserters = 0;
+      for (const key of troopKeys) {
+        const count = village.troops[key] ?? 0;
+        if (count > 0) {
+          const d = Math.ceil(count * 0.3);
+          deserters[key] = d;
+          village.troops[key] = count - d;
+          totalDeserters += d;
+        }
+      }
+
+      village.missedSoldierFeedDays = 0;
+      village.prosperity = Math.max(0, village.prosperity - 20);
+
+      notifyPlayer(
+        village.owner,
+        `§4⚔ ${totalDeserters} starving soldiers deserted §b${village.name}§4 and turned hostile!`
+      );
+
+      if (totalDeserters > 0) {
+        void import("./bandit.js").then(({ spawnTypedDeserters }) => {
+          spawnTypedDeserters(village, deserters);
+        });
+      }
+    }
   }
 
   village.lastSoldierFeedDay = currentDay;

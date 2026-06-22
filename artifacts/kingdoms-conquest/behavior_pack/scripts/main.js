@@ -8,6 +8,159 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// src/types/index.ts
+var WEAPON_TIERS, ARMOR_TIERS, TROOP_WAGES, EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS, TICKS_PER_DAY, CLAIM_COST_EMERALDS, VILLAGE_CLAIM_RADIUS, MIN_VILLAGERS_TO_CLAIM, FOOD_PER_VILLAGER_PER_DAY, FOOD_PER_SOLDIER_PER_DAY, FOOD_PER_HEAVY_KNIGHT_PER_DAY, POPULATION_GROWTH_INTERVAL_DAYS, WAGE_INTERVAL_DAYS, MAX_GUARDS_PER_POLE, WATCHTOWER_DETECTION_RADIUS, BANDIT_MIGRATE_DISTANCE;
+var init_types = __esm({
+  "src/types/index.ts"() {
+    "use strict";
+    WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
+    ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
+    TROOP_WAGES = {
+      cityGuards: 2,
+      spearmen: 3,
+      archers: 3,
+      cavalry: 5,
+      heavyKnight: 8,
+      samurai: 12,
+      mercenaryLancer: 10,
+      legionary: 10
+    };
+    EMPTY_RESOURCE_STORAGE = {
+      iron: 0,
+      gold: 0,
+      coal: 0,
+      wood: 0,
+      stone: 0,
+      diamonds: 0
+    };
+    RESOURCE_LABELS = {
+      iron: "Iron",
+      gold: "Gold",
+      coal: "Coal",
+      wood: "Wood",
+      stone: "Stone",
+      diamonds: "Diamonds"
+    };
+    TICKS_PER_DAY = 24e3;
+    CLAIM_COST_EMERALDS = 10;
+    VILLAGE_CLAIM_RADIUS = 64;
+    MIN_VILLAGERS_TO_CLAIM = 3;
+    FOOD_PER_VILLAGER_PER_DAY = 1;
+    FOOD_PER_SOLDIER_PER_DAY = 2;
+    FOOD_PER_HEAVY_KNIGHT_PER_DAY = 4;
+    POPULATION_GROWTH_INTERVAL_DAYS = 2;
+    WAGE_INTERVAL_DAYS = 3;
+    MAX_GUARDS_PER_POLE = 3;
+    WATCHTOWER_DETECTION_RADIUS = 48;
+    BANDIT_MIGRATE_DISTANCE = 200;
+  }
+});
+
+// src/utils/tick.ts
+import { world } from "@minecraft/server";
+function getCurrentDay() {
+  return Math.floor(world.getAbsoluteTime() / TICKS_PER_DAY);
+}
+function getCurrentTick() {
+  return world.getAbsoluteTime();
+}
+function isNewDay(lastProcessedDay) {
+  return getCurrentDay() > lastProcessedDay;
+}
+function daysSince(day) {
+  return getCurrentDay() - day;
+}
+function distanceSq(a, b) {
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
+}
+function distance(a, b) {
+  return Math.sqrt(distanceSq(a, b));
+}
+var init_tick = __esm({
+  "src/utils/tick.ts"() {
+    "use strict";
+    init_types();
+  }
+});
+
+// src/systems/playerSettings.ts
+import { world as world2 } from "@minecraft/server";
+function settingsKey(playerName) {
+  return `kc:settings:${playerName}`;
+}
+function getPlayerSettings(playerName) {
+  const raw = world2.getDynamicProperty(settingsKey(playerName));
+  if (!raw) return { ...DEFAULT_SETTINGS };
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+function savePlayerSettings(playerName, settings) {
+  world2.setDynamicProperty(settingsKey(playerName), JSON.stringify(settings));
+}
+function isAlertsEnabled(playerName) {
+  return getPlayerSettings(playerName).alertsEnabled;
+}
+function toggleAlerts(playerName) {
+  const settings = getPlayerSettings(playerName);
+  settings.alertsEnabled = !settings.alertsEnabled;
+  savePlayerSettings(playerName, settings);
+  return settings.alertsEnabled;
+}
+var DEFAULT_SETTINGS;
+var init_playerSettings = __esm({
+  "src/systems/playerSettings.ts"() {
+    "use strict";
+    DEFAULT_SETTINGS = {
+      alertsEnabled: true
+    };
+  }
+});
+
+// src/utils/notify.ts
+import { world as world3 } from "@minecraft/server";
+function sendCrisisTitle(playerName, title, subtitle, sound = "raid.horn") {
+  const player = world3.getPlayers().find((p) => p.name === playerName);
+  if (!player) return;
+  player.onScreenDisplay.setTitle(title, {
+    subtitle,
+    fadeInDuration: 10,
+    stayDuration: 80,
+    fadeOutDuration: 20
+  });
+  try {
+    player.playSound(sound, { volume: 1, pitch: 1 });
+  } catch {
+  }
+}
+function notifyPlayer(playerName, message) {
+  const player = world3.getPlayers().find((p) => p.name === playerName);
+  if (player) {
+    player.sendMessage(`\xA76[Kingdoms]\xA7r ${message}`);
+  }
+}
+function notifyAlert(playerName, message) {
+  if (!isAlertsEnabled(playerName)) return;
+  notifyPlayer(playerName, message);
+}
+function notifyKingdom(kingName, villageOwners, message) {
+  const players = world3.getPlayers();
+  const recipients = /* @__PURE__ */ new Set([kingName, ...villageOwners]);
+  for (const player of players) {
+    if (recipients.has(player.name)) {
+      player.sendMessage(`\xA7d[Kingdom]\xA7r ${message}`);
+    }
+  }
+}
+var init_notify = __esm({
+  "src/utils/notify.ts"() {
+    "use strict";
+    init_playerSettings();
+  }
+});
+
 // src/storage/index.ts
 var storage_exports = {};
 __export(storage_exports, {
@@ -150,147 +303,401 @@ var init_storage = __esm({
   }
 });
 
-// src/main.ts
-import { world as world18, system as system5, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
-import { ActionFormData as ActionFormData2, ModalFormData, MessageFormData } from "@minecraft/server-ui";
-
-// src/types/index.ts
-var WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "netherite"];
-var ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"];
-var TROOP_WAGES = {
-  cityGuards: 2,
-  spearmen: 3,
-  archers: 3,
-  cavalry: 5,
-  heavyKnight: 8,
-  samurai: 12,
-  mercenaryLancer: 10,
-  legionary: 10
-};
-var EMPTY_RESOURCE_STORAGE = {
-  iron: 0,
-  gold: 0,
-  coal: 0,
-  wood: 0,
-  stone: 0,
-  diamonds: 0
-};
-var RESOURCE_LABELS = {
-  iron: "Iron",
-  gold: "Gold",
-  coal: "Coal",
-  wood: "Wood",
-  stone: "Stone",
-  diamonds: "Diamonds"
-};
-var TICKS_PER_DAY = 24e3;
-var CLAIM_COST_EMERALDS = 10;
-var VILLAGE_CLAIM_RADIUS = 64;
-var MIN_VILLAGERS_TO_CLAIM = 3;
-var FOOD_PER_VILLAGER_PER_DAY = 1;
-var FOOD_PER_SOLDIER_PER_DAY = 2;
-var FOOD_PER_HEAVY_KNIGHT_PER_DAY = 4;
-var POPULATION_GROWTH_INTERVAL_DAYS = 2;
-var WAGE_INTERVAL_DAYS = 3;
-var MAX_GUARDS_PER_POLE = 3;
-var WATCHTOWER_DETECTION_RADIUS = 48;
-var BANDIT_MIGRATE_DISTANCE = 200;
-
-// src/utils/tick.ts
-import { world } from "@minecraft/server";
-function getCurrentDay() {
-  return Math.floor(world.getAbsoluteTime() / TICKS_PER_DAY);
+// src/systems/villageAlerts.ts
+function makeKey(type, villageId) {
+  return `${type}_${villageId}_${getCurrentDay()}`;
 }
-function getCurrentTick() {
-  return world.getAbsoluteTime();
-}
-function isNewDay(lastProcessedDay) {
-  return getCurrentDay() > lastProcessedDay;
-}
-function daysSince(day) {
-  return getCurrentDay() - day;
-}
-function distanceSq(a, b) {
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
-}
-function distance(a, b) {
-  return Math.sqrt(distanceSq(a, b));
-}
-
-// src/utils/notify.ts
-import { world as world3 } from "@minecraft/server";
-
-// src/systems/playerSettings.ts
-import { world as world2 } from "@minecraft/server";
-var DEFAULT_SETTINGS = {
-  alertsEnabled: true
-};
-function settingsKey(playerName) {
-  return `kc:settings:${playerName}`;
-}
-function getPlayerSettings(playerName) {
-  const raw = world2.getDynamicProperty(settingsKey(playerName));
-  if (!raw) return { ...DEFAULT_SETTINGS };
-  try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-function savePlayerSettings(playerName, settings) {
-  world2.setDynamicProperty(settingsKey(playerName), JSON.stringify(settings));
-}
-function isAlertsEnabled(playerName) {
-  return getPlayerSettings(playerName).alertsEnabled;
-}
-function toggleAlerts(playerName) {
-  const settings = getPlayerSettings(playerName);
-  settings.alertsEnabled = !settings.alertsEnabled;
-  savePlayerSettings(playerName, settings);
-  return settings.alertsEnabled;
-}
-
-// src/utils/notify.ts
-function sendCrisisTitle(playerName, title, subtitle, sound = "raid.horn") {
-  const player = world3.getPlayers().find((p) => p.name === playerName);
-  if (!player) return;
-  player.onScreenDisplay.setTitle(title, {
-    subtitle,
-    fadeInDuration: 10,
-    stayDuration: 80,
-    fadeOutDuration: 20
-  });
-  try {
-    player.playSound(sound, { volume: 1, pitch: 1 });
-  } catch {
-  }
-}
-function notifyPlayer(playerName, message) {
-  const player = world3.getPlayers().find((p) => p.name === playerName);
-  if (player) {
-    player.sendMessage(`\xA76[Kingdoms]\xA7r ${message}`);
-  }
-}
-function notifyAlert(playerName, message) {
-  if (!isAlertsEnabled(playerName)) return;
-  notifyPlayer(playerName, message);
-}
-function notifyKingdom(kingName, villageOwners, message) {
-  const players = world3.getPlayers();
-  const recipients = /* @__PURE__ */ new Set([kingName, ...villageOwners]);
-  for (const player of players) {
-    if (recipients.has(player.name)) {
-      player.sendMessage(`\xA7d[Kingdom]\xA7r ${message}`);
+function checkDailyCrisisAlerts() {
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    if (village.treasury === 0) {
+      const key = makeKey("treasury", village.id);
+      if (!alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        sendCrisisTitle(
+          village.owner,
+          "\xA76\xA7lTREASURY EMPTY",
+          `\xA7e${village.name} has run out of funds!`,
+          "random.anvil_land"
+        );
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u26A0 \xA7b${village.name}\xA7c treasury is empty \u2014 troops may desert!`
+        );
+      }
+    }
+    if (village.population > 0 && village.population < 5) {
+      const key = makeKey("population", village.id);
+      if (!alertedKeys.has(key)) {
+        alertedKeys.add(key);
+        sendCrisisTitle(
+          village.owner,
+          "\xA7c\xA7lVILLAGE DYING",
+          `\xA7e${village.name} \u2014 only ${village.population} citizens left!`,
+          "mob.villager.death"
+        );
+        notifyPlayer(
+          village.owner,
+          `\xA7c\u26A0 \xA7b${village.name}\xA7c is critically low on population (${village.population})!`
+        );
+      }
     }
   }
 }
+function triggerAttackAlert(ownerName, villageName, campStrength) {
+  sendCrisisTitle(
+    ownerName,
+    "\xA7c\xA7l\u2694  UNDER ATTACK!",
+    `\xA7eBandits (${campStrength}) are raiding ${villageName}!`,
+    "raid.horn"
+  );
+  notifyPlayer(
+    ownerName,
+    `\xA7c\u2694 \xA7b${villageName}\xA7c is under bandit attack! (Camp strength: ${campStrength})`
+  );
+}
+var alertedKeys;
+var init_villageAlerts = __esm({
+  "src/systems/villageAlerts.ts"() {
+    "use strict";
+    init_storage();
+    init_notify();
+    init_tick();
+    alertedKeys = /* @__PURE__ */ new Set();
+  }
+});
+
+// src/systems/bandit.ts
+var bandit_exports = {};
+__export(bandit_exports, {
+  disbandBanditCamp: () => disbandBanditCamp,
+  getBanditCampSummary: () => getBanditCampSummary,
+  getBanditThreatLevel: () => getBanditThreatLevel,
+  spawnBanditDeserters: () => spawnBanditDeserters,
+  spawnTypedDeserters: () => spawnTypedDeserters,
+  tickBandits: () => tickBandits
+});
+import { world as world5, system } from "@minecraft/server";
+function spawnTypedDeserters(village, deserters) {
+  const loc = village.location;
+  const angle = Math.random() * Math.PI * 2;
+  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
+  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
+  let camp;
+  let nearestDist = 80;
+  for (const c of getAllBanditCamps()) {
+    if (c.location.dimension !== loc.dimension) continue;
+    const d = distance(c.location, { x: campX, y: loc.y, z: campZ });
+    if (d < nearestDist) {
+      nearestDist = d;
+      camp = c;
+    }
+  }
+  let totalCount = 0;
+  for (const n of Object.values(deserters)) totalCount += n ?? 0;
+  if (!camp) {
+    camp = {
+      id: generateId(),
+      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
+      strength: 0,
+      originKingdomId: village.kingdomId,
+      entityIds: []
+    };
+    saveBanditCamp(camp);
+  }
+  camp.strength += totalCount;
+  const dim = world5.getDimension(loc.dimension);
+  for (const [troopKey, count] of Object.entries(deserters)) {
+    if (!count || count <= 0) continue;
+    const entityId = TROOP_ENTITY_IDS[troopKey] ?? "kingdoms:bandit";
+    for (let i = 0; i < count; i++) {
+      try {
+        const entity = dim.spawnEntity(entityId, {
+          x: camp.location.x + (Math.random() * 10 - 5),
+          y: camp.location.y,
+          z: camp.location.z + (Math.random() * 10 - 5)
+        });
+        entity.setDynamicProperty("kc:camp_id", camp.id);
+        if (!camp.entityIds.includes(entity.id)) camp.entityIds.push(entity.id);
+      } catch {
+      }
+    }
+  }
+  saveBanditCamp(camp);
+}
+function spawnBanditDeserters(village, count) {
+  const loc = village.location;
+  const angle = Math.random() * Math.PI * 2;
+  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
+  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
+  let nearestCamp;
+  let nearestDist = 80;
+  for (const camp of getAllBanditCamps()) {
+    if (camp.location.dimension !== loc.dimension) continue;
+    const d = distance(camp.location, { x: campX, y: loc.y, z: campZ });
+    if (d < nearestDist) {
+      nearestDist = d;
+      nearestCamp = camp;
+    }
+  }
+  if (nearestCamp) {
+    nearestCamp.strength += count;
+    saveBanditCamp(nearestCamp);
+    trySpawnEntities(nearestCamp);
+  } else {
+    const camp = {
+      id: generateId(),
+      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
+      strength: count,
+      originKingdomId: village.kingdomId,
+      entityIds: []
+    };
+    saveBanditCamp(camp);
+    trySpawnEntities(camp);
+  }
+}
+function tryWorldSpawn() {
+  const camps = getAllBanditCamps();
+  if (camps.length >= MAX_WORLD_CAMPS) return;
+  const villages = getAllVillages();
+  if (villages.length === 0) return;
+  const anchor = villages[Math.floor(Math.random() * villages.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const dist = MIN_WORLD_SPAWN_DIST + Math.random() * (MAX_WORLD_SPAWN_DIST - MIN_WORLD_SPAWN_DIST);
+  const campX = anchor.location.x + Math.cos(angle) * dist;
+  const campZ = anchor.location.z + Math.sin(angle) * dist;
+  for (const v of villages) {
+    if (distance(v.location, { x: campX, y: v.location.y, z: campZ }) < MIN_WORLD_SPAWN_DIST) return;
+  }
+  for (const c of camps) {
+    if (distance(c.location, { x: campX, y: c.location.y, z: campZ }) < 150) return;
+  }
+  const strength = 3 + Math.floor(Math.random() * 5);
+  const camp = {
+    id: generateId(),
+    location: { x: campX, y: anchor.location.y, z: campZ, dimension: anchor.location.dimension },
+    strength,
+    originKingdomId: "",
+    entityIds: []
+  };
+  saveBanditCamp(camp);
+  trySpawnEntities(camp);
+}
+function trySpawnEntities(camp) {
+  const dim = world5.getDimension(camp.location.dimension);
+  const liveEntities = getLiveEntities(dim, camp);
+  const target = Math.min(camp.strength, MAX_ENTITIES_PER_CAMP);
+  const toSpawn = target - liveEntities.length;
+  for (let i = 0; i < toSpawn; i++) {
+    try {
+      const entity = dim.spawnEntity("kingdoms:bandit", {
+        x: camp.location.x + (Math.random() * 10 - 5),
+        y: camp.location.y,
+        z: camp.location.z + (Math.random() * 10 - 5)
+      });
+      entity.setDynamicProperty("kc:camp_id", camp.id);
+      if (!camp.entityIds.includes(entity.id)) {
+        camp.entityIds.push(entity.id);
+      }
+    } catch {
+    }
+  }
+  saveBanditCamp(camp);
+}
+function getLiveEntities(dim, camp) {
+  try {
+    return dim.getEntities({
+      location: camp.location,
+      maxDistance: 60
+    }).filter((e) => {
+      try {
+        return e.getDynamicProperty("kc:camp_id") === camp.id;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+function cleanDeadEntities(camp) {
+  try {
+    const dim = world5.getDimension(camp.location.dimension);
+    const liveIds = new Set(
+      dim.getEntities({ type: "kingdoms:bandit" }).map((e) => e.id)
+    );
+    const before = camp.entityIds.length;
+    camp.entityIds = camp.entityIds.filter((id) => liveIds.has(id));
+    const killed = before - camp.entityIds.length;
+    if (killed > 0) {
+      camp.strength = Math.max(0, camp.strength - killed);
+    }
+    saveBanditCamp(camp);
+  } catch {
+  }
+}
+function tickBandits() {
+  tryWorldSpawn();
+  const camps = getAllBanditCamps();
+  for (const camp of camps) {
+    cleanDeadEntities(camp);
+    const fresh = getBanditCamp(camp.id);
+    if (!fresh) continue;
+    if (fresh.strength <= 0) {
+      disbandBanditCamp(fresh.id);
+      continue;
+    }
+    trySpawnEntities(fresh);
+    if (Math.random() < 0.3) {
+      raidNearbyTargets(fresh);
+    }
+  }
+}
+function raidNearbyTargets(camp) {
+  const villages = getAllVillages();
+  let target;
+  let targetDist = 300;
+  for (const village of villages) {
+    if (village.location.dimension !== camp.location.dimension) continue;
+    const d = distance(village.location, camp.location);
+    if (d < targetDist) {
+      const defense = getTotalVillageDefense(village);
+      if (camp.strength > defense * 0.4 || d < 100) {
+        targetDist = d;
+        target = village;
+      }
+    }
+  }
+  if (!target) return;
+  triggerAttackAlert(target.owner, target.name, camp.strength);
+  const dim = world5.getDimension(camp.location.dimension);
+  const merchants = dim.getEntities({ type: "kingdoms:merchant" });
+  for (const merchant of merchants) {
+    if (distance(merchant.location, camp.location) < 150) {
+      notifyAlert(target.owner, `\xA7c\u2694 Bandits are attacking a merchant near \xA7b${target.name}\xA7c!`);
+      merchant.applyDamage(12);
+      break;
+    }
+  }
+  const stolen = Math.min(
+    Math.floor(camp.strength * RAID_FOOD_STEAL_PER_STRENGTH),
+    Math.floor(target.foodStorage * MAX_RAID_FOOD_PCT),
+    50
+  );
+  if (stolen > 0) {
+    target.foodStorage = Math.max(0, target.foodStorage - stolen);
+    camp.strength = Math.min(camp.strength + 1, 30);
+    saveBanditCamp(camp);
+    system.run(() => {
+      try {
+        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
+          saveVillage2(target);
+        });
+      } catch {
+      }
+    });
+    notifyAlert(
+      target.owner,
+      `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! They stole \xA7e${stolen}\u{1F33E}\xA7c food. (Camp strength: ${camp.strength})`
+    );
+  } else if (stolen === 0 && target.foodStorage === 0) {
+    const emeraldStolen = Math.min(Math.floor(camp.strength * 0.5), target.treasury, 10);
+    if (emeraldStolen > 0) {
+      target.treasury -= emeraldStolen;
+      system.run(() => {
+        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
+          saveVillage2(target);
+        });
+      });
+      notifyAlert(
+        target.owner,
+        `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! No food \u2014 they looted \xA76${emeraldStolen}\u{1F48E}\xA7c from the treasury.`
+      );
+    }
+  }
+}
+function getTotalVillageDefense(village) {
+  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
+}
+function disbandBanditCamp(campId) {
+  const camp = getBanditCamp(campId);
+  if (!camp) return;
+  try {
+    const dim = world5.getDimension(camp.location.dimension);
+    const live = getLiveEntities(dim, camp);
+    for (const entity of live) {
+      try {
+        entity.kill();
+      } catch {
+      }
+    }
+  } catch {
+  }
+  deleteBanditCamp(campId);
+}
+function getBanditThreatLevel(village) {
+  let closestStrength = 0;
+  for (const camp of getAllBanditCamps()) {
+    if (camp.location.dimension !== village.location.dimension) continue;
+    const d = distance(camp.location, village.location);
+    if (d < 300) {
+      closestStrength = Math.max(closestStrength, camp.strength);
+    }
+  }
+  if (closestStrength === 0) return "none";
+  if (closestStrength < 5) return "low";
+  if (closestStrength < 15) return "medium";
+  return "high";
+}
+function getBanditCampSummary() {
+  const camps = getAllBanditCamps();
+  if (camps.length === 0) return "\xA77No active bandit camps.";
+  return camps.map(
+    (c, i) => `\xA7c\u2694 Camp #${i + 1}\xA7r  Strength: \xA7e${c.strength}\xA7r  Entities: ${c.entityIds.length}  Pos: \xA77${Math.round(c.location.x)},${Math.round(c.location.z)}`
+  ).join("\n");
+}
+var MAX_WORLD_CAMPS, MIN_WORLD_SPAWN_DIST, MAX_WORLD_SPAWN_DIST, RAID_FOOD_STEAL_PER_STRENGTH, MAX_RAID_FOOD_PCT, MAX_ENTITIES_PER_CAMP, TROOP_ENTITY_IDS;
+var init_bandit = __esm({
+  "src/systems/bandit.ts"() {
+    "use strict";
+    init_types();
+    init_storage();
+    init_tick();
+    init_notify();
+    init_villageAlerts();
+    MAX_WORLD_CAMPS = 5;
+    MIN_WORLD_SPAWN_DIST = 300;
+    MAX_WORLD_SPAWN_DIST = 600;
+    RAID_FOOD_STEAL_PER_STRENGTH = 3;
+    MAX_RAID_FOOD_PCT = 0.15;
+    MAX_ENTITIES_PER_CAMP = 10;
+    TROOP_ENTITY_IDS = {
+      cityGuards: "kingdoms:city_guard",
+      spearmen: "kingdoms:spearman",
+      archers: "kingdoms:archer",
+      cavalry: "kingdoms:cavalry",
+      heavyKnight: "kingdoms:heavy_knight",
+      samurai: "kingdoms:samurai",
+      mercenaryLancer: "kingdoms:mercenary_lancer",
+      legionary: "kingdoms:legionary"
+    };
+  }
+});
 
 // src/main.ts
+init_types();
+init_tick();
+init_notify();
 init_storage();
+import { world as world18, system as system5, EntityInventoryComponent as EntityInventoryComponent8, ItemStack as ItemStack6 } from "@minecraft/server";
+import { ActionFormData as ActionFormData2, ModalFormData, MessageFormData } from "@minecraft/server-ui";
 
 // src/systems/harvest.ts
 init_storage();
-import { world as world5, ItemStack, EntityInventoryComponent } from "@minecraft/server";
+init_tick();
+init_notify();
+init_types();
+import { world as world6, ItemStack, EntityInventoryComponent } from "@minecraft/server";
 var CROP_MAX_AGES = {
   "minecraft:wheat": 7,
   "minecraft:carrots": 7,
@@ -465,16 +872,16 @@ function consumeSoldierFoodFromGranary(village) {
   const currentDay = getCurrentDay();
   const daysSinceFeed = daysSince(village.lastSoldierFeedDay ?? 0);
   if (daysSinceFeed < 3) return;
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   if (soldiers === 0) {
     village.lastSoldierFeedDay = currentDay;
+    village.missedSoldierFeedDays = 0;
     saveVillage(village);
     return;
   }
   const foodNeeded = soldiers * 6;
   let foodPaid = 0;
-  const items = Object.keys(village.granaryItems);
-  for (const item of items) {
+  for (const item of Object.keys(village.granaryItems)) {
     if (foodPaid >= foodNeeded) break;
     const value = FOOD_ITEM_VALUES[item] ?? 0;
     if (value <= 0) continue;
@@ -483,24 +890,63 @@ function consumeSoldierFoodFromGranary(village) {
     foodPaid += removed * value;
   }
   if (foodPaid < foodNeeded) {
-    const shortfall = foodNeeded - foodPaid;
-    const abstractFood = Math.ceil(shortfall);
-    if (village.foodStorage >= abstractFood) {
-      village.foodStorage -= abstractFood;
-      foodPaid += abstractFood;
+    const shortfall = Math.ceil(foodNeeded - foodPaid);
+    if (village.foodStorage >= shortfall) {
+      village.foodStorage -= shortfall;
+      foodPaid += shortfall;
     } else {
       village.foodStorage = 0;
-      notifyPlayer(
-        village.owner,
-        `\xA7c\u26A0 Soldiers in \xA7b${village.name}\xA7c couldn't be fully fed! Morale dropping.`
-      );
-      village.prosperity = Math.max(0, village.prosperity - 10);
     }
-  } else {
+  }
+  const fed = foodPaid >= foodNeeded;
+  if (fed) {
+    village.missedSoldierFeedDays = 0;
     notifyPlayer(
       village.owner,
       `\xA7e${soldiers} soldiers in \xA7b${village.name}\xA7e consumed food from granary.`
     );
+  } else {
+    village.missedSoldierFeedDays = (village.missedSoldierFeedDays ?? 0) + 1;
+    if (village.missedSoldierFeedDays === 1) {
+      notifyPlayer(
+        village.owner,
+        `\xA7c\u26A0 Soldiers in \xA7b${village.name}\xA7c couldn't be fully fed! They are starving \u2014 feed them or they will desert.`
+      );
+      village.prosperity = Math.max(0, village.prosperity - 10);
+    } else {
+      const deserters = {};
+      const troopKeys = [
+        "cityGuards",
+        "spearmen",
+        "archers",
+        "cavalry",
+        "heavyKnight",
+        "samurai",
+        "mercenaryLancer",
+        "legionary"
+      ];
+      let totalDeserters = 0;
+      for (const key of troopKeys) {
+        const count = village.troops[key] ?? 0;
+        if (count > 0) {
+          const d = Math.ceil(count * 0.3);
+          deserters[key] = d;
+          village.troops[key] = count - d;
+          totalDeserters += d;
+        }
+      }
+      village.missedSoldierFeedDays = 0;
+      village.prosperity = Math.max(0, village.prosperity - 20);
+      notifyPlayer(
+        village.owner,
+        `\xA74\u2694 ${totalDeserters} starving soldiers deserted \xA7b${village.name}\xA74 and turned hostile!`
+      );
+      if (totalDeserters > 0) {
+        void Promise.resolve().then(() => (init_bandit(), bandit_exports)).then(({ spawnTypedDeserters: spawnTypedDeserters2 }) => {
+          spawnTypedDeserters2(village, deserters);
+        });
+      }
+    }
   }
   village.lastSoldierFeedDay = currentDay;
   saveVillage(village);
@@ -633,7 +1079,7 @@ function upgradeFieldWorkers(village) {
 }
 function autoHarvestVillage(village) {
   if ((village.workers?.farmers ?? 0) === 0) return;
-  const dim = world5.getDimension(village.location.dimension);
+  const dim = world6.getDimension(village.location.dimension);
   const cx = Math.floor(village.townHallLocation.x);
   const cz = Math.floor(village.townHallLocation.z);
   const baseY = Math.floor(village.townHallLocation.y);
@@ -687,11 +1133,15 @@ init_storage();
 import { system as system3 } from "@minecraft/server";
 
 // src/systems/village.ts
-import { world as world6, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
+init_types();
 init_storage();
+init_tick();
+init_notify();
+import { world as world7, EntityInventoryComponent as EntityInventoryComponent2 } from "@minecraft/server";
 
 // src/systems/kingdom.ts
 init_storage();
+init_notify();
 function createKingdom(king, name) {
   const existing = getKingdomByKing(king);
   if (existing) return existing;
@@ -919,6 +1369,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     activeCarts: [],
     granaryItems: {},
     lastSoldierFeedDay: getCurrentDay(),
+    missedSoldierFeedDays: 0,
     builtHousingUnits: 0,
     hasTradeStation: false,
     resourceStorage: { ...EMPTY_RESOURCE_STORAGE },
@@ -965,7 +1416,7 @@ function getVillageSummary(village) {
 function updateHousingCapacity(villageId) {
   const village = getVillage(villageId);
   if (!village) return;
-  const dim = world6.getDimension(village.location.dimension);
+  const dim = world7.getDimension(village.location.dimension);
   const loc = village.townHallLocation;
   let beds = 0;
   for (let dx = -VILLAGE_CLAIM_RADIUS; dx <= VILLAGE_CLAIM_RADIUS; dx += 4) {
@@ -985,283 +1436,11 @@ function getKingdomOf2(playerName) {
 }
 
 // src/systems/military.ts
+init_types();
 init_storage();
-
-// src/systems/bandit.ts
-import { world as world7, system } from "@minecraft/server";
-init_storage();
-
-// src/systems/villageAlerts.ts
-init_storage();
-var alertedKeys = /* @__PURE__ */ new Set();
-function makeKey(type, villageId) {
-  return `${type}_${villageId}_${getCurrentDay()}`;
-}
-function checkDailyCrisisAlerts() {
-  for (const village of getAllVillages()) {
-    if (!village.owner) continue;
-    if (village.treasury === 0) {
-      const key = makeKey("treasury", village.id);
-      if (!alertedKeys.has(key)) {
-        alertedKeys.add(key);
-        sendCrisisTitle(
-          village.owner,
-          "\xA76\xA7lTREASURY EMPTY",
-          `\xA7e${village.name} has run out of funds!`,
-          "random.anvil_land"
-        );
-        notifyPlayer(
-          village.owner,
-          `\xA7c\u26A0 \xA7b${village.name}\xA7c treasury is empty \u2014 troops may desert!`
-        );
-      }
-    }
-    if (village.population > 0 && village.population < 5) {
-      const key = makeKey("population", village.id);
-      if (!alertedKeys.has(key)) {
-        alertedKeys.add(key);
-        sendCrisisTitle(
-          village.owner,
-          "\xA7c\xA7lVILLAGE DYING",
-          `\xA7e${village.name} \u2014 only ${village.population} citizens left!`,
-          "mob.villager.death"
-        );
-        notifyPlayer(
-          village.owner,
-          `\xA7c\u26A0 \xA7b${village.name}\xA7c is critically low on population (${village.population})!`
-        );
-      }
-    }
-  }
-}
-function triggerAttackAlert(ownerName, villageName, campStrength) {
-  sendCrisisTitle(
-    ownerName,
-    "\xA7c\xA7l\u2694  UNDER ATTACK!",
-    `\xA7eBandits (${campStrength}) are raiding ${villageName}!`,
-    "raid.horn"
-  );
-  notifyPlayer(
-    ownerName,
-    `\xA7c\u2694 \xA7b${villageName}\xA7c is under bandit attack! (Camp strength: ${campStrength})`
-  );
-}
-
-// src/systems/bandit.ts
-var MAX_WORLD_CAMPS = 5;
-var MIN_WORLD_SPAWN_DIST = 300;
-var MAX_WORLD_SPAWN_DIST = 600;
-var RAID_FOOD_STEAL_PER_STRENGTH = 3;
-var MAX_RAID_FOOD_PCT = 0.15;
-var MAX_ENTITIES_PER_CAMP = 10;
-function spawnBanditDeserters(village, count) {
-  const loc = village.location;
-  const angle = Math.random() * Math.PI * 2;
-  const campX = loc.x + Math.cos(angle) * BANDIT_MIGRATE_DISTANCE;
-  const campZ = loc.z + Math.sin(angle) * BANDIT_MIGRATE_DISTANCE;
-  let nearestCamp;
-  let nearestDist = 80;
-  for (const camp of getAllBanditCamps()) {
-    if (camp.location.dimension !== loc.dimension) continue;
-    const d = distance(camp.location, { x: campX, y: loc.y, z: campZ });
-    if (d < nearestDist) {
-      nearestDist = d;
-      nearestCamp = camp;
-    }
-  }
-  if (nearestCamp) {
-    nearestCamp.strength += count;
-    saveBanditCamp(nearestCamp);
-    trySpawnEntities(nearestCamp);
-  } else {
-    const camp = {
-      id: generateId(),
-      location: { x: campX, y: loc.y, z: campZ, dimension: loc.dimension },
-      strength: count,
-      originKingdomId: village.kingdomId,
-      entityIds: []
-    };
-    saveBanditCamp(camp);
-    trySpawnEntities(camp);
-  }
-}
-function tryWorldSpawn() {
-  const camps = getAllBanditCamps();
-  if (camps.length >= MAX_WORLD_CAMPS) return;
-  const villages = getAllVillages();
-  if (villages.length === 0) return;
-  const anchor = villages[Math.floor(Math.random() * villages.length)];
-  const angle = Math.random() * Math.PI * 2;
-  const dist = MIN_WORLD_SPAWN_DIST + Math.random() * (MAX_WORLD_SPAWN_DIST - MIN_WORLD_SPAWN_DIST);
-  const campX = anchor.location.x + Math.cos(angle) * dist;
-  const campZ = anchor.location.z + Math.sin(angle) * dist;
-  for (const v of villages) {
-    if (distance(v.location, { x: campX, y: v.location.y, z: campZ }) < MIN_WORLD_SPAWN_DIST) return;
-  }
-  for (const c of camps) {
-    if (distance(c.location, { x: campX, y: c.location.y, z: campZ }) < 150) return;
-  }
-  const strength = 3 + Math.floor(Math.random() * 5);
-  const camp = {
-    id: generateId(),
-    location: { x: campX, y: anchor.location.y, z: campZ, dimension: anchor.location.dimension },
-    strength,
-    originKingdomId: "",
-    entityIds: []
-  };
-  saveBanditCamp(camp);
-  trySpawnEntities(camp);
-}
-function trySpawnEntities(camp) {
-  const dim = world7.getDimension(camp.location.dimension);
-  const liveEntities = getLiveEntities(dim, camp);
-  const target = Math.min(camp.strength, MAX_ENTITIES_PER_CAMP);
-  const toSpawn = target - liveEntities.length;
-  for (let i = 0; i < toSpawn; i++) {
-    try {
-      const entity = dim.spawnEntity("kingdoms:bandit", {
-        x: camp.location.x + (Math.random() * 10 - 5),
-        y: camp.location.y,
-        z: camp.location.z + (Math.random() * 10 - 5)
-      });
-      entity.setDynamicProperty("kc:camp_id", camp.id);
-      if (!camp.entityIds.includes(entity.id)) {
-        camp.entityIds.push(entity.id);
-      }
-    } catch {
-    }
-  }
-  saveBanditCamp(camp);
-}
-function getLiveEntities(dim, camp) {
-  const all = dim.getEntities({ type: "kingdoms:bandit" });
-  const alive = all.filter((e) => camp.entityIds.includes(e.id));
-  return alive;
-}
-function cleanDeadEntities(camp) {
-  try {
-    const dim = world7.getDimension(camp.location.dimension);
-    const liveIds = new Set(
-      dim.getEntities({ type: "kingdoms:bandit" }).map((e) => e.id)
-    );
-    const before = camp.entityIds.length;
-    camp.entityIds = camp.entityIds.filter((id) => liveIds.has(id));
-    const killed = before - camp.entityIds.length;
-    if (killed > 0) {
-      camp.strength = Math.max(0, camp.strength - killed);
-    }
-    saveBanditCamp(camp);
-  } catch {
-  }
-}
-function tickBandits() {
-  tryWorldSpawn();
-  const camps = getAllBanditCamps();
-  for (const camp of camps) {
-    cleanDeadEntities(camp);
-    const fresh = getBanditCamp(camp.id);
-    if (!fresh) continue;
-    if (fresh.strength <= 0) {
-      disbandBanditCamp(fresh.id);
-      continue;
-    }
-    trySpawnEntities(fresh);
-    if (Math.random() < 0.3) {
-      raidNearbyTargets(fresh);
-    }
-  }
-}
-function raidNearbyTargets(camp) {
-  const villages = getAllVillages();
-  let target;
-  let targetDist = 300;
-  for (const village of villages) {
-    if (village.location.dimension !== camp.location.dimension) continue;
-    const d = distance(village.location, camp.location);
-    if (d < targetDist) {
-      const defense = getTotalVillageDefense(village);
-      if (camp.strength > defense * 0.4 || d < 100) {
-        targetDist = d;
-        target = village;
-      }
-    }
-  }
-  if (!target) return;
-  triggerAttackAlert(target.owner, target.name, camp.strength);
-  const dim = world7.getDimension(camp.location.dimension);
-  const merchants = dim.getEntities({ type: "kingdoms:merchant" });
-  for (const merchant of merchants) {
-    if (distance(merchant.location, camp.location) < 150) {
-      notifyAlert(target.owner, `\xA7c\u2694 Bandits are attacking a merchant near \xA7b${target.name}\xA7c!`);
-      merchant.applyDamage(12);
-      break;
-    }
-  }
-  const stolen = Math.min(
-    Math.floor(camp.strength * RAID_FOOD_STEAL_PER_STRENGTH),
-    Math.floor(target.foodStorage * MAX_RAID_FOOD_PCT),
-    50
-  );
-  if (stolen > 0) {
-    target.foodStorage = Math.max(0, target.foodStorage - stolen);
-    camp.strength = Math.min(camp.strength + 1, 30);
-    saveBanditCamp(camp);
-    system.run(() => {
-      try {
-        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
-          saveVillage2(target);
-        });
-      } catch {
-      }
-    });
-    notifyAlert(
-      target.owner,
-      `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! They stole \xA7e${stolen}\u{1F33E}\xA7c food. (Camp strength: ${camp.strength})`
-    );
-  } else if (stolen === 0 && target.foodStorage === 0) {
-    const emeraldStolen = Math.min(Math.floor(camp.strength * 0.5), target.treasury, 10);
-    if (emeraldStolen > 0) {
-      target.treasury -= emeraldStolen;
-      system.run(() => {
-        void Promise.resolve().then(() => (init_storage(), storage_exports)).then(({ saveVillage: saveVillage2 }) => {
-          saveVillage2(target);
-        });
-      });
-      notifyAlert(
-        target.owner,
-        `\xA7c\u{1F3F4} Bandits raided \xA7b${target.name}\xA7c! No food \u2014 they looted \xA76${emeraldStolen}\u{1F48E}\xA7c from the treasury.`
-      );
-    }
-  }
-}
-function getTotalVillageDefense(village) {
-  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
-}
-function disbandBanditCamp(campId) {
-  const camp = getBanditCamp(campId);
-  if (!camp) return;
-  try {
-    const dim = world7.getDimension(camp.location.dimension);
-    const live = getLiveEntities(dim, camp);
-    for (const entity of live) {
-      try {
-        entity.kill();
-      } catch {
-      }
-    }
-  } catch {
-  }
-  deleteBanditCamp(campId);
-}
-function getBanditCampSummary() {
-  const camps = getAllBanditCamps();
-  if (camps.length === 0) return "\xA77No active bandit camps.";
-  return camps.map(
-    (c, i) => `\xA7c\u2694 Camp #${i + 1}\xA7r  Strength: \xA7e${c.strength}\xA7r  Entities: ${c.entityIds.length}  Pos: \xA77${Math.round(c.location.x)},${Math.round(c.location.z)}`
-  ).join("\n");
-}
-
-// src/systems/military.ts
+init_tick();
+init_notify();
+init_bandit();
 var RECRUIT_COSTS = {
   cityGuards: 8,
   spearmen: 12,
@@ -1392,11 +1571,16 @@ function processAllWages() {
 
 // src/systems/conquest.ts
 init_storage();
+init_tick();
+init_notify();
 import { world as world10 } from "@minecraft/server";
 
 // src/systems/watchtower.ts
-import { world as world8 } from "@minecraft/server";
+init_types();
 init_storage();
+init_tick();
+init_notify();
+import { world as world8 } from "@minecraft/server";
 var DETECTION_INTERVAL_TICKS = 100;
 var lastDetectionTick = 0;
 var THREAT_ALERT_COOLDOWN = 600;
@@ -1493,6 +1677,7 @@ function notifyVillageUnderSiege(villageId) {
 
 // src/systems/deployTroops.ts
 init_storage();
+init_notify();
 import { ItemStack as ItemStack2, EntityInventoryComponent as EntityInventoryComponent3, system as system2 } from "@minecraft/server";
 var TROOP_TOKEN_MAP = {
   "kingdoms:guard_token": { troopType: "cityGuards", entityId: "kingdoms:city_guard", label: "City Guard" },
@@ -1799,6 +1984,8 @@ function countTroopTokens(player) {
 // src/systems/border.ts
 init_storage();
 import { world as world9 } from "@minecraft/server";
+init_notify();
+init_types();
 var BORDER_RADIUS = VILLAGE_CLAIM_RADIUS;
 var SIEGE_ELIGIBILITY_TICKS = 2400;
 var REMINDER_INTERVAL_TICKS = 400;
@@ -2107,8 +2294,12 @@ function getAttackerKingdom(playerName) {
   );
 }
 
+// src/systems/commands.ts
+init_bandit();
+
 // src/systems/treasury.ts
 init_storage();
+init_notify();
 import { ItemStack as ItemStack3, EntityInventoryComponent as EntityInventoryComponent4 } from "@minecraft/server";
 function depositEmeralds(player, villageId, amount) {
   const village = getVillage(villageId);
@@ -2191,8 +2382,10 @@ function getTreasuryReport(village) {
 }
 
 // src/systems/blacksmith.ts
-import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
+init_types();
 init_storage();
+init_notify();
+import { ItemStack as ItemStack4, EntityInventoryComponent as EntityInventoryComponent5 } from "@minecraft/server";
 var WEAPON_UPGRADE_COSTS = [
   { material: "minecraft:cobblestone", materialCount: 1, emeralds: 1 },
   { material: "minecraft:iron_ingot", materialCount: 1, emeralds: 1 },
@@ -2420,6 +2613,8 @@ Iron: \xA7f${rs.iron}\xA77  Gold: \xA7f${rs.gold}\xA77  Diamonds: \xA7f${rs.diam
 }
 
 // src/systems/commands.ts
+init_notify();
+init_playerSettings();
 var TROOP_TYPES = ["cityGuards", "spearmen", "archers", "cavalry"];
 function registerCommands() {
   system3.afterEvents.scriptEventReceive.subscribe(
@@ -3179,7 +3374,10 @@ function resolveVillage(player, idPrefix) {
 }
 
 // src/systems/food.ts
+init_types();
 init_storage();
+init_tick();
+init_notify();
 function drainGranaryToFoodStorage(village) {
   let converted = 0;
   for (const [item, count] of Object.entries(village.granaryItems)) {
@@ -3291,8 +3489,12 @@ function processAllFood() {
 }
 
 // src/systems/population.ts
-import { world as world11 } from "@minecraft/server";
+init_types();
 init_storage();
+init_tick();
+init_notify();
+init_notify();
+import { world as world11 } from "@minecraft/server";
 var GROWTH_CHANCE = 0.6;
 var MORTALITY_CHANCE = 0.4;
 var HOUSING_UNIT_SIZE = 5;
@@ -3429,6 +3631,7 @@ function processAllPopulation() {
 
 // src/systems/market.ts
 init_storage();
+init_notify();
 import { world as world12, ItemStack as ItemStack5, EntityInventoryComponent as EntityInventoryComponent6 } from "@minecraft/server";
 var MERCHANT_OUTER_SPAWN_MIN = 70;
 var MERCHANT_OUTER_SPAWN_MAX = 100;
@@ -3785,12 +3988,19 @@ function sellFoodBulk(player, village, entry, batches) {
   return true;
 }
 
+// src/main.ts
+init_bandit();
+init_villageAlerts();
+
 // src/systems/trade.ts
 init_storage();
+init_notify();
 import { world as world13, EntityInventoryComponent as EntityInventoryComponent7 } from "@minecraft/server";
 
 // src/systems/tradeStation.ts
+init_types();
 init_storage();
+init_notify();
 function registerTradeStation(village, location) {
   village.hasTradeStation = true;
   village.tradeStationLocation = { x: location.x, y: location.y, z: location.z };
@@ -4151,6 +4361,7 @@ function extractUntaggedMinecart(cart, village) {
 
 // src/systems/training.ts
 init_storage();
+init_notify();
 var TRAINING_COSTS = {
   cityGuards: { emeralds: 4, iron: 8, gold: 0, diamonds: 0 },
   spearmen: { emeralds: 6, iron: 12, gold: 0, diamonds: 0 },
@@ -4280,8 +4491,11 @@ function getTrainingQueueSummary(village, currentTick) {
 }
 
 // src/systems/autoDefense.ts
-import { world as world14 } from "@minecraft/server";
+init_types();
 init_storage();
+init_notify();
+init_tick();
+import { world as world14 } from "@minecraft/server";
 var THREAT_SCAN_INTERVAL = 60;
 var RAID_NOTIFY_COOLDOWN = 300;
 var lastRaidNotify = /* @__PURE__ */ new Map();
@@ -4430,8 +4644,10 @@ function recallAutoDispatched(village) {
 }
 
 // src/systems/guards.ts
-import { world as world15 } from "@minecraft/server";
+init_types();
 init_storage();
+init_notify();
+import { world as world15 } from "@minecraft/server";
 var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
@@ -4605,6 +4821,7 @@ function enforceGuardPositions() {
 
 // src/systems/reinforcements.ts
 init_storage();
+init_notify();
 function sendReinforcements(fromVillageId, toVillageId, troops) {
   const from = getVillage(fromVillageId);
   const to = getVillage(toVillageId);
@@ -4994,6 +5211,7 @@ function generateStructure(dimension, origin, blockTypeId) {
 
 // src/systems/waypoint.ts
 init_storage();
+init_notify();
 import { world as world16 } from "@minecraft/server";
 import { ActionFormData } from "@minecraft/server-ui";
 var WAYPOINT_PROP = "kc:waypoint_village_id";
@@ -5254,6 +5472,9 @@ async function showWaypointMenu(player, currentVillage) {
     notifyPlayer(player.name, `\xA7cTeleport failed \u2014 chunk may not be loaded.`);
   }
 }
+
+// src/main.ts
+init_types();
 
 // src/systems/villagerBow.ts
 import { world as world17, system as system4 } from "@minecraft/server";

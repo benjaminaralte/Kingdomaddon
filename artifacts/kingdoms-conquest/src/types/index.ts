@@ -164,6 +164,7 @@ export interface VillageData {
   hasCastle?: boolean;
   hasGranary?: boolean;
   hasTreasury?: boolean;
+  missedSoldierFeedDays?: number;
 }
 
 export interface KingdomData {
