@@ -100,6 +100,7 @@ import { registerWaypoint, removeWaypoint, showWaypointMenu } from "./systems/wa
 import { areAtWar } from "./systems/kingdom.js";
 import { TICKS_PER_DAY } from "./types/index.js";
 import { startVillagerBowSystem } from "./systems/villagerBow.js";
+import { tickChargeSystem, registerChargeSystem } from "./systems/chargeAttack.js";
 
 // ── Wool Diplomacy ────────────────────────────────────────────────────────────
 interface PendingDiplomacyRequest {
@@ -662,6 +663,7 @@ world.afterEvents.playerJoin.subscribe((event) => {
 });
 
 startVillagerBowSystem();
+registerChargeSystem();
 
 system.runInterval(() => {
   const tick = getCurrentTick();
@@ -670,6 +672,7 @@ system.runInterval(() => {
   tickSieges(tick);
   tickBorders(tick);
   tickAutoDefense(tick);
+  tickChargeSystem(tick);
 
   for (const village of getAllVillages()) {
     tickTraining(village, tick);
