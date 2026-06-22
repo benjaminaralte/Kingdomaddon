@@ -1864,26 +1864,35 @@ async function showMilitaryAmountsForm(
   if (!from || !to) return;
 
   const t = from.troops;
+  const hk = t.heavyKnight ?? 0;
+  const sa = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const le = t.legionary ?? 0;
   const form = new ModalFormData()
     .title(`🗡 ${from.name} → ${to.name}`)
     .slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0)
     .slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0)
     .slider("Archers", 0, Math.max(t.archers, 1), 1, 0)
-    .slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0);
+    .slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0)
+    .slider("Heavy Knights", 0, Math.max(hk, 1), 1, 0)
+    .slider("Samurai", 0, Math.max(sa, 1), 1, 0)
+    .slider("Lancers", 0, Math.max(ml, 1), 1, 0)
+    .slider("Legionaries", 0, Math.max(le, 1), 1, 0);
 
   const response = await form.show(player);
   if (response.canceled) return;
 
-  const [guards, spearmen, archers, cavalry] = response.formValues as number[];
+  const [guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues as number[];
 
-  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0) {
+  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0 &&
+      heavyKnight === 0 && samurai === 0 && mercenaryLancer === 0 && legionary === 0) {
     notifyPlayer(player.name, "§cNo troops selected.");
     return;
   }
 
   sendRailShipment(fromId, toId, {
     food: 0, emeralds: 0, iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0,
-    troops: { cityGuards: guards, spearmen, archers, cavalry },
+    troops: { cityGuards: guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary },
   });
 }
 
@@ -1920,7 +1929,11 @@ async function showResourceStorageMenu(
   if (response.selection >= depositOptions.length) return;
 
   const opt = depositOptions[response.selection];
-  notifyPlayer(player.name, `§aWithdrew ${opt.amount} ${opt.label} from storage. (Note: use /give for actual items)`);
+  const itemId = RESOURCE_DROP_MAP[opt.key];
+  if (itemId) {
+    dropItemsAtLocation(player.dimension, player.location, itemId, opt.amount);
+    notifyPlayer(player.name, `§aWithdrew §f${opt.amount}x ${opt.label}§a from §b${village.name}§a's resource storage.`);
+  }
   rs[opt.key] = 0;
   saveVillage(village);
 }

@@ -56,7 +56,9 @@ function scanFromWatchtower(village: VillageData, tower: GuardPoleData, currentT
     }
 
     if (entity.typeId === "minecraft:player") {
-      const playerName = (entity as unknown as { name: string }).name;
+      const playerEntity = world.getPlayers().find((p: import("@minecraft/server").Player) => p.id === entity.id);
+      if (!playerEntity) continue;
+      const playerName = playerEntity.name;
       if (playerName === village.owner) continue;
       if (kingdom && isAllied(playerName, kingdom.id)) continue;
 

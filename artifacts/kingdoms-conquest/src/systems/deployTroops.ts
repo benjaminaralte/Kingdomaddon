@@ -150,17 +150,12 @@ export function releaseTroops(player: Player): boolean {
   const total = Object.values(found).reduce((a, b) => a + b, 0);
   if (total === 0) return false;
 
-  for (let i = 0; i < container.size; i++) {
-    const slot = container.getItem(i);
-    if (slot && TROOP_TOKEN_MAP[slot.typeId]) {
-      container.setItem(i, undefined);
-    }
-  }
-
   const loc = player.location;
   const dim = player.dimension;
   const parts: string[] = [];
+  const actuallySpawned: Record<string, number> = {};
 
+  // Spawn first — only deduct tokens for units that actually made it in-world
   for (const [itemId, count] of Object.entries(found)) {
     const info = TROOP_TOKEN_MAP[itemId];
     if (!info) continue;
@@ -173,28 +168,46 @@ export function releaseTroops(player: Player): boolean {
           y: loc.y,
           z: loc.z + (Math.random() * 4 - 2),
         };
-
         let entity: Entity;
         if (MOUNTED_ENTITIES.has(info.entityId)) {
           entity = spawnMountedUnit(dim, info.entityId, offset);
         } else {
           entity = dim.spawnEntity(info.entityId, offset);
         }
-
         entity.nameTag = `${player.name}'s ${info.label}`;
         entity.setDynamicProperty("kc:owner", player.name);
         spawned++;
       } catch {
-        // chunk unloaded
+        break; // chunk not loaded — stop trying this type
       }
     }
 
-    if (spawned > 0) parts.push(`${spawned} ${info.label}`);
+    if (spawned > 0) {
+      actuallySpawned[itemId] = spawned;
+      parts.push(`${spawned} ${info.label}`);
+    }
   }
 
   if (parts.length === 0) {
     notifyPlayer(player.name, "§cCould not deploy troops (chunk not loaded).");
     return false;
+  }
+
+  // Remove only the tokens for units that were successfully spawned
+  for (const [itemId, spawnedCount] of Object.entries(actuallySpawned)) {
+    let toRemove = spawnedCount;
+    for (let i = 0; i < container.size && toRemove > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot || slot.typeId !== itemId) continue;
+      if (slot.amount <= toRemove) {
+        toRemove -= slot.amount;
+        container.setItem(i, undefined);
+      } else {
+        slot.amount -= toRemove;
+        container.setItem(i, slot);
+        toRemove = 0;
+      }
+    }
   }
 
   notifyPlayer(player.name, `§c⚔ DEPLOYED: §f${parts.join(", ")}§c into battle!`);

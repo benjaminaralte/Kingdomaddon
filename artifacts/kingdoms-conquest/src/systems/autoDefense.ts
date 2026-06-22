@@ -147,8 +147,9 @@ function dispatchTroops(village: VillageData, threatCount: number): void {
           ? spawnMountedUnit(dim, entityId, offset)
           : dim.spawnEntity(entityId, offset);
         entity.setDynamicProperty(AUTO_DISPATCH_PROP, village.id);
-        entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType);
+        entity.setDynamicProperty(AUTO_TROOP_TYPE_PROP, troopType as string);
         entity.nameTag = `⚔ [${village.name}]`;
+
         dispatched++;
       } catch { /* chunk not loaded */ }
     }

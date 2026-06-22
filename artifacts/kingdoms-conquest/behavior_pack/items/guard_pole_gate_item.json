@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:guard_pole_gate_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Gate Guard Pole"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_guard_pole_gate"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:guard_pole_gate"
+      },
+      "minecraft:max_stack_size": 64
+    }
+  }
+}

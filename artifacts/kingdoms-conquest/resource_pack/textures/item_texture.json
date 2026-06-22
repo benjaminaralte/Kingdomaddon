@@ -26,6 +26,12 @@
     "kingdoms_guard_pole_watchtower": {
       "textures": "textures/items/guard_pole_watchtower_tex"
     },
+    "kingdoms_guard_pole_gate": {
+      "textures": "textures/items/guard_pole_gate_tex"
+    },
+    "kingdoms_guard_pole_road": {
+      "textures": "textures/items/guard_pole_road_tex"
+    },
     "kingdoms_trade_pole": {
       "textures": "textures/items/trade_pole_tex"
     },

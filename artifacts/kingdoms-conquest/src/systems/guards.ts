@@ -6,15 +6,18 @@ import { generateId, saveVillage, getAllVillages } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
 const GUARD_ENTITY_MAP: Record<TroopType, string> = {
-  cityGuards:  "kingdoms:city_guard",
-  spearmen:    "kingdoms:spearman",
-  archers:     "kingdoms:archer",
-  cavalry:     "kingdoms:cavalry",
-  heavyKnight: "kingdoms:heavy_knight",
+  cityGuards:      "kingdoms:city_guard",
+  spearmen:        "kingdoms:spearman",
+  archers:         "kingdoms:archer",
+  cavalry:         "kingdoms:cavalry",
+  heavyKnight:     "kingdoms:heavy_knight",
+  samurai:         "kingdoms:samurai",
+  mercenaryLancer: "kingdoms:mercenary_lancer",
+  legionary:       "kingdoms:legionary",
 };
 
 function getBestAvailableTroopType(village: VillageData): TroopType {
-  const types: TroopType[] = ["heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
+  const types: TroopType[] = ["samurai", "legionary", "mercenaryLancer", "heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
   for (const t of types) {
     if (village.troops[t] > 0) return t;
   }
