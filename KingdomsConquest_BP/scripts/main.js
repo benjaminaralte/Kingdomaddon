@@ -4008,7 +4008,7 @@ function tickPopulation(village) {
     return;
   }
   const canGrow = village.population < MAX_VILLAGE_POPULATION && village.foodStorage > 10;
-  if (canGrow) {
+  if (canGrow && Math.random() < GROWTH_CHANCE) {
     village.population += 1;
     village.workers.farmers = Math.max(
       village.workers.farmers,
