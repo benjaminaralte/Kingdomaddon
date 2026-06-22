@@ -1412,12 +1412,48 @@ function getBanditCampSummary() {
 }
 
 // ── Rebel City / Bandit Stronghold ──────────────────────────────────────────
-var MAX_REBEL_CITIES = 5;
-var REBEL_CITY_MIN_STRENGTH = 20;
-var REBEL_CITY_MAX_STRENGTH = 40;
-var REBEL_CITY_MAX_ENTITIES = 30;
+var MAX_REBEL_CITIES = 7;
 var REBEL_WARN_RADIUS = 150;
 var lastRebelWarn = new Map();
+
+var REBEL_CITY_TIERS = [
+  { tier: 1, name: "Outpost",       label: "\xA7a\u2606 Tier I \u2014 OUTPOST",             color: "\xA7a", minStr: 5,   maxStr: 20,  maxEntities: 15, recPower: 20,
+    loot: { emeralds: 15, iron: 10,  gold: 5,  diamonds: 2,  netherite: 0, special: null } },
+  { tier: 2, name: "Raider Den",    label: "\xA7e\u2605 Tier II \u2014 RAIDER DEN",          color: "\xA7e", minStr: 21,  maxStr: 55,  maxEntities: 25, recPower: 55,
+    loot: { emeralds: 25, iron: 20,  gold: 10, diamonds: 5,  netherite: 0, special: null } },
+  { tier: 3, name: "War Band",      label: "\xA76\u2605\u2605 Tier III \u2014 WAR BAND",     color: "\xA76", minStr: 56,  maxStr: 100, maxEntities: 35, recPower: 100,
+    loot: { emeralds: 40, iron: 35,  gold: 15, diamonds: 10, netherite: 0, special: null } },
+  { tier: 4, name: "Fortress",      label: "\xA7c\u2620 Tier IV \u2014 FORTRESS",            color: "\xA7c", minStr: 101, maxStr: 160, maxEntities: 45, recPower: 160,
+    loot: { emeralds: 60, iron: 50,  gold: 25, diamonds: 15, netherite: 1, special: "minecraft:enchanted_golden_apple" } },
+  { tier: 5, name: "Stronghold",    label: "\xA74\u2620\u2620 Tier V \u2014 STRONGHOLD",     color: "\xA74", minStr: 161, maxStr: 240, maxEntities: 55, recPower: 240,
+    loot: { emeralds: 90, iron: 70,  gold: 40, diamonds: 25, netherite: 3, special: "minecraft:enchanted_golden_apple" } },
+  { tier: 6, name: "Warlord Keep",  label: "\xA75\u2620\u2620\u2620 Tier VI \u2014 WARLORD KEEP",  color: "\xA75", minStr: 241, maxStr: 360, maxEntities: 65, recPower: 360,
+    loot: { emeralds: 130, iron: 100, gold: 60, diamonds: 40, netherite: 5, special: "minecraft:netherite_upgrade_smithing_template" } },
+  { tier: 7, name: "Titan Fortress",label: "\xA7d\u2620\u2620\u2620\u2620 Tier VII \u2014 TITAN FORTRESS", color: "\xA7d", minStr: 361, maxStr: 500, maxEntities: 80, recPower: 500,
+    loot: { emeralds: 200, iron: 150, gold: 80, diamonds: 64, netherite: 8, special: "minecraft:netherite_ingot" } }
+];
+
+var REBEL_TIER_SPAWN_WEIGHTS = [35, 25, 20, 10, 6, 3, 1];
+
+function getRebelCityTierDef(city) {
+  const t = city.tier ?? 1;
+  return REBEL_CITY_TIERS.find((d) => d.tier === t) ?? REBEL_CITY_TIERS[0];
+}
+function pickRebelCityTier() {
+  const total = REBEL_TIER_SPAWN_WEIGHTS.reduce((s, w) => s + w, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < REBEL_CITY_TIERS.length; i++) {
+    roll -= REBEL_TIER_SPAWN_WEIGHTS[i];
+    if (roll <= 0) return REBEL_CITY_TIERS[i];
+  }
+  return REBEL_CITY_TIERS[0];
+}
+function rebelLootSummary(tierDef) {
+  const l = tierDef.loot;
+  let s = `\xA76${l.emeralds}\u{1F48E}\xA77, \xA7f${l.iron} iron\xA77, \xA76${l.gold} gold\xA77, \xA7b${l.diamonds} diamonds`;
+  if (l.netherite > 0) s += `\xA77, \xA78${l.netherite} netherite`;
+  return s;
+}
 
 function buildRebelCityStructure(dim, loc) {
   const x = Math.floor(loc.x);
@@ -1477,7 +1513,8 @@ function buildRebelCityStructure(dim, loc) {
 function trySpawnEntitiesRebelCity(city) {
   const dim = world7.getDimension(city.location.dimension);
   const live = dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === city.id);
-  const target = Math.min(city.strength, REBEL_CITY_MAX_ENTITIES);
+  const tierDef = getRebelCityTierDef(city);
+  const target = Math.min(city.strength, tierDef.maxEntities);
   const toSpawn = target - live.length;
   for (let i = 0; i < toSpawn; i++) {
     try {
@@ -1489,7 +1526,7 @@ function trySpawnEntitiesRebelCity(city) {
         z: city.location.z + Math.sin(angle) * r
       });
       entity.setDynamicProperty("kc:rebel_id", city.id);
-      entity.nameTag = "\xA7c[Rebel]";
+      entity.nameTag = `${tierDef.color}[${tierDef.name}]`;
     } catch {}
   }
 }
@@ -1509,31 +1546,31 @@ function cleanDeadEntitiesRebelCity(city) {
 function disbandRebelCity(cityId, killerPlayerName) {
   const city = getRebelCity(cityId);
   if (!city) return;
+  const tierDef = getRebelCityTierDef(city);
+  const l = tierDef.loot;
   try {
     const dim = world7.getDimension(city.location.dimension);
     const live = dim.getEntities({ type: "kingdoms:bandit" }).filter((e) => e.getDynamicProperty("kc:rebel_id") === cityId);
     for (const e of live) { try { e.kill(); } catch {} }
-    // Drop loot at city center
     const cx = Math.floor(city.location.x);
     const cy = Math.floor(city.location.y) + 1;
     const cz = Math.floor(city.location.z);
-    dim.runCommand(`give @a[r=200] minecraft:emerald 20`);
-    dim.runCommand(`give @a[r=200] minecraft:diamond 5`);
-    dim.runCommand(`give @a[r=200] minecraft:iron_ingot 20`);
-    dim.runCommand(`give @a[r=200] minecraft:gold_ingot 10`);
-    dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} minecraft:netherite_scrap 2`);
-    dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} minecraft:enchanted_golden_apple 1`);
+    if (l.emeralds > 0) dim.runCommand(`give @a[r=200] minecraft:emerald ${l.emeralds}`);
+    if (l.iron > 0)     dim.runCommand(`give @a[r=200] minecraft:iron_ingot ${l.iron}`);
+    if (l.gold > 0)     dim.runCommand(`give @a[r=200] minecraft:gold_ingot ${l.gold}`);
+    if (l.diamonds > 0) dim.runCommand(`give @a[r=200] minecraft:diamond ${l.diamonds}`);
+    if (l.netherite > 0) dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} minecraft:netherite_scrap ${l.netherite}`);
+    if (l.special) dim.runCommand(`summon minecraft:item ${cx} ${cy} ${cz} ${l.special} 1`);
   } catch {}
   deleteRebelCity(cityId);
   if (killerPlayerName) {
     awardCityDefeated(killerPlayerName);
     const ach = getPlayerAchievements(killerPlayerName);
-    notifyPlayer(killerPlayerName, `\xA76\u2605\u2605 ACHIEVEMENT: Rebel city defeated! Riches claimed! (Total: \xA7e${ach.citiesDefeated}\xA76 cities, \xA7e${ach.campsDestroyed}\xA76 camps)`);
+    notifyPlayer(killerPlayerName, `${tierDef.color}\u2605\u2605 CONQUERED: ${tierDef.name}! Loot claimed! (Total: \xA7e${ach.citiesDefeated}\xA76 cities, \xA7e${ach.campsDestroyed}\xA76 camps)\xA7r\n\xA77Loot: ${rebelLootSummary(tierDef)}`);
   }
-  // Notify all players
   for (const p of world7.getAllPlayers()) {
     if (p.name !== killerPlayerName) {
-      p.sendMessage(`\xA76[Kingdoms] \xA7f${killerPlayerName ?? "Someone"} has defeated a \xA7cRebel City\xA7f! Loot distributed to all nearby players.`);
+      p.sendMessage(`\xA76[Kingdoms] \xA7f${killerPlayerName ?? "Someone"} has conquered ${tierDef.color}${tierDef.name}\xA7f! Loot distributed to all nearby players.`);
     }
   }
 }
@@ -1555,11 +1592,13 @@ function tryWorldSpawnRebelCity() {
   for (const c of cities) {
     if (distance(c.location, { x: cx, y: c.location.y, z: cz }) < 300) return;
   }
-  const strength = REBEL_CITY_MIN_STRENGTH + Math.floor(Math.random() * (REBEL_CITY_MAX_STRENGTH - REBEL_CITY_MIN_STRENGTH));
+  const tierDef = pickRebelCityTier();
+  const strength = tierDef.minStr + Math.floor(Math.random() * (tierDef.maxStr - tierDef.minStr));
   const city = {
     id: generateId(),
     location: { x: cx, y: anchor.location.y, z: cz, dimension: anchor.location.dimension },
     strength,
+    tier: tierDef.tier,
     entityIds: []
   };
   saveRebelCity(city);
@@ -1567,9 +1606,8 @@ function tryWorldSpawnRebelCity() {
   system.run(() => {
     try { buildRebelCityStructure(world7.getDimension(city.location.dimension), city.location); } catch {}
   });
-  // Warn all online players
   for (const p of world7.getAllPlayers()) {
-    p.sendMessage(`\xA7c\u26A0 A \xA7lRebel City\xA7r\xA7c has risen in the world! Strength: \xA7e${strength}\xA7c. Conquer it for great rewards!`);
+    p.sendMessage(`${tierDef.color}\u26A0 ${tierDef.label} has risen in the world!\xA7r Strength: \xA7e${strength}\xA7r. ${tierDef.tier >= 5 ? "\xA7c\u2620 This is a DEADLY threat \u2014 do not approach unprepared!\xA7r" : "\xA7aConquer it for great rewards!"}`);
   }
 }
 
@@ -1599,8 +1637,18 @@ function tickRebelCityWarnings(currentTick) {
       if (d <= REBEL_WARN_RADIUS) {
         const key = `${p.name}:${city.id}`;
         const last = lastRebelWarn.get(key) ?? 0;
-        if (currentTick - last > 400) {
-          p.sendMessage(`\xA7c\u26A0 \xA7lDANGER!\xA7r\xA7c A Rebel City is nearby (${Math.round(d)} blocks)! Strength: \xA7e${city.strength}\xA7c rebels inside.`);
+        const isFirstEntry = last === 0;
+        const cooldown = isFirstEntry ? 0 : 600;
+        if (currentTick - last > cooldown) {
+          const tierDef = getRebelCityTierDef(city);
+          const dangerColor = tierDef.tier >= 5 ? "\xA7c" : tierDef.tier >= 3 ? "\xA76" : "\xA7e";
+          p.sendMessage(
+            `${dangerColor}\u26A0 \xA7lYOU HAVE ENTERED REBEL TERRITORY!\xA7r\n` +
+            `${tierDef.label}\xA7r  \xA77(${Math.round(d)} blocks away)\n` +
+            `\xA77Rebels remaining: ${dangerColor}${city.strength}\xA7r  \xA77| Recommended power: \xA7e${tierDef.recPower}\xA7r\n` +
+            `\xA77Loot if conquered: ${rebelLootSummary(tierDef)}\xA7r\n` +
+            `${tierDef.tier >= 5 ? "\xA7c\u2620 WARNING: Approach only with a fully upgraded army!" : tierDef.tier >= 3 ? "\xA76Prepare your troops before attacking." : "\xA7aA manageable fight for an early army."}`
+          );
           lastRebelWarn.set(key, currentTick);
         }
       }
