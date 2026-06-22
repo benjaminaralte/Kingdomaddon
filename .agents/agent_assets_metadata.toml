@@ -53,3 +53,9 @@ id = "2QY3bYjeOLTKEyQ2cS1To"
 uri = "file://KingdomsConquest_v1.7.0_full.zip"
 type = "unspecified"
 title = "KingdomsConquest v1.7.0 — Population-Scaled Territory"
+
+[[outputs]]
+id = "KHCvX5HW2gAlWN0C8H13Z"
+uri = "file://KingdomsConquest_v1.5.0.zip"
+type = "unspecified"
+title = "KingdomsConquest v1.5.0 — Diplomacy Update"

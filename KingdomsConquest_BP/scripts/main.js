@@ -154,6 +154,7 @@ var KINGDOM_PREFIX = "kc:kingdom:";
 var BANDIT_PREFIX = "kc:bandit:";
 var REBEL_PREFIX = "kc:rebel:";
 var ACHIEVEMENT_PREFIX = "kc:achievements:";
+var DIPLO_OFFERS_KEY = "kc:diplo_offers";
 
 function getRebelCity(id) {
   const raw = world4.getDynamicProperty(REBEL_PREFIX + id);
@@ -996,6 +997,108 @@ function formAlliance(kingdomAId, kingdomBId) {
 function areAtWar(kingdomAId, kingdomBId) {
   const a = getKingdom(kingdomAId);
   return a ? a.wars.includes(kingdomBId) : false;
+}
+function revokeAlliance(kingdomAId, kingdomBId) {
+  const a = getKingdom(kingdomAId);
+  const b = getKingdom(kingdomBId);
+  if (!a || !b) return;
+  a.alliances = a.alliances.filter((id) => id !== kingdomBId);
+  b.alliances = b.alliances.filter((id) => id !== kingdomAId);
+  saveKingdom(a);
+  saveKingdom(b);
+  notifyPlayer(a.king, `\xA7e[Diplomacy] You revoked the alliance with "${b.name}". Relations are now neutral.`);
+  notifyPlayer(b.king, `\xA7c[Diplomacy] "${a.name}" has revoked their alliance with you. Relations return to neutral.`);
+}
+// ── Diplomatic Offer System ───────────────────────────────────────────────
+function getDiploOffers() {
+  const raw = world4.getDynamicProperty(DIPLO_OFFERS_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+function saveDiploOffers(offers) {
+  const now = Date.now();
+  const active = offers.filter((o) => o.expiresAt > now);
+  world4.setDynamicProperty(DIPLO_OFFERS_KEY, JSON.stringify(active));
+}
+function addDiploOffer(offer) {
+  const offers = getDiploOffers();
+  const filtered = offers.filter((o) =>
+    !(o.fromKingdomId === offer.fromKingdomId && o.toKingdomId === offer.toKingdomId && o.type === offer.type)
+  );
+  filtered.push(offer);
+  saveDiploOffers(filtered);
+}
+function removeDiploOffer(offerId) {
+  saveDiploOffers(getDiploOffers().filter((o) => o.id !== offerId));
+}
+function getPendingOffersFor(kingdomId) {
+  const now = Date.now();
+  return getDiploOffers().filter((o) => o.toKingdomId === kingdomId && o.expiresAt > now);
+}
+function getPendingOfferFrom(fromId, toId, type) {
+  const now = Date.now();
+  return getDiploOffers().find((o) => o.fromKingdomId === fromId && o.toKingdomId === toId && o.type === type && o.expiresAt > now);
+}
+function sendDiploOffer(fromKingdom, toKingdom, type, amount) {
+  const offer = {
+    id: generateId(),
+    type,
+    fromKingdomId: fromKingdom.id,
+    fromKingdomName: fromKingdom.name,
+    fromKingdomKing: fromKingdom.king,
+    toKingdomId: toKingdom.id,
+    toKingdomName: toKingdom.name,
+    toKingdomKing: toKingdom.king,
+    amount: amount || 0,
+    sentAt: Date.now(),
+    expiresAt: Date.now() + 10 * 60 * 1000
+  };
+  addDiploOffer(offer);
+  const typeLabel = type === "peace" ? "\xA7aPeace Treaty" : type === "alliance" ? "\xA7aAlliance Proposal" : `\xA76Tribute Demand (${amount}\u{1F48E})`;
+  notifyPlayer(toKingdom.king, `\xA76[Diplomacy] \xA7f${fromKingdom.name} sent you a ${typeLabel}\xA7f. Open Town Hall \u2192 Diplomacy to respond. (Expires in 10 min)`);
+}
+function acceptDiploOffer(offer, acceptingKingdom) {
+  removeDiploOffer(offer.id);
+  if (offer.type === "peace") {
+    makePeace(offer.fromKingdomId, offer.toKingdomId);
+    notifyPlayer(offer.fromKingdomKing, `\xA7a[Diplomacy] ${acceptingKingdom.name} accepted your Peace Treaty! Hostilities have ended.`);
+  } else if (offer.type === "alliance") {
+    formAlliance(offer.fromKingdomId, offer.toKingdomId);
+    notifyPlayer(offer.fromKingdomKing, `\xA7a[Diplomacy] ${acceptingKingdom.name} accepted your Alliance Proposal! You are now allies.`);
+  } else if (offer.type === "tribute") {
+    const acceptingVillages = getAllVillages().filter((v) => v.kingdomId === acceptingKingdom.id);
+    let paid = 0;
+    let remaining = offer.amount;
+    for (const v of acceptingVillages) {
+      if (remaining <= 0) break;
+      const take = Math.min(v.treasury, remaining);
+      v.treasury -= take;
+      paid += take;
+      remaining -= take;
+      saveVillage(v);
+    }
+    const senderVillages = getAllVillages().filter((v) => v.kingdomId === offer.fromKingdomId);
+    if (senderVillages.length > 0) {
+      senderVillages[0].treasury += paid;
+      saveVillage(senderVillages[0]);
+    }
+    if (paid > 0) makePeace(offer.fromKingdomId, offer.toKingdomId);
+    notifyPlayer(offer.fromKingdomKing, `\xA76[Diplomacy] ${acceptingKingdom.name} paid ${paid}\u{1F48E} in tribute to ${offer.fromKingdomName}!${paid > 0 ? " Peace has been established." : ""}`);
+    notifyPlayer(offer.toKingdomKing, `\xA76[Diplomacy] Tribute of ${paid}\u{1F48E} paid to ${offer.fromKingdomName}.${paid > 0 ? " Peace terms accepted." : " (Treasury was empty.)"}`);
+  }
+}
+function declineDiploOffer(offer, decliningKingdom) {
+  removeDiploOffer(offer.id);
+  const labels = { peace: "Peace Treaty", alliance: "Alliance Proposal", tribute: "Tribute Demand" };
+  notifyPlayer(offer.fromKingdomKing, `\xA7c[Diplomacy] ${decliningKingdom.name} declined your ${labels[offer.type] || offer.type}.`);
+}
+function notifyAlliesOfAttack(attackedKingdomId, attackerKingdomName) {
+  const attacked = getKingdom(attackedKingdomId);
+  if (!attacked) return;
+  for (const allyId of attacked.alliances) {
+    const ally = getKingdom(allyId);
+    if (ally) notifyPlayer(ally.king, `\xA7c[Diplomacy] Your ally "${attacked.name}" is under attack by ${attackerKingdomName}! Consider sending reinforcements.`);
+  }
 }
 function getKingdomStrength(kingdomId) {
   const kingdom = getKingdom(kingdomId);
@@ -2496,6 +2599,7 @@ function initiateSiege(attacker, targetVillageId) {
   notifyPlayer(attacker.name, `\xA7c\u2694 Siege of \xA7b${target.name}\xA7c has begun!`);
   notifyAlert(target.owner, `\xA74\u{1F514} \xA7b${target.name}\xA74 is under siege by \xA7c${attacker.name}\xA74!`);
   notifyVillageUnderSiege(targetVillageId);
+  notifyAlliesOfAttack(target.kingdomId, attackerKingdom.name);
   return true;
 }
 function tickSieges(_currentTick) {
@@ -8188,7 +8292,15 @@ async function showTownHallMenu(player, block) {
   }
   const isOwner = village.owner === player.name;
   const summary = getVillageSummary(village);
-  const form = new ActionFormData().title(`${village.name} \u2014 Town Hall`).body(summary);
+  let diploHint = "";
+  if (isOwner) {
+    const myKingdom = getKingdomOf(player.name);
+    if (myKingdom) {
+      const pending = getPendingOffersFor(myKingdom.id);
+      if (pending.length > 0) diploHint = `\n\xA76\u26A0 ${pending.length} diplomatic offer(s) await your response! \u2192 Diplomacy`;
+    }
+  }
+  const form = new ActionFormData().title(`${village.name} \u2014 Town Hall`).body(summary + diploHint);
   if (isOwner) {
     form.button("Kingdom Overview").button("Diplomacy").button("Rename Village").button("\xA7a\uD83C\uDFDB Purchase Buildings");
   } else {
@@ -9307,46 +9419,127 @@ async function showKingdomOverview(player) {
 }
 async function showDiplomacyMenu(player) {
   const myKingdom = getKingdomOf(player.name);
-  if (!myKingdom) return;
+  if (!myKingdom) { notifyPlayer(player.name, "\xA7cYou don't have a kingdom."); return; }
   const others = getAllKingdoms().filter((k) => k.id !== myKingdom.id);
+  const pendingIn = getPendingOffersFor(myKingdom.id);
+  const neutral = others.length - myKingdom.wars.length - myKingdom.alliances.length;
+  const body = `\xA77Kingdom: \xA7f${myKingdom.name}\n\xA7cWars: \xA7f${myKingdom.wars.length}  \xA7aAllies: \xA7f${myKingdom.alliances.length}  \xA77Neutral: \xA7f${neutral}\n${pendingIn.length > 0 ? `\n\xA76\u26A0 ${pendingIn.length} pending offer(s) awaiting your response!` : "\xA77No pending incoming offers."}`;
+  const form = new ActionFormData().title("\xA76Diplomacy").body(body);
+  if (pendingIn.length > 0) form.button(`\xA76\u{1F4EC} Incoming Offers (${pendingIn.length})`);
   if (others.length === 0) {
-    notifyPlayer(player.name, "\xA7eNo other kingdoms exist yet.");
-    return;
-  }
-  const form = new ActionFormData().title("Diplomacy").body(`Kingdom: ${myKingdom.name}
-Wars: ${myKingdom.wars.length}  Alliances: ${myKingdom.alliances.length}`);
-  for (const k of others) {
-    const rel = myKingdom.wars.includes(k.id) ? "\xA7c[WAR]" : myKingdom.alliances.includes(k.id) ? "\xA7a[ALLY]" : "\xA77[NEUTRAL]";
-    form.button(`${k.name} ${rel}`);
+    form.button("\xA77(No other kingdoms yet)");
+  } else {
+    for (const k of others) {
+      const rel = myKingdom.wars.includes(k.id) ? "\xA7c[WAR]" : myKingdom.alliances.includes(k.id) ? "\xA7a[ALLY]" : "\xA77[NEUTRAL]";
+      const hasPending = pendingIn.some((o) => o.fromKingdomId === k.id) ? " \xA76[\u2709 offer]" : "";
+      form.button(`${k.name} ${rel}${hasPending}`);
+    }
   }
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  const target = others[response.selection];
-  await showDiplomacyActions(player, myKingdom, target);
+  let sel = response.selection;
+  if (pendingIn.length > 0) {
+    if (sel === 0) { await showPendingOffersMenu(player, myKingdom); return; }
+    sel -= 1;
+  }
+  if (others.length === 0) return;
+  const target = others[sel];
+  if (target) await showDiplomacyActions(player, myKingdom, target);
+}
+async function showPendingOffersMenu(player, myKingdom) {
+  const offers = getPendingOffersFor(myKingdom.id);
+  if (offers.length === 0) { notifyPlayer(player.name, "\xA7eNo pending diplomatic offers."); return; }
+  const typeLabels = { peace: "\xA7aPeace Treaty", alliance: "\xA7aAlliance Proposal", tribute: "\xA76Tribute Demand" };
+  const form = new ActionFormData().title("\xA76Incoming Offers").body(`${offers.length} offer(s) from other kingdoms.\nSelect one to accept or decline.`);
+  for (const o of offers) {
+    const mins = Math.max(0, Math.floor((o.expiresAt - Date.now()) / 6e4));
+    const extra = o.type === "tribute" ? ` \u2014 ${o.amount}\u{1F48E}` : "";
+    form.button(`${o.fromKingdomName}\n${typeLabels[o.type] || o.type}${extra} (${mins}m left)`);
+  }
+  form.button("\xA77Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0 || response.selection >= offers.length) return;
+  await showRespondToOfferMenu(player, myKingdom, offers[response.selection]);
+}
+async function showRespondToOfferMenu(player, myKingdom, offer) {
+  const typeLabels = { peace: "Peace Treaty", alliance: "Alliance Proposal", tribute: "Tribute Demand" };
+  const descLines = {
+    peace: "Accepting ends the war between your kingdoms. Neither side may attack the other.",
+    alliance: "Accepting forms a mutual alliance. You cannot attack each other and will receive attack alerts.",
+    tribute: `Accepting transfers \xA76${offer.amount}\u{1F48E}\xA7r from your village treasuries to ${offer.fromKingdomName}. Ends any current war if paid.`
+  };
+  const form = new ActionFormData()
+    .title(`${typeLabels[offer.type] || offer.type}`)
+    .body(`From: \xA7b${offer.fromKingdomName}\xA7r (King: ${offer.fromKingdomKing})\n\n${descLines[offer.type] || ""}\n\n\xA77Choose your response:`)
+    .button("\xA7aAccept")
+    .button("\xA7cDecline");
+  const response = await form.show(player);
+  if (response.canceled) return;
+  if (response.selection === 0) {
+    acceptDiploOffer(offer, myKingdom);
+    notifyPlayer(player.name, `\xA7aOffer accepted.`);
+  } else {
+    declineDiploOffer(offer, myKingdom);
+    notifyPlayer(player.name, `\xA7cDeclined the ${typeLabels[offer.type] || offer.type} from ${offer.fromKingdomName}.`);
+  }
 }
 async function showDiplomacyActions(player, myKingdom, target) {
   const atWar = myKingdom.wars.includes(target.id);
   const allied = myKingdom.alliances.includes(target.id);
-  const form = new ActionFormData().title(`Diplomacy \u2014 ${target.name}`).body(`King: ${target.king}
-Villages: ${target.villageIds.length}
-Relation: ${atWar ? "\xA7cAt War" : allied ? "\xA7aAllied" : "\xA77Neutral"}`);
+  const sentPeace = getPendingOfferFrom(myKingdom.id, target.id, "peace");
+  const sentAlliance = getPendingOfferFrom(myKingdom.id, target.id, "alliance");
+  const sentTribute = getPendingOfferFrom(myKingdom.id, target.id, "tribute");
+  const incomingPeace = getPendingOfferFrom(target.id, myKingdom.id, "peace");
+  const incomingAlliance = getPendingOfferFrom(target.id, myKingdom.id, "alliance");
+  const incomingTribute = getPendingOfferFrom(target.id, myKingdom.id, "tribute");
+  let offerStatus = "";
+  if (sentPeace) offerStatus += "\n\xA76\u2709 Peace offer sent \u2014 awaiting their reply";
+  if (sentAlliance) offerStatus += "\n\xA76\u2709 Alliance proposal sent \u2014 awaiting their reply";
+  if (sentTribute) offerStatus += "\n\xA76\u2709 Tribute demand sent \u2014 awaiting their reply";
+  if (incomingPeace) offerStatus += "\n\xA7a\u2709 They sent you a Peace offer! Check Incoming Offers.";
+  if (incomingAlliance) offerStatus += "\n\xA7a\u2709 They sent you an Alliance proposal! Check Incoming Offers.";
+  if (incomingTribute) offerStatus += "\n\xA76\u2709 They sent you a Tribute demand! Check Incoming Offers.";
+  const targetStrength = getKingdomStrength(target.id);
+  const myStrength = getKingdomStrength(myKingdom.id);
+  const relLabel = atWar ? "\xA7c\u2694 At War" : allied ? "\xA7a\uD83E\uDD1D Allied" : "\xA77Neutral";
+  const form = new ActionFormData()
+    .title(`\xA76Diplomacy \u2014 ${target.name}`)
+    .body(`\xA77King: \xA7f${target.king}\n\xA77Villages: \xA7f${target.villageIds.length}\n\xA77Military Strength: \xA7f${targetStrength}\xA77 (yours: \xA7f${myStrength}\xA77)\n\xA77Relation: ${relLabel}${offerStatus}`);
   const actions = [];
-  if (!atWar) {
-    form.button("\xA7cDeclare War");
-    actions.push(() => declareWar(myKingdom.id, target.id));
+  if (!atWar && !allied) {
+    if (!sentPeace) { form.button("\xA7aSend Peace Treaty\n\xA77Formalise peaceful co-existence"); actions.push("peace"); }
+    if (!sentAlliance) { form.button("\xA7aPropose Alliance\n\xA77Request a mutual defence pact"); actions.push("alliance"); }
+    if (!sentTribute) { form.button("\xA76Demand Tribute (50\u{1F48E})\n\xA77They pay or face war"); actions.push("tribute50"); }
+    form.button("\xA7cDeclare War\n\xA77Immediate \u2014 no offer needed"); actions.push("war");
+  } else if (atWar) {
+    if (!sentPeace) { form.button("\xA7aOffer Peace Treaty\n\xA77Request an end to the war"); actions.push("peace"); }
+    if (!sentTribute) { form.button("\xA76Demand Reparations (75\u{1F48E})\n\xA77Pay up or war continues"); actions.push("tribute75"); }
+  } else if (allied) {
+    form.button("\xA7eRevoke Alliance\n\xA77Return to neutral standing"); actions.push("revoke");
+    form.button("\xA7cBetray & Declare War\n\xA77Break the alliance and attack"); actions.push("war");
   }
-  if (atWar) {
-    form.button("\xA7aSue for Peace");
-    actions.push(() => makePeace(myKingdom.id, target.id));
-  }
-  if (!allied && !atWar) {
-    form.button("\xA7aPropose Alliance");
-    actions.push(() => formAlliance(myKingdom.id, target.id));
-  }
-  form.button("Cancel");
+  form.button("\xA77Cancel"); actions.push("cancel");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  if (response.selection < actions.length) actions[response.selection]();
+  const action = actions[response.selection];
+  if (!action || action === "cancel") return;
+  if (action === "war") {
+    declareWar(myKingdom.id, target.id);
+  } else if (action === "revoke") {
+    revokeAlliance(myKingdom.id, target.id);
+  } else if (action === "peace") {
+    sendDiploOffer(myKingdom, target, "peace", 0);
+    notifyPlayer(player.name, `\xA7aPeace offer sent to ${target.name}. They will be notified.`);
+  } else if (action === "alliance") {
+    sendDiploOffer(myKingdom, target, "alliance", 0);
+    notifyPlayer(player.name, `\xA7aAlliance proposal sent to ${target.name}. They will be notified.`);
+  } else if (action === "tribute50") {
+    sendDiploOffer(myKingdom, target, "tribute", 50);
+    notifyPlayer(player.name, `\xA76Tribute demand of 50\u{1F48E} sent to ${target.name}.`);
+  } else if (action === "tribute75") {
+    sendDiploOffer(myKingdom, target, "tribute", 75);
+    notifyPlayer(player.name, `\xA76War reparations demand of 75\\u{1F48E} sent to ${target.name}.`);
+  }
 }
 async function showRenameForm(player, villageId) {
   const form = new ModalFormData().title("Rename Village").textField("New Name", "Enter new village name...");
