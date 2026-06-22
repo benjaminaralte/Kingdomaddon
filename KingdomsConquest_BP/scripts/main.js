@@ -8452,7 +8452,7 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
   form.button("Disband Heavy Knights");
   form.button("Disband Legionaries");
   form.button(`Upgrade Barracks (${Math.pow(village.barracksLevel, 2) * 15}\u{1F48E})`);
-  form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0)} total stationed`);
+  form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0)} total stationed`);
   form.button(carriedTotal > 0 ? `\u{1F3F9} Return Troops (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
   form.button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
   form.button(`\xA76Get Formation Set x10 (Free)`);
@@ -8562,7 +8562,8 @@ async function showDisbandSlider(player, village, troopKey, label) {
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0);
+  const total = (t.cityGuards ?? 0) + (t.spearmen ?? 0) + (t.archers ?? 0) + (t.cavalry ?? 0) +
+    (t.samurai ?? 0) + (t.heavyKnights ?? 0) + (t.legionary ?? 0) + (t.mercenaryLancer ?? 0);
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
@@ -8575,11 +8576,12 @@ async function showPickUpTroopsForm(player, village) {
     .slider(`Cavalry (${t.cavalry} available)`, 0, Math.max(t.cavalry, 1), 1, 0)
     .slider(`Samurai (${t.samurai ?? 0} available)`, 0, Math.max(t.samurai ?? 0, 1), 1, 0)
     .slider(`Heavy Knights (${t.heavyKnights ?? 0} available)`, 0, Math.max(t.heavyKnights ?? 0, 1), 1, 0)
-    .slider(`Legionaries (${t.legionary ?? 0} available)`, 0, Math.max(t.legionary ?? 0, 1), 1, 0);
+    .slider(`Legionaries (${t.legionary ?? 0} available)`, 0, Math.max(t.legionary ?? 0, 1), 1, 0)
+    .slider(`Merc Lancers (${t.mercenaryLancer ?? 0} available)`, 0, Math.max(t.mercenaryLancer ?? 0, 1), 1, 0);
   const response = await form.show(player);
   if (response.canceled) return;
-  const [guards, spearmen, archers, cavalry, samurai, heavyKnights, legionary] = response.formValues;
-  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, samurai, heavyKnights, legionary });
+  const [guards, spearmen, archers, cavalry, samurai, heavyKnights, legionary, mercenaryLancer] = response.formValues;
+  pickupTroops(player, village, { cityGuards: guards, spearmen, archers, cavalry, samurai, heavyKnights, legionary, mercenaryLancer });
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
