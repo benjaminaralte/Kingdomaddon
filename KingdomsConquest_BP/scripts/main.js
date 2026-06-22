@@ -8711,9 +8711,13 @@ async function showBlacksmithMenu(player, block) {
   const summary = getBlacksmithSummary(village);
   const res = village.resourceStorage ?? { ...EMPTY_RESOURCE_STORAGE };
   const storageLine = `\n\xA77Storage: Iron=${res.iron} Gold=${res.gold} \u{1F48E}=${res.diamonds}`;
+  const pathsNote =
+    `\n\n\xA7e\u2500\u2500 Two upgrade paths \u2500\u2500\xA7r\n` +
+    `\xA7aPath A \u2014 Upgrade buttons:\xA7r Pay from inventory \u2192 tier advances instantly.\n` +
+    `\xA77Path B \u2014 Craft \u2192 Deposit \u2192 Equip:\xA7r Use physical items from storage instead. Whichever sets the higher tier wins \u2014 you can\u2019t downgrade.`;
   const form = new ActionFormData()
     .title(`${village.name} \u2014 Blacksmith`)
-    .body(summary + storageLine)
+    .body(summary + storageLine + pathsNote)
     .button("\u2B06 Upgrade Weapons")
     .button("\u2B06 Upgrade Armor")
     .button("\uD83D\uDD27 Bulk Repair (4 Iron)\n\xA77Re-applies Strength & Resistance to all soldiers")
