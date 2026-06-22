@@ -95,7 +95,7 @@ import {
   type TroopPickup,
 } from "./systems/deployTroops.js";
 import type { GuardPoleType } from "./types/index.js";
-import { generateStructure, STRUCTURE_BLOCK_IDS } from "./systems/structureBuilder.js";
+import { generateStructure, demolishStructure, STRUCTURE_BLOCK_IDS } from "./systems/structureBuilder.js";
 import { registerWaypoint, removeWaypoint, showWaypointMenu } from "./systems/waypoint.js";
 import { areAtWar } from "./systems/kingdom.js";
 import { TICKS_PER_DAY } from "./types/index.js";
@@ -555,6 +555,24 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
         removeWaypoint(village);
       }
     }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.CASTLE) {
+    const village = findVillageAt(blockLoc);
+    if (village && village.hasCastle) {
+      village.hasCastle = false;
+      saveVillage(village);
+      notifyPlayer(player.name, `§c🏰 Castle in §b${village.name}§c has been destroyed. Elite troops are no longer available.`);
+    }
+  }
+
+  // Demolish the physical multi-block structure for any kingdoms building
+  if (STRUCTURE_BLOCK_IDS.has(typeId)) {
+    const origin = { x: blockLoc.x, y: blockLoc.y, z: blockLoc.z };
+    const dimension = player.dimension;
+    system.run(() => {
+      demolishStructure(dimension, origin, typeId);
+    });
   }
 });
 

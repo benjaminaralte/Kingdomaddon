@@ -373,6 +373,40 @@ function waypointBlueprint(): BP[] {
 
 // ─── PUBLIC API ───────────────────────────────────────────────────────────────
 
+/**
+ * Demolish the multi-block structure for the given kingdoms block.
+ * Call this from afterEvents.playerBreakBlock via system.run.
+ * Sets every non-air blueprint block back to air, leaving the origin
+ * position untouched (it is already air after the break event).
+ */
+export function demolishStructure(
+  dimension: Dimension,
+  origin: Vector3,
+  blockTypeId: string
+): void {
+  const blueprint = BLUEPRINTS[blockTypeId];
+  if (!blueprint) return;
+
+  const placements = blueprint();
+
+  for (const bp of placements) {
+    // Skip positions that the blueprint only cleared (already air)
+    if (bp.b === "minecraft:air") continue;
+    // Skip origin — already broken/air
+    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
+    try {
+      const loc = {
+        x: origin.x + bp.x,
+        y: origin.y + bp.y,
+        z: origin.z + bp.z,
+      };
+      dimension.getBlock(loc)?.setType("minecraft:air");
+    } catch {
+      // Skip unloaded chunks or out-of-bounds positions
+    }
+  }
+}
+
 function castleBlueprint(): BP[] {
   const p: BP[] = [];
   const sb = "minecraft:stone_bricks";

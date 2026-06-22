@@ -4868,6 +4868,24 @@ function waypointBlueprint() {
   p.push(blk(2, 1, 0, "minecraft:chest"));
   return p;
 }
+function demolishStructure(dimension, origin, blockTypeId) {
+  const blueprint = BLUEPRINTS[blockTypeId];
+  if (!blueprint) return;
+  const placements = blueprint();
+  for (const bp of placements) {
+    if (bp.b === "minecraft:air") continue;
+    if (bp.x === 0 && bp.y === 0 && bp.z === 0) continue;
+    try {
+      const loc = {
+        x: origin.x + bp.x,
+        y: origin.y + bp.y,
+        z: origin.z + bp.z
+      };
+      dimension.getBlock(loc)?.setType("minecraft:air");
+    } catch {
+    }
+  }
+}
 function castleBlueprint() {
   const p = [];
   const sb = "minecraft:stone_bricks";
@@ -5643,6 +5661,21 @@ world18.afterEvents.playerBreakBlock.subscribe((event) => {
         removeWaypoint(village);
       }
     }
+  }
+  if (typeId === CUSTOM_BLOCKS.CASTLE) {
+    const village = findVillageAt2(blockLoc);
+    if (village && village.hasCastle) {
+      village.hasCastle = false;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7c\u{1F3F0} Castle in \xA7b${village.name}\xA7c has been destroyed. Elite troops are no longer available.`);
+    }
+  }
+  if (STRUCTURE_BLOCK_IDS.has(typeId)) {
+    const origin = { x: blockLoc.x, y: blockLoc.y, z: blockLoc.z };
+    const dimension = player.dimension;
+    system5.run(() => {
+      demolishStructure(dimension, origin, typeId);
+    });
   }
 });
 world18.afterEvents.playerJoin.subscribe((event) => {
