@@ -5404,6 +5404,37 @@ function findVillageAt2(location) {
     (v) => Math.abs(v.location.x - location.x) < 64 && Math.abs(v.location.z - location.z) < 64
   );
 }
+var TROOP_TYPE_TO_TOKEN = {
+  cityGuards: "kingdoms:guard_token",
+  spearmen: "kingdoms:spearman_token",
+  archers: "kingdoms:archer_token",
+  cavalry: "kingdoms:cavalry_token",
+  heavyKnight: "kingdoms:heavy_knight_token",
+  samurai: "kingdoms:samurai_token",
+  mercenaryLancer: "kingdoms:mercenary_lancer_token",
+  legionary: "kingdoms:legionary_token"
+};
+var RESOURCE_DROP_MAP = {
+  iron: "minecraft:iron_ingot",
+  gold: "minecraft:gold_ingot",
+  coal: "minecraft:coal",
+  wood: "minecraft:oak_log",
+  stone: "minecraft:cobblestone",
+  diamonds: "minecraft:diamond"
+};
+function dropItemsAtLocation(dimension, location, itemId, totalCount) {
+  if (totalCount <= 0) return;
+  const dropLoc = { x: location.x + 0.5, y: location.y + 1, z: location.z + 0.5 };
+  let remaining = totalCount;
+  while (remaining > 0) {
+    const stackSize = Math.min(remaining, 64);
+    try {
+      dimension.spawnItem(new ItemStack6(itemId, stackSize), dropLoc);
+    } catch {
+    }
+    remaining -= stackSize;
+  }
+}
 world18.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
@@ -5629,7 +5660,36 @@ world18.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village) {
       const loc = village.tradeStationLocation;
       if (loc && loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        const rs = village.resourceStorage;
+        if (rs) {
+          const dim = player.dimension;
+          for (const [key, itemId] of Object.entries(RESOURCE_DROP_MAP)) {
+            dropItemsAtLocation(dim, blockLoc, itemId, rs[key] ?? 0);
+          }
+          village.resourceStorage = { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
+        }
         removeTradeStation(village);
+        notifyPlayer(player.name, `\xA7eMaterial storage dropped from \xA7b${village.name}\xA7e Trade Station!`);
+      }
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.BARRACKS) {
+    const village = findVillageAt2(blockLoc);
+    if (village) {
+      const dim = player.dimension;
+      const troops = village.troops;
+      let droppedAny = false;
+      for (const [troopType, tokenId] of Object.entries(TROOP_TYPE_TO_TOKEN)) {
+        const count = troops[troopType] ?? 0;
+        if (count > 0) {
+          dropItemsAtLocation(dim, blockLoc, tokenId, count);
+          droppedAny = true;
+        }
+      }
+      village.troops = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 };
+      saveVillage(village);
+      if (droppedAny) {
+        notifyPlayer(player.name, `\xA7eTroop tokens dropped from \xA7b${village.name}\xA7e Barracks!`);
       }
     }
   }

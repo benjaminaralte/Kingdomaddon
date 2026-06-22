@@ -9,10 +9,10 @@
     },
     "components": {
       "minecraft:destructible_by_mining": {
-        "seconds_to_destroy": 3
+        "seconds_to_destroy": 15
       },
       "minecraft:destructible_by_explosion": {
-        "explosion_resistance": 12
+        "explosion_resistance": 60
       },
       "minecraft:geometry": {
         "identifier": "minecraft:geometry.full_block"

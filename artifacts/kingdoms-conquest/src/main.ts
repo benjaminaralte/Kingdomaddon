@@ -257,6 +257,46 @@ function findVillageAt(location: { x: number; y: number; z: number }): VillageDa
   );
 }
 
+// ── Troop type → token item ID ─────────────────────────────────────────────
+const TROOP_TYPE_TO_TOKEN: Record<TroopType, string> = {
+  cityGuards:      "kingdoms:guard_token",
+  spearmen:        "kingdoms:spearman_token",
+  archers:         "kingdoms:archer_token",
+  cavalry:         "kingdoms:cavalry_token",
+  heavyKnight:     "kingdoms:heavy_knight_token",
+  samurai:         "kingdoms:samurai_token",
+  mercenaryLancer: "kingdoms:mercenary_lancer_token",
+  legionary:       "kingdoms:legionary_token",
+};
+
+// ── ResourceStorage key → Minecraft item ID ────────────────────────────────
+const RESOURCE_DROP_MAP: Record<keyof ResourceStorage, string> = {
+  iron:     "minecraft:iron_ingot",
+  gold:     "minecraft:gold_ingot",
+  coal:     "minecraft:coal",
+  wood:     "minecraft:oak_log",
+  stone:    "minecraft:cobblestone",
+  diamonds: "minecraft:diamond",
+};
+
+function dropItemsAtLocation(
+  dimension: import("@minecraft/server").Dimension,
+  location: { x: number; y: number; z: number },
+  itemId: string,
+  totalCount: number
+): void {
+  if (totalCount <= 0) return;
+  const dropLoc = { x: location.x + 0.5, y: location.y + 1, z: location.z + 0.5 };
+  let remaining = totalCount;
+  while (remaining > 0) {
+    const stackSize = Math.min(remaining, 64);
+    try {
+      dimension.spawnItem(new ItemStack(itemId, stackSize), dropLoc);
+    } catch { /* skip invalid items */ }
+    remaining -= stackSize;
+  }
+}
+
 world.afterEvents.playerPlaceBlock.subscribe((event) => {
   const { player, block } = event;
   if (!player) return;
@@ -520,7 +560,40 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
     if (village) {
       const loc = village.tradeStationLocation;
       if (loc && loc.x === blockLoc.x && loc.y === blockLoc.y && loc.z === blockLoc.z) {
+        // Drop all material storage stocks as items
+        const rs = village.resourceStorage;
+        if (rs) {
+          const dim = player.dimension;
+          for (const [key, itemId] of Object.entries(RESOURCE_DROP_MAP) as [keyof ResourceStorage, string][]) {
+            dropItemsAtLocation(dim, blockLoc, itemId, rs[key] ?? 0);
+          }
+          village.resourceStorage = { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
+        }
         removeTradeStation(village);
+        notifyPlayer(player.name, `§eMaterial storage dropped from §b${village.name}§e Trade Station!`);
+      }
+    }
+  }
+
+  if (typeId === CUSTOM_BLOCKS.BARRACKS) {
+    const village = findVillageAt(blockLoc);
+    if (village) {
+      const dim = player.dimension;
+      const troops = village.troops;
+      let droppedAny = false;
+      // Drop all garrisoned troops as troop tokens
+      for (const [troopType, tokenId] of Object.entries(TROOP_TYPE_TO_TOKEN) as [TroopType, string][]) {
+        const count = troops[troopType] ?? 0;
+        if (count > 0) {
+          dropItemsAtLocation(dim, blockLoc, tokenId, count);
+          droppedAny = true;
+        }
+      }
+      // Clear garrison
+      village.troops = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 };
+      saveVillage(village);
+      if (droppedAny) {
+        notifyPlayer(player.name, `§eTroop tokens dropped from §b${village.name}§e Barracks!`);
       }
     }
   }
