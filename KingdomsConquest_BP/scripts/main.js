@@ -1882,9 +1882,10 @@ var TROOP_TOKEN_MAP = {
   "kingdoms:spearman_token":       { troopType: "spearmen",     entityId: "kingdoms:spearman",     label: "Spearman" },
   "kingdoms:archer_token":         { troopType: "archers",      entityId: "kingdoms:archer",       label: "Archer" },
   "kingdoms:cavalry_token":        { troopType: "cavalry",      entityId: "kingdoms:cavalry",      label: "Cavalry" },
-  "kingdoms:samurai_token":        { troopType: "samurai",      entityId: "kingdoms:samurai",      label: "Samurai" },
-  "kingdoms:heavy_knight_token":   { troopType: "heavyKnights", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" },
-  "kingdoms:legionary_token":      { troopType: "legionary",    entityId: "kingdoms:legionary",    label: "Legionary" }
+  "kingdoms:samurai_token":           { troopType: "samurai",          entityId: "kingdoms:samurai",          label: "Samurai" },
+  "kingdoms:heavy_knight_token":      { troopType: "heavyKnights",     entityId: "kingdoms:heavy_knight",     label: "Heavy Knight" },
+  "kingdoms:legionary_token":         { troopType: "legionary",        entityId: "kingdoms:legionary",        label: "Legionary" },
+  "kingdoms:mercenary_lancer_token":  { troopType: "mercenaryLancer",  entityId: "kingdoms:mercenary_lancer", label: "Mercenary Lancer" }
 };
 function pickupTroops(player, village, pickup) {
   const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0) + (pickup.legionary ?? 0) + (pickup.mercenaryLancer ?? 0);
@@ -2086,13 +2087,14 @@ function deploySingleToken(player, itemId) {
   }
 }
 var ENTITY_TO_TOKEN = {
-  "kingdoms:city_guard":   "kingdoms:guard_token",
-  "kingdoms:spearman":     "kingdoms:spearman_token",
-  "kingdoms:archer":       "kingdoms:archer_token",
-  "kingdoms:cavalry":      "kingdoms:cavalry_token",
-  "kingdoms:samurai":      "kingdoms:samurai_token",
-  "kingdoms:heavy_knight": "kingdoms:heavy_knight_token",
-  "kingdoms:legionary":    "kingdoms:legionary_token"
+  "kingdoms:city_guard":        "kingdoms:guard_token",
+  "kingdoms:spearman":          "kingdoms:spearman_token",
+  "kingdoms:archer":            "kingdoms:archer_token",
+  "kingdoms:cavalry":           "kingdoms:cavalry_token",
+  "kingdoms:samurai":           "kingdoms:samurai_token",
+  "kingdoms:heavy_knight":      "kingdoms:heavy_knight_token",
+  "kingdoms:legionary":         "kingdoms:legionary_token",
+  "kingdoms:mercenary_lancer":  "kingdoms:mercenary_lancer_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
@@ -7668,7 +7670,7 @@ world16.afterEvents.itemUse.subscribe((event) => {
   }
   if (itemId === "kingdoms:village_spawner") {
     system3.run(async () => {
-      const form = new ActionFormData().title("\xA76\u{1F3D9} Village Spawner").body("Select what to build near you:\n\n\xA76Big City\xA7r: Walled city, 6 stone buildings, 12 villagers, large farm\n\xA7aSmall Village\xA7r: 2 wooden houses, 4 villagers, small farm").button("\xA76\u{1F3D9} Spawn Big City").button("\xA7a\u{1F3E0} Spawn Small Village").button("Cancel");
+      const form = new ActionFormData().title("\xA76\u{1F3D9} Village Spawner").body("Select what to build near you:\n\n\xA76Big City\xA7r: Walled stone buildings, 10 villagers, large farm\n\xA7aSmall Village\xA7r: 3 wooden houses, 5 villagers, small farm").button("\xA76\u{1F3D9} Spawn Big City").button("\xA7a\u{1F3E0} Spawn Small Village").button("Cancel");
       const resp = await form.show(player);
       if (resp.canceled || resp.selection === 2) return;
       const size = resp.selection === 0 ? "city" : "village";
@@ -7704,6 +7706,10 @@ world16.afterEvents.itemUseOn.subscribe((event) => {
   if (!player) return;
   const itemId = event.itemStack?.typeId;
   if (!itemId) return;
+  if (itemId === "kingdoms:recall_scroll") {
+    system3.run(() => { recallNearbyTroops(player); });
+    return;
+  }
   if (itemId === "kingdoms:formation_scroll") {
     system3.run(() => { void cmdStratMap(player); });
     return;
