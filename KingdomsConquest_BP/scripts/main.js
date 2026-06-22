@@ -2694,7 +2694,7 @@ function upgradeWeapons(player, villageId) {
   }
   const cost = WEAPON_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0);
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0) + (village.troops.mercenaryLancer ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
@@ -2730,7 +2730,7 @@ function upgradeArmor(player, villageId) {
   }
   const cost = ARMOR_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
-  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0);
+  const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.samurai ?? 0) + (village.troops.heavyKnights ?? 0) + (village.troops.legionary ?? 0) + (village.troops.mercenaryLancer ?? 0);
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
   if (!consumeItems(player, cost.material, totalMaterial)) {
