@@ -3802,13 +3802,25 @@ var MERCHANT_STOCK_TEMPLATES = {
 };
 var SEED_PURCHASE_MATERIALS = [];
 var SEED_SHOP = [
+  // ── Vanilla Seeds ──────────────────────────────────────────────────────────
   { itemId: "minecraft:wheat_seeds", label: "Wheat Seeds", quantityPerPurchase: 16, emeraldCost: 1 },
   { itemId: "minecraft:carrot", label: "Carrots", quantityPerPurchase: 16, emeraldCost: 1 },
   { itemId: "minecraft:potato", label: "Potatoes", quantityPerPurchase: 16, emeraldCost: 1 },
   { itemId: "minecraft:beetroot_seeds", label: "Beetroot Seeds", quantityPerPurchase: 16, emeraldCost: 1 },
   { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds", quantityPerPurchase: 12, emeraldCost: 1 },
   { itemId: "minecraft:melon_seeds", label: "Melon Seeds", quantityPerPurchase: 12, emeraldCost: 1 },
-  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 8, emeraldCost: 2 }
+  { itemId: "minecraft:nether_wart", label: "Nether Wart", quantityPerPurchase: 8, emeraldCost: 2 },
+  // ── Bob's Farming Crops (twb_farm) ─────────────────────────────────────────
+  { itemId: "twb_farm:garlic", label: "\u{1F9C4} Garlic", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:onion", label: "\u{1F9C5} Onion", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:rice", label: "\u{1F33E} Rice", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:broccoli", label: "\u{1F966} Broccoli", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:cauliflower", label: "\u{1F96C} Cauliflower", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:chili", label: "\u{1F336} Chili", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:eggplant", label: "\u{1F346} Eggplant", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:leek", label: "\u{1F33F} Leek", quantityPerPurchase: 8, emeraldCost: 2 },
+  { itemId: "twb_farm:grape", label: "\u{1F347} Grape", quantityPerPurchase: 8, emeraldCost: 3 },
+  { itemId: "twb_farm:pineapple", label: "\u{1F34D} Pineapple", quantityPerPurchase: 8, emeraldCost: 3 }
 ];
 var FOOD_SELL_RATES = [
   { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 5, minBatch: 10 },
@@ -7080,6 +7092,22 @@ world20.afterEvents.playerJoin.subscribe((event) => {
   system6.runTimeout(() => {
     const player = world20.getPlayers().find((p) => p.name === playerName);
     if (!player) return;
+    const starterKey = `kc:starter_${playerName}`;
+    if (!world20.getDynamicProperty(starterKey)) {
+      const inv = player.getComponent(EntityInventoryComponent8.componentId);
+      if (inv?.container) {
+        inv.container.addItem(new ItemStack6("kingdoms:town_hall_item", 1));
+        inv.container.addItem(new ItemStack6("kingdoms:village_spawner", 1));
+        inv.container.addItem(new ItemStack6("minecraft:cobblestone", 10));
+        inv.container.addItem(new ItemStack6("minecraft:emerald", 50));
+        world20.setDynamicProperty(starterKey, true);
+        player.sendMessage(
+          `\xA7a\xA7lWelcome to Kingdoms & Conquest!\xA7r
+\xA77You received: \xA7f1 Town Hall\xA77, \xA7f1 Village Spawner\xA77, \xA7f10 Cobblestone\xA77, \xA7f50 Emeralds\xA77.
+\xA7ePlace the Village Spawner first to create your village, then build your Town Hall inside it!`
+        );
+      }
+    }
     const kingdom = getKingdomOf(playerName);
     if (kingdom?.pendingDiplomacy) void showPendingDiplomacyRequest(player);
   }, 100);
@@ -7349,31 +7377,46 @@ async function showTownHallMenu(player, block) {
       break;
   }
 }
+var TOWN_HALL_SHOP_ITEMS = [
+  { label: "\u{1F33E} Granary", desc: "Stores food. Required before Barracks.", itemId: "kingdoms:granary_item", cost: 20 },
+  { label: "\u{1F4B0} Treasury", desc: "Stores emeralds & wages workers.", itemId: "kingdoms:treasury_item", cost: 20 },
+  { label: "\u2694 Barracks", desc: "Train & station troops. Needs Granary+Treasury.", itemId: "kingdoms:barracks_item", cost: 40 },
+  { label: "\u{1F6D2} Market", desc: "Unlocks trade, seeds & merchant visits.", itemId: "kingdoms:market_item", cost: 30 },
+  { label: "\u{1F528} Blacksmith", desc: "Upgrade troop weapons & armour.", itemId: "kingdoms:blacksmith_item", cost: 50 },
+  { label: "\u{1F4E6} Material Storage", desc: "Stores mined iron, gold, diamonds & more.", itemId: "kingdoms:storage_item", cost: 30 },
+  { label: "\u{1F3F0} Castle", desc: "Unlocks elite troops (Samurai, Lancer, Legion).", itemId: "kingdoms:castle_item", cost: 200 },
+  { label: "\u{1F5FA} Waypoint", desc: "Fast-travel point for your village.", itemId: "kingdoms:waypoint", cost: 30 }
+];
 async function showTownHallShop(player, village) {
-  const WAYPOINT_COST = 30;
-  const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(
-    `\xA77Treasury: \xA7f${village.treasury}\u{1F48E}
-
-Purchase items using your village treasury.`
-  ).button(`\u{1F5FA} Village Waypoint
-\xA77${WAYPOINT_COST}\u{1F48E} \u2014 place to set a fast-travel point`).button("Back");
+  const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(`\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA7r
+\xA77Purchase buildings & items for your village.
+`);
+  for (const item of TOWN_HALL_SHOP_ITEMS) {
+    const affordable = village.treasury >= item.cost ? "\xA7a" : "\xA7c";
+    form.button(`${item.label}
+${affordable}${item.cost}\u{1F48E}\xA77 \u2014 ${item.desc}`);
+  }
+  form.button("\xA77\u2190 Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection !== 0) return;
-  if (village.treasury < WAYPOINT_COST) {
-    notifyPlayer(player.name, `\xA7cNot enough treasury funds. Need ${WAYPOINT_COST}\u{1F48E}, have ${village.treasury}\u{1F48E}.`);
+  if (response.canceled || response.selection === void 0) return;
+  if (response.selection >= TOWN_HALL_SHOP_ITEMS.length) return;
+  const selected = TOWN_HALL_SHOP_ITEMS[response.selection];
+  const fresh = getVillage(village.id);
+  if (!fresh) return;
+  if (fresh.treasury < selected.cost) {
+    notifyPlayer(player.name, `\xA7cNot enough treasury funds. Need \xA7f${selected.cost}\u{1F48E}\xA7c, have \xA7f${fresh.treasury}\u{1F48E}\xA7c.`);
     return;
   }
   const inv = player.getComponent(EntityInventoryComponent8.componentId);
   if (!inv?.container) return;
-  const waypointItem = new ItemStack6("kingdoms:waypoint", 1);
-  const added = inv.container.addItem(waypointItem);
-  if (added) {
+  const leftover = inv.container.addItem(new ItemStack6(selected.itemId, 1));
+  if (leftover) {
     notifyPlayer(player.name, "\xA7cYour inventory is full. Make room first.");
     return;
   }
-  village.treasury -= WAYPOINT_COST;
-  saveVillage(village);
-  notifyPlayer(player.name, `\xA7a\u{1F5FA} Village Waypoint purchased! Place it inside your village to activate.`);
+  fresh.treasury -= selected.cost;
+  saveVillage(fresh);
+  notifyPlayer(player.name, `\xA7aPurchased \xA7f${selected.label}\xA7a for \xA76${selected.cost}\u{1F48E}\xA7a! Place it inside your village territory.`);
 }
 async function showBarracksMenu(player, block) {
   const village = findVillageAt2(block.location);

@@ -45,6 +45,7 @@ export interface SeedShopEntry {
 export const SEED_PURCHASE_MATERIALS: MaterialCost[] = [];
 
 export const SEED_SHOP: SeedShopEntry[] = [
+  // ── Vanilla Seeds ──────────────────────────────────────────────────────────
   { itemId: "minecraft:wheat_seeds",   label: "Wheat Seeds",    quantityPerPurchase: 16, emeraldCost: 1 },
   { itemId: "minecraft:carrot",        label: "Carrots",        quantityPerPurchase: 16, emeraldCost: 1 },
   { itemId: "minecraft:potato",        label: "Potatoes",       quantityPerPurchase: 16, emeraldCost: 1 },
@@ -52,6 +53,17 @@ export const SEED_SHOP: SeedShopEntry[] = [
   { itemId: "minecraft:pumpkin_seeds", label: "Pumpkin Seeds",  quantityPerPurchase: 12, emeraldCost: 1 },
   { itemId: "minecraft:melon_seeds",   label: "Melon Seeds",    quantityPerPurchase: 12, emeraldCost: 1 },
   { itemId: "minecraft:nether_wart",   label: "Nether Wart",    quantityPerPurchase: 8,  emeraldCost: 2 },
+  // ── Bob's Farming Crops (twb_farm) ─────────────────────────────────────────
+  { itemId: "twb_farm:garlic",         label: "🧄 Garlic",      quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:onion",          label: "🧅 Onion",       quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:rice",           label: "🌾 Rice",        quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:broccoli",       label: "🥦 Broccoli",    quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:cauliflower",    label: "🥬 Cauliflower", quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:chili",          label: "🌶 Chili",       quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:eggplant",       label: "🍆 Eggplant",    quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:leek",           label: "🌿 Leek",        quantityPerPurchase: 8,  emeraldCost: 2 },
+  { itemId: "twb_farm:grape",          label: "🍇 Grape",       quantityPerPurchase: 8,  emeraldCost: 3 },
+  { itemId: "twb_farm:pineapple",      label: "🍍 Pineapple",   quantityPerPurchase: 8,  emeraldCost: 3 },
 ];
 
 export interface FoodSellEntry {

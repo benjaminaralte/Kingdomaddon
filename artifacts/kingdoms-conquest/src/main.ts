@@ -858,6 +858,25 @@ world.afterEvents.playerJoin.subscribe((event) => {
   system.runTimeout(() => {
     const player = world.getPlayers().find((p) => p.name === playerName);
     if (!player) return;
+
+    // ── Starter kit (once per player) ─────────────────────────────────────
+    const starterKey = `kc:starter_${playerName}`;
+    if (!world.getDynamicProperty(starterKey)) {
+      const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+      if (inv?.container) {
+        inv.container.addItem(new ItemStack("kingdoms:town_hall_item", 1));
+        inv.container.addItem(new ItemStack("kingdoms:village_spawner", 1));
+        inv.container.addItem(new ItemStack("minecraft:cobblestone", 10));
+        inv.container.addItem(new ItemStack("minecraft:emerald", 50));
+        world.setDynamicProperty(starterKey, true);
+        player.sendMessage(
+          `§a§lWelcome to Kingdoms & Conquest!§r\n` +
+          `§7You received: §f1 Town Hall§7, §f1 Village Spawner§7, §f10 Cobblestone§7, §f50 Emeralds§7.\n` +
+          `§ePlace the Village Spawner first to create your village, then build your Town Hall inside it!`
+        );
+      }
+    }
+
     const kingdom = getKingdomOf(playerName);
     if (kingdom?.pendingDiplomacy) void showPendingDiplomacyRequest(player);
   }, 100);
@@ -1193,42 +1212,62 @@ async function showTownHallMenu(
   }
 }
 
+const TOWN_HALL_SHOP_ITEMS: Array<{
+  label: string;
+  desc: string;
+  itemId: string;
+  cost: number;
+}> = [
+  { label: "🌾 Granary",           desc: "Stores food. Required before Barracks.",         itemId: "kingdoms:granary_item",    cost: 20  },
+  { label: "💰 Treasury",          desc: "Stores emeralds & wages workers.",                itemId: "kingdoms:treasury_item",   cost: 20  },
+  { label: "⚔ Barracks",           desc: "Train & station troops. Needs Granary+Treasury.", itemId: "kingdoms:barracks_item",   cost: 40  },
+  { label: "🛒 Market",            desc: "Unlocks trade, seeds & merchant visits.",         itemId: "kingdoms:market_item",     cost: 30  },
+  { label: "🔨 Blacksmith",        desc: "Upgrade troop weapons & armour.",                 itemId: "kingdoms:blacksmith_item", cost: 50  },
+  { label: "📦 Material Storage",  desc: "Stores mined iron, gold, diamonds & more.",      itemId: "kingdoms:storage_item",    cost: 30  },
+  { label: "🏰 Castle",            desc: "Unlocks elite troops (Samurai, Lancer, Legion).", itemId: "kingdoms:castle_item",     cost: 200 },
+  { label: "🗺 Waypoint",          desc: "Fast-travel point for your village.",             itemId: "kingdoms:waypoint",        cost: 30  },
+];
+
 async function showTownHallShop(
   player: import("@minecraft/server").Player,
   village: VillageData
 ): Promise<void> {
-  const WAYPOINT_COST = 30;
-
   const form = new ActionFormData()
     .title(`🏪 Town Hall Shop — ${village.name}`)
-    .body(
-      `§7Treasury: §f${village.treasury}💎\n\n` +
-      `Purchase items using your village treasury.`
-    )
-    .button(`🗺 Village Waypoint\n§7${WAYPOINT_COST}💎 — place to set a fast-travel point`)
-    .button("Back");
+    .body(`§7Treasury: §6${village.treasury}💎§r\n§7Purchase buildings & items for your village.\n`);
+
+  for (const item of TOWN_HALL_SHOP_ITEMS) {
+    const affordable = village.treasury >= item.cost ? "§a" : "§c";
+    form.button(`${item.label}\n${affordable}${item.cost}💎§7 — ${item.desc}`);
+  }
+  form.button("§7← Back");
 
   const response = await form.show(player);
-  if (response.canceled || response.selection !== 0) return;
+  if (response.canceled || response.selection === undefined) return;
+  if (response.selection >= TOWN_HALL_SHOP_ITEMS.length) return;
 
-  if (village.treasury < WAYPOINT_COST) {
-    notifyPlayer(player.name, `§cNot enough treasury funds. Need ${WAYPOINT_COST}💎, have ${village.treasury}💎.`);
+  const selected = TOWN_HALL_SHOP_ITEMS[response.selection];
+
+  const fresh = getVillage(village.id);
+  if (!fresh) return;
+
+  if (fresh.treasury < selected.cost) {
+    notifyPlayer(player.name, `§cNot enough treasury funds. Need §f${selected.cost}💎§c, have §f${fresh.treasury}💎§c.`);
     return;
   }
 
   const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
   if (!inv?.container) return;
 
-  const waypointItem = new ItemStack("kingdoms:waypoint", 1);
-  const added = inv.container.addItem(waypointItem);
-  if (added) {
+  const leftover = inv.container.addItem(new ItemStack(selected.itemId, 1));
+  if (leftover) {
     notifyPlayer(player.name, "§cYour inventory is full. Make room first.");
     return;
   }
 
-  village.treasury -= WAYPOINT_COST;
-  saveVillage(village);
-  notifyPlayer(player.name, `§a🗺 Village Waypoint purchased! Place it inside your village to activate.`);
+  fresh.treasury -= selected.cost;
+  saveVillage(fresh);
+  notifyPlayer(player.name, `§aPurchased §f${selected.label}§a for §6${selected.cost}💎§a! Place it inside your village territory.`);
 }
 
 async function showBarracksMenu(
