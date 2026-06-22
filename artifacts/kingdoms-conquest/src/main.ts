@@ -923,7 +923,8 @@ async function showBarracksMenu(
     .button(`🪖 Train Troops (queue: ${queueCount}/10)\n§7Select troop type and quantity`)
     .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`)
     .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)")
-    .button(`⬆ Upgrade Barracks (${village.barracksLevel * 15} emeralds)`);
+    .button(`⬆ Upgrade Barracks (${village.barracksLevel * 15} emeralds)`)
+    .button("📯 Tactics Horn\n§7Take a formation command horn");
 
   const response = await form.show(player);
   if (response.canceled) return;
@@ -933,7 +934,29 @@ async function showBarracksMenu(
     case 1: await showPickUpTroopsForm(player, village); break;
     case 2: await showReturnTroopsForm(player, village); break;
     case 3: upgradeBarracks(village); break;
+    case 4: giveTacticsHorn(player); break;
   }
+}
+
+function giveTacticsHorn(player: import("@minecraft/server").Player): void {
+  const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
+  if (!inv?.container) return;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === "kingdoms:tactics_horn") {
+      notifyPlayer(player.name, "§eYou already have a Tactics Horn.");
+      return;
+    }
+  }
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) {
+      container.setItem(i, new ItemStack("kingdoms:tactics_horn", 1));
+      notifyPlayer(player.name, "§a📯 Tactics Horn added to your inventory. Right-click to command your troops!");
+      return;
+    }
+  }
+  notifyPlayer(player.name, "§cInventory full — make room and try again.");
 }
 
 async function showPickUpTroopsForm(
