@@ -88,6 +88,9 @@
     },
     "kingdoms_castle": {
       "textures": "textures/items/castle_tex"
+    },
+    "kingdoms_tactics_horn": {
+      "textures": "textures/items/tactics_horn_tex"
     }
   }
 }
