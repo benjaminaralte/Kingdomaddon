@@ -1527,11 +1527,6 @@ function recruitTroop(village, type, count = 1) {
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
-  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.samurai ?? 0) - (village.troops.heavyKnights ?? 0) - village.workers.farmers - village.workers.workers;
-  if (availableWorkers < count) {
-    notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
-    return false;
-  }
   if (village.treasury < totalCost) {
     notifyPlayer(village.owner, `\xA7cNeed ${totalCost}\u{1F48E} to recruit ${count} ${type}.`);
     return false;
@@ -3748,29 +3743,29 @@ var SEED_SHOP = [
   { itemId: "twb_farm:pineapple", label: "\xA72Pineapple \xA77[Bob's Farm]", quantityPerPurchase: 4, emeraldCost: 5 }
 ];
 var FOOD_SELL_RATES = [
-  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 6, minBatch: 16 },
-  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 5, minBatch: 16 },
-  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 10, minBatch: 16 },
-  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 6, minBatch: 16 },
-  { itemId: "minecraft:cooked_beef", label: "Cooked Beef", itemsPerEmerald: 2, minBatch: 8 },
-  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork", itemsPerEmerald: 2, minBatch: 8 },
-  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 3, minBatch: 8 },
-  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 10, minBatch: 16 },
-  { itemId: "twb_farm:garlic", label: "Garlic [Bob's Farm]", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "twb_farm:onion", label: "Onion [Bob's Farm]", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "twb_farm:rice", label: "Rice [Bob's Farm]", itemsPerEmerald: 8, minBatch: 16 },
-  { itemId: "twb_farm:broccoli", label: "Broccoli [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
-  { itemId: "twb_farm:cauliflower", label: "Cauliflower [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
-  { itemId: "twb_farm:chili", label: "Chili [Bob's Farm]", itemsPerEmerald: 5, minBatch: 12 },
-  { itemId: "twb_farm:eggplant", label: "Eggplant [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
-  { itemId: "twb_farm:leek", label: "Leek [Bob's Farm]", itemsPerEmerald: 6, minBatch: 12 },
-  { itemId: "twb_farm:grape", label: "Grape [Bob's Farm]", itemsPerEmerald: 5, minBatch: 12 },
-  { itemId: "twb_farm:pineapple", label: "Pineapple [Bob's Farm]", itemsPerEmerald: 3, minBatch: 8 }
+  { itemId: "minecraft:wheat", label: "Wheat", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "minecraft:carrot", label: "Carrot", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "minecraft:potato", label: "Potato", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "minecraft:baked_potato", label: "Baked Potato", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:bread", label: "Bread", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:beetroot", label: "Beetroot", itemsPerEmerald: 4, minBatch: 8 },
+  { itemId: "minecraft:apple", label: "Apple", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "minecraft:cooked_beef", label: "Cooked Beef", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:cooked_porkchop", label: "Cooked Pork", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:cooked_chicken", label: "Cooked Chicken", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:cooked_mutton", label: "Cooked Mutton", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:cooked_salmon", label: "Cooked Salmon", itemsPerEmerald: 1, minBatch: 2 },
+  { itemId: "minecraft:melon_slice", label: "Melon Slice", itemsPerEmerald: 4, minBatch: 8 },
+  { itemId: "twb_farm:garlic", label: "Garlic [Bob's Farm]", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "twb_farm:onion", label: "Onion [Bob's Farm]", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "twb_farm:rice", label: "Rice [Bob's Farm]", itemsPerEmerald: 3, minBatch: 6 },
+  { itemId: "twb_farm:broccoli", label: "Broccoli [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "twb_farm:cauliflower", label: "Cauliflower [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "twb_farm:chili", label: "Chili [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "twb_farm:eggplant", label: "Eggplant [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "twb_farm:leek", label: "Leek [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "twb_farm:grape", label: "Grape [Bob's Farm]", itemsPerEmerald: 2, minBatch: 4 },
+  { itemId: "twb_farm:pineapple", label: "Pineapple [Bob's Farm]", itemsPerEmerald: 1, minBatch: 2 }
 ];
 function getMaxMerchants(village) {
   return Math.floor(village.marketLevel * 3 + village.population / 8);
@@ -7488,38 +7483,63 @@ async function showTownHallMenu(player, block) {
       break;
   }
 }
+var LOG_ITEM_TYPES = [
+  "minecraft:oak_log","minecraft:spruce_log","minecraft:birch_log","minecraft:jungle_log",
+  "minecraft:acacia_log","minecraft:dark_oak_log","minecraft:mangrove_log","minecraft:cherry_log",
+  "minecraft:bamboo_block","minecraft:crimson_stem","minecraft:warped_stem"
+];
 var SHOP_ITEMS = [
-  { id: "kingdoms:granary_item", label: "Granary", desc: "Stores food, enables market income & soldiers", cost: 20, costItem: "minecraft:chest", prereq: false },
-  { id: "kingdoms:treasury_item", label: "Treasury", desc: "Stores emeralds, enables all village income", cost: 30, costItem: "minecraft:chest", prereq: false },
-  { id: "kingdoms:house_item", label: "\uD83C\uDFE0 House (2-3 Beds)", desc: "Residential house with beds \u2014 required for population growth!", cost: 25, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:barracks_item", label: "Barracks", desc: "Train and manage your soldiers (stone castle)", cost: 50, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:market_item", label: "Market", desc: "Generates passive income from food trade", cost: 40, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:blacksmith_item", label: "Blacksmith", desc: "Forge and upgrade soldier weapons and armor", cost: 35, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:storage_item", label: "Material Storage", desc: "Warehouse for iron, gold, diamond, coal, wood, stone", cost: 30, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", cost: 45, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:barn_item", label: "\uD83D\uDC04 Barn", desc: "Large barn for cattle and multipurpose livestock storage", cost: 40, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:farm_plot_item", label: "\uD83C\uDF3E Farm Plot", desc: "Instant farm: fenced crop plots, irrigation channels, and a tool shed — 3 random designs!", cost: 30, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", cost: 5, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", cost: 10, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", cost: 60, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:tower_item", label: "Watch Tower", desc: "Tall stone tower for defense and visibility", cost: 40, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:wall_long_item", label: "Long Stone Wall (10x5)", desc: "Wide defensive wall with battlements", cost: 20, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", cost: 12, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:wall_tall_item", label: "\uD83E\uDDF1 Tall Stone Wall (5x10)", desc: "5-wide wall, 10 blocks tall — matches short wall z-depth for seamless joining", cost: 18, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:stone_gate_item", label: "\uD83D\uDEAA Stone Gate", desc: "9-wide gate with towers, arch & portcullis bars — joints with all wall types", cost: 35, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:king_castle_item", label: "\uD83D\uDC51 King's Castle", desc: "Grand two-story keep with throne hall, royal chambers, 4 towers & world leaderboard", cost: 200, costItem: "minecraft:emerald", prereq: true },
-  { id: "kingdoms:town_hall_item", label: "\uD83C\uDFDB Occupy: Town Hall", desc: "Place in a defeated/unclaimed village to take ownership. Cannot be used in your own territory.", cost: 100, costItem: "minecraft:emerald", prereq: true }
+  { id: "kingdoms:granary_item", label: "Granary", desc: "Stores food, enables market income and soldiers", prereq: false,
+    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
+  { id: "kingdoms:treasury_item", label: "Treasury", desc: "Stores emeralds, enables all village income", prereq: false,
+    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
+  { id: "kingdoms:house_item", label: "House (2-3 Beds)", desc: "Residential house with beds - required for population growth!", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 50, label: "50 Wood Logs (any type)" }] },
+  { id: "kingdoms:barracks_item", label: "Barracks", desc: "Train and manage your soldiers", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 100, label: "100 Stone" }, { itemId: "minecraft:iron_ingot", count: 5, label: "5 Iron Ingots" }] },
+  { id: "kingdoms:market_item", label: "Market", desc: "Generates passive income from food trade", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:copper_ingot", count: 20, label: "20 Copper Ingots" }] },
+  { id: "kingdoms:blacksmith_item", label: "Blacksmith", desc: "Forge and upgrade soldier weapons and armor", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 80, label: "80 Stone" }, { itemId: "minecraft:iron_ingot", count: 5, label: "5 Iron Ingots" }] },
+  { id: "kingdoms:storage_item", label: "Material Storage", desc: "Warehouse for iron, gold, diamond, coal, wood, stone", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:chest", count: 20, label: "20 Chests" }] },
+  { id: "kingdoms:armory_item", label: "Armory", desc: "Store and equip soldiers with weapons and armor", prereq: true,
+    costs: [{ itemId: "minecraft:crafting_table", count: 10, label: "10 Crafting Tables" }, { itemId: "minecraft:smithing_table", count: 3, label: "3 Smithing Tables" }] },
+  { id: "kingdoms:barn_item", label: "Barn", desc: "Large barn for cattle and multipurpose livestock storage", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 60, label: "60 Wood Logs (any type)" }, { itemId: "minecraft:hay_block", count: 10, label: "10 Hay Bales" }] },
+  { id: "kingdoms:farm_plot_item", label: "Farm Plot", desc: "Instant farm: fenced crop plots, irrigation channels and tool shed", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 60, label: "60 Wood Logs (any type)" }] },
+  { id: "kingdoms:guard_pole_village_item", label: "Guard Pole", desc: "Patrol point for city guards", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 10, label: "10 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 20, label: "20 Torches" }] },
+  { id: "kingdoms:trade_pole_item", label: "Trade Pole", desc: "Attracts merchant caravans to your village", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 20, label: "20 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 30, label: "30 Torches" }] },
+  { id: "kingdoms:trade_station_item", label: "Trade Station", desc: "Full trading hub for buying goods from merchants", prereq: true,
+    costs: [{ items: LOG_ITEM_TYPES, count: 30, label: "30 Wood Logs (any type)" }, { itemId: "minecraft:torch", count: 40, label: "40 Torches" }] },
+  { id: "kingdoms:tower_item", label: "Watch Tower", desc: "Tall stone tower for defense and visibility", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 30, label: "30 Stone" }, { itemId: "minecraft:torch", count: 60, label: "60 Torches" }] },
+  { id: "kingdoms:wall_long_item", label: "Long Stone Wall (10x5)", desc: "Wide defensive wall with battlements", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 40, label: "40 Stone" }] },
+  { id: "kingdoms:wall_short_item", label: "Short Stone Wall (5x5)", desc: "Short defensive wall segment with battlements", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 20, label: "20 Stone" }] },
+  { id: "kingdoms:wall_tall_item", label: "Tall Stone Wall (5x10)", desc: "5-wide wall 10 blocks tall - matches short wall for seamless joining", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 40, label: "40 Stone" }] },
+  { id: "kingdoms:stone_gate_item", label: "Stone Gate", desc: "9-wide gate with towers arch and portcullis bars", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 30, label: "30 Stone" }, { itemId: "minecraft:iron_bars", count: 2, label: "2 Iron Bars" }] },
+  { id: "kingdoms:king_castle_item", label: "King's Castle", desc: "Grand two-story keep with throne hall royal chambers 4 towers and world leaderboard", prereq: true,
+    costs: [{ itemId: "minecraft:stone", count: 500, label: "500 Stone" }, { itemId: "minecraft:emerald", count: 50, label: "50 Emeralds" }] },
+  { id: "kingdoms:town_hall_item", label: "Occupy: Town Hall", desc: "Place in a defeated or unclaimed village to take ownership", prereq: true,
+    costs: [{ itemId: "minecraft:emerald", count: 100, label: "100 Emeralds" }] }
 ];
 async function showBuildingShopMenu(player, village) {
   const hasInfra = !!(village.granaryLocation && village.treasuryLocation);
   const available = SHOP_ITEMS.filter((i) => !i.prereq || hasInfra);
   let bodyText = hasInfra
-    ? `\xA77Village:\xA7f ${village.name}\n\xA77Treasury:\xA7f ${village.treasury}\u{1F48E}\n\xA77Villagers:\xA7f ${village.population}/${MAX_VILLAGE_POPULATION}\n\n\xA7fSelect a structure to purchase.\nGranary & Treasury cost \xA7bChests\xA7f from your inventory.\nAll others cost \xA76Emeralds\xA7f from your inventory.`
-    : `\xA7c\u26A0 You must build a \xA7bGranary\xA7c and \xA7bTreasury\xA7c first!\n\xA7fAll other structures are locked until both are active.\n\n\xA77Only Granary and Treasury are available for purchase.`;
-  const form = new ActionFormData().title(`${village.name} \u2014 Building Shop`).body(bodyText);
+    ? `\xA77Village:\xA7f ${village.name}\n\xA77Villagers:\xA7f ${village.population}/${MAX_VILLAGE_POPULATION}\n\n\xA7fAll materials are taken from your inventory.\xA7f Select a structure to purchase.`
+    : `\xA7c! You must build a Granary and Treasury first!\n\xA7fAll other structures are locked until both are active.\n\nOnly Granary and Treasury are available for purchase.`;
+  const form = new ActionFormData().title(`${village.name} - Building Shop`).body(bodyText);
   for (const item of available) {
-    const costIcon = item.costItem === "minecraft:chest" ? "\xA77\uD83D\uDCE6 " : "\xA76\u{1F48E} ";
-    form.button(`${item.label}\n${costIcon}${item.cost} ${item.costItem === "minecraft:chest" ? "Chests" : "Emeralds"}`);
+    const costStr = item.costs.map((r) => r.label).join(" + ");
+    form.button(`${item.label}\n\xA77Cost: ${costStr}`);
   }
   form.button("\xA77Close");
   const response = await form.show(player);
@@ -7532,26 +7552,34 @@ function purchaseBuilding(player, village, shopItem) {
   const inv = player.getComponent(EntityInventoryComponent8.componentId);
   const container = inv?.container;
   if (!container) return;
-  let have = 0;
+  const inventory = {};
   for (let i = 0; i < container.size; i++) {
     const slot = container.getItem(i);
-    if (slot?.typeId === shopItem.costItem) have += slot.amount;
+    if (slot) inventory[slot.typeId] = (inventory[slot.typeId] ?? 0) + slot.amount;
   }
-  const costName = shopItem.costItem === "minecraft:chest" ? "chests" : "emeralds";
-  if (have < shopItem.cost) {
-    notifyPlayer(player.name, `\xA7cNeed \xA7b${shopItem.cost} ${costName}\xA7c to purchase ${shopItem.label}. Have: ${have}.`);
-    return;
+  for (const req of shopItem.costs) {
+    const have = req.items
+      ? req.items.reduce((s, id) => s + (inventory[id] ?? 0), 0)
+      : (inventory[req.itemId] ?? 0);
+    if (have < req.count) {
+      notifyPlayer(player.name, `\xA7cNeed ${req.label} to purchase ${shopItem.label}. Have: ${have}.`);
+      return;
+    }
   }
-  let remaining = shopItem.cost;
-  for (let i = 0; i < container.size && remaining > 0; i++) {
-    const slot = container.getItem(i);
-    if (!slot || slot.typeId !== shopItem.costItem) continue;
-    const take = Math.min(slot.amount, remaining);
-    remaining -= take;
-    if (take >= slot.amount) {
-      container.setItem(i, void 0);
-    } else {
-      container.setItem(i, new ItemStack6(shopItem.costItem, slot.amount - take));
+  for (const req of shopItem.costs) {
+    let remaining = req.count;
+    const targetIds = req.items ?? [req.itemId];
+    for (let i = 0; i < container.size && remaining > 0; i++) {
+      const slot = container.getItem(i);
+      if (!slot || !targetIds.includes(slot.typeId)) continue;
+      const take = Math.min(slot.amount, remaining);
+      remaining -= take;
+      if (take >= slot.amount) {
+        container.setItem(i, void 0);
+      } else {
+        slot.amount -= take;
+        container.setItem(i, slot);
+      }
     }
   }
   let placed = false;
@@ -7560,11 +7588,16 @@ function purchaseBuilding(player, village, shopItem) {
       try { container.setItem(i, new ItemStack6(shopItem.id, 1)); placed = true; break; } catch {}
     }
   }
+  const costStr = shopItem.costs.map((r) => r.label).join(" + ");
   if (placed) {
-    notifyPlayer(player.name, `\xA7aPurchased \xA7b${shopItem.label}\xA7a! Cost: \xA7b${shopItem.cost} ${costName}\xA7a. Place it in your village to construct it.`);
+    notifyPlayer(player.name, `\xA7aPurchased ${shopItem.label}! Cost: ${costStr}. Place it in your village to construct it.`);
   } else {
-    dropItemsAtLoc(world16.getDimension(village.location.dimension), player.location, shopItem.costItem, shopItem.cost);
-    notifyPlayer(player.name, `\xA7cInventory full \u2014 \xA7b${shopItem.label}\xA7c could not be received. Cost refunded at your feet.`);
+    notifyPlayer(player.name, `\xA7cInventory full - ${shopItem.label} could not be received. Materials have been refunded at your feet.`);
+    for (const req of shopItem.costs) {
+      const ids = req.items ?? [req.itemId];
+      const perType = Math.ceil(req.count / ids.length);
+      for (const id of ids) dropItemsAtLoc(world16.getDimension(village.location.dimension), player.location, id, perType);
+    }
   }
 }
 async function showBarracksMenu(player, block) {
@@ -7606,8 +7639,8 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
   form.button(`\u2694 Pick Up Troops\n\xA77${t.cityGuards + t.spearmen + t.archers + t.cavalry + (t.samurai ?? 0) + (t.heavyKnights ?? 0)} total stationed`);
   form.button(carriedTotal > 0 ? `\u{1F3F9} Return Troops (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)");
   form.button(`\xA7a\u{1FA96} Train Troops (queue: ${queueCount}/10)`);
-  form.button(`\xA76\u{1F5FA} Get Formation Set x10`);
-  form.button("\xA7e\uD83D\uDD14 Get Recall Scroll\n\xA775\u{1F48E} from inventory");
+  form.button(`\xA76Get Formation Set x10 (Free)`);
+  form.button("\xA7eGet Recall Scroll (Free)");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -7638,27 +7671,11 @@ Treasury: ${village.treasury}\u{1F48E}  Iron: ${village.resourceStorage.iron}  G
       const inv11 = player.getComponent(EntityInventoryComponent8.componentId);
       const c11 = inv11?.container;
       if (!c11) break;
-      const recallCost = 5;
-      let emeralds11 = 0;
-      for (let i = 0; i < c11.size; i++) { const s = c11.getItem(i); if (s?.typeId === "minecraft:emerald") emeralds11 += s.amount; }
-      if (emeralds11 < recallCost) {
-        notifyPlayer(player.name, `\xA7cNeed ${recallCost}\u{1F48E} in your inventory to buy a Recall Scroll. Have: ${emeralds11}.`);
-        break;
-      }
-      let rem11 = recallCost;
-      for (let i = 0; i < c11.size && rem11 > 0; i++) {
-        const s = c11.getItem(i);
-        if (s?.typeId !== "minecraft:emerald") continue;
-        const take = Math.min(s.amount, rem11); rem11 -= take;
-        if (take >= s.amount) c11.setItem(i, void 0);
-        else { s.amount -= take; c11.setItem(i, s); }
-      }
       let gave11 = false;
       for (let i = 0; i < c11.size; i++) {
         if (!c11.getItem(i)) { try { c11.setItem(i, new ItemStack6("kingdoms:recall_scroll", 1)); gave11 = true; } catch {} break; }
       }
-      notifyPlayer(player.name, gave11 ? `\xA7e\uD83D\uDD14 Recall Scroll purchased for ${recallCost}\u{1F48E}! Right-click to recall nearby troops.` : "\xA7cInventory full \u2014 no space for Recall Scroll. Emeralds refunded.");
-      if (!gave11) dropItemsAtLoc(player.dimension, player.location, "minecraft:emerald", recallCost);
+      notifyPlayer(player.name, gave11 ? `\xA7eRecall Scroll obtained! Right-click to recall nearby troops.` : "\xA7cInventory full - no space for Recall Scroll.");
       break;
     }
   }
@@ -8253,7 +8270,44 @@ Shortage: ${village.foodShortageStage}/4`
       .slider(`How many to withdraw? (${count} stored)`, 1, count, 1, Math.min(16, count));
     const sliderResp = await sliderForm.show(player);
     if (sliderResp.canceled) return;
-    withdrawFromGranary(player, village, item, sliderResp.formValues[0]);
+    const qty = sliderResp.formValues[0];
+    if (item === "minecraft:wheat") {
+      const maxBread = Math.floor(count / 3);
+      const formatForm = new ActionFormData()
+        .title("Withdraw Wheat - Choose Form")
+        .body(`Stored: ${count} Wheat\nWithdraw ${qty} as:\n\n  - Wheat: receive ${qty} wheat\n  - Bread: every 3 wheat = 1 bread (receive ${Math.floor(qty / 3)} bread from ${Math.floor(qty / 3) * 3} wheat)`)
+        .button("Withdraw as Wheat")
+        .button(`Withdraw as Bread (${Math.floor(qty / 3)} loaves)`);
+      const formatResp = await formatForm.show(player);
+      if (formatResp.canceled) return;
+      if (formatResp.selection === 1) {
+        const loaves = Math.floor(qty / 3);
+        if (loaves <= 0) { notifyPlayer(player.name, "\xA7cNeed at least 3 wheat to make 1 bread."); return; }
+        const wheatUsed = loaves * 3;
+        withdrawFromGranary(player, village, "minecraft:wheat", wheatUsed);
+        const inv = player.getComponent(EntityInventoryComponent8.componentId);
+        const c = inv?.container;
+        if (c) {
+          let removed = wheatUsed;
+          for (let i = 0; i < c.size && removed > 0; i++) {
+            const s = c.getItem(i);
+            if (s?.typeId !== "minecraft:wheat") continue;
+            const take = Math.min(s.amount, removed); removed -= take;
+            if (take >= s.amount) c.setItem(i, void 0);
+            else { s.amount -= take; c.setItem(i, s); }
+          }
+          let given = 0;
+          for (let i = 0; i < c.size && given < loaves; i++) {
+            const s = c.getItem(i);
+            if (!s) { const g = Math.min(loaves - given, 64); try { c.setItem(i, new ItemStack6("minecraft:bread", g)); given += g; } catch {} }
+            else if (s.typeId === "minecraft:bread" && s.amount < 64) { const g = Math.min(loaves - given, 64 - s.amount); s.amount += g; c.setItem(i, s); given += g; }
+          }
+          notifyPlayer(player.name, `\xA7aWithdrew ${loaves} Bread (used ${wheatUsed} wheat).`);
+        }
+        return;
+      }
+    }
+    withdrawFromGranary(player, village, item, qty);
   } else if (response.selection === withdrawable.length) {
     await showGranaryDepositMenu(player, village);
   } else if (response.selection === withdrawable.length + 1) {
