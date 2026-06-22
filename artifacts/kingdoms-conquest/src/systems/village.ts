@@ -111,7 +111,7 @@ export function claimVillage(
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -160,8 +160,11 @@ export function surrenderVillage(playerName: string, villageId: string): void {
 
 export function getVillageSummary(village: VillageData): string {
   const t = village.troops;
-  const hk = t.heavyKnight ?? 0;
-  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk;
+  const hk = t.heavyKnight      ?? 0;
+  const sa = t.samurai          ?? 0;
+  const ml = t.mercenaryLancer  ?? 0;
+  const le = t.legionary        ?? 0;
+  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le;
   const stages = ["✔ None", "⚠ Stage 1", "⚠ Stage 2", "§c Stage 3", "§c Stage 4"];
   const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
   const hasStation = village.hasTradeStation ? "§a✔ Active" : "§c✘ None";

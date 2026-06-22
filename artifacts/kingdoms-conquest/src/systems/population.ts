@@ -44,18 +44,26 @@ function handlePopulationDecline(village: VillageData): void {
     village.population -= 1;
 
     const totalSoldiers =
-      village.troops.cityGuards +
-      village.troops.spearmen +
-      village.troops.archers +
-      village.troops.cavalry;
+      village.troops.cityGuards               +
+      village.troops.spearmen                 +
+      village.troops.archers                  +
+      village.troops.cavalry                  +
+      (village.troops.heavyKnight      ?? 0)  +
+      (village.troops.samurai          ?? 0)  +
+      (village.troops.mercenaryLancer  ?? 0)  +
+      (village.troops.legionary        ?? 0);
 
     if (village.population < totalSoldiers + village.workers.farmers + village.workers.workers) {
-      if (village.troops.cityGuards > 0) village.troops.cityGuards--;
-      else if (village.troops.spearmen > 0) village.troops.spearmen--;
-      else if (village.troops.archers > 0) village.troops.archers--;
-      else if (village.troops.cavalry > 0) village.troops.cavalry--;
-      else if (village.workers.workers > 0) village.workers.workers--;
-      else if (village.workers.farmers > 0) village.workers.farmers--;
+      if (village.troops.cityGuards > 0)               village.troops.cityGuards--;
+      else if (village.troops.spearmen > 0)            village.troops.spearmen--;
+      else if (village.troops.archers > 0)             village.troops.archers--;
+      else if (village.troops.cavalry > 0)             village.troops.cavalry--;
+      else if ((village.troops.heavyKnight ?? 0) > 0)      village.troops.heavyKnight!--;
+      else if ((village.troops.samurai ?? 0) > 0)          village.troops.samurai!--;
+      else if ((village.troops.mercenaryLancer ?? 0) > 0)  village.troops.mercenaryLancer!--;
+      else if ((village.troops.legionary ?? 0) > 0)        village.troops.legionary!--;
+      else if (village.workers.workers > 0)            village.workers.workers--;
+      else if (village.workers.farmers > 0)            village.workers.farmers--;
     }
 
     notifyPlayer(
@@ -166,10 +174,14 @@ function spawnVillagerEntity(village: VillageData): void {
 
 export function getTotalWorkers(village: VillageData): number {
   const soldiers =
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry;
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0);
   return village.population - soldiers;
 }
 

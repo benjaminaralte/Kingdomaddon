@@ -6,11 +6,14 @@ import { notifyPlayer } from "../utils/notify.js";
 import { spawnBanditDeserters } from "./bandit.js";
 
 const RECRUIT_COSTS: Record<TroopType, number> = {
-  cityGuards:  8,
-  spearmen:    12,
-  archers:     12,
-  cavalry:     20,
-  heavyKnight: 35,
+  cityGuards:      8,
+  spearmen:        12,
+  archers:         12,
+  cavalry:         20,
+  heavyKnight:     35,
+  samurai:         60,
+  mercenaryLancer: 50,
+  legionary:       50,
 };
 
 export function getRecruitCost(type: TroopType): number {
@@ -66,13 +69,19 @@ export function tickWages(village: VillageData): void {
 
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
 
-  const hk = village.troops.heavyKnight ?? 0;
+  const hk = village.troops.heavyKnight     ?? 0;
+  const sa = village.troops.samurai         ?? 0;
+  const ml = village.troops.mercenaryLancer ?? 0;
+  const le = village.troops.legionary       ?? 0;
   const totalWages =
     village.troops.cityGuards  * TROOP_WAGES.cityGuards +
     village.troops.spearmen    * TROOP_WAGES.spearmen +
     village.troops.archers     * TROOP_WAGES.archers +
     village.troops.cavalry     * TROOP_WAGES.cavalry +
-    hk                         * TROOP_WAGES.heavyKnight;
+    hk                         * TROOP_WAGES.heavyKnight +
+    sa                         * TROOP_WAGES.samurai +
+    ml                         * TROOP_WAGES.mercenaryLancer +
+    le                         * TROOP_WAGES.legionary;
 
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
@@ -114,7 +123,7 @@ export function tickWages(village: VillageData): void {
 
 function handleDesertion(village: VillageData): void {
   const deserters: Partial<Record<TroopType, number>> = {};
-  const keys: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight"];
+  const keys: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
 
   let totalDeserters = 0;
   for (const key of keys) {
@@ -157,21 +166,27 @@ export function upgradeBarracks(village: VillageData): boolean {
 
 export function getTotalTroops(village: VillageData): number {
   return (
-    village.troops.cityGuards +
-    village.troops.spearmen +
-    village.troops.archers +
-    village.troops.cavalry +
-    (village.troops.heavyKnight ?? 0)
+    village.troops.cityGuards               +
+    village.troops.spearmen                 +
+    village.troops.archers                  +
+    village.troops.cavalry                  +
+    (village.troops.heavyKnight      ?? 0)  +
+    (village.troops.samurai          ?? 0)  +
+    (village.troops.mercenaryLancer  ?? 0)  +
+    (village.troops.legionary        ?? 0)
   );
 }
 
 export function getMilitaryStrength(village: VillageData): number {
   return (
-    village.troops.cityGuards  * 1 +
-    village.troops.spearmen    * 2 +
-    village.troops.archers     * 2 +
-    village.troops.cavalry     * 3 +
-    (village.troops.heavyKnight ?? 0) * 5
+    village.troops.cityGuards              * 1 +
+    village.troops.spearmen                * 2 +
+    village.troops.archers                 * 2 +
+    village.troops.cavalry                 * 3 +
+    (village.troops.heavyKnight      ?? 0) * 5 +
+    (village.troops.samurai          ?? 0) * 7 +
+    (village.troops.mercenaryLancer  ?? 0) * 6 +
+    (village.troops.legionary        ?? 0) * 6
   );
 }
 

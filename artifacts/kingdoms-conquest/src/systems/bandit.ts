@@ -262,10 +262,14 @@ function raidNearbyTargets(camp: BanditCampData): void {
 
 function getTotalVillageDefense(village: VillageData): number {
   return (
-    village.troops.cityGuards * 1 +
-    village.troops.spearmen * 2 +
-    village.troops.archers * 2 +
-    village.troops.cavalry * 3
+    village.troops.cityGuards              * 1 +
+    village.troops.spearmen                * 2 +
+    village.troops.archers                 * 2 +
+    village.troops.cavalry                 * 3 +
+    (village.troops.heavyKnight      ?? 0) * 5 +
+    (village.troops.samurai          ?? 0) * 7 +
+    (village.troops.mercenaryLancer  ?? 0) * 6 +
+    (village.troops.legionary        ?? 0) * 6
   );
 }
 

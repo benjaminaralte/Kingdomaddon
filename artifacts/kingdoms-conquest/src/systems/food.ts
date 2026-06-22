@@ -30,18 +30,23 @@ export function getFoodProduction(village: VillageData): number {
 
 export function getFoodConsumption(village: VillageData): number {
   const hk = village.troops.heavyKnight ?? 0;
+  const elites =
+    (village.troops.samurai        ?? 0) +
+    (village.troops.mercenaryLancer ?? 0) +
+    (village.troops.legionary       ?? 0);
   const regularSoldiers =
     village.troops.cityGuards +
     village.troops.spearmen +
     village.troops.archers +
     village.troops.cavalry;
 
-  const civilians = village.population - regularSoldiers - hk;
+  const civilians = village.population - regularSoldiers - hk - elites;
 
   return (
     Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY +
-    regularSoldiers * FOOD_PER_SOLDIER_PER_DAY +
-    hk * FOOD_PER_HEAVY_KNIGHT_PER_DAY
+    regularSoldiers        * FOOD_PER_SOLDIER_PER_DAY +
+    hk                     * FOOD_PER_HEAVY_KNIGHT_PER_DAY +
+    elites                 * FOOD_PER_HEAVY_KNIGHT_PER_DAY
   );
 }
 

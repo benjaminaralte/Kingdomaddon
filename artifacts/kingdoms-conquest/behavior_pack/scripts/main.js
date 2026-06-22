@@ -786,7 +786,7 @@ function getKingdomStrength(kingdomId) {
   for (const vid of kingdom.villageIds) {
     const village = getVillage(vid);
     if (village) {
-      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3;
+      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
     }
   }
   return total;
@@ -906,7 +906,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -943,7 +943,10 @@ function renameVillage(playerName, villageId, newName) {
 function getVillageSummary(village) {
   const t = village.troops;
   const hk = t.heavyKnight ?? 0;
-  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk;
+  const sa = t.samurai ?? 0;
+  const ml = t.mercenaryLancer ?? 0;
+  const le = t.legionary ?? 0;
+  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le;
   const stages = ["\u2714 None", "\u26A0 Stage 1", "\u26A0 Stage 2", "\xA7c Stage 3", "\xA7c Stage 4"];
   const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
   const hasStation = village.hasTradeStation ? "\xA7a\u2714 Active" : "\xA7c\u2718 None";
@@ -1232,7 +1235,7 @@ function raidNearbyTargets(camp) {
   }
 }
 function getTotalVillageDefense(village) {
-  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3;
+  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
 }
 function disbandBanditCamp(campId) {
   const camp = getBanditCamp(campId);
@@ -1264,7 +1267,10 @@ var RECRUIT_COSTS = {
   spearmen: 12,
   archers: 12,
   cavalry: 20,
-  heavyKnight: 35
+  heavyKnight: 35,
+  samurai: 60,
+  mercenaryLancer: 50,
+  legionary: 50
 };
 function recruitTroop(village, type, count = 1) {
   if (type === "heavyKnight" && village.barracksLevel < 3) {
@@ -1300,7 +1306,10 @@ function tickWages(village) {
   const daysSinceWage = daysSince(village.lastWageDay);
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
   const hk = village.troops.heavyKnight ?? 0;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight;
+  const sa = village.troops.samurai ?? 0;
+  const ml = village.troops.mercenaryLancer ?? 0;
+  const le = village.troops.legionary ?? 0;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight + sa * TROOP_WAGES.samurai + ml * TROOP_WAGES.mercenaryLancer + le * TROOP_WAGES.legionary;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -1337,7 +1346,7 @@ function tickWages(village) {
 }
 function handleDesertion(village) {
   const deserters = {};
-  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight"];
+  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
   let totalDeserters = 0;
   for (const key of keys) {
     if (village.troops[key] > 0) {
@@ -1373,7 +1382,7 @@ function upgradeBarracks(village) {
   return true;
 }
 function getTotalTroops(village) {
-  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0);
+  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
 }
 function processAllWages() {
   for (const village of getAllVillages()) {
@@ -3190,9 +3199,10 @@ function getFoodProduction(village) {
 }
 function getFoodConsumption(village) {
   const hk = village.troops.heavyKnight ?? 0;
+  const elites = (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
   const regularSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
-  const civilians = village.population - regularSoldiers - hk;
-  return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + regularSoldiers * FOOD_PER_SOLDIER_PER_DAY + hk * FOOD_PER_HEAVY_KNIGHT_PER_DAY;
+  const civilians = village.population - regularSoldiers - hk - elites;
+  return Math.max(0, civilians) * FOOD_PER_VILLAGER_PER_DAY + regularSoldiers * FOOD_PER_SOLDIER_PER_DAY + hk * FOOD_PER_HEAVY_KNIGHT_PER_DAY + elites * FOOD_PER_HEAVY_KNIGHT_PER_DAY;
 }
 function tickFood(village) {
   const currentDay = getCurrentDay();
@@ -3310,12 +3320,16 @@ function tickPopulation(village) {
 function handlePopulationDecline(village) {
   if (village.population > 1 && Math.random() < MORTALITY_CHANCE) {
     village.population -= 1;
-    const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry;
+    const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
     if (village.population < totalSoldiers + village.workers.farmers + village.workers.workers) {
       if (village.troops.cityGuards > 0) village.troops.cityGuards--;
       else if (village.troops.spearmen > 0) village.troops.spearmen--;
       else if (village.troops.archers > 0) village.troops.archers--;
       else if (village.troops.cavalry > 0) village.troops.cavalry--;
+      else if ((village.troops.heavyKnight ?? 0) > 0) village.troops.heavyKnight--;
+      else if ((village.troops.samurai ?? 0) > 0) village.troops.samurai--;
+      else if ((village.troops.mercenaryLancer ?? 0) > 0) village.troops.mercenaryLancer--;
+      else if ((village.troops.legionary ?? 0) > 0) village.troops.legionary--;
       else if (village.workers.workers > 0) village.workers.workers--;
       else if (village.workers.farmers > 0) village.workers.farmers--;
     }
