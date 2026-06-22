@@ -7015,8 +7015,130 @@ world20.afterEvents.itemUse.subscribe((event) => {
     system6.run(() => {
       releaseTroops(player);
     });
+    return;
+  }
+  if (itemId === "kingdoms:village_spawner") {
+    void showVillageSpawnerMenu(player);
   }
 });
+async function showVillageSpawnerMenu(player) {
+  const form = new ActionFormData3().title("Village Spawner").body("Choose what to spawn near you.\n\xA77A settlement will appear ~50-80 blocks away.").button("\u{1F3D9} Spawn City\n\xA77Large walled settlement").button("\u{1F3D8} Spawn Village\n\xA77Small wooden village");
+  const response = await form.show(player);
+  if (response.canceled || response.selection === void 0) return;
+  const type = response.selection === 0 ? "city" : "village";
+  const dim = player.dimension;
+  const loc = player.location;
+  const angle = Math.random() * Math.PI * 2;
+  const dist = type === "city" ? 80 : 50;
+  const anchor = {
+    x: Math.round(loc.x + Math.cos(angle) * dist),
+    y: Math.round(loc.y),
+    z: Math.round(loc.z + Math.sin(angle) * dist)
+  };
+  notifyPlayer(player.name, `\xA77Spawning \xA7b${type}\xA77\u2026 (check ~${dist} blocks away)`);
+  system6.run(() => spawnNpcVillage(dim, anchor, type));
+}
+function spawnNpcVillage(dim, anchor, type) {
+  let groundY = anchor.y;
+  try {
+    const block = dim.getTopmostBlock({ x: anchor.x, z: anchor.z });
+    if (block) groundY = block.y;
+  } catch {
+  }
+  const base = { x: anchor.x, y: groundY, z: anchor.z };
+  const placeBlock = (x, y, z, id) => {
+    try {
+      dim.getBlock({ x: base.x + x, y: base.y + y, z: base.z + z })?.setType(id);
+    } catch {
+    }
+  };
+  const fill2 = (x1, y1, z1, x2, y2, z2, id) => {
+    for (let x = x1; x <= x2; x++)
+      for (let y = y1; y <= y2; y++)
+        for (let z = z1; z <= z2; z++)
+          placeBlock(x, y, z, id);
+  };
+  if (type === "city") {
+    for (let x = -12; x <= 12; x++) {
+      for (let y = 1; y <= 4; y++) {
+        placeBlock(x, y, -12, "minecraft:stone_bricks");
+        placeBlock(x, y, 12, "minecraft:stone_bricks");
+      }
+    }
+    for (let z = -11; z <= 11; z++) {
+      for (let y = 1; y <= 4; y++) {
+        placeBlock(-12, y, z, "minecraft:stone_bricks");
+        placeBlock(12, y, z, "minecraft:stone_bricks");
+      }
+    }
+    for (let y = 1; y <= 3; y++) {
+      placeBlock(-1, y, 12, "minecraft:air");
+      placeBlock(0, y, 12, "minecraft:air");
+      placeBlock(1, y, 12, "minecraft:air");
+    }
+    fill2(-11, 0, -11, 11, 0, 11, "minecraft:cobblestone");
+    placeBlock(0, 1, 0, "minecraft:stone_bricks");
+    placeBlock(0, 2, 0, "minecraft:water");
+    spawnNpcHouse(dim, base, -8, -8, "minecraft:oak_planks");
+    spawnNpcHouse(dim, base, 5, -8, "minecraft:oak_planks");
+    spawnNpcHouse(dim, base, -8, 5, "minecraft:oak_planks");
+    spawnNpcHouse(dim, base, 5, 5, "minecraft:oak_planks");
+    for (let i = 0; i < 4; i++) {
+      try {
+        dim.spawnEntity("minecraft:villager_v2", {
+          x: base.x + (Math.random() * 8 - 4),
+          y: base.y + 1,
+          z: base.z + (Math.random() * 8 - 4)
+        });
+      } catch {
+      }
+    }
+  } else {
+    fill2(-1, 0, -10, 1, 0, 10, "minecraft:dirt_path");
+    fill2(-10, 0, -1, 10, 0, 1, "minecraft:dirt_path");
+    placeBlock(0, 1, 0, "minecraft:cobblestone");
+    placeBlock(0, 2, 0, "minecraft:water");
+    spawnNpcHouse(dim, base, 4, -6, "minecraft:spruce_planks");
+    spawnNpcHouse(dim, base, -7, -6, "minecraft:spruce_planks");
+    spawnNpcHouse(dim, base, 4, 3, "minecraft:spruce_planks");
+    for (let i = 0; i < 3; i++) {
+      try {
+        dim.spawnEntity("minecraft:villager_v2", {
+          x: base.x + (Math.random() * 6 - 3),
+          y: base.y + 1,
+          z: base.z + (Math.random() * 6 - 3)
+        });
+      } catch {
+      }
+    }
+  }
+}
+function spawnNpcHouse(dim, base, ox, oz, wallBlock) {
+  const placeBlock = (x, y, z, id) => {
+    try {
+      dim.getBlock({ x: base.x + ox + x, y: base.y + y, z: base.z + oz + z })?.setType(id);
+    } catch {
+    }
+  };
+  const fill2 = (x1, y1, z1, x2, y2, z2, id) => {
+    for (let x = x1; x <= x2; x++)
+      for (let y = y1; y <= y2; y++)
+        for (let z = z1; z <= z2; z++)
+          placeBlock(x, y, z, id);
+  };
+  for (let x = 0; x <= 4; x++) for (let y = 1; y <= 3; y++) {
+    placeBlock(x, y, 0, wallBlock);
+    placeBlock(x, y, 4, wallBlock);
+  }
+  for (let z = 1; z <= 3; z++) for (let y = 1; y <= 3; y++) {
+    placeBlock(0, y, z, wallBlock);
+    placeBlock(4, y, z, wallBlock);
+  }
+  placeBlock(2, 1, 4, "minecraft:air");
+  placeBlock(2, 2, 4, "minecraft:air");
+  fill2(0, 4, 0, 4, 4, 4, "minecraft:oak_planks");
+  placeBlock(2, 1, 2, "minecraft:sea_lantern");
+}
 registerCommands();
 async function showClaimVillageForm(player, block) {
   const form = new ModalFormData().title("Claim Village").textField("Kingdom Name", "Enter your kingdom name...").textField("Village Name", "Enter a name for this village...");

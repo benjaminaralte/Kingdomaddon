@@ -10,7 +10,7 @@
       "minecraft:icon": { "textures": { "default": "mercenary_lancer_token" } },
       "minecraft:display_name": { "value": "Mercenary Lancer" },
       "minecraft:use_modifiers": {
-        "use_duration": 0,
+        "use_duration": 1,
         "movement_modifier": 1.0
       }
     }

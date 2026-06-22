@@ -899,8 +899,160 @@ world.afterEvents.itemUse.subscribe((event) => {
     system.run(() => {
       releaseTroops(player);
     });
+    return;
+  }
+
+  if (itemId === "kingdoms:village_spawner") {
+    void showVillageSpawnerMenu(player);
   }
 });
+
+// ── Village Spawner ──────────────────────────────────────────────────────────
+// Spawns a small procedural NPC settlement (city or village) near the player.
+
+async function showVillageSpawnerMenu(
+  player: import("@minecraft/server").Player
+): Promise<void> {
+  const form = new ActionFormData()
+    .title("Village Spawner")
+    .body("Choose what to spawn near you.\n§7A settlement will appear ~50-80 blocks away.")
+    .button("🏙 Spawn City\n§7Large walled settlement")
+    .button("🏘 Spawn Village\n§7Small wooden village");
+
+  const response = await form.show(player);
+  if (response.canceled || response.selection === undefined) return;
+
+  const type = response.selection === 0 ? "city" : "village";
+  const dim = player.dimension;
+  const loc = player.location;
+
+  // Pick a random direction and distance
+  const angle = Math.random() * Math.PI * 2;
+  const dist = type === "city" ? 80 : 50;
+  const anchor = {
+    x: Math.round(loc.x + Math.cos(angle) * dist),
+    y: Math.round(loc.y),
+    z: Math.round(loc.z + Math.sin(angle) * dist),
+  };
+
+  notifyPlayer(player.name, `§7Spawning §b${type}§7… (check ~${dist} blocks away)`);
+  system.run(() => spawnNpcVillage(dim, anchor, type));
+}
+
+function spawnNpcVillage(
+  dim: import("@minecraft/server").Dimension,
+  anchor: { x: number; y: number; z: number },
+  type: "city" | "village"
+): void {
+  // Find ground level at anchor
+  let groundY = anchor.y;
+  try {
+    const block = dim.getTopmostBlock({ x: anchor.x, z: anchor.z });
+    if (block) groundY = block.y;
+  } catch { /* use player Y */ }
+
+  const base = { x: anchor.x, y: groundY, z: anchor.z };
+
+  const placeBlock = (x: number, y: number, z: number, id: string) => {
+    try { dim.getBlock({ x: base.x + x, y: base.y + y, z: base.z + z })?.setType(id); } catch { /* skip */ }
+  };
+
+  const fill = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, id: string) => {
+    for (let x = x1; x <= x2; x++)
+      for (let y = y1; y <= y2; y++)
+        for (let z = z1; z <= z2; z++)
+          placeBlock(x, y, z, id);
+  };
+
+  if (type === "city") {
+    // Stone wall perimeter
+    for (let x = -12; x <= 12; x++) {
+      for (let y = 1; y <= 4; y++) {
+        placeBlock(x, y, -12, "minecraft:stone_bricks");
+        placeBlock(x, y,  12, "minecraft:stone_bricks");
+      }
+    }
+    for (let z = -11; z <= 11; z++) {
+      for (let y = 1; y <= 4; y++) {
+        placeBlock(-12, y, z, "minecraft:stone_bricks");
+        placeBlock( 12, y, z, "minecraft:stone_bricks");
+      }
+    }
+    // Gate openings (south wall)
+    for (let y = 1; y <= 3; y++) {
+      placeBlock(-1, y, 12, "minecraft:air");
+      placeBlock( 0, y, 12, "minecraft:air");
+      placeBlock( 1, y, 12, "minecraft:air");
+    }
+    // Cobblestone floor inside
+    fill(-11, 0, -11, 11, 0, 11, "minecraft:cobblestone");
+    // Central well
+    placeBlock(0, 1, 0, "minecraft:stone_bricks");
+    placeBlock(0, 2, 0, "minecraft:water");
+    // 4 corner houses
+    spawnNpcHouse(dim, base, -8, -8, "minecraft:oak_planks");
+    spawnNpcHouse(dim, base,  5, -8, "minecraft:oak_planks");
+    spawnNpcHouse(dim, base, -8,  5, "minecraft:oak_planks");
+    spawnNpcHouse(dim, base,  5,  5, "minecraft:oak_planks");
+    // Spawn villagers inside
+    for (let i = 0; i < 4; i++) {
+      try {
+        dim.spawnEntity("minecraft:villager_v2", {
+          x: base.x + (Math.random() * 8 - 4),
+          y: base.y + 1,
+          z: base.z + (Math.random() * 8 - 4),
+        });
+      } catch { /* skip */ }
+    }
+  } else {
+    // Small village: dirt path in a cross, 3 houses, a well
+    fill(-1, 0, -10, 1, 0, 10, "minecraft:dirt_path");
+    fill(-10, 0, -1, 10, 0, 1, "minecraft:dirt_path");
+    // Well center
+    placeBlock(0, 1, 0, "minecraft:cobblestone");
+    placeBlock(0, 2, 0, "minecraft:water");
+    // 3 small wooden houses
+    spawnNpcHouse(dim, base,  4, -6, "minecraft:spruce_planks");
+    spawnNpcHouse(dim, base, -7, -6, "minecraft:spruce_planks");
+    spawnNpcHouse(dim, base,  4,  3, "minecraft:spruce_planks");
+    // Spawn villagers
+    for (let i = 0; i < 3; i++) {
+      try {
+        dim.spawnEntity("minecraft:villager_v2", {
+          x: base.x + (Math.random() * 6 - 3),
+          y: base.y + 1,
+          z: base.z + (Math.random() * 6 - 3),
+        });
+      } catch { /* skip */ }
+    }
+  }
+}
+
+function spawnNpcHouse(
+  dim: import("@minecraft/server").Dimension,
+  base: { x: number; y: number; z: number },
+  ox: number, oz: number,
+  wallBlock: string
+): void {
+  const placeBlock = (x: number, y: number, z: number, id: string) => {
+    try { dim.getBlock({ x: base.x + ox + x, y: base.y + y, z: base.z + oz + z })?.setType(id); } catch { /* skip */ }
+  };
+  const fill = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, id: string) => {
+    for (let x = x1; x <= x2; x++)
+      for (let y = y1; y <= y2; y++)
+        for (let z = z1; z <= z2; z++)
+          placeBlock(x, y, z, id);
+  };
+  // Walls (4×4 footprint, 3 tall)
+  for (let x = 0; x <= 4; x++) for (let y = 1; y <= 3; y++) { placeBlock(x, y, 0, wallBlock); placeBlock(x, y, 4, wallBlock); }
+  for (let z = 1; z <= 3; z++) for (let y = 1; y <= 3; y++) { placeBlock(0, y, z, wallBlock); placeBlock(4, y, z, wallBlock); }
+  // Door gap on south
+  placeBlock(2, 1, 4, "minecraft:air"); placeBlock(2, 2, 4, "minecraft:air");
+  // Oak plank roof
+  fill(0, 4, 0, 4, 4, 4, "minecraft:oak_planks");
+  // Lantern inside
+  placeBlock(2, 1, 2, "minecraft:sea_lantern");
+}
 
 registerCommands();
 
