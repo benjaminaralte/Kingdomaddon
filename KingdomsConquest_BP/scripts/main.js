@@ -979,7 +979,7 @@ function getKingdomStrength(kingdomId) {
   for (const vid of kingdom.villageIds) {
     const village = getVillage(vid);
     if (village) {
-      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3;
+      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.samurai ?? 0) * 4 + (village.troops.heavyKnights ?? 0) * 5 + (village.troops.legionary ?? 0) * 4 + (village.troops.mercenaryLancer ?? 0) * 4;
     }
   }
   return total;
@@ -1382,7 +1382,7 @@ function raidNearbyTargets(camp) {
   }
 }
 function getTotalVillageDefense(village) {
-  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3;
+  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.samurai ?? 0) * 4 + (village.troops.heavyKnights ?? 0) * 5 + (village.troops.legionary ?? 0) * 4 + (village.troops.mercenaryLancer ?? 0) * 4;
 }
 function disbandBanditCamp(campId, killerPlayerName) {
   const camp = getBanditCamp(campId);
@@ -1686,24 +1686,36 @@ function tickWages(village) {
   saveVillage(village);
 }
 function handleDesertion(village) {
-  const deserters = {};
-  const keys = ["cityGuards", "spearmen", "archers", "cavalry"];
+  const troopStrengthWeights = {
+    cityGuards: 1,
+    spearmen: 2,
+    archers: 2,
+    cavalry: 3,
+    samurai: 4,
+    heavyKnights: 5,
+    legionary: 4,
+    mercenaryLancer: 4
+  };
   let totalDeserters = 0;
-  for (const key of keys) {
-    if (village.troops[key] > 0) {
-      const d = Math.ceil(village.troops[key] * 0.3);
-      deserters[key] = d;
-      village.troops[key] -= d;
+  let banditStrength = 0;
+  const deserterLines = [];
+  for (const [key, weight] of Object.entries(troopStrengthWeights)) {
+    const count = village.troops[key] ?? 0;
+    if (count > 0) {
+      const d = Math.ceil(count * 0.3);
+      village.troops[key] = count - d;
       totalDeserters += d;
+      banditStrength += d * weight;
+      deserterLines.push(`${d}x ${TROOP_LABELS[key] ?? key}`);
     }
   }
   village.missedWages = 0;
   village.prosperity = Math.max(0, village.prosperity - 25);
   notifyPlayer(
     village.owner,
-    `\xA7c${totalDeserters} soldiers deserted \xA7b${village.name}\xA7c and joined the bandits!`
+    `\xA7c${totalDeserters} soldiers deserted \xA7b${village.name}\xA7c! (${deserterLines.join(", ")}) They joined the bandits!`
   );
-  spawnBanditDeserters(village, totalDeserters);
+  spawnBanditDeserters(village, banditStrength);
 }
 function upgradeBarracks(village) {
   const maxLevel = 5;
@@ -1869,7 +1881,7 @@ var TROOP_TOKEN_MAP = {
   "kingdoms:legionary_token":      { troopType: "legionary",    entityId: "kingdoms:legionary",    label: "Legionary" }
 };
 function pickupTroops(player, village, pickup) {
-  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0) + (pickup.legionary ?? 0);
+  const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + (pickup.samurai ?? 0) + (pickup.heavyKnights ?? 0) + (pickup.legionary ?? 0) + (pickup.mercenaryLancer ?? 0);
   if (total <= 0) {
     notifyPlayer(player.name, "\xA7cSelect at least one troop to pick up.");
     return false;
@@ -1904,6 +1916,14 @@ function pickupTroops(player, village, pickup) {
     notifyPlayer(player.name, `\xA7cNot enough Heavy Knights (have ${village.troops.heavyKnights ?? 0}).`);
     return false;
   }
+  if ((pickup.legionary ?? 0) > (village.troops.legionary ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Legionaries (have ${village.troops.legionary ?? 0}).`);
+    return false;
+  }
+  if ((pickup.mercenaryLancer ?? 0) > (village.troops.mercenaryLancer ?? 0)) {
+    notifyPlayer(player.name, `\xA7cNot enough Mercenary Lancers (have ${village.troops.mercenaryLancer ?? 0}).`);
+    return false;
+  }
   const inv = player.getComponent(EntityInventoryComponent3.componentId);
   if (!inv?.container) {
     notifyPlayer(player.name, "\xA7cInventory unavailable.");
@@ -1915,8 +1935,10 @@ function pickupTroops(player, village, pickup) {
     { itemId: "kingdoms:spearman_token",     count: pickup.spearmen },
     { itemId: "kingdoms:archer_token",       count: pickup.archers },
     { itemId: "kingdoms:cavalry_token",      count: pickup.cavalry },
-    { itemId: "kingdoms:samurai_token",      count: pickup.samurai ?? 0 },
-    { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnights ?? 0 }
+    { itemId: "kingdoms:samurai_token",         count: pickup.samurai ?? 0 },
+    { itemId: "kingdoms:heavy_knight_token",    count: pickup.heavyKnights ?? 0 },
+    { itemId: "kingdoms:legionary_token",       count: pickup.legionary ?? 0 },
+    { itemId: "kingdoms:mercenary_lancer_token", count: pickup.mercenaryLancer ?? 0 }
   ].filter((t) => t.count > 0);
   let slotsNeeded = 0;
   for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
@@ -1934,6 +1956,8 @@ function pickupTroops(player, village, pickup) {
   village.troops.cavalry -= pickup.cavalry;
   village.troops.samurai = (village.troops.samurai ?? 0) - (pickup.samurai ?? 0);
   village.troops.heavyKnights = (village.troops.heavyKnights ?? 0) - (pickup.heavyKnights ?? 0);
+  village.troops.legionary = (village.troops.legionary ?? 0) - (pickup.legionary ?? 0);
+  village.troops.mercenaryLancer = (village.troops.mercenaryLancer ?? 0) - (pickup.mercenaryLancer ?? 0);
   village.treasury -= cost;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
@@ -4769,13 +4793,14 @@ var TRAINING_TICKS = {
   legionary:    550
 };
 var TROOP_LABELS = {
-  cityGuards:   "City Guard",
-  spearmen:     "Spearman",
-  archers:      "Archer",
-  cavalry:      "Cavalry",
-  samurai:      "Samurai",
-  heavyKnights: "Heavy Knight",
-  legionary:    "Legionary"
+  cityGuards:      "City Guard",
+  spearmen:        "Spearman",
+  archers:         "Archer",
+  cavalry:         "Cavalry",
+  samurai:         "Samurai",
+  heavyKnights:    "Heavy Knight",
+  legionary:       "Legionary",
+  mercenaryLancer: "Mercenary Lancer"
 };
 var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
@@ -9187,9 +9212,37 @@ async function showResourceStorageMenu(player, villageId) {
   if (response.canceled || response.selection === void 0) return;
   if (response.selection >= depositOptions.length) return;
   const opt = depositOptions[response.selection];
-  notifyPlayer(player.name, `\xA7aWithdrew ${opt.amount} ${opt.label} from storage. (Note: use /give for actual items)`);
-  rs[opt.key] = 0;
+  const itemId = RESOURCE_ITEM_IDS[opt.key];
+  if (!itemId) {
+    notifyPlayer(player.name, `\xA7cNo item mapping found for ${opt.label}.`);
+    return;
+  }
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  const container = inv?.container;
+  if (!container) return;
+  let given = 0;
+  const total = opt.amount;
+  for (let i = 0; i < container.size && given < total; i++) {
+    const slot = container.getItem(i);
+    if (!slot) {
+      const qty = Math.min(total - given, 64);
+      try { container.setItem(i, new ItemStack6(itemId, qty)); given += qty; } catch {}
+    } else if (slot.typeId === itemId && slot.amount < 64) {
+      const space = 64 - slot.amount;
+      const qty = Math.min(total - given, space);
+      slot.amount += qty;
+      try { container.setItem(i, slot); given += qty; } catch {}
+    }
+  }
+  rs[opt.key] = total - given;
   saveVillage(village);
+  if (given === total) {
+    notifyPlayer(player.name, `\xA7aWithdrew \xA7f${given}x ${opt.label}\xA7a from storage.`);
+  } else if (given > 0) {
+    notifyPlayer(player.name, `\xA7ePartial withdraw: \xA7f${given}x ${opt.label}\xA7e given. \xA7c${total - given} left \u2014 inventory full.`);
+  } else {
+    notifyPlayer(player.name, `\xA7cInventory full \u2014 could not withdraw ${opt.label}.`);
+  }
 }
 async function showActiveShipmentsMenu(player, villageId) {
   const village = getVillage(villageId);
