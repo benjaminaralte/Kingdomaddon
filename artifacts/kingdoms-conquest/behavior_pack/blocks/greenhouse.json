@@ -1,0 +1,18 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:block": {
+    "description": {
+      "identifier": "kingdoms:greenhouse",
+      "menu_category": { "category": "construction" }
+    },
+    "components": {
+      "minecraft:destructible_by_mining": { "seconds_to_destroy": 2.5 },
+      "minecraft:destructible_by_explosion": { "explosion_resistance": 8 },
+      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
+      "minecraft:material_instances": { "*": { "texture": "glass", "render_method": "blend" } },
+      "minecraft:light_emission": 4,
+      "minecraft:map_color": "#7EC8A4",
+      "minecraft:display_name": "Greenhouse"
+    }
+  }
+}

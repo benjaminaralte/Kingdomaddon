@@ -1,0 +1,25 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:greenhouse_item",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:display_name": {
+        "value": "Greenhouse"
+      },
+      "minecraft:icon": {
+        "textures": {
+          "default": "kingdoms_greenhouse"
+        }
+      },
+      "minecraft:block_placer": {
+        "block": "kingdoms:greenhouse"
+      },
+      "minecraft:max_stack_size": 1
+    }
+  }
+}

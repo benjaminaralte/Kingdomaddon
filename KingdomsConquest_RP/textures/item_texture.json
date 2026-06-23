@@ -79,6 +79,9 @@
     },
     "faye:furniture": {
       "textures": "textures/items/pamobile/faye_furniture"
+    },
+    "kingdoms_greenhouse": {
+      "textures": "textures/items/granary_tex"
     }
   }
 }

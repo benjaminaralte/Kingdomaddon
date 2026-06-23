@@ -11,6 +11,7 @@ export const STRUCTURE_BLOCK_IDS = new Set([
   "kingdoms:waypoint",
   "kingdoms:castle",
   "kingdoms:storage",
+  "kingdoms:greenhouse",
 ]);
 
 type BP = { x: number; y: number; z: number; b: string; states?: Record<string, string | number | boolean> };
@@ -589,6 +590,83 @@ function castleBlueprint(): BP[] {
   return p;
 }
 
+// ─── GREENHOUSE ───────────────────────────────────────────────────────────────
+// 11×11 footprint (x: -5..5, z: -5..5), 7 blocks tall
+// Oak log frame, glass walls & roof, farmland plots, water channels, lanterns
+function greenhouseBlueprint(): BP[] {
+  const p: BP[] = [];
+
+  // Clear interior space
+  p.push(...fill(-5, 1, -5, 5, 7, 5, "minecraft:air"));
+
+  // Dirt floor base
+  p.push(...fill(-5, 0, -5, 5, 0, 5, "minecraft:dirt"));
+
+  // Oak log corner pillars (height 1-6)
+  for (const [cx, cz] of [[-5,-5],[-5,5],[5,-5],[5,5]] as [number,number][]) {
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  }
+
+  // Mid-edge oak log pillars for glass panels
+  for (const [cx, cz] of [[-5,0],[5,0],[0,-5],[0,5]] as [number,number][]) {
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  }
+
+  // Glass walls — north (z=-5), south (z=5), east (x=5), west (x=-5)
+  // North & south: skip door gap (x=-1..1, y=1..2) on south side
+  p.push(...ring(-5, -5, 5, 5, 1, 5, "minecraft:glass"));
+  // Clear door opening on south face (z=5)
+  for (let y = 1; y <= 2; y++) {
+    p.push(blk(-1, y, 5, "minecraft:air"));
+    p.push(blk( 0, y, 5, "minecraft:air"));
+    p.push(blk( 1, y, 5, "minecraft:air"));
+  }
+  // Replace log pillars that got overwritten with glass back to logs
+  for (const [cx, cz] of [[-5,-5],[-5,5],[5,-5],[5,5],[-5,0],[5,0],[0,-5],[0,5]] as [number,number][]) {
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  }
+
+  // Glass roof (y=7 flat, full 11×11)
+  p.push(...fill(-5, 7, -5, 5, 7, 5, "minecraft:glass"));
+  // Oak log ridge beam across the top
+  p.push(...fill(-5, 7, 0, 5, 7, 0, "minecraft:oak_log"));
+  p.push(...fill(0, 7, -5, 0, 7, 5, "minecraft:oak_log"));
+
+  // Door (oak, facing south z=5)
+  p.push(...door(0, 1, 5, "minecraft:oak_door", 1));
+
+  // Interior farmland strips with water channels
+  // Two water channels at z=-2 and z=2 (single block wide)
+  p.push(...fill(-4, 0, -2, 4, 0, -2, "minecraft:water"));
+  p.push(...fill(-4, 0,  2, 4, 0,  2, "minecraft:water"));
+
+  // Farmland plots between channels and walls
+  p.push(...fill(-4, 0, -5, 4, 0, -3, "minecraft:farmland"));
+  p.push(...fill(-4, 0, -1, 4, 0,  1, "minecraft:farmland"));
+  p.push(...fill(-4, 0,  3, 4, 0,  5, "minecraft:farmland"));
+
+  // Wheat on the farmland strips (center strip stays empty for walking)
+  p.push(...fill(-4, 1, -5, 4, 1, -3, "minecraft:wheat"));
+  p.push(...fill(-4, 1,  3, 4, 1,  5, "minecraft:wheat"));
+
+  // Sea lanterns inside for light (y=1, corners of each farmland zone)
+  p.push(blk(-4, 1, -4, "minecraft:sea_lantern"));
+  p.push(blk( 4, 1, -4, "minecraft:sea_lantern"));
+  p.push(blk(-4, 1,  4, "minecraft:sea_lantern"));
+  p.push(blk( 4, 1,  4, "minecraft:sea_lantern"));
+  p.push(blk( 0, 1,  0, "minecraft:sea_lantern"));
+
+  // Composter at the back corner
+  p.push(blk(-4, 1, -4, "minecraft:composter"));
+  p.push(blk( 4, 1, -4, "minecraft:composter"));
+
+  // Barrels for seed/harvest storage
+  p.push(blk(-4, 1,  0, "minecraft:barrel"));
+  p.push(blk( 4, 1,  0, "minecraft:barrel"));
+
+  return p;
+}
+
 const BLUEPRINTS: Record<string, () => BP[]> = {
   "kingdoms:town_hall":    townHallBlueprint,
   "kingdoms:barracks":     barracksBlueprint,
@@ -600,6 +678,7 @@ const BLUEPRINTS: Record<string, () => BP[]> = {
   "kingdoms:waypoint":     waypointBlueprint,
   "kingdoms:castle":       castleBlueprint,
   "kingdoms:storage":      materialStorageBlueprint,
+  "kingdoms:greenhouse":   greenhouseBlueprint,
 };
 
 /**

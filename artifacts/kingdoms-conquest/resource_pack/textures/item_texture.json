@@ -142,6 +142,9 @@
     },
     "cavalry_lancer_elite_token": {
       "textures": "textures/items/cavalry_lancer_elite_token_tex"
+    },
+    "kingdoms_greenhouse": {
+      "textures": "textures/items/granary_tex"
     }
   }
 }

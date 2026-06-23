@@ -5315,7 +5315,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:treasury",
   "kingdoms:waypoint",
   "kingdoms:castle",
-  "kingdoms:storage"
+  "kingdoms:storage",
+  "kingdoms:greenhouse"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -5681,6 +5682,44 @@ function castleBlueprint() {
   p.push(blk(0, 5, -2, "minecraft:chest"));
   return p;
 }
+function greenhouseBlueprint() {
+  const p = [];
+  p.push(...fill(-5, 1, -5, 5, 7, 5, "minecraft:air"));
+  p.push(...fill(-5, 0, -5, 5, 0, 5, "minecraft:dirt"));
+  for (const [cx, cz] of [[-5, -5], [-5, 5], [5, -5], [5, 5]])
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  for (const [cx, cz] of [[-5, 0], [5, 0], [0, -5], [0, 5]])
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  p.push(...ring(-5, -5, 5, 5, 1, 5, "minecraft:glass"));
+  for (let y = 1; y <= 2; y++) {
+    p.push(blk(-1, y, 5, "minecraft:air"));
+    p.push(blk(0, y, 5, "minecraft:air"));
+    p.push(blk(1, y, 5, "minecraft:air"));
+  }
+  for (const [cx, cz] of [[-5, -5], [-5, 5], [5, -5], [5, 5], [-5, 0], [5, 0], [0, -5], [0, 5]])
+    p.push(...fill(cx, 1, cz, cx, 6, cz, "minecraft:oak_log"));
+  p.push(...fill(-5, 7, -5, 5, 7, 5, "minecraft:glass"));
+  p.push(...fill(-5, 7, 0, 5, 7, 0, "minecraft:oak_log"));
+  p.push(...fill(0, 7, -5, 0, 7, 5, "minecraft:oak_log"));
+  p.push(...door(0, 1, 5, "minecraft:oak_door", 1));
+  p.push(...fill(-4, 0, -2, 4, 0, -2, "minecraft:water"));
+  p.push(...fill(-4, 0, 2, 4, 0, 2, "minecraft:water"));
+  p.push(...fill(-4, 0, -5, 4, 0, -3, "minecraft:farmland"));
+  p.push(...fill(-4, 0, -1, 4, 0, 1, "minecraft:farmland"));
+  p.push(...fill(-4, 0, 3, 4, 0, 5, "minecraft:farmland"));
+  p.push(...fill(-4, 1, -5, 4, 1, -3, "minecraft:wheat"));
+  p.push(...fill(-4, 1, 3, 4, 1, 5, "minecraft:wheat"));
+  p.push(blk(-4, 1, 0, "minecraft:barrel"));
+  p.push(blk(4, 1, 0, "minecraft:barrel"));
+  p.push(blk(-4, 1, -4, "minecraft:composter"));
+  p.push(blk(4, 1, -4, "minecraft:composter"));
+  p.push(blk(0, 1, 0, "minecraft:sea_lantern"));
+  p.push(blk(-3, 1, -4, "minecraft:sea_lantern"));
+  p.push(blk(3, 1, -4, "minecraft:sea_lantern"));
+  p.push(blk(-3, 1, 4, "minecraft:sea_lantern"));
+  p.push(blk(3, 1, 4, "minecraft:sea_lantern"));
+  return p;
+}
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
   "kingdoms:barracks": barracksBlueprint,
@@ -5691,7 +5730,8 @@ var BLUEPRINTS = {
   "kingdoms:treasury": treasuryBlueprint,
   "kingdoms:waypoint": waypointBlueprint,
   "kingdoms:castle": castleBlueprint,
-  "kingdoms:storage": materialStorageBlueprint
+  "kingdoms:storage": materialStorageBlueprint,
+  "kingdoms:greenhouse": greenhouseBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -8034,7 +8074,8 @@ var TOWN_HALL_SHOP_ITEMS = [
   { label: "\u{1F528} Blacksmith", desc: "Upgrade troop weapons & armour.", itemId: "kingdoms:blacksmith_item", cost: 50 },
   { label: "\u{1F4E6} Material Storage", desc: "Stores mined iron, gold, diamonds & more.", itemId: "kingdoms:storage_item", cost: 30 },
   { label: "\u{1F3F0} Castle", desc: "Unlocks elite troops (Samurai, Lancer, Legion).", itemId: "kingdoms:castle_item", cost: 200 },
-  { label: "\u{1F5FA} Waypoint", desc: "Fast-travel point for your village.", itemId: "kingdoms:waypoint", cost: 30 }
+  { label: "\u{1F5FA} Waypoint", desc: "Fast-travel point for your village.", itemId: "kingdoms:waypoint", cost: 30 },
+  { label: "\u{1F33F} Greenhouse", desc: "Glass farming structure with farmland, water channels & wheat.", itemId: "kingdoms:greenhouse_item", cost: 60 }
 ];
 async function showTownHallShop(player, village) {
   const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(`\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA7r
