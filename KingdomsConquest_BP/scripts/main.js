@@ -2003,7 +2003,8 @@ var ENTITY_TO_TOKEN = {
   "kingdoms:heavy_knight": "kingdoms:heavy_knight_token",
   "kingdoms:samurai": "kingdoms:samurai_token",
   "kingdoms:mercenary_lancer": "kingdoms:mercenary_lancer_token",
-  "kingdoms:legionary": "kingdoms:legionary_token"
+  "kingdoms:legionary": "kingdoms:legionary_token",
+  "kingdoms:cavalry_lancer_elite": "kingdoms:cavalry_lancer_elite_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
