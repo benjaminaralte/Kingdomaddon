@@ -1,0 +1,239 @@
+{
+	"format_version": "1.10.0",
+	"animation_controllers": {
+		"controller.animation.villager_knight.activity": {
+			"initial_state": "moving",
+			"states": {
+				"moving": {
+					"on_entry": [
+						"variable.random_choices = math.random(0, 10);"
+					],
+					"animations": [
+						{
+							"move": "query.modified_move_speed"
+						},
+						"idle",
+						"look_at_target_default"
+					],
+					"transitions": [
+						{
+							"chop_attacking": "query.is_delayed_attacking && variable.random_choices <= 3.3 "
+						},
+						{
+							"heavy_chop_attacking": "query.is_delayed_attacking && variable.random_choices >3.3 && variable.random_choices <= 6.6 "
+						},
+						{
+							"stab_attacking": "query.is_delayed_attacking && variable.random_choices > 6.6 "
+						},
+						{
+							"grazing": "query.is_grazing && !query.has_target"
+						},
+						{
+							"shaking": "query.is_shaking_wetness"
+						},
+						{
+							"dying": "query.variant == 1"
+						},
+						{
+							"sit": "query.is_sitting && query.variant != 1"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"chop_attacking": {
+					"animations": [
+						"chop"
+					],
+					"transitions": [
+						{
+							"moving": "query.all_animations_finished"
+						},
+						{
+							"dying": "query.variant == 1"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"heavy_chop_attacking": {
+					"animations": [
+						"heavy_chop"
+					],
+					"transitions": [
+						{
+							"moving": "query.all_animations_finished"
+						},
+						{
+							"dying": "query.variant == 1"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"stab_attacking": {
+					"animations": [
+						"stab"
+					],
+					"transitions": [
+						{
+							"moving": "query.all_animations_finished"
+						},
+						{
+							"dying": "query.variant == 1"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"grazing": {
+					"animations": [
+						"graze"
+					],
+					"transitions": [
+						{
+							"moving": "query.is_grazing == 0 && query.all_animations_finished"
+						},
+						{
+							"dying": "query.variant == 1"
+						},
+						{
+							"sit": "query.is_sitting"
+						}
+					],
+					"blend_transition": 0.1
+				},
+				"dying": {
+					"animations": [
+						"death"
+					],
+					"transitions": [
+						{
+							"be_resurrecting": "query.variant == 2"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"be_resurrecting": {
+					"animations": [
+						"resurrect"
+					],
+					"transitions": [
+						{
+							"moving": "query.all_animations_finished"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"shaking": {
+					"animations": [
+						"shake"
+					],
+					"transitions": [
+						{
+							"moving": "!query.is_shaking_wetness"
+						}
+					]
+				},
+				"sit": {
+					"particle_effects": [
+						{
+							"effect": "villager_knight_sleep",
+							"locator": "sleep_position"
+						}
+					],
+					"animations": [
+						"sit"
+					],
+					"transitions": [
+						{
+							"stand": "!query.is_sitting"
+						},
+						{
+							"dying": "query.variant == 1"
+						}
+					],
+					"blend_transition": 0.2
+				},
+				"stand": {
+					"animations": [
+						"stand"
+					],
+					"transitions": [
+						{
+							"moving": "query.all_animations_finished"
+						},
+						{
+							"dying": "query.variant == 1"
+						}
+					],
+					"blend_transition": 0.2
+				}
+			}
+		},
+		"controller.animation.villager_knight.enchanted": {
+			"initial_state": "unenchanted",
+			"states": {
+				"unenchanted": {
+					"transitions": [
+						{
+							"enchanted": "query.variant == 5"
+						}
+					]
+				},
+				"enchanted": {
+					"particle_effects": [
+						{
+							"effect": "fire_enchanted_sword_emitter",
+							"locator": "sword"
+						}
+					],
+					"transitions": [
+						{
+							"dying": "query.variant == 1"
+						}
+					]
+				},
+				"dying": {
+					"transitions": [
+						{
+							"unenchanted": "query.variant != 1"
+						}
+					]
+				}
+			}
+		},
+		"controller.animation.villager_knight.dragon_enchanted": {
+			"initial_state": "unenchanted",
+			"states": {
+				"unenchanted": {
+					"transitions": [
+						{
+							"dragon_enchanted": "query.variant == 6"
+						}
+					]
+				},
+				"dragon_enchanted": {
+					"animations": [
+						"dragon_breath_enchanting"
+					],
+					"particle_effects": [
+						{
+							"effect": "fire_dragon_sword_emitter",
+							"locator": "sword"
+						}
+					],
+					"transitions": [
+						{
+							"dying": "query.variant == 1"
+						}
+					],
+					"blend_transition": 0.3
+				},
+				"dying": {
+					"transitions": [
+						{
+							"unenchanted": "query.variant != 1"
+						}
+					]
+				}
+			}
+		}
+	}
+}

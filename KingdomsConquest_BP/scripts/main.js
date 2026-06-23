@@ -24,7 +24,8 @@ var init_types = __esm({
       heavyKnight: 8,
       samurai: 12,
       mercenaryLancer: 10,
-      legionary: 10
+      legionary: 10,
+      cavalryLancerElite: 15
     };
     EMPTY_RESOURCE_STORAGE = {
       iron: 0,
@@ -475,7 +476,7 @@ function getKingdomStrength(kingdomId) {
   for (const vid of kingdom.villageIds) {
     const village = getVillage(vid);
     if (village) {
-      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
+      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6 + (village.troops.cavalryLancerElite ?? 0) * 8;
     }
   }
   return total;
@@ -788,7 +789,7 @@ function raidNearbyTargets(camp) {
   }
 }
 function getTotalVillageDefense(village) {
-  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6;
+  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6 + (village.troops.cavalryLancerElite ?? 0) * 8;
 }
 function disbandBanditCamp(campId) {
   const camp = getBanditCamp(campId);
@@ -851,7 +852,8 @@ var init_bandit = __esm({
       heavyKnight: "kingdoms:heavy_knight",
       samurai: "kingdoms:samurai",
       mercenaryLancer: "kingdoms:mercenary_lancer",
-      legionary: "kingdoms:legionary"
+      legionary: "kingdoms:legionary",
+      cavalryLancerElite: "kingdoms:cavalry_lancer_elite"
     };
   }
 });
@@ -1044,7 +1046,7 @@ function consumeSoldierFoodFromGranary(village) {
   const currentDay = getCurrentDay();
   const daysSinceFeed = daysSince(village.lastSoldierFeedDay ?? 0);
   if (daysSinceFeed < 3) return;
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0);
   if (soldiers === 0) {
     village.lastSoldierFeedDay = currentDay;
     village.missedSoldierFeedDays = 0;
@@ -1388,7 +1390,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0, cavalryLancerElite: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -1429,7 +1431,8 @@ function getVillageSummary(village) {
   const sa = t.samurai ?? 0;
   const ml = t.mercenaryLancer ?? 0;
   const le = t.legionary ?? 0;
-  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le;
+  const cle = t.cavalryLancerElite ?? 0;
+  const totalSoldiers = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le + cle;
   const stages = ["\u2714 None", "\u26A0 Stage 1", "\u26A0 Stage 2", "\xA7c Stage 3", "\xA7c Stage 4"];
   const rs = village.resourceStorage ?? { iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0 };
   const hasStation = village.hasTradeStation ? "\xA7a\u2714 Active" : "\xA7c\u2718 None";
@@ -1438,7 +1441,7 @@ function getVillageSummary(village) {
     `Pop: ${village.population}/${village.housingCapacity}  Prosperity: ${village.prosperity}`,
     `Treasury: ${village.treasury}\u{1F48E}  Food: ${village.foodStorage}\u{1F33E}`,
     `Market Lv${village.marketLevel}  Barracks Lv${village.barracksLevel}`,
-    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} HK:${hk}${sa > 0 ? ` Sa:${sa}` : ""}${ml > 0 ? ` ML:${ml}` : ""}${le > 0 ? ` Le:${le}` : ""})`,
+    `Troops: ${totalSoldiers} (G:${t.cityGuards} Sp:${t.spearmen} Ar:${t.archers} Ca:${t.cavalry} HK:${hk}${sa > 0 ? ` Sa:${sa}` : ""}${ml > 0 ? ` ML:${ml}` : ""}${le > 0 ? ` Le:${le}` : ""}${cle > 0 ? ` CLE:${cle}` : ""})`,
     `Food Shortage: ${stages[village.foodShortageStage] ?? "Unknown"}`,
     `Weapon Tier: ${village.blacksmith.weaponTier}  Armor Tier: ${village.blacksmith.armorTier}`,
     `Trade Station: ${hasStation}`,
@@ -1481,7 +1484,7 @@ init_storage();
 init_tick();
 init_notify();
 init_bandit();
-var ELITE_TYPES = /* @__PURE__ */ new Set(["samurai", "mercenaryLancer", "legionary"]);
+var ELITE_TYPES = /* @__PURE__ */ new Set(["samurai", "mercenaryLancer", "legionary", "cavalryLancerElite"]);
 var RECRUIT_COSTS = {
   cityGuards: 8,
   spearmen: 12,
@@ -1490,7 +1493,8 @@ var RECRUIT_COSTS = {
   heavyKnight: 35,
   samurai: 60,
   mercenaryLancer: 50,
-  legionary: 50
+  legionary: 50,
+  cavalryLancerElite: 80
 };
 function recruitTroop(village, type, count = 1) {
   if (type === "heavyKnight" && village.barracksLevel < 3) {
@@ -1513,7 +1517,7 @@ function recruitTroop(village, type, count = 1) {
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
-  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0) - village.workers.farmers - village.workers.workers;
+  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0) - (village.troops.cavalryLancerElite ?? 0) - village.workers.farmers - village.workers.workers;
   if (availableWorkers < count) {
     notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
     return false;
@@ -1543,7 +1547,8 @@ function tickWages(village) {
   const sa = village.troops.samurai ?? 0;
   const ml = village.troops.mercenaryLancer ?? 0;
   const le = village.troops.legionary ?? 0;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight + sa * TROOP_WAGES.samurai + ml * TROOP_WAGES.mercenaryLancer + le * TROOP_WAGES.legionary;
+  const cle = village.troops.cavalryLancerElite ?? 0;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight + sa * TROOP_WAGES.samurai + ml * TROOP_WAGES.mercenaryLancer + le * TROOP_WAGES.legionary + cle * TROOP_WAGES.cavalryLancerElite;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -1580,7 +1585,7 @@ function tickWages(village) {
 }
 function handleDesertion(village) {
   const deserters = {};
-  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
+  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary", "cavalryLancerElite"];
   let totalDeserters = 0;
   for (const key of keys) {
     if (village.troops[key] > 0) {
@@ -1616,7 +1621,7 @@ function upgradeBarracks(village) {
   return true;
 }
 function getTotalTroops(village) {
-  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  return village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0);
 }
 function processAllWages() {
   for (const village of getAllVillages()) {
@@ -1676,7 +1681,8 @@ function scanFromWatchtower(village, tower, currentTick) {
     "kingdoms:heavy_knight",
     "kingdoms:samurai",
     "kingdoms:mercenary_lancer",
-    "kingdoms:legionary"
+    "kingdoms:legionary",
+    "kingdoms:cavalry_lancer_elite"
   ]);
   for (const entity of nearby) {
     if (BANDIT_TYPE_IDS.has(entity.typeId) && !entity.getDynamicProperty("kc:village_id")) {
@@ -1757,9 +1763,10 @@ var TROOP_TOKEN_MAP = {
   "kingdoms:heavy_knight_token": { troopType: "heavyKnight", entityId: "kingdoms:heavy_knight", label: "Heavy Knight" },
   "kingdoms:samurai_token": { troopType: "samurai", entityId: "kingdoms:samurai", label: "Samurai" },
   "kingdoms:mercenary_lancer_token": { troopType: "mercenaryLancer", entityId: "kingdoms:mercenary_lancer", label: "Mercenary Lancer" },
-  "kingdoms:legionary_token": { troopType: "legionary", entityId: "kingdoms:legionary", label: "Legionary" }
+  "kingdoms:legionary_token": { troopType: "legionary", entityId: "kingdoms:legionary", label: "Legionary" },
+  "kingdoms:cavalry_lancer_elite_token": { troopType: "cavalryLancerElite", entityId: "kingdoms:cavalry_lancer_elite", label: "Cavalry Lancer Elite" }
 };
-var MOUNTED_ENTITIES = /* @__PURE__ */ new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer"]);
+var MOUNTED_ENTITIES = /* @__PURE__ */ new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"]);
 var _horseCounter = 0;
 function spawnMountedUnit(dim, entityId, offset) {
   const tag = `kc_wh_${_horseCounter++}`;
@@ -2110,7 +2117,8 @@ function countTroopTokens(player) {
     heavyKnight: 0,
     samurai: 0,
     mercenaryLancer: 0,
-    legionary: 0
+    legionary: 0,
+    cavalryLancerElite: 0
   };
   if (!inv?.container) return result;
   const container = inv.container;
@@ -2781,7 +2789,7 @@ function getBlacksmithSummary(village) {
   const nextAT = ARMOR_TIERS[village.blacksmith.armorTier + 1];
   const wCost = WEAPON_UPGRADE_COSTS[village.blacksmith.weaponTier];
   const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0);
   const rs = village.resourceStorage;
   return [
     `\xA7b${village.name} Blacksmith\xA7r`,
@@ -4602,7 +4610,8 @@ var TRAINING_COSTS = {
   heavyKnight: { emeralds: 10, iron: 12, gold: 5, diamonds: 2 },
   samurai: { emeralds: 20, iron: 15, gold: 8, diamonds: 5 },
   mercenaryLancer: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
-  legionary: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 }
+  legionary: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
+  cavalryLancerElite: { emeralds: 25, iron: 15, gold: 10, diamonds: 8 }
 };
 var TRAINING_TICKS = {
   cityGuards: 1200,
@@ -4612,7 +4621,8 @@ var TRAINING_TICKS = {
   heavyKnight: 6e3,
   samurai: 9e3,
   mercenaryLancer: 8e3,
-  legionary: 8e3
+  legionary: 8e3,
+  cavalryLancerElite: 10e3
 };
 var TROOP_LABELS = {
   cityGuards: "City Guard",
@@ -4622,9 +4632,10 @@ var TROOP_LABELS = {
   heavyKnight: "Heavy Knight",
   samurai: "Samurai",
   mercenaryLancer: "Mercenary Lancer",
-  legionary: "Legionary"
+  legionary: "Legionary",
+  cavalryLancerElite: "Cavalry Lancer Elite"
 };
-var ELITE_TROOP_TYPES = ["samurai", "mercenaryLancer", "legionary"];
+var ELITE_TROOP_TYPES = ["samurai", "mercenaryLancer", "legionary", "cavalryLancerElite"];
 var MAX_QUEUE_SIZE = 10;
 function canAffordTraining(village, troopType, count) {
   const cost = TRAINING_COSTS[troopType];
@@ -4738,9 +4749,10 @@ var TROOP_ENTITY_MAP = {
   heavyKnight: "kingdoms:heavy_knight",
   samurai: "kingdoms:samurai",
   mercenaryLancer: "kingdoms:mercenary_lancer",
-  legionary: "kingdoms:legionary"
+  legionary: "kingdoms:legionary",
+  cavalryLancerElite: "kingdoms:cavalry_lancer_elite"
 };
-var TROOP_PRIORITY = ["samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
+var TROOP_PRIORITY = ["cavalryLancerElite", "samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
   for (const village of getAllVillages()) {
@@ -8065,8 +8077,9 @@ async function showBarracksMenu(player, block) {
   const sm = t.samurai ?? 0;
   const ml = t.mercenaryLancer ?? 0;
   const lg = t.legionary ?? 0;
+  const cle = t.cavalryLancerElite ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0) + (carried.samurai ?? 0) + (carried.mercenaryLancer ?? 0) + (carried.legionary ?? 0);
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0) + (carried.samurai ?? 0) + (carried.mercenaryLancer ?? 0) + (carried.legionary ?? 0) + (carried.cavalryLancerElite ?? 0);
   const tick = getCurrentTick();
   const queueSummary = getTrainingQueueSummary(village, tick);
   const queueCount = village.trainingQueue?.length ?? 0;
@@ -8074,7 +8087,7 @@ async function showBarracksMenu(player, block) {
   const hkLocked = village.barracksLevel < 3;
   const castleBuilt = village.hasCastle ?? false;
   const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
-  const eliteLine = castleBuilt ? `\xA76Samurai: ${sm}  Lancer: ${ml}  Legionary: ${lg}` : `\xA77Elite Troops: \xA7c\u{1F512} needs Castle`;
+  const eliteLine = castleBuilt ? `\xA76Samurai: ${sm}  Lancer: ${ml}  Legionary: ${lg}  CLE: ${cle}` : `\xA77Elite Troops: \xA7c\u{1F512} needs Castle`;
   const form = new ActionFormData3().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
 City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
@@ -8085,14 +8098,14 @@ ${eliteLine}
 \xA77\u2500\u2500 Carried in Inventory \u2500\u2500
 Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}
 Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}
-Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}
+Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}  CLE: ${carried.cavalryLancerElite ?? 0}
 
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
 Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
   ).button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)
-\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
+\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg + cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8139,7 +8152,8 @@ async function showPickUpTroopsForm(player, village) {
   const sm2 = t.samurai ?? 0;
   const ml2 = t.mercenaryLancer ?? 0;
   const lg2 = t.legionary ?? 0;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm2 + ml2 + lg2;
+  const cle2 = t.cavalryLancerElite ?? 0;
+  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm2 + ml2 + lg2 + cle2;
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
@@ -8152,7 +8166,8 @@ async function showPickUpTroopsForm(player, village) {
     { key: "heavyKnight", label: "Heavy Knights", count: hk },
     { key: "samurai", label: "Samurai", count: sm2 },
     { key: "mercenaryLancer", label: "Mercenary Lancers", count: ml2 },
-    { key: "legionary", label: "Legionaries", count: lg2 }
+    { key: "legionary", label: "Legionaries", count: lg2 },
+    { key: "cavalryLancerElite", label: "Cavalry Lancer Elite", count: t.cavalryLancerElite ?? 0 }
   ].filter((e) => e.count > 0);
   const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`);
   for (const e of entries) {
@@ -8169,7 +8184,8 @@ async function showPickUpTroopsForm(player, village) {
     heavyKnight: 0,
     samurai: 0,
     mercenaryLancer: 0,
-    legionary: 0
+    legionary: 0,
+    cavalryLancerElite: 0
   };
   entries.forEach((e, i) => {
     pickup[e.key] = values[i] ?? 0;
@@ -8182,7 +8198,8 @@ async function showReturnTroopsForm(player, village) {
   const smCarried = carried.samurai ?? 0;
   const mlCarried = carried.mercenaryLancer ?? 0;
   const lgCarried = carried.legionary ?? 0;
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried + smCarried + mlCarried + lgCarried;
+  const cleCarried = carried.cavalryLancerElite ?? 0;
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried + smCarried + mlCarried + lgCarried + cleCarried;
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
@@ -8199,6 +8216,7 @@ async function showReturnTroopsForm(player, village) {
   Samurai: ${smCarried}
   Mercenary Lancers: ${mlCarried}
   Legionaries: ${lgCarried}
+  Cavalry Lancer Elite: ${cleCarried}
 
 \xA7aTotal: ${total} troops`
   ).button("Return All Troops").button("Cancel");
@@ -8229,7 +8247,8 @@ async function showTrainTroopsForm(player, village) {
     "heavyKnight",
     "samurai",
     "mercenaryLancer",
-    "legionary"
+    "legionary",
+    "cavalryLancerElite"
   ];
   const makeCostLine = (type) => {
     const c = TRAINING_COSTS[type];
@@ -8266,9 +8285,11 @@ ${queueSummary}
 \xA77${makeCostLine("mercenaryLancer")}` : `\xA77Mercenary Lancer (${eliteLockMsg})
 \xA77${makeCostLine("mercenaryLancer")}`).button(eliteAvailable ? `\u2B50 Legionary
 \xA77${makeCostLine("legionary")}` : `\xA77Legionary (${eliteLockMsg})
-\xA77${makeCostLine("legionary")}`).button("Back");
+\xA77${makeCostLine("legionary")}`).button(eliteAvailable ? `\u2B50 Cavalry Lancer Elite
+\xA77${makeCostLine("cavalryLancerElite")}` : `\xA77Cavalry Lancer Elite (${eliteLockMsg})
+\xA77${makeCostLine("cavalryLancerElite")}`).button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === 8) return;
+  if (response.canceled || response.selection === 9) return;
   const selectedType = troopTypes[response.selection];
   const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
   const countResponse = await countForm.show(player);

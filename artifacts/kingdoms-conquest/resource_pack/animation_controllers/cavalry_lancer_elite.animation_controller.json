@@ -1,0 +1,50 @@
+{
+    "format_version": "1.10.0",
+    "animation_controllers": {
+        "controller.animation.kingdoms.cavalry_lancer_elite": {
+            "initial_state": "root",
+            "states": {
+                "root": {
+                    "animations": ["idle"],
+                    "blend_transition": 0.2,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        { "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0" },
+                        { "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0" },
+                        { "attacking": "query.has_target && variable.attack_time > 0.0" }
+                    ]
+                },
+                "walking": {
+                    "animations": [{ "move": "query.modified_move_speed" }],
+                    "blend_transition": 0.15,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        { "root": "!(query.is_moving) && query.ground_speed <= 0.05 && !query.has_target" },
+                        { "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0" },
+                        { "attacking": "query.has_target && variable.attack_time > 0.0" }
+                    ]
+                },
+                "targeting": {
+                    "animations": ["idle"],
+                    "blend_transition": 0.15,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        { "root": "!(query.is_moving) && query.ground_speed <= 0.05 && !query.has_target" },
+                        { "walking": "query.ground_speed >= 0.05 && !query.has_target" },
+                        { "attacking": "query.has_target && variable.attack_time > 0.0" }
+                    ]
+                },
+                "attacking": {
+                    "animations": ["attack"],
+                    "blend_transition": 0.3,
+                    "blend_via_shortest_path": true,
+                    "transitions": [
+                        { "root": "!query.has_target && variable.attack_time <= 0.0" },
+                        { "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0" },
+                        { "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0" }
+                    ]
+                }
+            }
+        }
+    }
+}
