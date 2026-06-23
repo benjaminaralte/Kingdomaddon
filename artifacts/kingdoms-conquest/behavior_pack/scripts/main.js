@@ -5567,6 +5567,34 @@ function castleBlueprint() {
   p.push(blk(0, 11, 0, "minecraft:oak_fence"));
   p.push(blk(1, 11, 0, "minecraft:red_wool"));
   p.push(blk(1, 10, 0, "minecraft:red_wool"));
+  p.push(...fill(-2, 1, -2, 2, 7, 2, "minecraft:air"));
+  for (let iz = -2; iz <= 2; iz++) p.push(blk(0, 1, iz, "minecraft:red_carpet"));
+  p.push(blk(0, 1, -2, "minecraft:gold_block"));
+  p.push(blk(0, 2, -2, "minecraft:stone_bricks"));
+  p.push(blk(-1, 1, -2, "minecraft:stone_bricks"));
+  p.push(blk(1, 1, -2, "minecraft:stone_bricks"));
+  p.push(blk(0, 4, -3, "minecraft:red_wool"));
+  p.push(blk(0, 5, -3, "minecraft:red_wool"));
+  p.push(blk(0, 6, -3, "minecraft:red_wool"));
+  p.push(blk(-3, 4, 0, "minecraft:red_wool"), blk(-3, 5, 0, "minecraft:red_wool"));
+  p.push(blk(3, 4, 0, "minecraft:red_wool"), blk(3, 5, 0, "minecraft:red_wool"));
+  p.push(blk(-2, 1, -2, "minecraft:chest"));
+  p.push(blk(2, 1, -2, "minecraft:chest"));
+  p.push(blk(2, 1, 0, "minecraft:furnace"));
+  p.push(blk(2, 2, 0, "minecraft:cobblestone"));
+  p.push(blk(2, 3, 0, "minecraft:cobblestone"));
+  p.push(blk(0, 7, 0, "minecraft:glowstone"));
+  p.push(blk(-2, 4, 0, "minecraft:lantern"));
+  p.push(blk(2, 4, 0, "minecraft:lantern"));
+  p.push(blk(-2, 1, -1, "minecraft:bookshelf"));
+  p.push(blk(-2, 2, -1, "minecraft:bookshelf"));
+  p.push(...fill(-2, 4, -2, 2, 4, 2, "minecraft:stone_brick_slab"));
+  p.push(blk(-1, 5, -2, "minecraft:white_carpet"));
+  p.push(blk(1, 5, -2, "minecraft:white_carpet"));
+  p.push(blk(-2, 5, -1, "minecraft:white_carpet"));
+  p.push(blk(2, 5, -1, "minecraft:white_carpet"));
+  p.push(blk(0, 6, 0, "minecraft:lantern"));
+  p.push(blk(0, 5, -2, "minecraft:chest"));
   return p;
 }
 var BLUEPRINTS = {
@@ -7211,9 +7239,25 @@ world20.afterEvents.itemUse.subscribe((event) => {
   }
 });
 async function showVillageSpawnerMenu(player) {
-  const form = new ActionFormData3().title("Village Spawner").body("Choose what to spawn near you.\n\xA77A settlement will appear ~50-80 blocks away.").button("\u{1F3D9} Spawn City\n\xA77Large walled settlement").button("\u{1F3D8} Spawn Village\n\xA77Small wooden village");
+  const lastRaw = world20.getDynamicProperty("kc_lastSettlement");
+  const hasLast = !!lastRaw;
+  const form = new ActionFormData3().title("Village Spawner").body("Choose what to spawn near you.\n\xA77A settlement will appear ~50-80 blocks away.").button("\u{1F3D9} Spawn City\n\xA77Large walled kingdom").button("\u{1F3D8} Spawn Village\n\xA77Small walled village").button(hasLast ? "\u{1F4CD} Teleport to Last Settlement\n\xA77Return to previously spawned site" : "\u{1F4CD} No Settlement Yet\n\xA77Spawn one first");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
+  if (response.selection === 2) {
+    if (!lastRaw) {
+      notifyPlayer(player.name, "\xA7cNo settlement has been spawned yet.");
+      return;
+    }
+    try {
+      const saved = JSON.parse(lastRaw);
+      player.teleport({ x: saved.x, y: saved.y + 1, z: saved.z + 35 });
+      notifyPlayer(player.name, `\xA7aTeleported to \xA7b${saved.type}\xA7a. Gate is just ahead.`);
+    } catch {
+      notifyPlayer(player.name, "\xA7cCouldn't read last settlement location.");
+    }
+    return;
+  }
   const type = response.selection === 0 ? "city" : "village";
   const dim = player.dimension;
   const loc = player.location;
@@ -7227,13 +7271,19 @@ async function showVillageSpawnerMenu(player) {
   notifyPlayer(player.name, `\xA77Spawning \xA7b${type}\xA77\u2026 (check ~${dist} blocks away)`);
   system6.run(() => spawnNpcVillage(dim, anchor, type));
 }
-function _buildMedievalHouse(b, v, cx, cz, w, d, wall, post) {
+function _buildMedievalHouse(b, v, cmd, cx, cz, w, d, wall, post) {
   const hw = Math.floor(w / 2), hd = Math.floor(d / 2);
+  v(cx - hw, -1, cz - hd, cx + hw, -1, cz + hd, "minecraft:cobblestone");
   v(cx - hw, 0, cz - hd, cx + hw, 0, cz + hd, "minecraft:oak_planks");
-  for (const [px, pz] of [[cx - hw, cz - hd], [cx + hw, cz - hd], [cx - hw, cz + hd], [cx + hw, cz + hd]])
+  for (const [px, pz] of [
+    [cx - hw, cz - hd],
+    [cx + hw, cz - hd],
+    [cx - hw, cz + hd],
+    [cx + hw, cz + hd]
+  ])
     for (let y = 1; y <= 5; y++) b(px, y, pz, post);
   for (let y = 1; y <= 4; y++) {
-    for (let x = cx - hw; x <= cx + hw; x++) {
+    for (let x = cx - hw + 1; x <= cx + hw - 1; x++) {
       b(x, y, cz - hd, wall);
       b(x, y, cz + hd, wall);
     }
@@ -7242,7 +7292,7 @@ function _buildMedievalHouse(b, v, cx, cz, w, d, wall, post) {
       b(cx + hw, y, z, wall);
     }
   }
-  for (let x = cx - hw; x <= cx + hw; x++) {
+  for (let x = cx - hw + 1; x <= cx + hw - 1; x++) {
     b(x, 5, cz - hd, post);
     b(x, 5, cz + hd, post);
   }
@@ -7250,24 +7300,70 @@ function _buildMedievalHouse(b, v, cx, cz, w, d, wall, post) {
     b(cx - hw, 5, z, post);
     b(cx + hw, 5, z, post);
   }
-  b(cx, 2, cz - hd, "minecraft:glass_pane");
-  b(cx, 3, cz - hd, "minecraft:glass_pane");
-  b(cx, 2, cz + hd, "minecraft:glass_pane");
-  b(cx, 3, cz + hd, "minecraft:glass_pane");
-  if (w >= 8) {
-    b(cx - hw, 2, cz, "minecraft:glass_pane");
-    b(cx - hw, 3, cz, "minecraft:glass_pane");
-    b(cx + hw, 2, cz, "minecraft:glass_pane");
-    b(cx + hw, 3, cz, "minecraft:glass_pane");
-  }
+  b(cx - 1, 2, cz - hd, "minecraft:glass_pane");
+  b(cx - 1, 3, cz - hd, "minecraft:glass_pane");
+  b(cx + 1, 2, cz - hd, "minecraft:glass_pane");
+  b(cx + 1, 3, cz - hd, "minecraft:glass_pane");
+  b(cx - 1, 2, cz + hd, "minecraft:glass_pane");
+  b(cx - 1, 3, cz + hd, "minecraft:glass_pane");
+  b(cx + 1, 2, cz + hd, "minecraft:glass_pane");
+  b(cx + 1, 3, cz + hd, "minecraft:glass_pane");
+  b(cx - hw, 2, cz, "minecraft:glass_pane");
+  b(cx - hw, 3, cz, "minecraft:glass_pane");
+  b(cx + hw, 2, cz, "minecraft:glass_pane");
+  b(cx + hw, 3, cz, "minecraft:glass_pane");
   b(cx, 1, cz + hd, "minecraft:air");
   b(cx, 2, cz + hd, "minecraft:air");
-  for (let step = 0; step <= Math.min(hw, hd); step++) {
+  const roofSteps = Math.min(hw, hd);
+  for (let step = 0; step <= roofSteps; step++) {
     const x1 = cx - hw + step, x2 = cx + hw - step, z1 = cz - hd + step, z2 = cz + hd - step;
     if (x1 > x2 || z1 > z2) break;
     v(x1, 6 + step, z1, x2, 6 + step, z2, "minecraft:brick_block");
   }
-  b(cx, 1, cz, "minecraft:lantern");
+  const roofTop = 6 + roofSteps;
+  const chX = cx + hw - 1, chZ = cz - hd + 1;
+  b(chX, roofTop, chZ, "minecraft:cobblestone");
+  b(chX, roofTop + 1, chZ, "minecraft:cobblestone");
+  cmd(chX, roofTop + 2, chZ, "minecraft:campfire", '"extinguished"=false');
+  const ix1 = cx - hw + 1, ix2 = cx + hw - 1;
+  const iz1 = cz - hd + 1, iz2 = cz + hd - 1;
+  b(cx, 4, cz, "minecraft:lantern");
+  b(ix1, 3, cz, "minecraft:lantern");
+  for (let rz = iz1; rz <= iz2; rz++) b(cx, 1, rz, "minecraft:red_carpet");
+  cmd(ix1, 1, iz1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(ix1, 1, iz1 + 1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+  if (w >= 9) {
+    cmd(ix2, 1, iz1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+    cmd(ix2, 1, iz1 + 1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+  }
+  b(cx, 2, iz1, "minecraft:bookshelf");
+  b(cx, 3, iz1, "minecraft:bookshelf");
+  b(ix2, 1, iz1, "minecraft:furnace");
+  b(ix2, 2, iz1, "minecraft:cobblestone");
+  b(ix1, 1, iz2 - 1, "minecraft:crafting_table");
+  b(ix2, 1, iz2 - 1, "minecraft:chest");
+  b(ix1, 1, cz, "minecraft:barrel");
+  b(cx, 1, iz1, "minecraft:flower_pot");
+  cmd(cx, 1, cz + hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=false');
+  cmd(cx, 2, cz + hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=true');
+  const fyZ2 = cz + hd + 4;
+  const fxL = cx - hw - 1;
+  const fxR = cx + hw + 1;
+  for (let fz = cz + hd; fz <= fyZ2; fz++) {
+    b(fxL, 1, fz, "minecraft:oak_fence");
+    b(fxR, 1, fz, "minecraft:oak_fence");
+  }
+  for (let fx = fxL + 1; fx <= fxR - 1; fx++) {
+    if (fx !== cx) b(fx, 1, fyZ2, "minecraft:oak_fence");
+  }
+  cmd(cx, 1, fyZ2, "minecraft:oak_fence_gate", '"direction"=1,"in_wall_bit"=false,"open_bit"=false');
+  b(fxL, 2, fyZ2, "minecraft:oak_fence");
+  b(fxL, 3, fyZ2, "minecraft:lantern");
+  b(fxR, 2, fyZ2, "minecraft:oak_fence");
+  b(fxR, 3, fyZ2, "minecraft:lantern");
+  v(cx - 1, 0, cz + hd + 1, cx + 1, 0, fyZ2 - 1, "minecraft:dirt_path");
+  b(fxL + 1, 1, cz + hd + 2, "minecraft:flower_pot");
+  b(fxR - 1, 1, cz + hd + 2, "minecraft:flower_pot");
 }
 function _buildTower(b, v, tx, tz, r, h, wall, crown) {
   for (let y = 1; y <= h; y++)
@@ -7296,6 +7392,7 @@ function spawnNpcVillage(dim, anchor, type) {
   }
   const BX = Math.round(anchor.x), BY = groundY, BZ = Math.round(anchor.z);
   const ops = [];
+  const cmds = [];
   const b = (x, y, z, id) => ops.push([BX + x, BY + y, BZ + z, id]);
   const v = (x1, y1, z1, x2, y2, z2, id) => {
     for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++)
@@ -7315,10 +7412,18 @@ function spawnNpcVillage(dim, anchor, type) {
       }
     }
   };
+  const cmd = (x, y, z, blockId, states) => {
+    const st = states ? ` [${states}]` : "";
+    cmds.push(`setblock ${BX + x} ${BY + y} ${BZ + z} ${blockId}${st}`);
+  };
   if (type === "city") {
-    _buildKingdom(b, v, rng);
+    _buildKingdom(b, v, rng, cmd);
   } else {
-    _buildVillage(b, v, rng);
+    _buildVillage(b, v, rng, cmd);
+  }
+  try {
+    world20.setDynamicProperty("kc_lastSettlement", JSON.stringify({ x: BX, y: BY, z: BZ, type }));
+  } catch {
   }
   const villagerCount = type === "city" ? 10 : 4;
   let cursor = 0;
@@ -7335,6 +7440,10 @@ function spawnNpcVillage(dim, anchor, type) {
     cursor = end;
     if (cursor >= ops.length) {
       system6.clearRun(handle);
+      for (const c of cmds) {
+        dim.runCommandAsync(c).catch(() => {
+        });
+      }
       for (let i = 0; i < villagerCount; i++) {
         try {
           dim.spawnEntity("minecraft:villager_v2", {
@@ -7348,13 +7457,12 @@ function spawnNpcVillage(dim, anchor, type) {
     }
   }, 1);
 }
-function _buildKingdom(b, v, rng) {
+function _buildKingdom(b, v, rng, cmd) {
   const SB = "minecraft:stone_bricks";
   const CSB = "minecraft:chiseled_stone_bricks";
   const COBB = "minecraft:cobblestone";
   const OAK = "minecraft:oak_planks";
   const DOAK = "minecraft:dark_oak_planks";
-  const BRCK = "minecraft:brick_block";
   const LOG = "minecraft:stripped_oak_log";
   const DLOG = "minecraft:stripped_dark_oak_log";
   const GPNE = "minecraft:glass_pane";
@@ -7369,7 +7477,7 @@ function _buildKingdom(b, v, rng) {
   const FENC = "minecraft:oak_fence";
   const RWOL = "minecraft:red_wool";
   const WWOL = "minecraft:white_wool";
-  v(-34, 1, -34, 34, 20, 34, AIR);
+  v(-34, 1, -34, 34, 22, 34, AIR);
   v(-30, 0, -30, 30, 0, 30, COBB);
   rng(-30, -30, 30, 30, 1, 6, SB);
   for (let x = -30; x <= 30; x += 2) {
@@ -7398,10 +7506,28 @@ function _buildKingdom(b, v, rng) {
     b(gtx, 15, 30, FENC);
     b(gtx, 16, 30, RWOL);
   }
-  v(-1, 0, 31, 1, 0, 38, PATH);
+  v(-1, 0, 31, 1, 0, 40, PATH);
   v(-1, 0, 26, 1, 0, 29, PATH);
+  b(-2, 5, 30, IRBT);
+  b(2, 5, 30, IRBT);
   v(-1, 0, -28, 1, 0, 25, PATH);
   v(-28, 0, -1, 28, 0, 1, PATH);
+  for (let pz = -24; pz <= 20; pz += 8) {
+    b(-3, 1, pz, FENC);
+    b(-3, 2, pz, FENC);
+    b(-3, 3, pz, LNTN);
+    b(3, 1, pz, FENC);
+    b(3, 2, pz, FENC);
+    b(3, 3, pz, LNTN);
+  }
+  for (let px = -24; px <= 24; px += 8) {
+    b(px, 1, -3, FENC);
+    b(px, 2, -3, FENC);
+    b(px, 3, -3, LNTN);
+    b(px, 1, 3, FENC);
+    b(px, 2, 3, FENC);
+    b(px, 3, 3, LNTN);
+  }
   v(-9, 0, -9, 9, 0, 9, SB);
   v(-2, 1, -2, 2, 1, 2, SB);
   b(0, 2, 0, SB);
@@ -7412,14 +7538,44 @@ function _buildKingdom(b, v, rng) {
     b(lx, 2, lz, FENC);
     b(lx, 3, lz, LNTN);
   }
-  _buildMedievalHouse(b, v, -19, -19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, 19, -19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, -21, 2, 8, 10, DOAK, DLOG);
-  _buildMedievalHouse(b, v, 21, 2, 8, 10, DOAK, DLOG);
-  _buildMedievalHouse(b, v, -19, 19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, 19, 19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, -12, -15, 7, 6, OAK, LOG);
-  _buildMedievalHouse(b, v, 12, -15, 7, 6, OAK, LOG);
+  for (const [bx, bz] of [[-4, 0], [4, 0], [0, -4], [0, 4]])
+    b(bx, 1, bz, "minecraft:oak_slab");
+  _buildMedievalHouse(b, v, cmd, -19, -19, 10, 8, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, 19, -19, 10, 8, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, -21, 2, 8, 10, DOAK, DLOG);
+  _buildMedievalHouse(b, v, cmd, 21, 2, 8, 10, DOAK, DLOG);
+  _buildMedievalHouse(b, v, cmd, -19, 19, 10, 8, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, 19, 19, 10, 8, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, -12, -15, 7, 6, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, 12, -15, 7, 6, OAK, LOG);
+  v(-27, 0, -17, -24, 0, -13, "minecraft:farmland");
+  v(-27, 1, -17, -24, 1, -13, "minecraft:wheat");
+  rng(-28, -18, -23, -12, 1, 1, FENC);
+  v(24, 0, -17, 27, 0, -13, "minecraft:farmland");
+  v(24, 1, -17, 27, 1, -13, "minecraft:wheat");
+  rng(23, -18, 28, -12, 1, 1, FENC);
+  v(-27, 0, 12, -24, 0, 16, "minecraft:farmland");
+  v(-27, 1, 12, -24, 1, 16, "minecraft:wheat");
+  v(24, 0, 12, 27, 0, 16, "minecraft:farmland");
+  v(24, 1, 12, 27, 1, 16, "minecraft:wheat");
+  for (const [tx, tz] of [
+    [-26, -26],
+    [26, -26],
+    [-26, 26],
+    [26, 26],
+    // outer ward corners
+    [-20, 10],
+    [20, 10],
+    // flanking EW road mid-point
+    [-20, -5],
+    [20, -5]
+    // near inner keep wall
+  ]) {
+    const h = 5 + Math.floor((Math.abs(tx) + Math.abs(tz)) % 3);
+    for (let y = 1; y <= h; y++) b(tx, y, tz, OLEG);
+    v(tx - 2, h - 1, tz - 2, tx + 2, h + 2, tz + 2, OLAV);
+    b(tx, h + 3, tz, OLAV);
+  }
   rng(-14, -30, 14, -12, 1, 5, SB);
   for (let y = 1; y <= 3; y++) {
     b(-1, y, -12, AIR);
@@ -7428,16 +7584,27 @@ function _buildKingdom(b, v, rng) {
   }
   for (let x = -14; x <= 14; x += 2) b(x, 6, -12, CSB);
   v(-1, 0, -12, 1, 0, -3, PATH);
+  b(-3, 1, -12, FENC);
+  b(-3, 2, -12, FENC);
+  b(-3, 3, -12, LNTN);
+  b(3, 1, -12, FENC);
+  b(3, 2, -12, FENC);
+  b(3, 3, -12, LNTN);
   rng(-11, -29, 11, -15, 1, 10, ANDE);
   v(-10, 2, -28, 10, 10, -16, AIR);
   v(-10, 1, -28, 10, 1, -16, SB);
   for (let z = -26; z >= -18; z -= 4) {
+    b(-11, 4, z, GPNE);
     b(-11, 5, z, GPNE);
     b(-11, 6, z, GPNE);
+    b(11, 4, z, GPNE);
     b(11, 5, z, GPNE);
     b(11, 6, z, GPNE);
   }
-  for (let x = -8; x <= 8; x += 4) b(x, 5, -29, GPNE);
+  for (let x = -8; x <= 8; x += 4) {
+    b(x, 4, -29, GPNE);
+    b(x, 5, -29, GPNE);
+  }
   for (let y = 1; y <= 3; y++) {
     b(-1, y, -15, AIR);
     b(0, y, -15, AIR);
@@ -7445,10 +7612,55 @@ function _buildKingdom(b, v, rng) {
   }
   for (const [px, pz] of [[-7, -26], [7, -26], [-7, -20], [7, -20]])
     for (let y = 1; y <= 9; y++) b(px, y, pz, SB);
-  for (const [lx, lz] of [[-4, -24], [4, -24], [-4, -20], [4, -20], [0, -22]])
-    b(lx, 2, lz, LNTN);
+  for (let rz = -24; rz <= -16; rz++) b(0, 1, rz, "minecraft:red_carpet");
+  b(0, 1, -26, "minecraft:gold_block");
+  b(0, 2, -26, SB);
+  b(0, 3, -26, SB);
+  b(-1, 1, -26, SB);
+  b(1, 1, -26, SB);
+  b(0, 5, -28, RWOL);
+  b(0, 6, -28, RWOL);
+  b(0, 7, -28, RWOL);
+  b(-1, 5, -28, RWOL);
+  b(1, 5, -28, RWOL);
+  b(-10, 5, -24, RWOL);
+  b(-10, 6, -24, RWOL);
+  b(10, 5, -24, RWOL);
+  b(10, 6, -24, RWOL);
+  cmd(2, 1, -28, "minecraft:campfire", '"extinguished"=false');
+  b(2, 2, -28, COBB);
+  b(2, 3, -28, COBB);
+  b(2, 4, -28, COBB);
+  b(0, 9, -22, "minecraft:glowstone");
+  for (const [lx, lz] of [[-5, -24], [5, -24], [-5, -20], [5, -20], [-5, -17], [5, -17]])
+    b(lx, 3, lz, LNTN);
+  v(-4, 2, -21, 4, 2, -21, "minecraft:stripped_oak_log");
+  v(-4, 1, -22, 4, 1, -22, "minecraft:oak_slab");
+  v(-4, 1, -20, 4, 1, -20, "minecraft:oak_slab");
+  b(0, 3, -21, LNTN);
+  b(-9, 1, -17, "minecraft:chest");
+  b(9, 1, -17, "minecraft:chest");
+  b(-9, 2, -17, IRBT);
+  b(9, 2, -17, IRBT);
+  v(-9, 5, -28, 9, 5, -17, SB);
+  for (let ly = 2; ly <= 4; ly++) cmd(9, ly, -18, "minecraft:ladder", '"facing_direction"=4');
+  cmd(-7, 6, -27, "minecraft:red_bed", '"direction"=3,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(-7, 6, -26, "minecraft:red_bed", '"direction"=3,"occupied_bit"=false,"head_piece_bit"=false');
+  cmd(-5, 6, -27, "minecraft:red_bed", '"direction"=3,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(-5, 6, -26, "minecraft:red_bed", '"direction"=3,"occupied_bit"=false,"head_piece_bit"=false');
+  cmd(7, 6, -27, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(7, 6, -26, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+  cmd(5, 6, -27, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(5, 6, -26, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+  b(-8, 6, -20, "minecraft:chest");
+  b(8, 6, -20, "minecraft:chest");
+  b(0, 7, -24, LNTN);
+  b(-6, 7, -23, LNTN);
+  b(6, 7, -23, LNTN);
   for (const [tx, tz] of [[-11, -29], [11, -29], [-11, -15], [11, -15]]) {
     _buildTower(b, v, tx, tz, 2, 16, SB, CSB);
+    b(tx, 4, tz - 2, GPNE);
+    b(tx, 4, tz + 2, GPNE);
     b(tx, 5, tz - 2, GPNE);
     b(tx, 5, tz + 2, GPNE);
     b(tx, 18, tz, FENC);
@@ -7467,23 +7679,24 @@ function _buildKingdom(b, v, rng) {
     [12, 38],
     [0, -42],
     [24, -40],
-    [-24, -40]
+    [-24, -40],
+    [-44, 0],
+    [44, 0],
+    [0, 44]
   ]) {
-    const h = 5 + Math.floor(Math.random() * 3);
+    const h = 5 + Math.abs(tx * 3 + tz) % 4;
     for (let y = 1; y <= h; y++) b(tx, y, tz, OLEG);
     v(tx - 2, h - 1, tz - 2, tx + 2, h + 2, tz + 2, OLAV);
     b(tx, h + 3, tz, OLAV);
   }
 }
-function _buildVillage(b, v, rng) {
+function _buildVillage(b, v, rng, cmd) {
   const SB = "minecraft:stone_bricks";
   const CSB = "minecraft:chiseled_stone_bricks";
   const OAK = "minecraft:oak_planks";
   const SOAK = "minecraft:spruce_planks";
-  const BRCK = "minecraft:brick_block";
   const LOG = "minecraft:stripped_oak_log";
   const SLOG = "minecraft:stripped_spruce_log";
-  const GPNE = "minecraft:glass_pane";
   const PATH = "minecraft:dirt_path";
   const LNTN = "minecraft:lantern";
   const FENC = "minecraft:oak_fence";
@@ -7491,7 +7704,7 @@ function _buildVillage(b, v, rng) {
   const WATR = "minecraft:water";
   const OLEG = "minecraft:oak_log";
   const OLAV = "minecraft:oak_leaves";
-  v(-22, 1, -22, 22, 12, 22, AIR);
+  v(-22, 1, -22, 22, 14, 22, AIR);
   v(-20, 0, -20, 20, 0, 20, "minecraft:cobblestone");
   rng(-18, -18, 18, 18, 1, 4, SB);
   for (let x = -18; x <= 18; x += 2) {
@@ -7509,15 +7722,64 @@ function _buildVillage(b, v, rng) {
   }
   v(-1, 0, -16, 1, 0, 16, PATH);
   v(-16, 0, -1, 16, 0, 1, PATH);
+  for (let pz = -13; pz <= 13; pz += 5) {
+    b(-3, 1, pz, FENC);
+    b(-3, 2, pz, FENC);
+    b(-3, 3, pz, LNTN);
+    b(3, 1, pz, FENC);
+    b(3, 2, pz, FENC);
+    b(3, 3, pz, LNTN);
+  }
+  for (let px = -13; px <= 13; px += 5) {
+    b(px, 1, -3, FENC);
+    b(px, 2, -3, FENC);
+    b(px, 3, -3, LNTN);
+    b(px, 1, 3, FENC);
+    b(px, 2, 3, FENC);
+    b(px, 3, 3, LNTN);
+  }
   v(-1, 1, -1, 1, 1, 1, SB);
   b(0, 1, 0, WATR);
   for (const [wx, wz] of [[-2, 0], [2, 0], [0, -2], [0, 2]])
     b(wx, 1, wz, FENC);
-  _buildMedievalHouse(b, v, -11, -11, 8, 7, OAK, LOG);
-  _buildMedievalHouse(b, v, 11, -11, 8, 7, SOAK, SLOG);
-  _buildMedievalHouse(b, v, -12, 2, 7, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, 12, 2, 7, 8, SOAK, SLOG);
-  _buildMedievalHouse(b, v, 0, 11, 8, 7, OAK, LOG);
+  b(-1, 2, -1, OLEG);
+  b(1, 2, -1, OLEG);
+  b(-1, 2, 1, OLEG);
+  b(1, 2, 1, OLEG);
+  b(-1, 3, 0, OAK);
+  b(1, 3, 0, OAK);
+  b(0, 3, -1, OAK);
+  b(0, 3, 1, OAK);
+  b(0, 3, 0, LNTN);
+  v(4, 0, -3, 8, 0, 3, "minecraft:farmland");
+  v(4, 1, -3, 8, 1, 3, "minecraft:wheat");
+  for (let ff = 3; ff <= 9; ff++) {
+    b(ff, 1, -4, FENC);
+    b(ff, 1, 4, FENC);
+  }
+  b(3, 1, -4, FENC);
+  b(3, 1, 4, FENC);
+  b(9, 1, -4, FENC);
+  b(9, 1, 4, FENC);
+  for (let fz = -4; fz <= 4; fz++) {
+    b(3, 1, fz, FENC);
+    b(9, 1, fz, FENC);
+  }
+  _buildMedievalHouse(b, v, cmd, -11, -11, 8, 7, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, 11, -11, 8, 7, SOAK, SLOG);
+  _buildMedievalHouse(b, v, cmd, -12, 2, 7, 8, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, 12, 2, 7, 8, SOAK, SLOG);
+  _buildMedievalHouse(b, v, cmd, 0, 11, 8, 7, OAK, LOG);
+  for (const [tx, tz] of [
+    [-15, -14],
+    [15, -14],
+    [-15, 14]
+  ]) {
+    const h = 4 + Math.abs(tx + tz) % 2;
+    for (let y = 1; y <= h; y++) b(tx, y, tz, OLEG);
+    v(tx - 2, h - 1, tz - 2, tx + 2, h + 2, tz + 2, OLAV);
+    b(tx, h + 3, tz, OLAV);
+  }
   for (const [tx, tz] of [
     [-26, -14],
     [26, -14],
@@ -7525,11 +7787,14 @@ function _buildVillage(b, v, rng) {
     [26, 14],
     [0, -28],
     [-16, 26],
-    [16, 26]
+    [16, 26],
+    [-28, 0],
+    [28, 0]
   ]) {
-    for (let y = 1; y <= 5; y++) b(tx, y, tz, OLEG);
-    v(tx - 2, 4, tz - 2, tx + 2, 7, tz + 2, OLAV);
-    b(tx, 8, tz, OLAV);
+    const h = 5 + Math.abs(tx * 2 + tz) % 3;
+    for (let y = 1; y <= h; y++) b(tx, y, tz, OLEG);
+    v(tx - 2, h - 1, tz - 2, tx + 2, h + 2, tz + 2, OLAV);
+    b(tx, h + 3, tz, OLAV);
   }
 }
 registerCommands();

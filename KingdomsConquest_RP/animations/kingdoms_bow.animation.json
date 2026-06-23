@@ -6,10 +6,10 @@
       "blend_weight": 1.0,
       "bones": {
         "body": {
-          "rotation": [50, 0, 0]
+          "rotation": [35, 0, 0]
         },
         "head": {
-          "rotation": [35, 0, 0]
+          "rotation": [-25, 0, 0]
         }
       }
     }

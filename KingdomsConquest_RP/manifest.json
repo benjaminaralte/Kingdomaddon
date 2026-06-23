@@ -4,15 +4,15 @@
     "name": "Kingdoms & Conquest Resources",
     "description": "Textures and models for Kingdoms & Conquest",
     "uuid": "d0a6f5e4-b1c7-4a2d-e8f9-a3b4c5d6e7f8",
-    "version": [1, 6, 0],
-    "min_engine_version": [1, 21, 0]
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 30]
   },
   "modules": [
     {
       "description": "Kingdoms & Conquest Resources",
       "type": "resources",
       "uuid": "e1b7a6f5-c2d8-4b3e-f9a0-b4c5d6e7f8a9",
-      "version": [1, 6, 0]
+      "version": [1, 0, 0]
     }
   ]
 }

@@ -541,6 +541,51 @@ function castleBlueprint(): BP[] {
   p.push(blk(1, 11, 0, "minecraft:red_wool"));
   p.push(blk(1, 10, 0, "minecraft:red_wool"));
 
+  // ── Keep interior: throne room ────────────────────────────────────────────
+  // Clear interior (keep ring already placed walls, hollow the inside)
+  p.push(...fill(-2, 1, -2, 2, 7, 2, "minecraft:air"));
+  // Throne room carpet runner (south gate z=3 to north wall)
+  for (let iz = -2; iz <= 2; iz++) p.push(blk(0, 1, iz, "minecraft:red_carpet"));
+  // Throne (gold block seat + stone brick backrest)
+  p.push(blk( 0, 1, -2, "minecraft:gold_block"));
+  p.push(blk( 0, 2, -2, "minecraft:stone_bricks")); // backrest
+  p.push(blk(-1, 1, -2, "minecraft:stone_bricks")); // left armrest
+  p.push(blk( 1, 1, -2, "minecraft:stone_bricks")); // right armrest
+  // Throne banner (red wool drape on north keep wall)
+  p.push(blk(0, 4, -3, "minecraft:red_wool"));
+  p.push(blk(0, 5, -3, "minecraft:red_wool"));
+  p.push(blk(0, 6, -3, "minecraft:red_wool"));
+  // Side wall banners
+  p.push(blk(-3, 4, 0, "minecraft:red_wool"), blk(-3, 5, 0, "minecraft:red_wool"));
+  p.push(blk( 3, 4, 0, "minecraft:red_wool"), blk( 3, 5, 0, "minecraft:red_wool"));
+  // Chests flanking throne (treasury)
+  p.push(blk(-2, 1, -2, "minecraft:chest"));
+  p.push(blk( 2, 1, -2, "minecraft:chest"));
+  // Fireplace: furnace on east inner wall with cobblestone hood
+  p.push(blk(2, 1,  0, "minecraft:furnace"));
+  p.push(blk(2, 2,  0, "minecraft:cobblestone"));
+  p.push(blk(2, 3,  0, "minecraft:cobblestone"));
+  // Central chandelier (glowstone hanging from ceiling beam)
+  p.push(blk(0, 7, 0, "minecraft:glowstone"));
+  // Side lanterns
+  p.push(blk(-2, 4, 0, "minecraft:lantern"));
+  p.push(blk( 2, 4, 0, "minecraft:lantern"));
+  // Decorative bookshelf on west wall
+  p.push(blk(-2, 1, -1, "minecraft:bookshelf"));
+  p.push(blk(-2, 2, -1, "minecraft:bookshelf"));
+
+  // ── Keep upper sleeping mezzanine (y=4) ──────────────────────────────────
+  p.push(...fill(-2, 4, -2, 2, 4, 2, "minecraft:stone_brick_slab"));
+  // White carpet "beds" on upper floor
+  p.push(blk(-1, 5, -2, "minecraft:white_carpet"));
+  p.push(blk( 1, 5, -2, "minecraft:white_carpet"));
+  p.push(blk(-2, 5, -1, "minecraft:white_carpet"));
+  p.push(blk( 2, 5, -1, "minecraft:white_carpet"));
+  // Upper floor lantern
+  p.push(blk(0, 6, 0, "minecraft:lantern"));
+  // Chest for personal storage
+  p.push(blk(0, 5, -2, "minecraft:chest"));
+
   return p;
 }
 
