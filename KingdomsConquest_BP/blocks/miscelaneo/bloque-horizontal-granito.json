@@ -1,0 +1,30 @@
+//bridge-file-version: #79
+{
+	"minecraft:block": {
+		"description": {
+
+			"menu_category": {
+				"category": "construction"
+			},
+			"identifier": "ff:bloque-horizontal-granito",
+			"is_experimental": false
+		},
+		
+		"components": {
+			"minecraft:material_instances": {
+				"*": {
+					"render_method": "opaque",
+					"texture": "fence-piedra-granito"
+				}
+			},
+			"minecraft:geometry": "geometry.bloque-horizontal1",
+			"minecraft:selection_box": true,
+			"minecraft:collision_box": true,
+			"minecraft:destructible_by_mining": {
+				"seconds_to_destroy": 0.4
+			},
+			"minecraft:light_dampening": 15
+		}
+	},
+	"format_version": "1.20.20"
+}

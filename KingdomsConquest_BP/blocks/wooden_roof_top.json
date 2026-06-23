@@ -1,0 +1,132 @@
+{
+  "format_version": "1.21.20",
+  "minecraft:block": {
+    "description": {
+      "identifier": "faye:wooden_roof_top",
+      "menu_category": {
+        "category": "construction",
+        "group": "itemGroup.name.construction"
+      },
+      "traits": {
+        "minecraft:placement_direction": {
+          "enabled_states": ["minecraft:cardinal_direction"]
+        }
+      },
+      "states": {
+        "simjue:north_neighbor": [0, 1],
+        "simjue:east_neighbor": [0, 1],
+        "simjue:south_neighbor": [0, 1],
+        "simjue:west_neighbor": [0, 1]
+      }
+    },
+    "components": {
+      "tag:light": {},
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "wooden_roof_top",
+          "render_method": "alpha_test"
+        }
+      },
+      "minecraft:collision_box": {
+        "origin": [-8, 0, -8],
+        "size": [16, 16, 16]
+      },
+      "minecraft:selection_box": {
+        "origin": [-8, 0, -8],
+        "size": [16, 16, 16]
+      },
+      "minecraft:light_dampening": 0,
+      "minecraft:light_emission": 0,
+      "minecraft:custom_components": [
+        "simjue:connected",
+        "simjue:connects"
+      ]
+    },
+    "permutations": [
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'north'",
+        "components": {
+          "minecraft:transformation": {
+            "rotation": [0, 180, 0]
+          }
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'south'",
+        "components": {
+          "minecraft:transformation": {
+            "rotation": [0, 0, 0]
+          }
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'east'",
+        "components": {
+          "minecraft:transformation": {
+            "rotation": [0, 90, 0]
+          }
+        }
+      },
+      {
+        "condition": "query.block_state('minecraft:cardinal_direction') == 'west'",
+        "components": {
+          "minecraft:transformation": {
+            "rotation": [0, -90, 0]
+          }
+        }
+      },
+      {
+        "condition": "((query.block_state('minecraft:cardinal_direction') == 'north' || query.block_state('minecraft:cardinal_direction') == 'south') && (!query.block_state('simjue:east_neighbor') && !query.block_state('simjue:west_neighbor'))) || ((query.block_state('minecraft:cardinal_direction') == 'west' || query.block_state('minecraft:cardinal_direction') == 'east') && (!query.block_state('simjue:north_neighbor') && !query.block_state('simjue:south_neighbor')))",
+        "components": {
+          "minecraft:geometry": {
+            "identifier": "geometry.wooden_roof_top",
+            "bone_visibility": {
+              "left": false,
+              "middle": true,
+              "right": false
+            }
+          }
+        }
+      },
+      {
+        "condition": "(query.block_state('minecraft:cardinal_direction') == 'north' && query.block_state('simjue:east_neighbor') && !query.block_state('simjue:west_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'south' && query.block_state('simjue:west_neighbor') && !query.block_state('simjue:east_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'west' && query.block_state('simjue:north_neighbor') && !query.block_state('simjue:south_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'east' && query.block_state('simjue:south_neighbor') && !query.block_state('simjue:north_neighbor'))",
+        "components": {
+          "minecraft:geometry": {
+            "identifier": "geometry.wooden_roof_top",
+            "bone_visibility": {
+              "left": true,
+              "middle": false,
+              "right": false
+            }
+          }
+        }
+      },
+      {
+        "condition": "(query.block_state('minecraft:cardinal_direction') == 'north' || query.block_state('minecraft:cardinal_direction') == 'south') && (query.block_state('simjue:east_neighbor') && query.block_state('simjue:west_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'west' || query.block_state('minecraft:cardinal_direction') == 'east') && (query.block_state('simjue:north_neighbor') && query.block_state('simjue:south_neighbor'))",
+        "components": {
+          "minecraft:geometry": {
+            "identifier": "geometry.wooden_roof_top",
+            "bone_visibility": {
+              "left": false,
+              "middle": true,
+              "right": false
+            }
+          }
+        }
+      },
+      {
+        "condition": "(query.block_state('minecraft:cardinal_direction') == 'north' && query.block_state('simjue:west_neighbor') && !query.block_state('simjue:east_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'south' && query.block_state('simjue:east_neighbor') && !query.block_state('simjue:west_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'west' && query.block_state('simjue:south_neighbor') && !query.block_state('simjue:north_neighbor')) || (query.block_state('minecraft:cardinal_direction') == 'east' && query.block_state('simjue:north_neighbor') && !query.block_state('simjue:south_neighbor'))",
+        "components": {
+          "minecraft:geometry": {
+            "identifier": "geometry.wooden_roof_top",
+            "bone_visibility": {
+              "left": false,
+              "middle": false,
+              "right": true
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.tablas2",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 3.5,
+				"visible_bounds_offset": [0, 1.25, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-24.6, 4, 4.4], "size": [26, 1, 3], "pivot": [0, 0, 0], "rotation": [32.15544, 9.00348, 72.28875], "uv": [64, 85]},
+						{"origin": [0.6, -1.4, -1], "size": [26, 1, 3], "pivot": [0, 0, 0], "rotation": [90.57779, -14.2906, -94.60659], "uv": [65, 65]},
+						{"origin": [-0.7, 2.8, 3], "size": [26, 1, 3], "pivot": [0, 0, 0], "rotation": [90.61429, -24.29007, -94.71667], "uv": [70, 77]}
+					]
+				}
+			]
+		}
+	]
+}

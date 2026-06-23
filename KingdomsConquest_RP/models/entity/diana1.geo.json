@@ -1,0 +1,33 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.diana1",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 3,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main2",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-3.75966, 4.27022, -9], "size": [1, 16, 16], "pivot": [-0.10824, 10, -1], "rotation": [-90, -75, 90], "uv": [0, 96]},
+						{"origin": [-2.73378, -1.74592, 5.35349], "size": [3, 23, 3], "pivot": [-0.10824, 10, -1], "rotation": [-77.5, -75, 90], "uv": [116, 0]},
+						{"origin": [-2.73378, -1.74592, -10.35349], "size": [3, 23, 3], "pivot": [-0.10824, 10, -1], "rotation": [-102.5, -75, 90], "uv": [116, 0]},
+						{"origin": [-4, 0.5, 3.5], "size": [2, 20, 2], "pivot": [-0.10824, 10, -1], "rotation": [0, -90, -90], "uv": [117, 1]},
+						{"origin": [-1, 4.5, -7.5], "size": [2, 12, 2], "pivot": [-0.10824, 10, -1], "rotation": [0, -90, -90], "uv": [117, 1]},
+						{"origin": [0.83279, -0.74828, -2.5], "size": [3, 18, 3], "pivot": [-0.10824, 10, -1], "rotation": [90, -70, -90], "uv": [116, 0]}
+					]
+				},
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0]
+				}
+			]
+		}
+	]
+}

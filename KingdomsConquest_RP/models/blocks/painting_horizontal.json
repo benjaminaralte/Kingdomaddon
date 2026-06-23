@@ -1,0 +1,106 @@
+{
+	"minecraft:block": {
+		"description": {
+			"properties": {
+				"bridge:block_rotation": [
+					2,
+					3,
+					4,
+					5
+				]
+			},
+			"identifier": "faye:painting_horizontal"
+		},
+		"permutations": [
+			{
+				"condition": "query.block_property('bridge:block_rotation') == 2",
+				"components": {
+					"minecraft:rotation": [
+						0,
+						180,
+						0
+					]
+				}
+			},
+			{
+				"condition": "query.block_property('bridge:block_rotation') == 3",
+				"components": {
+					"minecraft:rotation": [
+						0,
+						0,
+						0
+					]
+				}
+			},
+			{
+				"condition": "query.block_property('bridge:block_rotation') == 4",
+				"components": {
+					"minecraft:rotation": [
+						0,
+						270,
+						0
+					]
+				}
+			},
+			{
+				"condition": "query.block_property('bridge:block_rotation') == 5",
+				"components": {
+					"minecraft:rotation": [
+						0,
+						90,
+						0
+					]
+				}
+			}
+		],
+		"components": {
+			"minecraft:on_player_placing": {
+				"event": "bridge:update_rotation"
+			},
+			"minecraft:material_instances": {
+				"*": {
+					"texture": "painting_horizontal",
+					"render_method": "alpha_test"
+				}
+			},
+			"minecraft:geometry": "geometry.painting_horizontal",
+			"minecraft:entity_collision": {
+				"origin": [
+					-0.75,
+					0,
+					-0.75
+				],
+				"size": [
+					1.5,
+					16,
+					1.5
+				]
+			},
+			"minecraft:pick_collision": {
+				"origin": [
+					-0.75,
+					0,
+					-0.75
+				],
+				"size": [
+					1.5,
+					16,
+					1.5
+				]
+			},
+			"minecraft:block_light_absorption": 0.9,
+			"minecraft:creative_category": {
+				"group": "itemGroup.name.Construction",
+				"category": "Construction"
+			}
+		},
+		"events": {
+			"bridge:update_rotation": {
+				"set_block_property": {
+					"bridge:block_rotation": "query.cardinal_facing_2d"
+				}
+			}
+		}
+	},
+	"format_version": "1.17.0"
+}

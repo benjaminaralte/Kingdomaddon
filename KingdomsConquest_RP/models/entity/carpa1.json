@@ -1,0 +1,29 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.carpa1",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 3,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-8, 9.26949, -22.84924], "size": [16, 0, 31], "pivot": [0, 7.36949, -2.94924], "rotation": [27.5, 0, 0], "uv": [1, 0]},
+						{"origin": [-8, 13, 6], "size": [16, 2, 2], "uv": [66, 3]},
+						{"origin": [-8, -2.1, -21.4], "size": [16, 2, 0], "uv": [10, 80]},
+						{"origin": [6, -5.1, -21.4], "size": [2, 3, 0], "uv": [38, 82]},
+						{"origin": [-8, -5.1, -21.4], "size": [2, 3, 0], "uv": [10, 82]},
+						{"origin": [-2, -5.1, -21.4], "size": [4, 3, 0], "uv": [22, 82]}
+					]
+				}
+			]
+		}
+	]
+}

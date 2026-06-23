@@ -1,0 +1,28 @@
+//bridge-file-version: #85
+{
+	"minecraft:block": {
+		"description": {
+			"menu_category": {
+				"category": "construction"
+			},
+			"identifier": "ff:bloque_ofuscado_2",
+			"is_experimental": false
+		},
+		"components": {
+			"minecraft:material_instances": {
+				"*": {
+					"render_method": "opaque",
+					"texture": "bloque_ofuscado"
+				}
+			},
+			"minecraft:geometry": "geometry.bloque_ofuscado_2",
+			"minecraft:selection_box": true,
+			"minecraft:collision_box": true,
+			"minecraft:destructible_by_mining": {
+				"seconds_to_destroy": 0.4
+			},
+			"minecraft:light_dampening": 15
+		}
+	},
+	"format_version": "1.20.20"
+}

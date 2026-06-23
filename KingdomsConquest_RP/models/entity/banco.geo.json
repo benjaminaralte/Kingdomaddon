@@ -1,0 +1,31 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.banco",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 3,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [8, 2, -0.5], "size": [5, 3, 1], "uv": [73, 84]},
+						{"origin": [-8, 2, -0.5], "size": [16, 3, 1], "uv": [73, 84]},
+						{"origin": [-13, 2, -0.5], "size": [5, 3, 1], "uv": [73, 84]},
+						{"origin": [-12, 0, -3], "size": [2, 9, 6], "uv": [107, 31]},
+						{"origin": [10, 0, -3], "size": [2, 9, 6], "uv": [91, 31]},
+						{"origin": [8, 9, -4], "size": [6, 1, 8], "uv": [72, 76]},
+						{"origin": [-8, 9, -4], "size": [16, 1, 8], "uv": [72, 76]},
+						{"origin": [-14, 9, -4], "size": [6, 1, 8], "uv": [83, 76]}
+					]
+				}
+			]
+		}
+	]
+}

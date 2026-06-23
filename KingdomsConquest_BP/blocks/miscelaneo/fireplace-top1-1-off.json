@@ -1,0 +1,36 @@
+//bridge-file-version: #139
+{
+	"minecraft:block": {
+		"description": {
+			"identifier": "ff:fireplace-top1-1-off",
+			"is_experimental": false,
+			"menu_category": {
+				"category": "items"
+			}
+		},
+		"components": {
+			"minecraft:material_instances": {
+				"*": {
+					"render_method": "opaque",
+					"texture": "fireplace"
+				}
+			},
+			"minecraft:geometry": "geometry.fireplace-top1-1",
+			"minecraft:collision_box": {
+				"origin": [
+					-8,
+					0,
+					-8
+				],
+				"size": [
+					16,
+					16,
+					16
+				]
+			},
+			"minecraft:loot": "loot_tables/blocks/fireplace-top1-1-off.json"
+		}
+
+	},
+	"format_version": "1.20.20"
+}

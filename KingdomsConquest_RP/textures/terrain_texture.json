@@ -1,22 +1,1507 @@
 {
-  "resource_pack_name": "kingdoms_conquest",
+  "resource_pack_name": "vanilla",
   "texture_name": "atlas.terrain",
   "padding": 8,
   "num_mip_levels": 4,
   "texture_data": {
-    "kingdoms_town_hall":             { "textures": "textures/blocks/town_hall" },
-    "kingdoms_barracks":              { "textures": "textures/blocks/barracks" },
-    "kingdoms_market":                { "textures": "textures/blocks/market" },
-    "kingdoms_granary":               { "textures": "textures/blocks/granary" },
-    "kingdoms_blacksmith":            { "textures": "textures/blocks/blacksmith" },
-    "kingdoms_treasury":              { "textures": "textures/blocks/treasury" },
-    "kingdoms_trade_station":         { "textures": "textures/blocks/trade_station" },
-    "kingdoms_guard_pole_village":    { "textures": "textures/blocks/guard_pole_village" },
-    "kingdoms_guard_pole_gate":       { "textures": "textures/blocks/guard_pole_gate" },
-    "kingdoms_guard_pole_road":       { "textures": "textures/blocks/guard_pole_road" },
-    "kingdoms_guard_pole_watchtower": { "textures": "textures/blocks/guard_pole_watchtower" },
-    "kingdoms_trade_pole":            { "textures": "textures/blocks/trade_pole" },
-    "kingdoms_waypoint":              { "textures": "textures/blocks/waypoint" },
-    "kingdoms_castle":                { "textures": "textures/blocks/castle" }
+    "book_open": {
+      "textures": [
+        "textures/block/book_open"
+      ]
+    },
+    "book_close": {
+      "textures": [
+        "textures/block/book_close"
+      ]
+    },
+    "book1": {
+      "textures": [
+        "textures/block/book1"
+      ]
+    },
+    "book2": {
+      "textures": [
+        "textures/block/book2"
+      ]
+    },
+    "chair_01": {
+      "textures": [
+        "textures/block/chair_01"
+      ]
+    },
+    "stool_1": {
+      "textures": [
+        "textures/block/stool_1"
+      ]
+    },
+    "potted_plant1": {
+      "textures": [
+        "textures/block/potted_plant1"
+      ]
+    },
+    "potted_plant2": {
+      "textures": [
+        "textures/block/potted_plant2"
+      ]
+    },
+    "mossy_chair1": {
+      "textures": [
+        "textures/block/mossy_chair1"
+      ]
+    },
+    "chair2": {
+      "textures": [
+        "textures/block/chair2"
+      ]
+    },
+    "chair3": {
+      "textures": [
+        "textures/block/chair3"
+      ]
+    },
+    "chair_5": {
+      "textures": [
+        "textures/block/chair_5"
+      ]
+    },
+    "chair4": {
+      "textures": [
+        "textures/block/chair4"
+      ]
+    },
+    "shelf1": {
+      "textures": [
+        "textures/block/shelf1"
+      ]
+    },
+    "table_cloth": {
+      "textures": [
+        "textures/block/table_cloth"
+      ]
+    },
+    "cabinet_closea": {
+      "textures": [
+        "textures/block/cabinet_closea"
+      ]
+    },
+    "cabinet_opena": {
+      "textures": [
+        "textures/block/cabinet_opena"
+      ]
+    },
+    "cabinet1": {
+      "textures": [
+        "textures/block/cabinet1"
+      ]
+    },
+    "painting_horizontal": {
+      "textures": [
+        "textures/block/painting_horizontal"
+      ]
+    },
+    "green": {
+      "textures": [
+        "textures/block/green"
+      ]
+    },
+    "cabinet_shelf1": {
+      "textures": [
+        "textures/block/cabinet_shelf1"
+      ]
+    },
+    "roof1_right": {
+      "textures": [
+        "textures/block/roof1_right"
+      ]
+    },
+    "roof1_left": {
+      "textures": [
+        "textures/block/roof1_left"
+      ]
+    },
+    "roof1_middle": {
+      "textures": [
+        "textures/block/roof1_middle"
+      ]
+    },
+    "roof2_left": {
+      "textures": [
+        "textures/block/connect/roof2_left"
+      ]
+    },
+    "roof2_right": {
+      "textures": [
+        "textures/block/connect/roof2_right"
+      ]
+    },
+    "roof2_middle": {
+      "textures": [
+        "textures/block/connect/roof2_middle"
+      ]
+    },
+    "roof2_top": {
+      "textures": [
+        "textures/block/roof2_top"
+      ]
+    },
+    "painting_vertical": {
+      "textures": [
+        "textures/block/painting_vertical"
+      ]
+    },
+    "wcabinet_close": {
+      "textures": [
+        "textures/block/wcabinet_close"
+      ]
+    },
+    "wcabinet_open": {
+      "textures": [
+        "textures/block/wcabinet_open"
+      ]
+    },
+    "flower_light": {
+      "textures": [
+        "textures/block/flower_light"
+      ]
+    },
+    "tall_cabinet0": {
+      "textures": [
+        "textures/block/tall_cabinet0"
+      ]
+    },
+    "tall_cabinet0_open": {
+      "textures": [
+        "textures/block/tall_cabinet0_open"
+      ]
+    },
+    "music_player0": {
+      "textures": [
+        "textures/block/music_player0"
+      ]
+    },
+    "sewingmachine": {
+      "textures": [
+        "textures/block/sewingmachine"
+      ]
+    },
+    "table1": {
+      "textures": [
+        "textures/block/connect/table1"
+      ]
+    },
+    "wooden_roof": {
+      "textures": [
+        "textures/block/connect/wooden_roof"
+      ]
+    },
+    "table2": {
+      "textures": [
+        "textures/block/table2"
+      ]
+    },
+    "fairy_bed": {
+      "textures": [
+        "textures/block/fairy_bed"
+      ]
+    },
+    "roof_rightt": {
+      "textures": [
+        "textures/block/roof_rightt"
+      ]
+    },
+    "roof_middlee": {
+      "textures": [
+        "textures/block/roof_middlee"
+      ]
+    },
+    "wooden_roof_top": {
+      "textures": [
+        "textures/block/connect/wooden_roof_top"
+      ]
+    },
+    "top_right": {
+      "textures": [
+        "textures/block/top_right"
+      ]
+    },
+    "top_middle": {
+      "textures": [
+        "textures/block/top_middle"
+      ]
+    },
+    "picture1": {
+      "textures": [
+        "textures/block/picture1"
+      ]
+    },
+    "pixie_bottle": {
+      "textures": [
+        "textures/block/pixie_bottle"
+      ]
+    },
+    "flower_light2": {
+      "textures": [
+        "textures/block/flower_light2"
+      ]
+    },
+    "sink_old_close": {
+      "textures": [
+        "textures/block/sink_old_close"
+      ]
+    },
+    "sink_old_open": {
+      "textures": [
+        "textures/block/sink_old_open"
+      ]
+    },
+    "roof_leftt": {
+      "textures": [
+        "textures/block/roof_leftt"
+      ]
+    },
+    "table_right": {
+      "textures": [
+        "textures/block/table_right"
+      ]
+    },
+    "cesta_patatas": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_patatas"
+        }
+      ]
+    },
+    "nautilus_armor": {
+      "textures": [
+        {
+          "path": "textures/blocks/nautilus_armor/nautilus_armor"
+        }
+      ]
+    },
+    "nautilus_armor_copper": {
+      "textures": [
+        {
+          "path": "textures/blocks/nautilus_armor/nautilus_armor_copper"
+        }
+      ]
+    },
+    "nautilus_armor_diamond": {
+      "textures": [
+        {
+          "path": "textures/blocks/nautilus_armor/nautilus_armor_diamond"
+        }
+      ]
+    },
+    "nautilus_armor_gold": {
+      "textures": [
+        {
+          "path": "textures/blocks/nautilus_armor/nautilus_armor_gold"
+        }
+      ]
+    },
+    "nautilus_armor_iron": {
+      "textures": [
+        {
+          "path": "textures/blocks/nautilus_armor/nautilus_armor_iron"
+        }
+      ]
+    },
+    "nautilus_armor_netherite": {
+      "textures": [
+        {
+          "path": "textures/blocks/nautilus_armor/nautilus_armor_netherite"
+        }
+      ]
+    },
+    "arrow_stand1": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand1"
+        }
+      ]
+    },
+    "arrow_stand2": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand2"
+        }
+      ]
+    },
+    "arrow_stand3": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand3"
+        }
+      ]
+    },
+    "arrow_stand4": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand4"
+        }
+      ]
+    },
+    "arrow_stand5": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand5"
+        }
+      ]
+    },
+    "arrow_stand6": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand6"
+        }
+      ]
+    },
+    "arrow_stand7": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand7"
+        }
+      ]
+    },
+    "arrow_stand8": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand8"
+        }
+      ]
+    },
+    "arrow_stand9": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand9"
+        }
+      ]
+    },
+    "arrow_stand10": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand10"
+        }
+      ]
+    },
+    "arrow_stand11": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand11"
+        }
+      ]
+    },
+    "arrow_stand12": {
+      "textures": [
+        {
+          "path": "textures/blocks/arrow_stand/arrow_stand12"
+        }
+      ]
+    },
+    "rascadorblanco": {
+      "textures": [
+        {
+          "path": "textures/blocks/rascadorblanco"
+        }
+      ]
+    },
+    "iron_jail_trapdoor1": {
+      "textures": [
+        {
+          "path": "textures/blocks/iron_jail_trapdoor1"
+        }
+      ]
+    },
+    "copper_jail_trapdoor1": {
+      "textures": [
+        {
+          "path": "textures/blocks/copper_jail_trapdoor1"
+        }
+      ]
+    },
+    "copper_jail_trapdoor2": {
+      "textures": [
+        {
+          "path": "textures/blocks/copper_jail_trapdoor2"
+        }
+      ]
+    },
+    "copper_jail_trapdoor3": {
+      "textures": [
+        {
+          "path": "textures/blocks/copper_jail_trapdoor3"
+        }
+      ]
+    },
+    "copper_jail_trapdoor4": {
+      "textures": [
+        {
+          "path": "textures/blocks/copper_jail_trapdoor4"
+        }
+      ]
+    },
+    "rascadorraro": {
+      "textures": [
+        {
+          "path": "textures/blocks/rascadorraro"
+        }
+      ]
+    },
+    "teja1": {
+      "textures": [
+        {
+          "path": "textures/blocks/teja1"
+        }
+      ]
+    },
+    "teja2": {
+      "textures": [
+        {
+          "path": "textures/blocks/teja2"
+        }
+      ]
+    },
+    "teja3": {
+      "textures": [
+        {
+          "path": "textures/blocks/teja3"
+        }
+      ]
+    },
+    "teja4": {
+      "textures": [
+        {
+          "path": "textures/blocks/teja4"
+        }
+      ]
+    },
+    "copper_golem_estatua": {
+      "textures": [
+        {
+          "path": "textures/blocks/copper_golem_estatua"
+        }
+      ]
+    },
+    "sofahojas1": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas1"
+        }
+      ]
+    },
+    "sofahojas2": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas2"
+        }
+      ]
+    },
+    "sofahojas3": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas3"
+        }
+      ]
+    },
+    "sofahojas4": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas4"
+        }
+      ]
+    },
+    "sofahojas5": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas5"
+        }
+      ]
+    },
+    "sofahojas6": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas6"
+        }
+      ]
+    },
+    "sofahojas7": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas7"
+        }
+      ]
+    },
+    "sofahojas8": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas8"
+        }
+      ]
+    },
+    "sofahojas9": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas9"
+        }
+      ]
+    },
+    "sofahojas10": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas10"
+        }
+      ]
+    },
+    "sofahojas11": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas11"
+        }
+      ]
+    },
+    "sofahojas12": {
+      "textures": [
+        {
+          "path": "textures/blocks/sofahojas12"
+        }
+      ]
+    },
+    "dintel1": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel1"
+        }
+      ]
+    },
+    "dintel2": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel2"
+        }
+      ]
+    },
+    "dintel3": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel3"
+        }
+      ]
+    },
+    "dintel4": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel4"
+        }
+      ]
+    },
+    "dintel5": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel5"
+        }
+      ]
+    },
+    "dintel6": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel6"
+        }
+      ]
+    },
+    "dintel7": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel7"
+        }
+      ]
+    },
+    "dintel8": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel8"
+        }
+      ]
+    },
+    "dintel9": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel9"
+        }
+      ]
+    },
+    "dintel10": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel10"
+        }
+      ]
+    },
+    "dintel11": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel11"
+        }
+      ]
+    },
+    "dintel12": {
+      "textures": [
+        {
+          "path": "textures/blocks/dintel12"
+        }
+      ]
+    },
+    "alfombra_enrollada1": {
+      "textures": [
+        {
+          "path": "textures/blocks/alfombra_enrollada1"
+        }
+      ]
+    },
+    "esquinas": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas"
+        }
+      ]
+    },
+    "stand1": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1"
+        }
+      ]
+    },
+    "stand1-1": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-1"
+        }
+      ]
+    },
+    "stand1-2": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-2"
+        }
+      ]
+    },
+    "stand1-3": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-3"
+        }
+      ]
+    },
+    "stand1-4": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-4"
+        }
+      ]
+    },
+    "stand1-5": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-5"
+        }
+      ]
+    },
+    "stand1-6": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-6"
+        }
+      ]
+    },
+    "stand1-7": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-7"
+        }
+      ]
+    },
+    "stand1-8": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-8"
+        }
+      ]
+    },
+    "stand1-9": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-9"
+        }
+      ]
+    },
+    "stand1-10": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-10"
+        }
+      ]
+    },
+    "stand1-11": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-11"
+        }
+      ]
+    },
+    "stand1-12": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-12"
+        }
+      ]
+    },
+    "stand1-13": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-13"
+        }
+      ]
+    },
+    "stand1-14": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-14"
+        }
+      ]
+    },
+    "stand1-15": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-15"
+        }
+      ]
+    },
+    "stand1-16": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-16"
+        }
+      ]
+    },
+    "stand1-17": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-17"
+        }
+      ]
+    },
+    "stand1-18": {
+      "textures": [
+        {
+          "path": "textures/blocks/disc_stand/stand1-18"
+        }
+      ]
+    },
+    "esquinas3": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas3"
+        }
+      ]
+    },
+    "esquinas4": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas4"
+        }
+      ]
+    },
+    "esquinas5": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas5"
+        }
+      ]
+    },
+    "esquinas6": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas6"
+        }
+      ]
+    },
+    "esquinas7": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas7"
+        }
+      ]
+    },
+    "esquinas8": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas8"
+        }
+      ]
+    },
+    "esquinas2": {
+      "textures": [
+        {
+          "path": "textures/blocks/esquinas2"
+        }
+      ]
+    },
+    "s": {
+      "textures": [
+        {
+          "path": "textures/blocks/s"
+        }
+      ]
+    },
+    "bloque_ofuscado": {
+      "textures": [
+        {
+          "path": "textures/blocks/bloque_ofuscado"
+        }
+      ]
+    },
+    "fence-piedra-andesita": {
+      "textures": [
+        {
+          "path": "textures/blocks/fence-piedra-andesita"
+        }
+      ]
+    },
+    "fence-piedra-granito": {
+      "textures": [
+        {
+          "path": "textures/blocks/fence-piedra-granito"
+        }
+      ]
+    },
+    "fence-piedra-diorita": {
+      "textures": [
+        {
+          "path": "textures/blocks/fence-piedra-diorita"
+        }
+      ]
+    },
+    "fence-piedra-prismarina": {
+      "textures": [
+        {
+          "path": "textures/blocks/fence-piedra-prismarina"
+        }
+      ]
+    },
+    "dinero1": {
+      "textures": [
+        {
+          "path": "textures/blocks/dinero1"
+        }
+      ]
+    },
+    "dinero2": {
+      "textures": [
+        {
+          "path": "textures/blocks/dinero2"
+        }
+      ]
+    },
+    "dinero3": {
+      "textures": [
+        {
+          "path": "textures/blocks/dinero3"
+        }
+      ]
+    },
+    "skeleton1": {
+      "textures": [
+        {
+          "path": "textures/blocks/skeleton1"
+        }
+      ]
+    },
+    "skeleton2": {
+      "textures": [
+        {
+          "path": "textures/blocks/skeleton2"
+        }
+      ]
+    },
+    "casaperro1": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro1"
+        }
+      ]
+    },
+    "casaperro2": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro2"
+        }
+      ]
+    },
+    "tocon-sierra": {
+      "textures": [
+        {
+          "path": "textures/blocks/tocon-sierra"
+        }
+      ]
+    },
+    "casaperro3": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro3"
+        }
+      ]
+    },
+    "casaperro4": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro4"
+        }
+      ]
+    },
+    "casaperro5": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro5"
+        }
+      ]
+    },
+    "casaperro6": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro6"
+        }
+      ]
+    },
+    "comedero1": {
+      "textures": [
+        {
+          "path": "textures/blocks/comedero1"
+        }
+      ]
+    },
+    "comedero2": {
+      "textures": [
+        {
+          "path": "textures/blocks/comedero2"
+        }
+      ]
+    },
+    "casaperro7": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro7"
+        }
+      ]
+    },
+    "casaperro8": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro8"
+        }
+      ]
+    },
+    "ruina": {
+      "textures": [
+        {
+          "path": "textures/blocks/ruina"
+        }
+      ]
+    },
+    "chaina": {
+      "textures": [
+        {
+          "path": "textures/blocks/chaina"
+        }
+      ]
+    },
+    "chaina-cobre-1": {
+      "textures": [
+        {
+          "path": "textures/blocks/chaina-cobre-1"
+        }
+      ]
+    },
+    "chaina-cobre-2": {
+      "textures": [
+        {
+          "path": "textures/blocks/chaina-cobre-2"
+        }
+      ]
+    },
+    "chaina-cobre-3": {
+      "textures": [
+        {
+          "path": "textures/blocks/chaina-cobre-3"
+        }
+      ]
+    },
+    "chaina-cobre-4": {
+      "textures": [
+        {
+          "path": "textures/blocks/chaina-cobre-4"
+        }
+      ]
+    },
+    "casaperro9": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro9"
+        }
+      ]
+    },
+    "casaperro10": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro10"
+        }
+      ]
+    },
+    "casaperro11": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro11"
+        }
+      ]
+    },
+    "casaperro12": {
+      "textures": [
+        {
+          "path": "textures/blocks/casaperro12"
+        }
+      ]
+    },
+    "paloantorcha": {
+      "textures": [
+        {
+          "path": "textures/blocks/paloantorcha"
+        }
+      ]
+    },
+    "barril": {
+      "textures": [
+        {
+          "path": "textures/blocks/barril"
+        }
+      ]
+    },
+    "fireplace": {
+      "textures": [
+        {
+          "path": "textures/blocks/fireplace"
+        }
+      ]
+    },
+    "carpa1": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa1"
+        }
+      ]
+    },
+    "carpa2": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa2"
+        }
+      ]
+    },
+    "carpa3": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa3"
+        }
+      ]
+    },
+    "carpa4": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa4"
+        }
+      ]
+    },
+    "carpa5": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa5"
+        }
+      ]
+    },
+    "carpa6": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa6"
+        }
+      ]
+    },
+    "carpa7": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa7"
+        }
+      ]
+    },
+    "carpa8": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa8"
+        }
+      ]
+    },
+    "carpa9": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa9"
+        }
+      ]
+    },
+    "carpa10": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa10"
+        }
+      ]
+    },
+    "carpa11": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa11"
+        }
+      ]
+    },
+    "carpa12": {
+      "textures": [
+        {
+          "path": "textures/blocks/carpa12"
+        }
+      ]
+    },
+    "trampilla": {
+      "textures": [
+        {
+          "path": "textures/blocks/trampilla"
+        }
+      ]
+    },
+    "rope": {
+      "textures": [
+        {
+          "path": "textures/blocks/rope"
+        }
+      ]
+    },
+    "natural_trapdoor1": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor1"
+        }
+      ]
+    },
+    "natural_trapdoor2": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor2"
+        }
+      ]
+    },
+    "natural_trapdoor3": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor3"
+        }
+      ]
+    },
+    "natural_trapdoor4": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor4"
+        }
+      ]
+    },
+    "natural_trapdoor5": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor5"
+        }
+      ]
+    },
+    "natural_trapdoor6": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor6"
+        }
+      ]
+    },
+    "natural_trapdoor7": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor7"
+        }
+      ]
+    },
+    "natural_trapdoor8": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor8"
+        }
+      ]
+    },
+    "natural_trapdoor9": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor9"
+        }
+      ]
+    },
+    "natural_trapdoor10": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor10"
+        }
+      ]
+    },
+    "natural_trapdoor11": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor11"
+        }
+      ]
+    },
+    "natural_trapdoor12": {
+      "textures": [
+        {
+          "path": "textures/blocks/natural_trapdoor/natural_trapdoor12"
+        }
+      ]
+    },
+    "cuerda": {
+      "textures": [
+        {
+          "path": "textures/blocks/rope"
+        }
+      ]
+    },
+    "caja_cana1": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana1"
+        }
+      ]
+    },
+    "caja_cana2": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana2"
+        }
+      ]
+    },
+    "caja_cana3": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana3"
+        }
+      ]
+    },
+    "caja_cana4": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana4"
+        }
+      ]
+    },
+    "caja_cana5": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana5"
+        }
+      ]
+    },
+    "caja_cana6": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana6"
+        }
+      ]
+    },
+    "caja_cana7": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana7"
+        }
+      ]
+    },
+    "caja_cana8": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana8"
+        }
+      ]
+    },
+    "caja_cana9": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana9"
+        }
+      ]
+    },
+    "caja_cana10": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana10"
+        }
+      ]
+    },
+    "caja_cana11": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana11"
+        }
+      ]
+    },
+    "caja_cana12": {
+      "textures": [
+        {
+          "path": "textures/blocks/cesta_cana/caja_cana12"
+        }
+      ]
+    },
+    "ff_stand_horn1": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn1"
+        }
+      ]
+    },
+    "ff_stand_horn2": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn2"
+        }
+      ]
+    },
+    "ff_stand_horn3": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn3"
+        }
+      ]
+    },
+    "ff_stand_horn4": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn4"
+        }
+      ]
+    },
+    "ff_stand_horn5": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn5"
+        }
+      ]
+    },
+    "ff_stand_horn6": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn6"
+        }
+      ]
+    },
+    "ff_stand_horn7": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn7"
+        }
+      ]
+    },
+    "ff_stand_horn8": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn8"
+        }
+      ]
+    },
+    "ff_stand_horn9": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn9"
+        }
+      ]
+    },
+    "ff_stand_horn10": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn10"
+        }
+      ]
+    },
+    "ff_stand_horn11": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn11"
+        }
+      ]
+    },
+    "ff_stand_horn12": {
+      "textures": [
+        {
+          "path": "textures/blocks/horn_stand/ff_stand_horn12"
+        }
+      ]
+    },
+    "ff_stand_trident": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_trident"
+        }
+      ]
+    },
+    "ff_stand_sword_diamond": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_diamond"
+        }
+      ]
+    },
+    "ff_stand_sword_iron": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_iron"
+        }
+      ]
+    },
+    "ff_stand_sword_copper": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_copper"
+        }
+      ]
+    },
+    "ff_stand_sword_gold": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_gold"
+        }
+      ]
+    },
+    "ff_stand_sword_netherite": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_netherite"
+        }
+      ]
+    },
+    "ff_stand_sword_stone": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_stone"
+        }
+      ]
+    },
+    "ff_stand_sword_wood": {
+      "textures": [
+        {
+          "path": "textures/blocks/weapon_stand/ff_stand_sword_wood"
+        }
+      ]
+    }
   }
 }

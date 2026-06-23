@@ -1,0 +1,29 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.martillo",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 1.5,
+				"visible_bounds_offset": [0, 0.25, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-4.5201, 1.07307, 3.06679], "size": [3, 1.4, 1.4], "pivot": [0.91486, 2, 0.89275], "rotation": [20, -28, 0], "uv": [37, 74]},
+						{"origin": [-3.5201, 1.27307, -2.73321], "size": [1, 1, 6], "pivot": [0.91486, 2, 0.89275], "rotation": [20, -28, 0], "uv": [86, 22]},
+						{"origin": [2.1689, 0, 4.05493], "size": [5, 2, 2], "pivot": [0.91486, 2, 0.89275], "rotation": [0, 72.5, 0], "uv": [34, 67]},
+						{"origin": [0.0672, 2, 3.29338], "size": [5, 2, 2], "pivot": [0.91486, 2, 0.89275], "rotation": [0, 59.5, 0], "uv": [34, 67]},
+						{"origin": [-0.54561, 0, 3.05922], "size": [5, 2, 2], "pivot": [0.91486, 2, 0.89275], "rotation": [0, 27.5, 0], "uv": [29, 72]},
+						{"origin": [-5.35871, 0, 3.68531], "size": [5, 2, 2], "pivot": [0.91486, 2, 0.89275], "rotation": [0, -27.5, 0], "uv": [29, 72]}
+					]
+				}
+			]
+		}
+	]
+}

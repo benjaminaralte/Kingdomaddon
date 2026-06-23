@@ -1,0 +1,29 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.fireplace-top1-1",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-4, 0, -4], "size": [8, 10, 8], "uv": [41, 99]},
+						{"origin": [-4, 10, 4], "size": [8, 3, 2], "uv": [106, 121]},
+						{"origin": [-6, 10, 4], "size": [12, 3, 2], "pivot": [0, 11.5, 0], "rotation": [0, 90, 0], "uv": [88, 117]},
+						{"origin": [-4, 10.2, -4], "size": [8, 0, 8], "uv": [-8, 120]},
+						{"origin": [-4, 10, -6], "size": [8, 3, 2], "uv": [70, 121]},
+						{"origin": [-6, 10, -6], "size": [12, 3, 2], "pivot": [0, 11.5, 0], "rotation": [0, 90, 0], "uv": [69, 101]}
+					]
+				}
+			]
+		}
+	]
+}

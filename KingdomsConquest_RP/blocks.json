@@ -1,0 +1,112 @@
+{
+  "format_version": [
+    1,
+    1,
+    0
+  ],
+  "faye:book": {
+    "sound": "block"
+  },
+  "faye:books": {
+    "sound": "block"
+  },
+  "faye:chair_01": {
+    "sound": "wood"
+  },
+  "faye:stool_1": {
+    "sound": "wood"
+  },
+  "faye:potted_plant1": {
+    "sound": "pot"
+  },
+  "faye:potted_plant2": {
+    "sound": "pot"
+  },
+  "faye:mossy_chair1": {
+    "sound": "wood"
+  },
+  "faye:chair2": {
+    "sound": "wood"
+  },
+  "faye:chair3": {
+    "sound": "wood"
+  },
+  "faye:chair4": {
+    "sound": "wood"
+  },
+  "faye:chair5": {
+    "sound": "wood"
+  },
+  "faye:shelf1": {
+    "sound": "wood"
+  },
+  "faye:table_cloth": {
+    "sound": "wool"
+  },
+  "faye:cabinet": {
+    "sound": "wood"
+  },
+  "faye:cabinet1": {
+    "sound": "wood"
+  },
+  "faye:painting_horizontal": {
+    "sound": "wood"
+  },
+  "faye:fairy_bed": {
+    "sound": "bed"
+  },
+  "faye:cabinet_shelf1": {
+    "sound": "wood"
+  },
+  "faye:roof1": {
+    "sound": "block"
+  },
+  "faye:roof2": {
+    "sound": "block"
+  },
+  "faye:wooden_roof_top": {
+    "sound": "block"
+  },
+  "faye:painting_vertical": {
+    "sound": "wood"
+  },
+  "faye:wcabinet": {
+    "sound": "wood"
+  },
+  "faye:flower_light": {
+    "sound": "wood"
+  },
+  "faye:tall_cabinet0": {
+    "sound": "wood"
+  },
+  "faye:music_player0": {
+    "sound": "anvil"
+  },
+  "faye:sewingmachine": {
+    "sound": "wood"
+  },
+  "faye:table1": {
+    "sound": "wood"
+  },
+  "faye:table2": {
+    "sound": "wood"
+  },
+  "faye:wooden_roof": {
+    "sound": "block"
+  },
+  "faye:picture1": {
+    "sound": "wood"
+  },
+  "faye:pixie_bottle": {
+    "sound": "glass"
+  },
+  "faye:flower_light2": {
+    "sound": "glass"
+  },
+  "faye:old_sink": {
+    "sound": "wood"
+  },
+  "faye:mini_sign1": {
+    "sound": "planks"
+  }
+}

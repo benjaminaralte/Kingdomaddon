@@ -1,0 +1,36 @@
+{
+    "format_version": "1.13.0",
+    "minecraft:feature_rules": {
+        "description": {
+            "identifier": "mst:mushroom_house_feature", 
+            "places_feature": "mst:mushroom_house_feature"  
+        },
+        "conditions": {
+            "placement_pass": "first_pass",
+"minecraft:biome_filter": [
+  {
+    "test": "has_biome_tag",
+    "operator": "==",
+    "value": "mooshroom_island"
+  }
+]
+
+        },
+        "distribution": {
+            "iterations": 1,
+            "x": {
+                "extent": [0, 32],
+                "distribution": "uniform"
+            },
+            "y": "q.heightmap(v.worldx, v.worldz)",
+            "z": {
+                "extent": [0, 32],
+                "distribution": "uniform"
+            },
+            "scatter_chance": {
+                "numerator": 1,
+                "denominator": 800
+            }
+        }
+    }
+}

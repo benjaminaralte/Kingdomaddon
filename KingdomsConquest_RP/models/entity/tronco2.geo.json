@@ -1,0 +1,29 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.tronco2",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-4, -1, -4], "size": [8, 1, 8], "pivot": [0, 0, 0], "rotation": [180, 0, 0], "uv": [3, 1]},
+						{"origin": [4, 0, -5], "size": [1, 16, 9], "uv": [83, 19]},
+						{"origin": [-4, 0, 4], "size": [9, 16, 1], "uv": [87, 22]},
+						{"origin": [-5, 0, -5], "size": [1, 16, 10], "uv": [82, 20]},
+						{"origin": [-4, 0, -5], "size": [8, 16, 1], "uv": [89, 27]},
+						{"origin": [-4, 15, -4], "size": [8, 1, 8], "uv": [3, 1]}
+					]
+				}
+			]
+		}
+	]
+}

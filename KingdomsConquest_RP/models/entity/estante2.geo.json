@@ -1,0 +1,35 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.estante2",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 3,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main2",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-10, 9, 2], "size": [3, 8, 6], "uv": [56, 114]},
+						{"origin": [-7, 9, 1], "size": [3, 8, 6], "uv": [92, 114]},
+						{"origin": [-0.5, 9, 1.9], "size": [3, 8, 6], "pivot": [3.5, 13, 4], "rotation": [-150, 0, -90], "uv": [74, 114]}
+					]
+				},
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-12, 8, 0], "size": [24, 1, 8], "uv": [78, 76]},
+						{"origin": [-10, 6, 2], "size": [2, 2, 6], "uv": [81, 28]},
+						{"origin": [8, 6, 2], "size": [2, 2, 6], "uv": [79, 41]}
+					]
+				}
+			]
+		}
+	]
+}

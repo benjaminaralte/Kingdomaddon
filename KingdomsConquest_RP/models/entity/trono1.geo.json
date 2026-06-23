@@ -1,0 +1,33 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.trono1",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 3,
+				"visible_bounds_height": 3.5,
+				"visible_bounds_offset": [0, 1.25, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-8.4, -3.5, 3.1], "size": [3, 16, 3], "pivot": [0.1, 12.25, 0], "rotation": [0, 0, -180], "uv": [116, 3]},
+						{"origin": [-9.4, 3.35, -3.25], "size": [5, 16, 6], "pivot": [0.1, 12.25, 0], "rotation": [-90, 0, -180], "uv": [87, 0]},
+						{"origin": [-6, 0, 5], "size": [14, 14, 4], "pivot": [0.1, 12.25, 0], "rotation": [0, 90, 0], "uv": [78, 29]},
+						{"origin": [-5, 0, -5], "size": [9, 9, 10], "pivot": [0.1, 12.25, 0], "rotation": [0, 90, 0], "uv": [78, 29]},
+						{"origin": [-5.8, 7, -6], "size": [2, 19, 12], "pivot": [0.1, 12.25, 0], "rotation": [0, 90, 0], "uv": [81, 62]},
+						{"origin": [5.6, -3.5, 3.1], "size": [3, 16, 3], "pivot": [0.1, 12.25, 0], "rotation": [0, 0, -180], "uv": [116, 3]},
+						{"origin": [4, 0, -5], "size": [2, 9, 10], "pivot": [0.1, 12.25, 0], "rotation": [0, 90, 0], "uv": [90, 23]},
+						{"origin": [-5.9, 7, -5.1], "size": [12, 3, 12], "pivot": [0.1, 12.25, 0], "rotation": [-180, 0, 180], "uv": [69, 66]},
+						{"origin": [-6, 0, -9], "size": [14, 14, 4], "pivot": [0.1, 12.25, 0], "rotation": [0, 90, 0], "uv": [77, 18]},
+						{"origin": [4.6, 3.35, -3.25], "size": [5, 16, 6], "pivot": [0.1, 12.25, 0], "rotation": [-90, 0, -180], "uv": [87, 0]}
+					]
+				}
+			]
+		}
+	]
+}

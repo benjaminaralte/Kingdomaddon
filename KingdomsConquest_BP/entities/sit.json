@@ -1,0 +1,88 @@
+{
+  "format_version": "1.21.20",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "faye:sit",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "component_groups": {
+      "nosit": {
+        "minecraft:environment_sensor": {
+          "triggers": {
+            "filters": {
+              "all_of": [
+                {"test": "rider_count", "value": 1}
+              ]
+            },
+            "event": "sit"
+          }
+        }
+      },
+      "despawn": {"minecraft:instant_despawn": {}},
+      "sit": {
+        "minecraft:environment_sensor": {
+          "triggers": {
+            "filters": {
+              "all_of": [
+                {"test": "rider_count", "value": 0}
+              ]
+            },
+            "event": "despawn"
+          }
+        }
+      }
+    },
+    "components": {
+      "minecraft:conditional_bandwidth_optimization": {},
+      "minecraft:type_family": {
+        "family": ["sit"]
+      },
+      "minecraft:damage_sensor": {
+        "triggers": {"cause": "all", "deals_damage": false}
+      },
+      "minecraft:entity_sensor": {
+        "subsensors": [
+          {
+            "range": [0.2, 0.2],
+            "event_filters": {
+              "all_of": [
+                {"test": "is_family", "subject": "other", "value": "sit"}
+              ]
+            },
+            "event": "despawn"
+          }
+        ]
+      },
+      "minecraft:collision_box": {"width": 0.1, "height": 0.1},
+      "minecraft:physics": {},
+      "minecraft:pushable": {"is_pushable": false},
+      "minecraft:knockback_resistance": {"value": 9, "max": 9},
+      "minecraft:rideable": {
+        "seat_count": 1,
+        "family_types": ["player"],
+        "seats": [
+          {
+            "position": [0, -0.1, 0]
+          }
+        ]
+      }
+    },
+    "events": {
+      "minecraft:entity_spawned": {
+        "add" : { "component_groups": ["nosit"] }
+      },
+      "sit": {
+        "remove": { "component_groups": ["nosit"] },
+        "add"   : { "component_groups": ["sit"  ] },
+        "queue_command"  : { "command": ["tag @s add has_rider"] }
+      },
+      "despawn": {
+        "add": {
+          "component_groups": ["despawn"]
+        }
+      }
+    }
+  }
+}

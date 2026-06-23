@@ -1,0 +1,27 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.bolasdecanon",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-1.69808, 0, -4.79808], "size": [5, 5, 5], "pivot": [-1.09808, 3, -4.09808], "rotation": [0, -62.5, 0], "uv": [21, 81]},
+						{"origin": [-6.59608, 0, 3.21742], "size": [5, 5, 5], "pivot": [0.40392, 2.5, 5.71742], "rotation": [0, -17.5, 0], "uv": [21, 81]},
+						{"origin": [-2.2, 5, -0.8], "size": [5, 5, 5], "uv": [28, 84]},
+						{"origin": [1.3, 0, -1.7], "size": [5, 5, 5], "pivot": [0, 0, 0], "rotation": [0, -30, 0], "uv": [29, 84]}
+					]
+				}
+			]
+		}
+	]
+}

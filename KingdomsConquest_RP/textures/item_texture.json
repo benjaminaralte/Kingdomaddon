@@ -1,144 +1,84 @@
 {
-  "resource_pack_name": "kingdoms_conquest",
+  "resource_pack_name": "vanilla",
   "texture_name": "atlas.items",
   "texture_data": {
-    "kingdoms_town_hall": {
-      "textures": "textures/items/town_hall_tex"
+    "book2": {
+      "textures": "textures/items/book2.png"
     },
-    "kingdoms_treasury": {
-      "textures": "textures/items/treasury_tex"
+    "book1": {
+      "textures": "textures/items/book1.png"
     },
-    "kingdoms_barracks": {
-      "textures": "textures/items/barracks_tex"
+    "egg_camel": {
+      "textures": "textures/items/egg_camel"
     },
-    "kingdoms_market": {
-      "textures": "textures/items/market_tex"
+    "egg_lion": {
+      "textures": "textures/items/egg_lion"
     },
-    "kingdoms_granary": {
-      "textures": "textures/items/granary_tex"
+    "egg_penguin": {
+      "textures": "textures/items/egg_penguin"
     },
-    "kingdoms_blacksmith": {
-      "textures": "textures/items/blacksmith_tex"
+    "egg_tiger": {
+      "textures": "textures/items/egg_tiger"
     },
-    "kingdoms_guard_pole_village": {
-      "textures": "textures/items/guard_pole_village_tex"
+    "egg_elephant": {
+      "textures": "textures/items/egg_elephant"
     },
-    "kingdoms_guard_pole_watchtower": {
-      "textures": "textures/items/guard_pole_watchtower_tex"
+    "egg_deer": {
+      "textures": "textures/items/egg_deer"
     },
-    "kingdoms_guard_pole_gate": {
-      "textures": "textures/items/guard_pole_gate_tex"
+    "egg_panther": {
+      "textures": "textures/items/egg_panther"
     },
-    "kingdoms_guard_pole_road": {
-      "textures": "textures/items/guard_pole_road_tex"
+    "egg_frog": {
+      "textures": "textures/items/egg_frog"
     },
-    "kingdoms_trade_pole": {
-      "textures": "textures/items/trade_pole_tex"
+    "egg_crocodile": {
+      "textures": "textures/items/egg_crocodile"
     },
-    "kingdoms_recall_scroll": {
-      "textures": "textures/items/recall_scroll_tex"
+    "egg_mouse": {
+      "textures": "textures/items/egg_mouse"
     },
-    "kingdoms_guard_token": {
-      "textures": "textures/items/guard_token_tex"
+    "gallardo": {
+      "textures": "textures/items/gallardo"
     },
-    "kingdoms_spearman_token": {
-      "textures": "textures/items/spearman_token_tex"
+    "bench": {
+      "textures": "textures/items/bench"
     },
-    "kingdoms_archer_token": {
-      "textures": "textures/items/archer_token_tex"
+    "christmas_tree": {
+      "textures": "textures/items/christmas_tree"
     },
-    "kingdoms_cavalry_token": {
-      "textures": "textures/items/cavalry_token_tex"
+    "tivi": {
+      "textures": "textures/items/tivi"
     },
-    "kingdoms_heavy_knight_token": {
-      "textures": "textures/items/heavy_knight_token_tex"
+    "closet": {
+      "textures": "textures/items/closet"
     },
-    "kingdoms_cavalry_spear": {
-      "textures": "textures/items/cavalry_spear_tex"
+    "laptop": {
+      "textures": "textures/items/laptop"
     },
-    "kingdoms_heavy_knight_sword": {
-      "textures": "textures/items/heavy_knight_sword_tex"
+    "piano": {
+      "textures": "textures/items/piano"
     },
-    "city_guard_spawn_egg": {
-      "textures": "textures/items/city_guard_spawn_egg"
+    "armchairs": {
+      "textures": "textures/items/armchairs"
     },
-    "spearman_spawn_egg": {
-      "textures": "textures/items/spearman_spawn_egg"
+    "chair": {
+      "textures": "textures/items/chair"
     },
-    "archer_spawn_egg": {
-      "textures": "textures/items/archer_spawn_egg"
+    "big_table": {
+      "textures": "textures/items/big_table"
     },
-    "cavalry_spawn_egg": {
-      "textures": "textures/items/cavalry_spawn_egg"
+    "small_table": {
+      "textures": "textures/items/small_table"
     },
-    "heavy_knight_spawn_egg": {
-      "textures": "textures/items/heavy_knight_spawn_egg"
+    "drone": {
+      "textures": "textures/items/drone"
     },
-    "bandit_spawn_egg": {
-      "textures": "textures/items/bandit_spawn_egg"
+    "colorful_gifts": {
+      "textures": "textures/items/colorful_gifts"
     },
-    "kingdoms_village_spawner": {
-      "textures": "textures/items/village_spawner_tex"
-    },
-    "kingdoms_trade_cart": {
-      "textures": "textures/items/trade_cart_tex"
-    },
-    "samurai_token": {
-      "textures": "textures/items/samurai_token_tex"
-    },
-    "mercenary_lancer_token": {
-      "textures": "textures/items/mercenary_lancer_token_tex"
-    },
-    "legionary_token": {
-      "textures": "textures/items/legionary_token_tex"
-    },
-    "kingdoms_castle": {
-      "textures": "textures/items/castle_tex"
-    },
-    "kingdoms_tactics_horn": {
-      "textures": "textures/items/tactics_horn_tex"
-    },
-    "kingdoms_storage": {
-      "textures": "textures/items/barracks_tex"
-    },
-    "kingdoms_formation_scroll": {
-      "textures": "textures/items/recall_scroll_tex"
-    },
-    "kingdoms_fence_enclosure": {
-      "textures": "textures/items/guard_pole_village_tex"
-    },
-    "kingdoms_farm_plot": {
-      "textures": "textures/items/granary_tex"
-    },
-    "kingdoms_barn": {
-      "textures": "textures/items/granary_tex"
-    },
-    "kingdoms_armory": {
-      "textures": "textures/items/barracks_tex"
-    },
-    "kingdoms_trade_station": {
-      "textures": "textures/items/barracks_tex"
-    },
-    "kingdoms_house": {
-      "textures": "textures/items/town_hall_tex"
-    },
-    "kingdoms_tower": {
-      "textures": "textures/items/guard_pole_watchtower_tex"
-    },
-    "kingdoms_wall_long": {
-      "textures": "textures/items/guard_pole_village_tex"
-    },
-    "kingdoms_wall_short": {
-      "textures": "textures/items/guard_pole_village_tex"
-    },
-    "kingdoms_wall_tall": {
-      "textures": "textures/items/guard_pole_village_tex"
-    },
-    "kingdoms_stone_gate": {
-      "textures": "textures/items/guard_pole_gate_tex"
-    },
-    "kingdoms_king_castle": {
-      "textures": "textures/items/castle_tex"
+    "faye:furniture": {
+      "textures": "textures/items/pamobile/faye_furniture"
     }
   }
 }

@@ -1,0 +1,29 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.mesa5",
+				"texture_width": 128,
+				"texture_height": 128,
+				"visible_bounds_width": 2,
+				"visible_bounds_height": 2.5,
+				"visible_bounds_offset": [0, 0.75, 0]
+			},
+			"bones": [
+				{
+					"name": "bb_main",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{"origin": [-2, 0, -2], "size": [4, 14, 4], "uv": [86, 14]},
+						{"origin": [-0.5, -6, -1], "size": [1, 12, 1], "pivot": [0, 0, 0], "rotation": [-90, 0, 0], "uv": [105, 21]},
+						{"origin": [-0.5, -5, -2], "size": [1, 10, 1], "pivot": [0, 0, 0], "rotation": [0, -90, -90], "uv": [102, 16]},
+						{"origin": [-0.5, -5, -2], "size": [1, 10, 1], "pivot": [0, 0, 0], "rotation": [-90, 0, 0], "uv": [105, 21]},
+						{"origin": [-0.5, -6, -1], "size": [1, 12, 1], "pivot": [0, 0, 0], "rotation": [0, -90, -90], "uv": [102, 16]},
+						{"origin": [-7.5, 14, -7.5], "size": [15, 2, 15], "uv": [68, 75]}
+					]
+				}
+			]
+		}
+	]
+}

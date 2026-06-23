@@ -1,0 +1,268 @@
+{
+	"format_version": "1.20.20",
+	"minecraft:block": {
+		"description": {
+			"identifier": "ff:ff_weapon_stand",
+			"is_experimental": false,
+			"states": {
+				"custom:weapon_type": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+			},
+			"traits": {
+				"minecraft:placement_direction": {
+					"enabled_states": [
+						"minecraft:cardinal_direction"
+					],
+					"y_rotation_offset": 180
+				}
+			},
+			"menu_category": {
+				"category": "items"
+			}
+		},
+		"components": {
+			"minecraft:material_instances": {
+				"*": {
+					"texture": "ff_stand_trident",
+					"render_method": "alpha_test_single_sided",
+					"ambient_occlusion": false
+				}
+			},
+			"minecraft:geometry": "geometry.ff_weapon_stand",
+			"minecraft:custom_components": [
+				"content_ff:trident_stand"
+			],
+			"minecraft:selection_box": {
+				"origin": [
+					-8,
+					0,
+					-3.5
+				],
+				"size": [
+					16,
+					10,
+					7
+				]
+			},
+			"minecraft:collision_box": false,
+			"minecraft:destructible_by_mining": {
+				"seconds_to_destroy": 0.4
+			}
+		},
+		"permutations": [
+			{
+				"condition": "q.block_state('minecraft:cardinal_direction') == 'north' ",
+				"components": {
+					"minecraft:transformation": {
+						"rotation": [
+							0,
+							0,
+							0
+						]
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('minecraft:cardinal_direction') == 'south' ",
+				"components": {
+					"minecraft:transformation": {
+						"rotation": [
+							0,
+							180,
+							0
+						]
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('minecraft:cardinal_direction') == 'east' ",
+				"components": {
+					"minecraft:transformation": {
+						"rotation": [
+							0,
+							270,
+							0
+						]
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('minecraft:cardinal_direction') == 'west' ",
+				"components": {
+					"minecraft:transformation": {
+						"rotation": [
+							0,
+							90,
+							0
+						]
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 0",
+				"components": {
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "False"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 1",
+				"components": {
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "True",
+							"sword": "False"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 2",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_wood",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 3",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_stone",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 4",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_iron",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 5",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_diamond",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 6",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_netherite",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 7",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_gold",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			},
+			{
+				"condition": "q.block_state('custom:weapon_type') == 8",
+				"components": {
+					"minecraft:material_instances": {
+						"*": {
+							"texture": "ff_stand_sword_copper",
+							"render_method": "alpha_test_single_sided",
+							"ambient_occlusion": false
+						}
+					},
+					"minecraft:geometry": {
+						"identifier": "geometry.ff_weapon_stand",
+						"bone_visibility": {
+							"stand": "True",
+							"trident": "False",
+							"sword": "True"
+						}
+					}
+				}
+			}
+		]
+	}
+}
