@@ -5,11 +5,8 @@
       "loop": true,
       "blend_weight": 1.0,
       "bones": {
-        "body": {
-          "rotation": [35, 0, 0]
-        },
         "head": {
-          "rotation": [-25, 0, 0]
+          "rotation": [55, 0, 0]
         }
       }
     }
