@@ -4981,6 +4981,12 @@ function refreshAllGuards() {
   }
 }
 var POLE_RETURN_THRESHOLD = 18;
+var PATROL_RADIUS = 8;
+function _randomPatrolOffset() {
+  const angle = Math.random() * Math.PI * 2;
+  const r = Math.random() * PATROL_RADIUS;
+  return { dx: Math.cos(angle) * r, dz: Math.sin(angle) * r };
+}
 function enforceGuardPositions() {
   for (const village of getAllVillages()) {
     if (!village.owner) continue;
@@ -5004,11 +5010,22 @@ function enforceGuardPositions() {
           const dz = entity.location.z - pole.location.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
           if (dist > POLE_RETURN_THRESHOLD) {
+            const off = _randomPatrolOffset();
             try {
               entity.teleport({
-                x: pole.location.x + (Math.random() * 4 - 2),
+                x: pole.location.x + off.dx,
                 y: pole.location.y,
-                z: pole.location.z + (Math.random() * 4 - 2)
+                z: pole.location.z + off.dz
+              });
+            } catch {
+            }
+          } else if (dist <= PATROL_RADIUS && Math.random() < 0.25) {
+            const off = _randomPatrolOffset();
+            try {
+              entity.teleport({
+                x: pole.location.x + off.dx,
+                y: pole.location.y,
+                z: pole.location.z + off.dz
               });
             } catch {
             }
@@ -7453,6 +7470,37 @@ function spawnNpcVillage(dim, anchor, type) {
             z: BZ + (Math.random() * 20 - 10)
           });
         } catch {
+        }
+      }
+      if (type === "city") {
+        const kingdomGuards = [
+          { type: "kingdoms:castle_guard", x: BX - 2, y: BY + 1, z: BZ + 27, name: "\xA7cGate Guard" },
+          { type: "kingdoms:castle_guard", x: BX + 2, y: BY + 1, z: BZ + 27, name: "\xA7cGate Guard" },
+          { type: "kingdoms:patrol_soldier", x: BX + 28, y: BY + 1, z: BZ + 28, name: "\xA76Tower Patrol" },
+          { type: "kingdoms:patrol_soldier", x: BX - 28, y: BY + 1, z: BZ + 28, name: "\xA76Tower Patrol" },
+          { type: "kingdoms:patrol_soldier", x: BX + 28, y: BY + 1, z: BZ - 28, name: "\xA76Tower Patrol" },
+          { type: "kingdoms:patrol_soldier", x: BX - 28, y: BY + 1, z: BZ - 28, name: "\xA76Tower Patrol" },
+          { type: "kingdoms:castle_guard", x: BX - 2, y: BY + 1, z: BZ - 20, name: "\xA7cKeep Guard" },
+          { type: "kingdoms:castle_guard", x: BX + 2, y: BY + 1, z: BZ - 20, name: "\xA7cKeep Guard" }
+        ];
+        for (const g of kingdomGuards) {
+          try {
+            const guard = dim.spawnEntity(g.type, { x: g.x, y: g.y, z: g.z });
+            guard.nameTag = g.name;
+          } catch {
+          }
+        }
+      } else {
+        const villageGuardSpots = [
+          { x: BX - 1, y: BY + 1, z: BZ + 22 },
+          { x: BX + 1, y: BY + 1, z: BZ + 22 }
+        ];
+        for (const spot of villageGuardSpots) {
+          try {
+            const guard = dim.spawnEntity("kingdoms:patrol_soldier", spot);
+            guard.nameTag = "\xA76Village Guard";
+          } catch {
+          }
         }
       }
     }
