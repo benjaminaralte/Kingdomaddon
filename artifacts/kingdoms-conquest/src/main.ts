@@ -1007,20 +1007,38 @@ world.afterEvents.itemUse.subscribe((event) => {
 async function showVillageSpawnerMenu(
   player: import("@minecraft/server").Player
 ): Promise<void> {
+  const lastRaw = world.getDynamicProperty("kc_lastSettlement") as string | undefined;
+  const hasLast = !!lastRaw;
+
   const form = new ActionFormData()
     .title("Village Spawner")
     .body("Choose what to spawn near you.\n§7A settlement will appear ~50-80 blocks away.")
-    .button("🏙 Spawn City\n§7Large walled settlement")
-    .button("🏘 Spawn Village\n§7Small wooden village");
+    .button("🏙 Spawn City\n§7Large walled kingdom")
+    .button("🏘 Spawn Village\n§7Small walled village")
+    .button(hasLast ? "📍 Teleport to Last Settlement\n§7Return to previously spawned site" : "📍 No Settlement Yet\n§7Spawn one first");
 
   const response = await form.show(player);
   if (response.canceled || response.selection === undefined) return;
+
+  if (response.selection === 2) {
+    if (!lastRaw) {
+      notifyPlayer(player.name, "§cNo settlement has been spawned yet.");
+      return;
+    }
+    try {
+      const saved = JSON.parse(lastRaw) as { x: number; y: number; z: number; type: string };
+      player.teleport({ x: saved.x, y: saved.y + 1, z: saved.z + 35 });
+      notifyPlayer(player.name, `§aTeleported to §b${saved.type}§a. Gate is just ahead.`);
+    } catch {
+      notifyPlayer(player.name, "§cCouldn't read last settlement location.");
+    }
+    return;
+  }
 
   const type = response.selection === 0 ? "city" : "village";
   const dim = player.dimension;
   const loc = player.location;
 
-  // Pick a random direction and distance
   const angle = Math.random() * Math.PI * 2;
   const dist = type === "city" ? 80 : 50;
   const anchor = {
@@ -1037,35 +1055,70 @@ async function showVillageSpawnerMenu(
 type _BlkFn  = (x: number, y: number, z: number, id: string) => void;
 type _VolFn  = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, id: string) => void;
 type _RingFn = (x1: number, z1: number, x2: number, z2: number, y1: number, y2: number, id: string) => void;
+type _CmdFn  = (cmd: string) => void;
 
 function _buildMedievalHouse(
-  b: _BlkFn, v: _VolFn,
+  b: _BlkFn, v: _VolFn, cmd: _CmdFn,
   cx: number, cz: number, w: number, d: number,
   wall: string, post: string
 ): void {
   const hw = Math.floor(w / 2), hd = Math.floor(d / 2);
+  // Floor
   v(cx-hw, 0, cz-hd, cx+hw, 0, cz+hd, "minecraft:oak_planks");
+  // Corner posts full-height
   for (const [px, pz] of [[cx-hw,cz-hd],[cx+hw,cz-hd],[cx-hw,cz+hd],[cx+hw,cz+hd]] as [number,number][])
     for (let y = 1; y <= 5; y++) b(px, y, pz, post);
+  // Walls y=1-4
   for (let y = 1; y <= 4; y++) {
     for (let x = cx-hw; x <= cx+hw; x++) { b(x, y, cz-hd, wall); b(x, y, cz+hd, wall); }
     for (let z = cz-hd+1; z <= cz+hd-1; z++) { b(cx-hw, y, z, wall); b(cx+hw, y, z, wall); }
   }
+  // Top beam row
   for (let x = cx-hw; x <= cx+hw; x++) { b(x, 5, cz-hd, post); b(x, 5, cz+hd, post); }
   for (let z = cz-hd+1; z <= cz+hd-1; z++) { b(cx-hw, 5, z, post); b(cx+hw, 5, z, post); }
+  // Windows
   b(cx, 2, cz-hd, "minecraft:glass_pane"); b(cx, 3, cz-hd, "minecraft:glass_pane");
   b(cx, 2, cz+hd, "minecraft:glass_pane"); b(cx, 3, cz+hd, "minecraft:glass_pane");
   if (w >= 8) {
     b(cx-hw, 2, cz, "minecraft:glass_pane"); b(cx-hw, 3, cz, "minecraft:glass_pane");
     b(cx+hw, 2, cz, "minecraft:glass_pane"); b(cx+hw, 3, cz, "minecraft:glass_pane");
   }
+  // Door opening (south wall)
   b(cx, 1, cz+hd, "minecraft:air"); b(cx, 2, cz+hd, "minecraft:air");
+  // Stepped brick pyramid roof
   for (let step = 0; step <= Math.min(hw, hd); step++) {
     const x1 = cx-hw+step, x2 = cx+hw-step, z1 = cz-hd+step, z2 = cz+hd-step;
     if (x1 > x2 || z1 > z2) break;
     v(x1, 6+step, z1, x2, 6+step, z2, "minecraft:brick_block");
   }
-  b(cx, 1, cz, "minecraft:lantern");
+  // Interior ceiling lantern
+  b(cx, 4, cz, "minecraft:lantern");
+
+  // ── Interior furniture ────────────────────────────────────────────────────
+  const ix1 = cx - hw + 1, ix2 = cx + hw - 1;
+  const iz1 = cz - hd + 1, iz2 = cz + hd - 1;
+  // Bed along north wall (two blocks: head near wall, foot toward center)
+  cmd(`setblock ${ix1} 1 ${iz1} minecraft:red_bed ["direction"=2,"occupied_bit"=false,"head_piece_bit"=true]`);
+  cmd(`setblock ${ix1} 1 ${iz1+1} minecraft:red_bed ["direction"=2,"occupied_bit"=false,"head_piece_bit"=false]`);
+  // Second bed if house is wide enough
+  if (w >= 9) {
+    cmd(`setblock ${ix2} 1 ${iz1} minecraft:red_bed ["direction"=2,"occupied_bit"=false,"head_piece_bit"=true]`);
+    cmd(`setblock ${ix2} 1 ${iz1+1} minecraft:red_bed ["direction"=2,"occupied_bit"=false,"head_piece_bit"=false]`);
+  }
+  // Bookshelf along north inner wall
+  b(cx, 2, iz1, "minecraft:bookshelf");
+  b(cx, 3, iz1, "minecraft:bookshelf");
+  // Crafting table near northwest corner
+  b(ix1, 1, iz2-1, "minecraft:crafting_table");
+  // Chest near northeast corner
+  b(ix2, 1, iz2-1, "minecraft:chest");
+  // Furnace near east wall center
+  b(ix2, 1, cz, "minecraft:furnace");
+  // Barrel / storage near west wall
+  b(ix1, 1, cz, "minecraft:barrel");
+  // Oak door (bottom + top half) via command so block states are set correctly
+  cmd(`setblock ${cx} 1 ${cz+hd} minecraft:oak_door ["direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=false]`);
+  cmd(`setblock ${cx} 2 ${cz+hd} minecraft:oak_door ["direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=true]`);
 }
 
 function _buildTower(
@@ -1097,6 +1150,8 @@ function spawnNpcVillage(
   const BX = Math.round(anchor.x), BY = groundY, BZ = Math.round(anchor.z);
 
   const ops: Array<[number, number, number, string]> = [];
+  const cmds: string[] = [];
+
   const b: _BlkFn  = (x, y, z, id) => ops.push([BX+x, BY+y, BZ+z, id]);
   const v: _VolFn  = (x1, y1, z1, x2, y2, z2, id) => {
     for (let x = Math.min(x1,x2); x <= Math.max(x1,x2); x++)
@@ -1110,12 +1165,18 @@ function spawnNpcVillage(
       for (let z = z1+1; z <= z2-1; z++) { b(x1, y, z, id); b(x2, y, z, id); }
     }
   };
+  const cmd: _CmdFn = (c) => cmds.push(c);
 
   if (type === "city") {
-    _buildKingdom(b, v, rng);
+    _buildKingdom(b, v, rng, cmd);
   } else {
-    _buildVillage(b, v, rng);
+    _buildVillage(b, v, rng, cmd);
   }
+
+  // Save location for teleport button
+  try {
+    world.setDynamicProperty("kc_lastSettlement", JSON.stringify({ x: BX, y: BY, z: BZ, type }));
+  } catch { /* skip */ }
 
   const villagerCount = type === "city" ? 10 : 4;
   let cursor = 0;
@@ -1129,6 +1190,11 @@ function spawnNpcVillage(
     cursor = end;
     if (cursor >= ops.length) {
       system.clearRun(handle);
+      // Run command-based placements (doors, beds — need block states)
+      for (const c of cmds) {
+        dim.runCommandAsync(c).catch(() => { /* skip */ });
+      }
+      // Spawn villagers
       for (let i = 0; i < villagerCount; i++) {
         try {
           dim.spawnEntity("minecraft:villager_v2", {
@@ -1143,7 +1209,7 @@ function spawnNpcVillage(
 }
 
 // ─── KINGDOM (CITY) GENERATOR ─────────────────────────────────────────────────
-function _buildKingdom(b: _BlkFn, v: _VolFn, rng: _RingFn): void {
+function _buildKingdom(b: _BlkFn, v: _VolFn, rng: _RingFn, cmd: _CmdFn): void {
   const SB   = "minecraft:stone_bricks";
   const CSB  = "minecraft:chiseled_stone_bricks";
   const COBB = "minecraft:cobblestone";
