@@ -16,16 +16,18 @@
       },
       "scripts": {
         "animate": [
+          "movement_ctrl",
           "setup"
         ]
       },
       "animations": {
         "attack": "animation.roman_bowman.attack",
         "bobing": "animation.roman_bowman.idle",
-        "setup": "controller.animation.got_troop2",
+        "setup": "controller.animation.pn_roman.setup",
         "move": "animation.roman_bowman.move",
         "move_target": "animation.roman_bowman.move_target",
-        "target": "animation.roman_bowman.target"
+        "target": "animation.roman_bowman.target",
+        "movement_ctrl": "controller.animation.got_troop2"
       },
       "render_controllers": [
         "controller.render.got1"
