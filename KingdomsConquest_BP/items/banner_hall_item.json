@@ -1,0 +1,17 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:item": {
+    "description": {
+      "identifier": "kingdoms:banner_hall_item",
+      "menu_category": { "category": "construction" }
+    },
+    "components": {
+      "minecraft:display_name": { "value": "Banner Hall" },
+      "minecraft:icon": {
+        "textures": { "default": "kingdoms_banner_hall" }
+      },
+      "minecraft:block_placer": { "block": "kingdoms:banner_hall" },
+      "minecraft:max_stack_size": 1
+    }
+  }
+}

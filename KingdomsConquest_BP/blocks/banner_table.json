@@ -1,0 +1,69 @@
+{
+	"format_version": "1.26.0",
+	"minecraft:block": {
+		"description": {
+			"identifier": "dcfb:banner_table",
+			"menu_category": {
+				"category": "items"
+			},
+			"traits": {
+				"minecraft:placement_direction": { "enabled_states": [ "minecraft:cardinal_direction" ] }
+			}
+		},
+		"components": {
+			"minecraft:light_dampening": 0,
+			"minecraft:collision_box": true,
+			"minecraft:selection_box": true,
+			"minecraft:loot": "loot_tables/blocks/banner_table.json",
+			"minecraft:geometry": "geometry.banner_table",
+			"minecraft:material_instances": {
+				"*": {
+					"texture": "banner_table",
+					"render_method": "alpha_test"
+				}
+			},
+			"minecraft:destructible_by_mining": {
+				"seconds_to_destroy": 2
+			},
+			"minecraft:destructible_by_explosion": {
+				"explosion_resistance": 15
+			},
+			"minecraft:flammable": {
+				"destroy_chance_modifier": 20,
+				"catch_chance_modifier": 5
+			},
+			"tag:minecraft:is_axe_item_destructible": {},
+			"minecraft:crafting_table": {
+				"crafting_tags": ["banner_table"],
+				"table_name": "Banner Table",
+				"grid_size": 3
+			}
+		},
+		    "permutations": [
+		  {
+			"condition": "q.block_state('minecraft:cardinal_direction') == 'north'",
+			"components": {
+			  "minecraft:transformation": { "rotation": [0, 180, 0] }
+			}
+		  },
+		  {
+			"condition": "q.block_state('minecraft:cardinal_direction') == 'south'",
+			"components": {
+			  "minecraft:transformation": { "rotation": [0, 0, 0] }
+			}
+		  },
+		  {
+			"condition": "q.block_state('minecraft:cardinal_direction') == 'west'",
+			"components": {
+			  "minecraft:transformation": { "rotation": [0, -90, 0] }
+			}
+		  },
+		  {
+			"condition": "q.block_state('minecraft:cardinal_direction') == 'east'",
+			"components": {
+			  "minecraft:transformation": { "rotation": [0, 90, 0] }
+			}
+		  }
+		]
+	}
+}

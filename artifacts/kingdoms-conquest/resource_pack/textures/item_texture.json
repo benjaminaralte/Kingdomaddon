@@ -145,6 +145,9 @@
     },
     "kingdoms_greenhouse": {
       "textures": "textures/items/granary_tex"
+    },
+    "kingdoms_banner_hall": {
+      "textures": "textures/items/granary_tex"
     }
   }
 }

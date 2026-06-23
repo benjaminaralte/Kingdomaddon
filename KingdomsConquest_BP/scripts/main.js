@@ -5316,7 +5316,8 @@ var STRUCTURE_BLOCK_IDS = /* @__PURE__ */ new Set([
   "kingdoms:waypoint",
   "kingdoms:castle",
   "kingdoms:storage",
-  "kingdoms:greenhouse"
+  "kingdoms:greenhouse",
+  "kingdoms:banner_hall"
 ]);
 function blk(x, y, z, b) {
   return { x, y, z, b };
@@ -5720,6 +5721,21 @@ function greenhouseBlueprint() {
   p.push(blk(3, 1, 4, "minecraft:sea_lantern"));
   return p;
 }
+function bannerHallBlueprint() {
+  const p = [];
+  p.push(...fill(-4, 1, -2, 4, 7, 2, "minecraft:air"));
+  p.push(...fill(-4, 0, -2, 4, 0, 2, "minecraft:smooth_stone"));
+  p.push(...fill(-4, 1, -2, 4, 2, -2, "minecraft:stone_bricks"));
+  p.push(...fill(-4, 1, -1, -4, 2, 2, "minecraft:stone_bricks"));
+  p.push(...fill(4, 1, -1, 4, 2, 2, "minecraft:stone_bricks"));
+  p.push(blk(-4, 3, -2, "minecraft:lantern"), blk(4, 3, -2, "minecraft:lantern"));
+  for (let x = -3; x <= 3; x += 2) {
+    p.push(blk(x, 1, 0, "dcfb:flagpole_block"));
+  }
+  p.push(blk(0, 1, -1, "dcfb:banner_table"));
+  p.push(...fill(-1, 0, 3, 1, 0, 5, "minecraft:stone_bricks"));
+  return p;
+}
 var BLUEPRINTS = {
   "kingdoms:town_hall": townHallBlueprint,
   "kingdoms:barracks": barracksBlueprint,
@@ -5731,7 +5747,8 @@ var BLUEPRINTS = {
   "kingdoms:waypoint": waypointBlueprint,
   "kingdoms:castle": castleBlueprint,
   "kingdoms:storage": materialStorageBlueprint,
-  "kingdoms:greenhouse": greenhouseBlueprint
+  "kingdoms:greenhouse": greenhouseBlueprint,
+  "kingdoms:banner_hall": bannerHallBlueprint
 };
 function generateStructure(dimension, origin, blockTypeId) {
   const blueprint = BLUEPRINTS[blockTypeId];
@@ -8076,7 +8093,8 @@ var TOWN_HALL_SHOP_ITEMS = [
   { label: "\u{1F4E6} Material Storage", desc: "Stores mined iron, gold, diamonds & more.", itemId: "kingdoms:storage_item", cost: 30 },
   { label: "\u{1F3F0} Castle", desc: "Unlocks elite troops (Samurai, Lancer, Legion).", itemId: "kingdoms:castle_item", cost: 200 },
   { label: "\u{1F5FA} Waypoint", desc: "Fast-travel point for your village.", itemId: "kingdoms:waypoint", cost: 30 },
-  { label: "\u{1F33F} Greenhouse", desc: "Glass farming structure with farmland, water channels & wheat.", itemId: "kingdoms:greenhouse_item", cost: 60 }
+  { label: "\u{1F33F} Greenhouse", desc: "Glass farming structure with farmland, water channels & wheat.", itemId: "kingdoms:greenhouse_item", cost: 60 },
+  { label: "\u{1F6A9} Banner Hall", desc: "Decorative flag display with 4 flagpoles & banner crafting table.", itemId: "kingdoms:banner_hall_item", cost: 40 }
 ];
 async function showTownHallShop(player, village) {
   const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(`\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA7r
