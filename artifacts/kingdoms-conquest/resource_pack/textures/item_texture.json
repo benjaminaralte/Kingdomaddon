@@ -139,6 +139,9 @@
     },
     "kingdoms_king_castle": {
       "textures": "textures/items/castle_tex"
+    },
+    "cavalry_lancer_elite_token": {
+      "textures": "textures/items/cavalry_lancer_elite_token_tex"
     }
   }
 }
