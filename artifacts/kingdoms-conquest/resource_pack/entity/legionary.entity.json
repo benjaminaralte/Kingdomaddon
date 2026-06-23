@@ -27,8 +27,8 @@
         "attack": "animation.got_troop.attack",
         "bobing": "animation.got_troop.idle",
         "setup": "controller.animation.got_swordman",
-        "move": "animation.got_troop.move",
-        "target": "animation.got_troop.target",
+        "move": "animation.mercenary_swordman.move",
+        "target": "animation.mercenary_swordman.target",
         "look_at_target": "animation.common.look_at_target",
         "movement_ctrl": "controller.animation.got_troop2"
       },
