@@ -1,0 +1,42 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Quick Craft 3.0 [BP]",
+    "description": "Youtube: @dantegaming77",
+    "uuid": "ba31bc98-1381-4bd0-a563-68005fe6cc88",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 21, 0]
+  },
+  "metadata": {
+    "authors": ["DanteGaming"],
+    "product_type": "addon"
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "e62d7a6e-3257-45a5-a816-fa630492e3f1",
+      "version": [1, 0, 0]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "uuid": "f8c3d4e2-1a6b-4c8d-9e7f-2b5a8c9d1e3f",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.12.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "1.2.0"
+    },
+    {
+      "uuid": "c3f8a2b1-4b6e-4d2f-9f2a-3e4b5c6d7e8f",
+      "version": [1, 0, 0]
+    }
+  ]
+}

@@ -1486,15 +1486,15 @@ init_notify();
 init_bandit();
 var ELITE_TYPES = /* @__PURE__ */ new Set(["samurai", "mercenaryLancer", "legionary", "cavalryLancerElite"]);
 var RECRUIT_COSTS = {
-  cityGuards: 8,
-  spearmen: 12,
-  archers: 12,
-  cavalry: 20,
-  heavyKnight: 35,
-  samurai: 60,
-  mercenaryLancer: 50,
-  legionary: 50,
-  cavalryLancerElite: 80
+  cityGuards: 6,
+  spearmen: 10,
+  archers: 10,
+  cavalry: 16,
+  heavyKnight: 25,
+  samurai: 42,
+  mercenaryLancer: 36,
+  legionary: 36,
+  cavalryLancerElite: 55
 };
 function recruitTroop(village, type, count = 1) {
   if (type === "heavyKnight" && village.barracksLevel < 3) {
@@ -6431,7 +6431,8 @@ function applyFormation(player, mode) {
     const pos = positions[i];
     if (!pos) return;
     try {
-      troop.teleport(pos, { dimension: player.dimension });
+      troop.setDynamicProperty("kc:f_target", `${pos.x},${pos.y},${pos.z}`);
+      troop.setDynamicProperty(PROP_F_OWNER, player.name);
     } catch {
     }
     if (isHold) {
@@ -6446,6 +6447,41 @@ function applyFormation(player, mode) {
     }
   });
   return troops.length;
+}
+var FORMATION_MOVE_STEP = 0.45;
+var FORMATION_ARRIVE_THRESHOLD = 1.2;
+function tickFormationMovement() {
+  for (const player of world19.getPlayers()) {
+    const allTypes = [...new Set(Object.values(FORMATION_TARGETS).flat())];
+    const dim = player.dimension;
+    const loc = player.location;
+    for (const entityType of allTypes) {
+      try {
+        const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: SEARCH_RADIUS * 2 });
+        for (const e of entities) {
+          if (e.getDynamicProperty(PROP_F_OWNER) !== player.name) continue;
+          const raw = e.getDynamicProperty("kc:f_target");
+          if (!raw || typeof raw !== "string" || raw === "") continue;
+          const parts = raw.split(",");
+          if (parts.length < 3) continue;
+          const tx = parseFloat(parts[0]), ty = parseFloat(parts[1]), tz = parseFloat(parts[2]);
+          if (isNaN(tx) || isNaN(ty) || isNaN(tz)) continue;
+          const ex = e.location.x, ey = e.location.y, ez = e.location.z;
+          const dx = tx - ex, dz = tz - ez;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist < FORMATION_ARRIVE_THRESHOLD) {
+            try { e.teleport({ x: tx, y: ty, z: tz }, { dimension: dim }); } catch {}
+            try { e.setDynamicProperty("kc:f_target", ""); } catch {}
+            continue;
+          }
+          const step = Math.min(FORMATION_MOVE_STEP, dist);
+          const nx = ex + (dx / dist) * step;
+          const nz = ez + (dz / dist) * step;
+          try { e.teleport({ x: nx, y: ty, z: nz }, { dimension: dim }); } catch {}
+        }
+      } catch {}
+    }
+  }
 }
 function dismissAllFormations(player) {
   const all = findOwnedTroops(player, FORMATION_TARGETS["all_rally"]);
@@ -7267,13 +7303,14 @@ world20.afterEvents.playerJoin.subscribe((event) => {
       if (inv?.container) {
         inv.container.addItem(new ItemStack6("kingdoms:town_hall_item", 1));
         inv.container.addItem(new ItemStack6("kingdoms:village_spawner", 1));
-        inv.container.addItem(new ItemStack6("minecraft:cobblestone", 10));
-        inv.container.addItem(new ItemStack6("minecraft:emerald", 50));
+        inv.container.addItem(new ItemStack6("dg:hammer", 1));
+        inv.container.addItem(new ItemStack6("minecraft:emerald", 60));
+        inv.container.addItem(new ItemStack6("minecraft:wheat", 60));
         world20.setDynamicProperty(starterKey, true);
         player.sendMessage(
           `\xA7a\xA7lWelcome to Kingdoms & Conquest!\xA7r
-\xA77You received: \xA7f1 Town Hall\xA77, \xA7f1 Village Spawner\xA77, \xA7f10 Cobblestone\xA77, \xA7f50 Emeralds\xA77.
-\xA7ePlace the Village Spawner first to create your village, then build your Town Hall inside it!`
+\xA77You received: \xA7f1 Town Hall\xA77, \xA7f1 Village Spawner\xA77, \xA7f1 Quick Craft Hammer\xA77, \xA7f60 Emeralds\xA77, \xA7f60 Wheat\xA77.
+\xA7ePlace the Village Spawner first, then build your Town Hall! \xA7bBuild a Castle\xA7e to unlock the Quick Craft Hammer.`
         );
       }
     }
@@ -7284,6 +7321,9 @@ world20.afterEvents.playerJoin.subscribe((event) => {
 startVillagerBowSystem();
 registerChargeSystem();
 loadSiegesFromStorage();
+system6.runInterval(() => {
+  tickFormationMovement();
+}, 3);
 system6.runInterval(() => {
   const tick = getCurrentTick();
   tickWatchtowers(tick);
@@ -7324,6 +7364,44 @@ system6.runInterval(() => {
     updateHousingCapacity(village.id);
   }
 }, 72e3);
+world20.beforeEvents.itemUse.subscribe((event) => {
+  const player = event.source;
+  const itemId = event.itemStack?.typeId;
+  if (itemId !== "dg:hammer") return;
+  const ownedVillages = getAllVillages().filter((v) => v.owner === player.name);
+  const castleVillage = ownedVillages.find((v) => v.hasCastle);
+  if (!castleVillage) {
+    event.cancel = true;
+    system6.run(() => {
+      notifyPlayer(player.name, "\xA7c\u{1F3F0} You need a \xA7bCastle\xA7c built in your kingdom to use the Quick Craft Hammer!");
+    });
+    return;
+  }
+  const HAMMER_WOOD_COST = 20;
+  const HAMMER_STONE_COST = 15;
+  const HAMMER_FOOD_COST = 10;
+  const rs = castleVillage.resourceStorage;
+  if ((rs.wood ?? 0) < HAMMER_WOOD_COST || (rs.stone ?? 0) < HAMMER_STONE_COST || (castleVillage.foodStorage ?? 0) < HAMMER_FOOD_COST) {
+    event.cancel = true;
+    system6.run(() => {
+      notifyPlayer(
+        player.name,
+        `\xA7c\u{1F528} Quick Craft requires \xA7f${HAMMER_WOOD_COST} Wood\xA7c, \xA7f${HAMMER_STONE_COST} Stone\xA7c, \xA7f${HAMMER_FOOD_COST} Food\xA7c in \xA7b${castleVillage.name}\xA7c.\n\xA77Current \u2014 Wood: \xA7f${rs.wood ?? 0}\xA77, Stone: \xA7f${rs.stone ?? 0}\xA77, Food: \xA7f${Math.floor(castleVillage.foodStorage ?? 0)}`
+      );
+    });
+    return;
+  }
+  rs.wood = (rs.wood ?? 0) - HAMMER_WOOD_COST;
+  rs.stone = (rs.stone ?? 0) - HAMMER_STONE_COST;
+  castleVillage.foodStorage = (castleVillage.foodStorage ?? 0) - HAMMER_FOOD_COST;
+  saveVillage(castleVillage);
+  system6.run(() => {
+    notifyPlayer(
+      player.name,
+      `\xA7a\u{1F528} Quick Craft ready! \xA77Cost: \xA7f-${HAMMER_WOOD_COST} Wood, -${HAMMER_STONE_COST} Stone, -${HAMMER_FOOD_COST} Food\xA77 from \xA7b${castleVillage.name}`
+    );
+  });
+});
 world20.beforeEvents.playerBreakBlock.subscribe((event) => {
   const { player, block } = event;
   if (!isCropBlock(block.typeId)) return;

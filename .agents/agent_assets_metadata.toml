@@ -71,3 +71,9 @@ id = "dcQtLgFJE6cZO3MXhrul4"
 uri = "file://KingdomsConquest_v1.9.0_full.zip"
 type = "unspecified"
 title = "KingdomsConquest v1.9.0 — NPC Guards + Patrol System (rename to .mcaddon)"
+
+[[outputs]]
+id = "uHXQKdLyZ5rs0enBWM6ZX"
+uri = "file://KingdomsConquest_v2.0.0.zip"
+type = "unspecified"
+title = "KingdomsConquest v2.0.0 — Download & rename to .mcaddon"
