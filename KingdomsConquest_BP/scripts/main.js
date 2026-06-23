@@ -31,7 +31,8 @@ var init_types = __esm({
       coal: 0,
       wood: 0,
       stone: 0,
-      diamonds: 0
+      diamonds: 0,
+      netherite: 0
     };
     RESOURCE_LABELS = {
       iron: "Iron",
@@ -39,7 +40,8 @@ var init_types = __esm({
       coal: "Coal",
       wood: "Wood",
       stone: "Stone",
-      diamonds: "Diamonds"
+      diamonds: "Diamonds",
+      netherite: "Netherite"
     };
     TICKS_PER_DAY = 24e3;
     CLAIM_COST_EMERALDS = 10;
@@ -1394,7 +1396,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     foodShortageStage: 0,
     guardPoles: [],
     tradePoles: [],
-    workers: { farmers: Math.max(1, Math.floor(villagers.length * 0.5)), workers: 0 },
+    workers: { farmers: Math.max(1, Math.floor(villagers.length * 0.5)), workers: 0, miners: 0 },
     blacksmith: { weaponTier: 0, armorTier: 0 },
     activeMerchants: [],
     activeCarts: [],
@@ -1404,6 +1406,8 @@ function claimVillage(player, townHallBlock, kingdomName) {
     builtHousingUnits: 0,
     hasTradeStation: false,
     resourceStorage: { ...EMPTY_RESOURCE_STORAGE },
+    storageLevel: 1,
+    marketLocation: null,
     trainingQueue: []
   };
   saveVillage(village);
@@ -2611,6 +2615,15 @@ function getArmorySummary(village) {
   };
   return entries.map(([k, v]) => `  \xA7f${v}x \xA77${labels[k] ?? k}`).join("\n");
 }
+var MATERIAL_TO_STORAGE_KEY = {
+  "minecraft:cobblestone": "stone",
+  "minecraft:stone": "stone",
+  "minecraft:iron_ingot": "iron",
+  "minecraft:gold_ingot": "gold",
+  "minecraft:diamond": "diamonds",
+  "minecraft:netherite_scrap": "netherite",
+  "minecraft:netherite_ingot": "netherite"
+};
 function upgradeWeapons(player, villageId) {
   const village = getVillage(villageId);
   if (!village || village.owner !== player.name) return false;
@@ -2622,26 +2635,33 @@ function upgradeWeapons(player, villageId) {
   const cost = WEAPON_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
   const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  if (totalSoldiers === 0) {
+    notifyPlayer(player.name, "\xA7cNo soldiers to upgrade.");
+    return false;
+  }
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
-  if (!consumeItems(player, cost.material, totalMaterial)) {
+  const rs = village.resourceStorage;
+  const storageKey = MATERIAL_TO_STORAGE_KEY[cost.material];
+  if (!storageKey || (rs[storageKey] ?? 0) < totalMaterial) {
     notifyPlayer(
       player.name,
-      `\xA7cNeed ${totalMaterial}x ${cost.material.replace("minecraft:", "")} to upgrade ${totalSoldiers} soldiers.`
+      `\xA7cNeed \xA7e${totalMaterial}x ${cost.material.replace("minecraft:", "")}\xA7c in Material Storage (have ${rs[storageKey] ?? 0}).`
     );
     return false;
   }
-  if (!consumeItems(player, "minecraft:emerald", totalEmeralds)) {
-    notifyPlayer(player.name, `\xA7cNeed ${totalEmeralds} emeralds for upgrades.`);
-    giveBackItems(player, cost.material, totalMaterial);
+  if (village.treasury < totalEmeralds) {
+    notifyPlayer(player.name, `\xA7cNeed \xA76${totalEmeralds}\u{1F48E}\xA7c in village treasury (have ${village.treasury}).`);
     return false;
   }
+  rs[storageKey] -= totalMaterial;
+  village.treasury -= totalEmeralds;
   village.blacksmith.weaponTier++;
   saveVillage(village);
   const newTier = WEAPON_TIERS[village.blacksmith.weaponTier];
   notifyPlayer(
     player.name,
-    `\xA7aWeapons upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a!`
+    `\xA7aWeapons upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a! (\xA7e${totalMaterial}x ${cost.material.replace("minecraft:", "")}\xA7a from storage + \xA76${totalEmeralds}\u{1F48E}\xA7a from treasury)`
   );
   return true;
 }
@@ -2656,26 +2676,33 @@ function upgradeArmor(player, villageId) {
   const cost = ARMOR_UPGRADE_COSTS[currentTier];
   if (!cost) return false;
   const totalSoldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  if (totalSoldiers === 0) {
+    notifyPlayer(player.name, "\xA7cNo soldiers to upgrade.");
+    return false;
+  }
   const totalMaterial = cost.materialCount * totalSoldiers;
   const totalEmeralds = cost.emeralds * totalSoldiers;
-  if (!consumeItems(player, cost.material, totalMaterial)) {
+  const rs = village.resourceStorage;
+  const storageKey = MATERIAL_TO_STORAGE_KEY[cost.material];
+  if (!storageKey || (rs[storageKey] ?? 0) < totalMaterial) {
     notifyPlayer(
       player.name,
-      `\xA7cNeed ${totalMaterial}x ${cost.material.replace("minecraft:", "")} for armor upgrade.`
+      `\xA7cNeed \xA7e${totalMaterial}x ${cost.material.replace("minecraft:", "")}\xA7c in Material Storage (have ${rs[storageKey] ?? 0}).`
     );
     return false;
   }
-  if (!consumeItems(player, "minecraft:emerald", totalEmeralds)) {
-    notifyPlayer(player.name, `\xA7cNeed ${totalEmeralds} emeralds for armor upgrades.`);
-    giveBackItems(player, cost.material, totalMaterial);
+  if (village.treasury < totalEmeralds) {
+    notifyPlayer(player.name, `\xA7cNeed \xA76${totalEmeralds}\u{1F48E}\xA7c in village treasury (have ${village.treasury}).`);
     return false;
   }
+  rs[storageKey] -= totalMaterial;
+  village.treasury -= totalEmeralds;
   village.blacksmith.armorTier++;
   saveVillage(village);
   const newTier = ARMOR_TIERS[village.blacksmith.armorTier];
   notifyPlayer(
     player.name,
-    `\xA7aArmor upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a!`
+    `\xA7aArmor upgraded to \xA7b${newTier}\xA7a tier for ${totalSoldiers} soldiers in \xA7b${village.name}\xA7a! (\xA7e${totalMaterial}x ${cost.material.replace("minecraft:", "")}\xA7a from storage + \xA76${totalEmeralds}\\u{1F48E}\xA7a from treasury)`
   );
   return true;
 }
@@ -3621,6 +3648,43 @@ function processAllFood() {
     tickFood(village);
   }
 }
+var MINER_YIELD_TABLE = [
+  { iron: [2, 5], gold: [0, 1], stone: [3, 8], coal: [1, 3], diamonds: [0, 0], netherite: [0, 0] },
+  { iron: [4, 8], gold: [1, 2], stone: [5, 12], coal: [2, 5], diamonds: [0, 1], netherite: [0, 0] },
+  { iron: [6, 12], gold: [2, 4], stone: [8, 16], coal: [3, 6], diamonds: [1, 2], netherite: [0, 0] },
+  { iron: [8, 16], gold: [3, 6], stone: [10, 20], coal: [4, 8], diamonds: [1, 3], netherite: [0, 1] },
+  { iron: [10, 20], gold: [4, 8], stone: [12, 24], coal: [5, 10], diamonds: [2, 4], netherite: [1, 2] }
+];
+function tickMiners(village) {
+  const miners = village.workers?.miners ?? 0;
+  if (miners <= 0) return;
+  if (!isNewDay(village.lastDayProcessed)) return;
+  ensureResourceStorage(village);
+  const level = Math.max(1, Math.min(5, village.storageLevel ?? 1));
+  const table = MINER_YIELD_TABLE[level - 1];
+  const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+  const gains = {};
+  let totalGain = 0;
+  for (const [resource, [min, max]] of Object.entries(table)) {
+    const perMiner = rand(min, max);
+    const total = perMiner * miners;
+    if (total > 0) {
+      village.resourceStorage[resource] = (village.resourceStorage[resource] ?? 0) + total;
+      gains[resource] = total;
+      totalGain += total;
+    }
+  }
+  if (totalGain > 0) {
+    const summary = Object.entries(gains).map(([k, v]) => `${v} ${RESOURCE_LABELS[k] ?? k}`).join(", ");
+    notifyPlayer(village.owner, `\xA78\u26CF ${miners} miner${miners > 1 ? "s" : ""} in \xA7b${village.name}\xA78 produced: \xA7f${summary}`);
+    saveVillage(village);
+  }
+}
+function processAllMiners() {
+  for (const village of getAllVillages()) {
+    tickMiners(village);
+  }
+}
 
 // src/systems/population.ts
 init_types();
@@ -3845,7 +3909,7 @@ function tickAllMerchantMovement() {
 }
 function spawnMerchant(village) {
   const dim = world12.getDimension(village.location.dimension);
-  const loc = village.townHallLocation;
+  const dest = village.marketLocation ?? village.townHallLocation;
   const templates = Object.keys(MERCHANT_STOCK_TEMPLATES);
   const templateKey = templates[Math.floor(Math.random() * templates.length)];
   const stock = { ...MERCHANT_STOCK_TEMPLATES[templateKey] };
@@ -3853,15 +3917,16 @@ function spawnMerchant(village) {
   const distance2 = MERCHANT_OUTER_SPAWN_MIN + Math.random() * (MERCHANT_OUTER_SPAWN_MAX - MERCHANT_OUTER_SPAWN_MIN);
   try {
     const entity = dim.spawnEntity("kingdoms:merchant", {
-      x: loc.x + Math.cos(angle) * distance2,
-      y: loc.y,
-      z: loc.z + Math.sin(angle) * distance2
+      x: dest.x + Math.cos(angle) * distance2,
+      y: dest.y,
+      z: dest.z + Math.sin(angle) * distance2
     });
     const merchantData = {
       entityId: entity.id,
       stock,
       destinationVillageId: village.id,
-      currentPoleIndex: 0
+      currentPoleIndex: 0,
+      arrived: false
     };
     entity.setDynamicProperty("kc:merchant_data", JSON.stringify(merchantData));
     entity.setDynamicProperty("kc:village_id", village.id);
@@ -3870,7 +3935,7 @@ function spawnMerchant(village) {
     saveVillage(village);
     notifyPlayer(
       village.owner,
-      `\xA76A merchant has set out for \xA7b${village.name}\xA76! (${Math.round(distance2)} blocks away, Stock: ${Object.keys(stock).length} types)`
+      `\xA76A merchant has set out for \xA7b${village.name}\xA76 market! (${Math.round(distance2)} blocks away, Stock: ${Object.keys(stock).length} types)`
     );
   } catch {
   }
@@ -3878,10 +3943,11 @@ function spawnMerchant(village) {
 function tickMerchantMovement(village) {
   const dim = world12.getDimension(village.location.dimension);
   const poles = village.tradePoles;
-  const townHall = village.townHallLocation;
+  const finalDest = village.marketLocation ?? village.townHallLocation;
   let changed = false;
   for (const merchantData of village.activeMerchants) {
     try {
+      if (merchantData.arrived) continue;
       const entities = dim.getEntities({ type: "kingdoms:merchant" });
       const entity = entities.find((e) => e.id === merchantData.entityId);
       if (!entity) continue;
@@ -3892,7 +3958,7 @@ function tickMerchantMovement(village) {
         target = poles[merchantData.currentPoleIndex].location;
         onPole = true;
       } else {
-        target = townHall;
+        target = finalDest;
       }
       const dx = target.x - loc.x;
       const dz = target.z - loc.z;
@@ -3901,6 +3967,10 @@ function tickMerchantMovement(village) {
         if (onPole) {
           merchantData.currentPoleIndex++;
           changed = true;
+        } else {
+          merchantData.arrived = true;
+          changed = true;
+          notifyPlayer(village.owner, `\xA76A merchant has arrived at \xA7b${village.name}\xA76 market! Tap the merchant to trade.`);
         }
         continue;
       }
@@ -3914,7 +3984,7 @@ function tickMerchantMovement(village) {
         if (hostiles.length > 0) {
           entity.applyDamage(2);
           if (Math.random() < 0.04) {
-            notifyPlayer(village.owner, `\xA7c\u26A0 A merchant heading to \xA7b${village.name}\xA7c is under mob attack! (${Math.round(dist2D)} blocks out)`);
+            notifyPlayer(village.owner, `\xA7c\u26A0 A merchant heading to \xA7b${village.name}\xA7c market is under mob attack! (${Math.round(dist2D)} blocks out)`);
           }
         }
       } catch {
@@ -3934,6 +4004,13 @@ function cleanupDespawnedMerchants(village) {
     saveVillage(village);
   }
 }
+var MERCHANT_FOOD_ITEMS = new Set([
+  "minecraft:bread", "minecraft:cooked_beef", "minecraft:cooked_chicken",
+  "minecraft:cooked_porkchop", "minecraft:cooked_mutton", "minecraft:cooked_salmon",
+  "minecraft:cooked_cod", "minecraft:baked_potato", "minecraft:pumpkin_pie",
+  "minecraft:wheat", "minecraft:apple", "minecraft:carrot", "minecraft:potato",
+  "minecraft:beetroot"
+]);
 function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
   const merchantIdx = village.activeMerchants.findIndex((m) => m.entityId === merchantEntityId);
   if (merchantIdx === -1) return false;
@@ -3953,6 +4030,15 @@ function tradeMerchant(village, merchantEntityId, itemTypeId, buyAmount) {
   merchant.stock[itemTypeId] -= buyAmount;
   if (merchant.stock[itemTypeId] <= 0) {
     delete merchant.stock[itemTypeId];
+  }
+  ensureResourceStorage(village);
+  const resourceEntry = ITEM_RESOURCE_MAP[itemTypeId];
+  if (resourceEntry && resourceEntry.target !== "treasury") {
+    village.resourceStorage[resourceEntry.target] = (village.resourceStorage[resourceEntry.target] ?? 0) + buyAmount;
+    notifyPlayer(village.owner, `\xA7a+${buyAmount}x \xA7f${itemTypeId.replace("minecraft:", "")}\xA7a deposited to \xA7bMaterial Storage\xA7a.`);
+  } else if (MERCHANT_FOOD_ITEMS.has(itemTypeId)) {
+    village.foodStorage = (village.foodStorage ?? 0) + buyAmount;
+    notifyPlayer(village.owner, `\xA7a+${buyAmount}x \xA7f${itemTypeId.replace("minecraft:", "")}\xA7a added to granary food supply.`);
   }
   const totalRemaining = Object.values(merchant.stock).reduce((a, b) => a + b, 0);
   if (totalRemaining <= 0) {
@@ -4028,25 +4114,14 @@ function buySeedsFromMarket(player, village, entry) {
     notifyPlayer(player.name, "\xA7cBuild and upgrade the market first.");
     return false;
   }
+  if (village.treasury < entry.emeraldCost) {
+    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost}\u{1F48E}\xA7c in village treasury (have ${village.treasury}).`);
+    return false;
+  }
   const inv = player.getComponent(EntityInventoryComponent6.componentId);
   if (!inv?.container) return false;
   const container = inv.container;
-  const emeraldsHeld = countItem(container, "minecraft:emerald");
-  if (emeraldsHeld < entry.emeraldCost) {
-    notifyPlayer(player.name, `\xA7cNeed \xA76${entry.emeraldCost} emeralds\xA7c (you have ${emeraldsHeld}).`);
-    return false;
-  }
-  const missing = [];
-  for (const mat of SEED_PURCHASE_MATERIALS) {
-    if (countItem(container, mat.itemId) < mat.amount) {
-      missing.push(`\xA7e${mat.label}`);
-    }
-  }
-  if (missing.length > 0) {
-    notifyPlayer(player.name, `\xA7cAlso need: ${missing.join("\xA7c, ")}`);
-    return false;
-  }
-  removeItems(container, "minecraft:emerald", entry.emeraldCost);
+  village.treasury -= entry.emeraldCost;
   let remaining = entry.quantityPerPurchase;
   for (let i = 0; i < container.size && remaining > 0; i++) {
     const slot = container.getItem(i);
@@ -4208,7 +4283,9 @@ var lastStationTick = 0;
 var ITEM_RESOURCE_MAP = {
   "minecraft:emerald": { target: "treasury" },
   "minecraft:iron_ingot": { target: "iron" },
+  "minecraft:raw_iron": { target: "iron" },
   "minecraft:gold_ingot": { target: "gold" },
+  "minecraft:raw_gold": { target: "gold" },
   "minecraft:coal": { target: "coal" },
   "minecraft:charcoal": { target: "coal" },
   "minecraft:oak_log": { target: "wood" },
@@ -4220,7 +4297,9 @@ var ITEM_RESOURCE_MAP = {
   "minecraft:mangrove_log": { target: "wood" },
   "minecraft:stone": { target: "stone" },
   "minecraft:cobblestone": { target: "stone" },
-  "minecraft:diamond": { target: "diamonds" }
+  "minecraft:diamond": { target: "diamonds" },
+  "minecraft:netherite_scrap": { target: "netherite" },
+  "minecraft:netherite_ingot": { target: "netherite" }
 };
 function sendTradeCart(fromVillageId, toVillageId, cargo) {
   const from = getVillage(fromVillageId);
@@ -6470,7 +6549,8 @@ var CUSTOM_BLOCKS = {
   GRANARY: "kingdoms:granary",
   TREASURY_BLOCK: "kingdoms:treasury",
   BLACKSMITH: "kingdoms:blacksmith",
-  CASTLE: "kingdoms:castle"
+  CASTLE: "kingdoms:castle",
+  STORAGE: "kingdoms:storage"
 };
 function findVillageAt2(location) {
   return getAllVillages().find((v) => {
@@ -6576,6 +6656,30 @@ world20.afterEvents.playerPlaceBlock.subscribe((event) => {
       saveVillage(village);
       notifyPlayer(player.name, `\xA7aVillage Treasury registered for \xA7b${village.name}\xA7a.`);
     }
+  }
+  if (typeId === CUSTOM_BLOCKS.MARKET) {
+    const village = findVillageAt2(block.location);
+    if (village && village.owner === player.name) {
+      village.marketLocation = { x: block.location.x, y: block.location.y, z: block.location.z };
+      saveVillage(village);
+    }
+  }
+  if (typeId === CUSTOM_BLOCKS.STORAGE) {
+    const village = findVillageAt2(block.location);
+    if (!village) {
+      notifyPlayer(player.name, "\xA7cNo village territory here. Claim a village first.");
+      return;
+    }
+    if (village.owner !== player.name) {
+      notifyPlayer(player.name, "\xA7cThis is not your village.");
+      return;
+    }
+    village.storageLocation = { x: block.location.x, y: block.location.y, z: block.location.z };
+    if (!village.storageLevel) village.storageLevel = 1;
+    if (!village.workers.miners) village.workers.miners = 0;
+    ensureResourceStorage(village);
+    saveVillage(village);
+    notifyPlayer(player.name, `\xA7aMaterial Storage built in \xA7b${village.name}\xA7a! Assign miners via the storage menu.`);
   }
   if (typeId === "kingdoms:waypoint") {
     const village = findVillageAt2(block.location);
@@ -6734,6 +6838,9 @@ world20.afterEvents.itemStartUseOn.subscribe((event) => {
       break;
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
+      break;
+    case CUSTOM_BLOCKS.STORAGE:
+      void showMaterialStorageMenu(player, block);
       break;
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt2(block.location);
@@ -6918,6 +7025,9 @@ world20.afterEvents.playerInteractWithEntity.subscribe((event) => {
     case CUSTOM_BLOCKS.TRADE_STATION:
       void showTradeStationMenu(player, block);
       break;
+    case CUSTOM_BLOCKS.STORAGE:
+      void showMaterialStorageMenu(player, block);
+      break;
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt2(blockLoc);
       if (wpVillage && wpVillage.waypointLocation) {
@@ -6963,6 +7073,7 @@ system6.runInterval(() => {
 }, 20);
 system6.runInterval(() => {
   processAllFood();
+  processAllMiners();
   processAllWages();
   processAllPopulation();
   tickBandits();
@@ -7539,7 +7650,7 @@ async function showBlacksmithMenu(player, block) {
     return;
   }
   const summary = getBlacksmithSummary(village);
-  const form = new ActionFormData3().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from inventory)").button("Upgrade Armor\n\xA77(pay from inventory)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
+  const form = new ActionFormData3().title(`${village.name} \u2014 Blacksmith`).body(summary).button("Upgrade Weapons\n\xA77(pay from Material Storage + Treasury)").button("Upgrade Armor\n\xA77(pay from Material Storage + Treasury)").button("\u2692 Craft for Armory\n\xA77(pay from village storage)").button("Close");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8200,4 +8311,103 @@ async function showTradeHistoryMenu(player, villageId) {
 
 ` + lines.join("\n\n")).button("Close");
   await form.show(player);
+}
+async function showMaterialStorageMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  if (!village) {
+    notifyPlayer(player.name, "\xA7cNo village here.");
+    return;
+  }
+  if (village.owner !== player.name) {
+    notifyPlayer(player.name, "\xA7cYou don't own this village.");
+    return;
+  }
+  ensureResourceStorage(village);
+  const rs = village.resourceStorage;
+  const level = village.storageLevel ?? 1;
+  const miners = village.workers?.miners ?? 0;
+  const pop = village.population ?? 0;
+  const maxMiners = Math.min(5, Math.max(0, Math.floor(pop / 10)));
+  const UPGRADE_COSTS = [0, 200, 500, 1200, 3000];
+  const upgradeCost = UPGRADE_COSTS[level] ?? null;
+  const storageBody = [
+    `\xA7b\u26CF Material Storage \u2014 Level ${level}`,
+    `\xA77\u{1F535} Miners assigned: \xA7f${miners}/${maxMiners} (pop: ${pop})`,
+    ``,
+    `\xA77\u{1F538} Current Stock:`,
+    `\xA77  Iron:        \xA7f${rs.iron ?? 0}`,
+    `\xA77  Gold:        \xA7f${rs.gold ?? 0}`,
+    `\xA77  Diamonds:    \xA7f${rs.diamonds ?? 0}`,
+    `\xA77  Coal:        \xA7f${rs.coal ?? 0}`,
+    `\xA77  Stone:       \xA7f${rs.stone ?? 0}`,
+    `\xA77  Wood:        \xA7f${rs.wood ?? 0}`,
+    `\xA77  Netherite:   \xA7f${rs.netherite ?? 0}`,
+    ``,
+    `\xA77Treasury: \xA76${village.treasury}\u{1F48E}`,
+    upgradeCost ? `\xA77Upgrade to Lv${level + 1}: \xA76${upgradeCost}\u{1F48E}` : `\xA77Storage is at max level.`
+  ].join("\n");
+  const form = new ActionFormData3()
+    .title(`${village.name} \u2014 Material Storage`)
+    .body(storageBody)
+    .button("\u{1F4E5} Deposit from Inventory")
+    .button("\u{1F9B8} Assign Miners")
+    .button(upgradeCost ? `\u2B06 Upgrade Storage (${upgradeCost}\u{1F48E})` : "\u2B06 Upgrade Storage (Max Level)");
+  const response = await form.show(player);
+  if (response.canceled) return;
+  switch (response.selection) {
+    case 0: {
+      const inv = player.getComponent("minecraft:inventory")?.container;
+      if (!inv) return;
+      let deposited = 0;
+      for (let i = 0; i < inv.size; i++) {
+        const item = inv.getItem(i);
+        if (!item) continue;
+        const entry = ITEM_RESOURCE_MAP[item.typeId];
+        if (!entry || entry.target === "treasury") continue;
+        const key = entry.target;
+        const qty = item.amount;
+        village.resourceStorage[key] = (village.resourceStorage[key] ?? 0) + qty;
+        inv.setItem(i, void 0);
+        deposited += qty;
+      }
+      if (deposited > 0) {
+        saveVillage(village);
+        notifyPlayer(player.name, `\xA7a\u{1F4E5} Deposited ${deposited} resource(s) into \xA7b${village.name}\xA7a Material Storage.`);
+      } else {
+        notifyPlayer(player.name, "\xA7eNo storable materials found in your inventory.");
+      }
+      break;
+    }
+    case 1: {
+      if (maxMiners === 0) {
+        notifyPlayer(player.name, "\xA7cNeed at least 10 population per miner slot. Grow your village first.");
+        return;
+      }
+      const minerForm = new ModalFormData()
+        .title(`${village.name} \u2014 Assign Miners`)
+        .slider(`Miners (0\u2013${maxMiners})`, 0, maxMiners, 1, miners);
+      const minerResp = await minerForm.show(player);
+      if (minerResp.canceled) return;
+      const newMiners = minerResp.formValues[0];
+      village.workers.miners = newMiners;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7a\u26CF Assigned ${newMiners} miner${newMiners !== 1 ? "s" : ""} in \xA7b${village.name}\xA7a. They will produce resources daily.`);
+      break;
+    }
+    case 2: {
+      if (!upgradeCost) {
+        notifyPlayer(player.name, "\xA7cStorage is already at max level.");
+        return;
+      }
+      if (village.treasury < upgradeCost) {
+        notifyPlayer(player.name, `\xA7cNeed \xA76${upgradeCost}\u{1F48E}\xA7c to upgrade. Current treasury: \xA76${village.treasury}\u{1F48E}\xA7c.`);
+        return;
+      }
+      village.treasury -= upgradeCost;
+      village.storageLevel = level + 1;
+      saveVillage(village);
+      notifyPlayer(player.name, `\xA7a\u2B06 Material Storage upgraded to \xA7bLevel ${village.storageLevel}\xA7a in \xA7b${village.name}\xA7a!`);
+      break;
+    }
+  }
 }
