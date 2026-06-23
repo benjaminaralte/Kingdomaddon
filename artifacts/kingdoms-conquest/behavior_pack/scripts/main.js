@@ -4838,6 +4838,24 @@ import { world as world15 } from "@minecraft/server";
 init_types();
 init_storage();
 init_notify();
+var WALL_PATROL_OFFSETS = [
+  { dx: 0, dz: -27 },
+  // 0: north wall centre
+  { dx: 27, dz: -27 },
+  // 1: NE corner
+  { dx: 27, dz: 0 },
+  // 2: east wall centre
+  { dx: 4, dz: 27 },
+  // 3: gate — right tower
+  { dx: -4, dz: 27 },
+  // 4: gate — left tower
+  { dx: -27, dz: 27 },
+  // 5: SW corner
+  { dx: -27, dz: 0 },
+  // 6: west wall centre
+  { dx: -27, dz: -27 }
+  // 7: NW corner
+];
 var GUARD_ENTITY_MAP = {
   cityGuards: "kingdoms:city_guard",
   spearmen: "kingdoms:spearman",
@@ -4932,23 +4950,24 @@ function fillUnderstaffedPoles(village) {
   if (changed) saveVillage(village);
 }
 function setupKingdomWallGuards(village, center) {
+  const dim = world15.getDimension(village.location.dimension);
   const posts = [
     { dx: 0, dz: -27, type: "watchtower" },
     // north wall centre
-    { dx: 27, dz: 0, type: "watchtower" },
-    // east wall centre
-    { dx: -27, dz: 0, type: "watchtower" },
-    // west wall centre
-    { dx: -27, dz: -27, type: "watchtower" },
-    // NW corner
     { dx: 27, dz: -27, type: "watchtower" },
     // NE corner
+    { dx: 27, dz: 0, type: "watchtower" },
+    // east wall centre
+    { dx: 4, dz: 27, type: "gate" },
+    // south gate — right tower
+    { dx: -4, dz: 27, type: "gate" },
+    // south gate — left tower
     { dx: -27, dz: 27, type: "watchtower" },
     // SW corner
-    { dx: -4, dz: 27, type: "gate" },
-    // south gate left tower
-    { dx: 4, dz: 27, type: "gate" }
-    // south gate right tower
+    { dx: -27, dz: 0, type: "watchtower" },
+    // west wall centre
+    { dx: -27, dz: -27, type: "watchtower" }
+    // NW corner
   ];
   let assigned = 0;
   for (const { dx, dz, type } of posts) {
@@ -4970,6 +4989,37 @@ function setupKingdomWallGuards(village, center) {
       assigned += toAssign;
     }
   }
+  const route = WALL_PATROL_OFFSETS.map(({ dx, dz }) => ({
+    x: center.x + dx,
+    y: center.y,
+    z: center.z + dz
+  }));
+  try {
+    world15.setDynamicProperty(`kc:wpatrol_${village.id}`, JSON.stringify(route));
+    world15.setDynamicProperty(`kc:wcenter_${village.id}`, JSON.stringify(center));
+  } catch {
+  }
+  if (assigned > 0) {
+    let stagger = 0;
+    const wallPoles = village.guardPoles.filter(
+      (p) => p.type === "watchtower" || p.type === "gate"
+    );
+    for (const pole of wallPoles) {
+      try {
+        const guards = dim.getEntities({
+          type: GUARD_ENTITY_MAP["spearmen"],
+          location: pole.location,
+          maxDistance: 5
+        });
+        for (const ent of guards) {
+          if (!pole.entityIds.includes(ent.id)) continue;
+          ent.setDynamicProperty("kc:patrol_wp", stagger % route.length);
+          stagger++;
+        }
+      } catch {
+      }
+    }
+  }
   saveVillage(village);
   if (assigned > 0) {
     notifyPlayer(
@@ -4981,6 +5031,67 @@ function setupKingdomWallGuards(village, center) {
       village.owner,
       `\xA7e\u2694 Kingdom wall posts established (${posts.length} stations). Train spearmen \u2014 they will be assigned with priority when ready.`
     );
+  }
+}
+function tickWallPatrols() {
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+    let route = null;
+    let center = null;
+    try {
+      const rRaw = world15.getDynamicProperty(`kc:wpatrol_${village.id}`);
+      const cRaw = world15.getDynamicProperty(`kc:wcenter_${village.id}`);
+      if (!rRaw || !cRaw) continue;
+      route = JSON.parse(rRaw);
+      center = JSON.parse(cRaw);
+    } catch {
+      continue;
+    }
+    if (!route || !center || route.length === 0) continue;
+    const wallPoles = village.guardPoles.filter(
+      (p) => (p.type === "watchtower" || p.type === "gate") && p.entityIds.length > 0
+    );
+    if (wallPoles.length === 0) continue;
+    const dim = world15.getDimension(village.location.dimension);
+    const allEntityIds = new Set(wallPoles.flatMap((p) => p.entityIds));
+    try {
+      const candidates = dim.getEntities({
+        type: GUARD_ENTITY_MAP["spearmen"],
+        location: center,
+        maxDistance: 50
+      });
+      for (const entity of candidates) {
+        if (!allEntityIds.has(entity.id)) continue;
+        let wpIdx = 0;
+        try {
+          const stored = entity.getDynamicProperty("kc:patrol_wp");
+          if (typeof stored === "number") wpIdx = stored;
+        } catch {
+        }
+        const target = route[wpIdx % route.length];
+        const loc = entity.location;
+        const dx = target.x - loc.x;
+        const dz = target.z - loc.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 3) {
+          try {
+            entity.setDynamicProperty("kc:patrol_wp", (wpIdx + 1) % route.length);
+          } catch {
+          }
+        } else {
+          const step = Math.min(4, dist - 0.5);
+          try {
+            entity.teleport({
+              x: loc.x + dx / dist * step,
+              y: loc.y,
+              z: loc.z + dz / dist * step
+            });
+          } catch {
+          }
+        }
+      }
+    } catch {
+    }
   }
 }
 function spawnPoleGuards(village, pole) {
@@ -5046,6 +5157,7 @@ function enforceGuardPositions() {
     if (!village.owner) continue;
     const dim = world15.getDimension(village.location.dimension);
     for (const pole of village.guardPoles) {
+      if (pole.type === "watchtower" || pole.type === "gate") continue;
       if (pole.entityIds.length === 0) continue;
       const entityType = GUARD_ENTITY_MAP[pole.troopType];
       if (!entityType) continue;
@@ -7236,6 +7348,9 @@ system6.runInterval(() => {
 system6.runInterval(() => {
   enforceGuardPositions();
 }, 600);
+system6.runInterval(() => {
+  tickWallPatrols();
+}, 20);
 system6.runInterval(() => {
   for (const village of getAllVillages()) {
     updateHousingCapacity(village.id);

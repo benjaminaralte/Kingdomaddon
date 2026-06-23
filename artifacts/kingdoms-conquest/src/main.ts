@@ -62,6 +62,7 @@ import {
   registerGuardPole,
   removeGuardPole,
   setupKingdomWallGuards,
+  tickWallPatrols,
 } from "./systems/guards.js";
 import {
   declareWar,
@@ -923,6 +924,11 @@ system.runInterval(() => {
 system.runInterval(() => {
   enforceGuardPositions();
 }, 600);
+
+// Wall-patrol tick: move spearmen guards along the kingdom perimeter ~4 blocks/s
+system.runInterval(() => {
+  tickWallPatrols();
+}, 20);
 
 system.runInterval(() => {
   for (const village of getAllVillages()) {

@@ -5,6 +5,18 @@ import { MAX_GUARDS_PER_POLE } from "../types/index.js";
 import { generateId, saveVillage, getAllVillages } from "../storage/index.js";
 import { notifyPlayer } from "../utils/notify.js";
 
+// Clockwise patrol route around the kingdom outer wall (offsets from spawn centre)
+const WALL_PATROL_OFFSETS: Array<{ dx: number; dz: number }> = [
+  { dx:   0, dz: -27 }, // 0: north wall centre
+  { dx:  27, dz: -27 }, // 1: NE corner
+  { dx:  27, dz:   0 }, // 2: east wall centre
+  { dx:   4, dz:  27 }, // 3: gate — right tower
+  { dx:  -4, dz:  27 }, // 4: gate — left tower
+  { dx: -27, dz:  27 }, // 5: SW corner
+  { dx: -27, dz:   0 }, // 6: west wall centre
+  { dx: -27, dz: -27 }, // 7: NW corner
+];
+
 const GUARD_ENTITY_MAP: Record<TroopType, string> = {
   cityGuards:      "kingdoms:city_guard",
   spearmen:        "kingdoms:spearman",
@@ -161,21 +173,25 @@ export function fillUnderstaffedPoles(village: VillageData): void {
  * positions around the outer wall. They are filled immediately if spearmen are
  * available, otherwise they remain as unfilled requests — fillUnderstaffedPoles
  * will staff them (with gate/watchtower priority) whenever spearmen are trained.
+ * Also persists the patrol route and kingdom centre so tickWallPatrols can move
+ * the guards along the perimeter.
  */
 export function setupKingdomWallGuards(
   village: VillageData,
   center: { x: number; y: number; z: number }
 ): void {
-  // 8 patrol posts: 4 wall midpoints + 2 corner flanks + 2 gate positions
+  const dim = world.getDimension(village.location.dimension);
+
+  // 8 posts ordered to match WALL_PATROL_OFFSETS (same clockwise sequence)
   const posts: Array<{ dx: number; dz: number; type: GuardPoleType }> = [
     { dx:   0, dz: -27, type: "watchtower" }, // north wall centre
+    { dx:  27, dz: -27, type: "watchtower" }, // NE corner
     { dx:  27, dz:   0, type: "watchtower" }, // east wall centre
+    { dx:   4, dz:  27, type: "gate"       }, // south gate — right tower
+    { dx:  -4, dz:  27, type: "gate"       }, // south gate — left tower
+    { dx: -27, dz:  27, type: "watchtower" }, // SW corner
     { dx: -27, dz:   0, type: "watchtower" }, // west wall centre
     { dx: -27, dz: -27, type: "watchtower" }, // NW corner
-    { dx:  27, dz: -27, type: "watchtower" }, // NE corner
-    { dx: -27, dz:  27, type: "watchtower" }, // SW corner
-    { dx:  -4, dz:  27, type: "gate" },        // south gate left tower
-    { dx:   4, dz:  27, type: "gate" },        // south gate right tower
   ];
 
   let assigned = 0;
@@ -204,6 +220,42 @@ export function setupKingdomWallGuards(
     }
   }
 
+  // Persist the clockwise patrol route (absolute coords) and the kingdom centre
+  // so that tickWallPatrols can move guards along the perimeter without needing
+  // to re-derive the geometry on every tick.
+  const route = WALL_PATROL_OFFSETS.map(({ dx, dz }) => ({
+    x: center.x + dx,
+    y: center.y,
+    z: center.z + dz,
+  }));
+  try {
+    world.setDynamicProperty(`kc:wpatrol_${village.id}`, JSON.stringify(route));
+    world.setDynamicProperty(`kc:wcenter_${village.id}`, JSON.stringify(center));
+  } catch { /* skip if world property limit hit */ }
+
+  // Stagger initial patrol-waypoint indices so spawned guards spread out
+  // immediately rather than all heading to the same first waypoint.
+  if (assigned > 0) {
+    let stagger = 0;
+    const wallPoles = village.guardPoles.filter(
+      (p) => p.type === "watchtower" || p.type === "gate"
+    );
+    for (const pole of wallPoles) {
+      try {
+        const guards = dim.getEntities({
+          type: GUARD_ENTITY_MAP["spearmen"],
+          location: pole.location,
+          maxDistance: 5,
+        });
+        for (const ent of guards) {
+          if (!pole.entityIds.includes(ent.id)) continue;
+          ent.setDynamicProperty("kc:patrol_wp", stagger % route.length);
+          stagger++;
+        }
+      } catch { /* chunk not loaded */ }
+    }
+  }
+
   saveVillage(village);
 
   if (assigned > 0) {
@@ -216,6 +268,81 @@ export function setupKingdomWallGuards(
       village.owner,
       `§e⚔ Kingdom wall posts established (${posts.length} stations). Train spearmen — they will be assigned with priority when ready.`
     );
+  }
+}
+
+/**
+ * Called on a short interval (~20 ticks). Moves each wall patrol guard
+ * (watchtower / gate poles) one step along the clockwise perimeter route.
+ * When a guard reaches its current waypoint it advances to the next one.
+ * enforceGuardPositions skips these poles so it does not fight the patrol.
+ */
+export function tickWallPatrols(): void {
+  for (const village of getAllVillages()) {
+    if (!village.owner) continue;
+
+    // Load the pre-computed route and kingdom centre for this village
+    let route: Array<{ x: number; y: number; z: number }> | null = null;
+    let center: { x: number; y: number; z: number }  | null = null;
+    try {
+      const rRaw = world.getDynamicProperty(`kc:wpatrol_${village.id}`) as string | undefined;
+      const cRaw = world.getDynamicProperty(`kc:wcenter_${village.id}`) as string | undefined;
+      if (!rRaw || !cRaw) continue;
+      route  = JSON.parse(rRaw);
+      center = JSON.parse(cRaw);
+    } catch { continue; }
+    if (!route || !center || route.length === 0) continue;
+
+    const wallPoles = village.guardPoles.filter(
+      (p) => (p.type === "watchtower" || p.type === "gate") && p.entityIds.length > 0
+    );
+    if (wallPoles.length === 0) continue;
+
+    const dim = world.getDimension(village.location.dimension);
+    const allEntityIds = new Set(wallPoles.flatMap((p) => p.entityIds));
+
+    try {
+      // Search within 50 blocks of the kingdom centre (outer wall ≤ 38 blocks away)
+      const candidates = dim.getEntities({
+        type: GUARD_ENTITY_MAP["spearmen"],
+        location: center,
+        maxDistance: 50,
+      });
+
+      for (const entity of candidates) {
+        if (!allEntityIds.has(entity.id)) continue;
+
+        // Read the guard's current patrol-waypoint index
+        let wpIdx = 0;
+        try {
+          const stored = entity.getDynamicProperty("kc:patrol_wp");
+          if (typeof stored === "number") wpIdx = stored;
+        } catch { /* default to 0 */ }
+
+        const target = route[wpIdx % route.length];
+        const loc    = entity.location;
+        const dx     = target.x - loc.x;
+        const dz     = target.z - loc.z;
+        const dist   = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < 3) {
+          // Reached this waypoint — advance clockwise
+          try {
+            entity.setDynamicProperty("kc:patrol_wp", (wpIdx + 1) % route.length);
+          } catch { /* skip */ }
+        } else {
+          // Step toward the waypoint (4 blocks per second at 20-tick interval)
+          const step = Math.min(4, dist - 0.5);
+          try {
+            entity.teleport({
+              x: loc.x + (dx / dist) * step,
+              y: loc.y,
+              z: loc.z + (dz / dist) * step,
+            });
+          } catch { /* chunk unloaded */ }
+        }
+      }
+    } catch { /* chunk unloaded */ }
   }
 }
 
@@ -289,6 +416,9 @@ export function enforceGuardPositions(): void {
     if (!village.owner) continue;
     const dim = world.getDimension(village.location.dimension);
     for (const pole of village.guardPoles) {
+      // Wall patrol guards move freely along the perimeter — tickWallPatrols
+      // handles their positioning, so enforcement would fight the patrol.
+      if (pole.type === "watchtower" || pole.type === "gate") continue;
       if (pole.entityIds.length === 0) continue;
       const entityType = GUARD_ENTITY_MAP[pole.troopType];
       if (!entityType) continue;
