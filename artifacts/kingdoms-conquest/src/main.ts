@@ -1060,13 +1060,32 @@ type _CmdFn  = (x: number, y: number, z: number, blockId: string, states?: strin
 function _buildMedievalHouse(
   b: _BlkFn, v: _VolFn, cmd: _CmdFn,
   cx: number, cz: number, w: number, d: number,
-  wall: string, post: string
+  wall: string, post: string,
+  variant: number = 0
 ): void {
   const hw = Math.floor(w / 2), hd = Math.floor(d / 2);
 
+  // Variant palettes — each house gets its own colour scheme and flowers
+  const CARPETS = [
+    "minecraft:red_carpet","minecraft:blue_carpet","minecraft:white_carpet",
+    "minecraft:purple_carpet","minecraft:orange_carpet","minecraft:yellow_carpet",
+  ];
+  const BEDS = [
+    "minecraft:red_bed","minecraft:blue_bed","minecraft:white_bed",
+    "minecraft:purple_bed","minecraft:orange_bed","minecraft:yellow_bed",
+  ];
+  const FLOWERS = [
+    "minecraft:poppy","minecraft:dandelion","minecraft:blue_orchid",
+    "minecraft:allium","minecraft:azure_bluet","minecraft:oxeye_daisy",
+  ];
+  const CARPET  = CARPETS[variant % CARPETS.length];
+  const BED     = BEDS[variant % BEDS.length];
+  const FLOWER  = FLOWERS[variant % FLOWERS.length];
+  const FLOWER2 = FLOWERS[(variant + 2) % FLOWERS.length];
+
   // ── Foundation & floor ───────────────────────────────────────────────────
-  v(cx-hw, -1, cz-hd, cx+hw, -1, cz+hd, "minecraft:cobblestone"); // sub-foundation
-  v(cx-hw,  0, cz-hd, cx+hw,  0, cz+hd, "minecraft:oak_planks");  // wooden floor
+  v(cx-hw, -1, cz-hd, cx+hw, -1, cz+hd, "minecraft:cobblestone");
+  v(cx-hw,  0, cz-hd, cx+hw,  0, cz+hd, "minecraft:oak_planks");
 
   // ── Corner posts y=1-5 ───────────────────────────────────────────────────
   for (const [px, pz] of [
@@ -1097,9 +1116,20 @@ function _buildMedievalHouse(
   b(cx-hw, 2, cz, "minecraft:glass_pane");   b(cx-hw, 3, cz, "minecraft:glass_pane");
   b(cx+hw, 2, cz, "minecraft:glass_pane");   b(cx+hw, 3, cz, "minecraft:glass_pane");
 
+  // Window-box flowers on the exterior front face (both sides of front windows)
+  b(cx-1, 1, cz+hd+1, FLOWER);
+  b(cx+1, 1, cz+hd+1, FLOWER2);
+
   // ── Door opening (south face) ─────────────────────────────────────────────
   b(cx, 1, cz+hd, "minecraft:air");
   b(cx, 2, cz+hd, "minecraft:air");
+
+  // Entrance step: smooth-stone top-slab just outside the door
+  cmd(cx, 0, cz+hd+1, "minecraft:smooth_stone_slab", '"top_slot_bit"=true');
+
+  // ── Oak door ──────────────────────────────────────────────────────────────
+  cmd(cx, 1, cz+hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=false');
+  cmd(cx, 2, cz+hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=true');
 
   // ── Stepped brick pyramid roof ────────────────────────────────────────────
   const roofSteps = Math.min(hw, hd);
@@ -1120,20 +1150,21 @@ function _buildMedievalHouse(
   const ix1 = cx-hw+1, ix2 = cx+hw-1;
   const iz1 = cz-hd+1, iz2 = cz+hd-1;
 
-  // Ceiling lantern
-  b(cx, 4, cz, "minecraft:lantern");
-  // Secondary wall lanterns for warm light
+  // Ceiling lantern + two warm wall lanterns
+  b(cx, 4, cz,  "minecraft:lantern");
   b(ix1, 3, cz, "minecraft:lantern");
+  b(ix2, 3, cz, "minecraft:lantern");
 
-  // Red carpet runner from door to north wall
-  for (let rz = iz1; rz <= iz2; rz++) b(cx, 1, rz, "minecraft:red_carpet");
+  // Doormat (carpet tile just inside door) then carpet runner toward north wall
+  b(cx, 1, iz2, CARPET);
+  for (let rz = iz1; rz <= iz2 - 1; rz++) b(cx, 1, rz, CARPET);
 
   // Beds along north wall (head against wall)
-  cmd(ix1, 1, iz1,   "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
-  cmd(ix1, 1, iz1+1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+  cmd(ix1, 1, iz1,   BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(ix1, 1, iz1+1, BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
   if (w >= 9) {
-    cmd(ix2, 1, iz1,   "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
-    cmd(ix2, 1, iz1+1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+    cmd(ix2, 1, iz1,   BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+    cmd(ix2, 1, iz1+1, BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
   }
 
   // Bookshelves on north inner wall
@@ -1143,26 +1174,33 @@ function _buildMedievalHouse(
   // Fireplace: furnace + cobblestone hood at northeast interior corner
   b(ix2, 1, iz1, "minecraft:furnace");
   b(ix2, 2, iz1, "minecraft:cobblestone");
+  b(ix2, 3, iz1, "minecraft:cobblestone");
+
+  // Dining table: stripped-oak-log top, oak-slab bench seats on four sides
+  b(cx,   2, cz,   "minecraft:stripped_oak_log");
+  b(cx-1, 1, cz,   "minecraft:oak_slab");
+  b(cx+1, 1, cz,   "minecraft:oak_slab");
+  b(cx,   1, cz-1, "minecraft:oak_slab");
+  b(cx,   1, cz+1, "minecraft:oak_slab");
+  b(cx,   3, cz,   "minecraft:lantern");  // candle/lantern centrepiece on table
 
   // Crafting table (south-west)
   b(ix1, 1, iz2-1, "minecraft:crafting_table");
   // Chest (south-east)
   b(ix2, 1, iz2-1, "minecraft:chest");
-  // Barrel storage (west wall)
-  b(ix1, 1, cz, "minecraft:barrel");
-  // Flower pot on north windowsill as decoration
+  // Barrel storage (west wall, offset from table)
+  b(ix1, 1, cz-1, "minecraft:barrel");
+  // Cauldron as kitchen basin (east wall)
+  b(ix2, 1, iz2, "minecraft:cauldron");
+  // Flower pot on north windowsill
   b(cx, 1, iz1, "minecraft:flower_pot");
-
-  // Oak door via cmd for correct block states
-  cmd(cx, 1, cz+hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=false');
-  cmd(cx, 2, cz+hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=true');
 
   // ── Fenced front yard ─────────────────────────────────────────────────────
   const fyZ2 = cz + hd + 4;  // front fence line
   const fxL  = cx - hw - 1;  // west fence column
   const fxR  = cx + hw + 1;  // east fence column
 
-  // Side fence posts (house front to yard front)
+  // Side fence runs (house front to yard front)
   for (let fz = cz+hd; fz <= fyZ2; fz++) {
     b(fxL, 1, fz, "minecraft:oak_fence");
     b(fxR, 1, fz, "minecraft:oak_fence");
@@ -1177,12 +1215,20 @@ function _buildMedievalHouse(
   b(fxL, 2, fyZ2, "minecraft:oak_fence"); b(fxL, 3, fyZ2, "minecraft:lantern");
   b(fxR, 2, fyZ2, "minecraft:oak_fence"); b(fxR, 3, fyZ2, "minecraft:lantern");
 
-  // Dirt path through yard
+  // Dirt path through yard (3 blocks wide)
   v(cx-1, 0, cz+hd+1, cx+1, 0, fyZ2-1, "minecraft:dirt_path");
 
-  // Flower pots along yard path (both sides)
-  b(fxL+1, 1, cz+hd+2, "minecraft:flower_pot");
-  b(fxR-1, 1, cz+hd+2, "minecraft:flower_pot");
+  // Yard decorations: flowers at all four yard corners for colour
+  b(fxL+1, 1, cz+hd+1, FLOWER);
+  b(fxR-1, 1, cz+hd+1, FLOWER2);
+  b(fxL+1, 1, fyZ2-1,  FLOWER2);
+  b(fxR-1, 1, fyZ2-1,  FLOWER);
+  // Rain barrel tucked inside east fence near house
+  b(fxR-1, 1, cz+hd+2, "minecraft:barrel");
+  // Hay bale on alternate variants
+  if (variant % 2 === 0) {
+    cmd(fxL+1, 1, fyZ2-2, "minecraft:hay_block", '"pillar_axis"="y"');
+  }
 }
 
 function _buildTower(
@@ -1353,15 +1399,15 @@ function _buildKingdom(b: _BlkFn, v: _VolFn, rng: _RingFn, cmd: _CmdFn): void {
   for (const [bx, bz] of [[-4,0],[4,0],[0,-4],[0,4]] as [number,number][])
     b(bx, 1, bz, "minecraft:oak_slab");
 
-  // 9. Town buildings (all with cmd for beds/doors/chimneys)
-  _buildMedievalHouse(b, v, cmd, -19, -19, 10, 8, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd,  19, -19, 10, 8, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd, -21,   2,  8, 10, DOAK, DLOG);
-  _buildMedievalHouse(b, v, cmd,  21,   2,  8, 10, DOAK, DLOG);
-  _buildMedievalHouse(b, v, cmd, -19,  19, 10, 8, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd,  19,  19, 10, 8, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd, -12, -15,  7, 6, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd,  12, -15,  7, 6, OAK,  LOG);
+  // 9. Town buildings (variant index gives each house unique carpet/bed/flower colour)
+  _buildMedievalHouse(b, v, cmd, -19, -19, 10, 8, OAK,  LOG,  0);
+  _buildMedievalHouse(b, v, cmd,  19, -19, 10, 8, OAK,  LOG,  1);
+  _buildMedievalHouse(b, v, cmd, -21,   2,  8, 10, DOAK, DLOG, 2);
+  _buildMedievalHouse(b, v, cmd,  21,   2,  8, 10, DOAK, DLOG, 3);
+  _buildMedievalHouse(b, v, cmd, -19,  19, 10, 8, OAK,  LOG,  4);
+  _buildMedievalHouse(b, v, cmd,  19,  19, 10, 8, OAK,  LOG,  5);
+  _buildMedievalHouse(b, v, cmd, -12, -15,  7, 6, OAK,  LOG,  2);
+  _buildMedievalHouse(b, v, cmd,  12, -15,  7, 6, OAK,  LOG,  3);
 
   // 10. Gardens between houses (farmland + wheat patches with fence borders)
   // NW garden (between -19,-19 house and west wall)
@@ -1472,7 +1518,64 @@ function _buildKingdom(b: _BlkFn, v: _VolFn, rng: _RingFn, cmd: _CmdFn): void {
     b(tx, 18, tz, FENC); b(tx, 19, tz, RWOL);
   }
 
-  // 15. Trees outside outer wall (natural forest fringe)
+  // 15. Market stalls flanking the plaza south side (either side of N-S road)
+  // ── East stall ────────────────────────────────────────────────────────────
+  v(10, 0, 3, 13, 0, 7, OAK);                               // plank floor
+  b(10, 1, 3, FENC); b(13, 1, 3, FENC);                      // front posts
+  b(10, 1, 7, FENC); b(13, 1, 7, FENC);                      // rear posts
+  for (let sx = 10; sx <= 13; sx++) b(sx, 2, 3, OAK);        // front awning beam
+  b(11, 1, 5, "minecraft:chest");
+  b(12, 1, 5, "minecraft:barrel");
+  b(11, 1, 4, "minecraft:crafting_table");
+  b(12, 1, 6, LNTN);
+  // ── West stall ────────────────────────────────────────────────────────────
+  v(-13, 0, 3, -10, 0, 7, OAK);
+  b(-10, 1, 3, FENC); b(-13, 1, 3, FENC);
+  b(-10, 1, 7, FENC); b(-13, 1, 7, FENC);
+  for (let sx = -13; sx <= -10; sx++) b(sx, 2, 3, OAK);
+  b(-11, 1, 5, "minecraft:chest");
+  b(-12, 1, 5, "minecraft:barrel");
+  b(-11, 1, 4, "minecraft:crafting_table");
+  b(-12, 1, 6, LNTN);
+
+  // 16. Animal pen (SW outer-ward corner, away from all buildings/gardens)
+  rng(-26, 21, -20, 26, 1, 1, FENC);
+  cmd(-26, 1, 23, "minecraft:oak_fence_gate", '"direction"=0,"in_wall_bit"=false,"open_bit"=false');
+  cmd(-23, 1, 22, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(-23, 2, 22, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(-22, 1, 22, "minecraft:hay_block", '"pillar_axis"="y"');
+  b(-24, 1, 25, WATR);                                        // water trough
+  b(-21, 1, 24, "minecraft:composter");
+  b(-25, 1, 24, "minecraft:dandelion");
+  b(-21, 1, 22, "minecraft:poppy");
+
+  // 17. Entrance notice-board / gatehouse arch on the approach road
+  b(-3, 1, 28, FENC); b(-3, 2, 28, FENC); b(-3, 3, 28, FENC);
+  b( 3, 1, 28, FENC); b( 3, 2, 28, FENC); b( 3, 3, 28, FENC);
+  for (let nx = -2; nx <= 2; nx++) b(nx, 3, 28, OAK);        // crossbeam
+  b(-3, 4, 28, LNTN); b(3, 4, 28, LNTN);
+
+  // 18. Road-side storage barrels (near lantern posts, both axes)
+  b(-4, 1, -16, "minecraft:barrel"); b( 4, 1, -16, "minecraft:barrel");
+  b(-4, 1,   8, "minecraft:barrel"); b( 4, 1,   8, "minecraft:barrel");
+  b(-29, 1, -8, "minecraft:barrel"); b(-29, 1,  8, "minecraft:barrel");
+  b( 29, 1, -8, "minecraft:barrel"); b( 29, 1,  8, "minecraft:barrel");
+
+  // 19. Hay bales beside garden plots
+  cmd(-23, 1, -11, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd( 24, 1, -11, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(-23, 1,  17, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd( 24, 1,  17, "minecraft:hay_block", '"pillar_axis"="y"');
+
+  // 20. Scattered flowers near roads, plaza edges and garden borders
+  b(-7, 1, -7, "minecraft:poppy");      b( 7, 1, -7, "minecraft:dandelion");
+  b(-7, 1,  7, "minecraft:blue_orchid");b( 7, 1,  7, "minecraft:allium");
+  b(-23, 1, -18, "minecraft:poppy");    b( 24, 1, -18, "minecraft:dandelion");
+  b(-23, 1, -12, "minecraft:azure_bluet"); b( 24, 1, -12, "minecraft:oxeye_daisy");
+  b(-28, 1,  11, "minecraft:blue_orchid"); b( 28, 1,  11, "minecraft:poppy");
+  b(-2, 1, -13, "minecraft:dandelion"); b( 2, 1, -13, "minecraft:azure_bluet");
+
+  // 21. Trees outside outer wall (natural forest fringe)
   for (const [tx, tz] of [
     [-38,-22],[-40,-6],[-38,14],[-40,26],
     [38,-22],[40,-6],[38,14],[40,26],
@@ -1543,12 +1646,12 @@ function _buildVillage(b: _BlkFn, v: _VolFn, rng: _RingFn, cmd: _CmdFn): void {
   b(9, 1, -4, FENC); b(9, 1, 4, FENC);
   for (let fz = -4; fz <= 4; fz++) { b(3, 1, fz, FENC); b(9, 1, fz, FENC); }
 
-  // ── Houses (with cmd for beds, doors, chimneys) ───────────────────────────
-  _buildMedievalHouse(b, v, cmd, -11, -11, 8, 7, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd,  11, -11, 8, 7, SOAK, SLOG);
-  _buildMedievalHouse(b, v, cmd, -12,   2, 7, 8, OAK,  LOG);
-  _buildMedievalHouse(b, v, cmd,  12,   2, 7, 8, SOAK, SLOG);
-  _buildMedievalHouse(b, v, cmd,   0,  11, 8, 7, OAK,  LOG);
+  // ── Houses (variant index gives each house unique carpet/bed/flower colour) ─
+  _buildMedievalHouse(b, v, cmd, -11, -11, 8, 7, OAK,  LOG,  0);
+  _buildMedievalHouse(b, v, cmd,  11, -11, 8, 7, SOAK, SLOG, 1);
+  _buildMedievalHouse(b, v, cmd, -12,   2, 7, 8, OAK,  LOG,  2);
+  _buildMedievalHouse(b, v, cmd,  12,   2, 7, 8, SOAK, SLOG, 3);
+  _buildMedievalHouse(b, v, cmd,   0,  11, 8, 7, OAK,  LOG,  4);
 
   // ── Trees INSIDE village walls (natural feel) ─────────────────────────────
   for (const [tx, tz] of [
@@ -1570,6 +1673,52 @@ function _buildVillage(b: _BlkFn, v: _VolFn, rng: _RingFn, cmd: _CmdFn): void {
     v(tx-2, h-1, tz-2, tx+2, h+2, tz+2, OLAV);
     b(tx, h+3, tz, OLAV);
   }
+
+  // ── Varied farm crops (west zone wheat / centre carrots / east potatoes) ──
+  // The farmland volume was already placed above; just overwrite the crop layer
+  v(4, 1, -3, 5, 1, 3, "minecraft:wheat");
+  v(6, 1, -3, 6, 1, 3, "minecraft:carrots");
+  v(7, 1, -3, 8, 1, 3, "minecraft:potatoes");
+
+  // ── Hay bales stacked beside the farm fence ────────────────────────────────
+  cmd(9, 1, -5, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(9, 2, -5, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(10, 1, -5, "minecraft:hay_block", '"pillar_axis"="y"');
+
+  // ── Animal pen (SE quadrant, clear of all house yards) ────────────────────
+  rng(13, 11, 17, 17, 1, 1, FENC);
+  cmd(13, 1, 14, "minecraft:oak_fence_gate", '"direction"=0,"in_wall_bit"=false,"open_bit"=false');
+  cmd(15, 1, 12, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(15, 2, 12, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(16, 1, 12, "minecraft:hay_block", '"pillar_axis"="y"');
+  b(14, 1, 16, WATR);                                          // water trough
+  b(16, 1, 16, "minecraft:composter");
+  b(15, 1, 14, "minecraft:dandelion");
+  b(14, 1, 13, "minecraft:poppy");
+
+  // ── Notice-board arch near south gate ────────────────────────────────────
+  b(-3, 1, 16, FENC); b(-3, 2, 16, FENC); b(-3, 3, 16, FENC);
+  b( 3, 1, 16, FENC); b( 3, 2, 16, FENC); b( 3, 3, 16, FENC);
+  for (let nx = -2; nx <= 2; nx++) b(nx, 3, 16, "minecraft:oak_planks");
+  b(-3, 4, 16, LNTN); b(3, 4, 16, LNTN);
+
+  // ── Rain barrels flanking the central well ────────────────────────────────
+  b( 3, 1, 0, "minecraft:barrel");
+  b(-3, 1, 0, "minecraft:barrel");
+
+  // ── Scattered flowers throughout the village ──────────────────────────────
+  b(-16, 1, -8, "minecraft:poppy");
+  b(-16, 1,  8, "minecraft:dandelion");
+  b( 16, 1, -8, "minecraft:blue_orchid");
+  b( 16, 1,  8, "minecraft:poppy");
+  b( -8, 1, -14, "minecraft:dandelion");
+  b(  8, 1, -14, "minecraft:azure_bluet");
+  b( -8, 1,  12, "minecraft:allium");
+  b(  8, 1,  12, "minecraft:oxeye_daisy");
+  b(-14, 1,   0, "minecraft:azure_bluet");
+  b( 14, 1,   0, "minecraft:allium");
+  b(  0, 1, -14, "minecraft:poppy");
+  b(  0, 1,  14, "minecraft:dandelion");
 }
 
 registerCommands();

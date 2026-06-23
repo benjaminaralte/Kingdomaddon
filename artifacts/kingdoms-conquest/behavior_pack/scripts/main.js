@@ -7271,8 +7271,36 @@ async function showVillageSpawnerMenu(player) {
   notifyPlayer(player.name, `\xA77Spawning \xA7b${type}\xA77\u2026 (check ~${dist} blocks away)`);
   system6.run(() => spawnNpcVillage(dim, anchor, type));
 }
-function _buildMedievalHouse(b, v, cmd, cx, cz, w, d, wall, post) {
+function _buildMedievalHouse(b, v, cmd, cx, cz, w, d, wall, post, variant = 0) {
   const hw = Math.floor(w / 2), hd = Math.floor(d / 2);
+  const CARPETS = [
+    "minecraft:red_carpet",
+    "minecraft:blue_carpet",
+    "minecraft:white_carpet",
+    "minecraft:purple_carpet",
+    "minecraft:orange_carpet",
+    "minecraft:yellow_carpet"
+  ];
+  const BEDS = [
+    "minecraft:red_bed",
+    "minecraft:blue_bed",
+    "minecraft:white_bed",
+    "minecraft:purple_bed",
+    "minecraft:orange_bed",
+    "minecraft:yellow_bed"
+  ];
+  const FLOWERS = [
+    "minecraft:poppy",
+    "minecraft:dandelion",
+    "minecraft:blue_orchid",
+    "minecraft:allium",
+    "minecraft:azure_bluet",
+    "minecraft:oxeye_daisy"
+  ];
+  const CARPET = CARPETS[variant % CARPETS.length];
+  const BED = BEDS[variant % BEDS.length];
+  const FLOWER = FLOWERS[variant % FLOWERS.length];
+  const FLOWER2 = FLOWERS[(variant + 2) % FLOWERS.length];
   v(cx - hw, -1, cz - hd, cx + hw, -1, cz + hd, "minecraft:cobblestone");
   v(cx - hw, 0, cz - hd, cx + hw, 0, cz + hd, "minecraft:oak_planks");
   for (const [px, pz] of [
@@ -7312,8 +7340,13 @@ function _buildMedievalHouse(b, v, cmd, cx, cz, w, d, wall, post) {
   b(cx - hw, 3, cz, "minecraft:glass_pane");
   b(cx + hw, 2, cz, "minecraft:glass_pane");
   b(cx + hw, 3, cz, "minecraft:glass_pane");
+  b(cx - 1, 1, cz + hd + 1, FLOWER);
+  b(cx + 1, 1, cz + hd + 1, FLOWER2);
   b(cx, 1, cz + hd, "minecraft:air");
   b(cx, 2, cz + hd, "minecraft:air");
+  cmd(cx, 0, cz + hd + 1, "minecraft:smooth_stone_slab", '"top_slot_bit"=true');
+  cmd(cx, 1, cz + hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=false');
+  cmd(cx, 2, cz + hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=true');
   const roofSteps = Math.min(hw, hd);
   for (let step = 0; step <= roofSteps; step++) {
     const x1 = cx - hw + step, x2 = cx + hw - step, z1 = cz - hd + step, z2 = cz + hd - step;
@@ -7329,23 +7362,31 @@ function _buildMedievalHouse(b, v, cmd, cx, cz, w, d, wall, post) {
   const iz1 = cz - hd + 1, iz2 = cz + hd - 1;
   b(cx, 4, cz, "minecraft:lantern");
   b(ix1, 3, cz, "minecraft:lantern");
-  for (let rz = iz1; rz <= iz2; rz++) b(cx, 1, rz, "minecraft:red_carpet");
-  cmd(ix1, 1, iz1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
-  cmd(ix1, 1, iz1 + 1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+  b(ix2, 3, cz, "minecraft:lantern");
+  b(cx, 1, iz2, CARPET);
+  for (let rz = iz1; rz <= iz2 - 1; rz++) b(cx, 1, rz, CARPET);
+  cmd(ix1, 1, iz1, BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+  cmd(ix1, 1, iz1 + 1, BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
   if (w >= 9) {
-    cmd(ix2, 1, iz1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
-    cmd(ix2, 1, iz1 + 1, "minecraft:red_bed", '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
+    cmd(ix2, 1, iz1, BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=true');
+    cmd(ix2, 1, iz1 + 1, BED, '"direction"=2,"occupied_bit"=false,"head_piece_bit"=false');
   }
   b(cx, 2, iz1, "minecraft:bookshelf");
   b(cx, 3, iz1, "minecraft:bookshelf");
   b(ix2, 1, iz1, "minecraft:furnace");
   b(ix2, 2, iz1, "minecraft:cobblestone");
+  b(ix2, 3, iz1, "minecraft:cobblestone");
+  b(cx, 2, cz, "minecraft:stripped_oak_log");
+  b(cx - 1, 1, cz, "minecraft:oak_slab");
+  b(cx + 1, 1, cz, "minecraft:oak_slab");
+  b(cx, 1, cz - 1, "minecraft:oak_slab");
+  b(cx, 1, cz + 1, "minecraft:oak_slab");
+  b(cx, 3, cz, "minecraft:lantern");
   b(ix1, 1, iz2 - 1, "minecraft:crafting_table");
   b(ix2, 1, iz2 - 1, "minecraft:chest");
-  b(ix1, 1, cz, "minecraft:barrel");
+  b(ix1, 1, cz - 1, "minecraft:barrel");
+  b(ix2, 1, iz2, "minecraft:cauldron");
   b(cx, 1, iz1, "minecraft:flower_pot");
-  cmd(cx, 1, cz + hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=false');
-  cmd(cx, 2, cz + hd, "minecraft:oak_door", '"direction"=1,"door_hinge_bit"=false,"open_bit"=false,"upper_block_bit"=true');
   const fyZ2 = cz + hd + 4;
   const fxL = cx - hw - 1;
   const fxR = cx + hw + 1;
@@ -7362,8 +7403,14 @@ function _buildMedievalHouse(b, v, cmd, cx, cz, w, d, wall, post) {
   b(fxR, 2, fyZ2, "minecraft:oak_fence");
   b(fxR, 3, fyZ2, "minecraft:lantern");
   v(cx - 1, 0, cz + hd + 1, cx + 1, 0, fyZ2 - 1, "minecraft:dirt_path");
-  b(fxL + 1, 1, cz + hd + 2, "minecraft:flower_pot");
-  b(fxR - 1, 1, cz + hd + 2, "minecraft:flower_pot");
+  b(fxL + 1, 1, cz + hd + 1, FLOWER);
+  b(fxR - 1, 1, cz + hd + 1, FLOWER2);
+  b(fxL + 1, 1, fyZ2 - 1, FLOWER2);
+  b(fxR - 1, 1, fyZ2 - 1, FLOWER);
+  b(fxR - 1, 1, cz + hd + 2, "minecraft:barrel");
+  if (variant % 2 === 0) {
+    cmd(fxL + 1, 1, fyZ2 - 2, "minecraft:hay_block", '"pillar_axis"="y"');
+  }
 }
 function _buildTower(b, v, tx, tz, r, h, wall, crown) {
   for (let y = 1; y <= h; y++)
@@ -7540,14 +7587,14 @@ function _buildKingdom(b, v, rng, cmd) {
   }
   for (const [bx, bz] of [[-4, 0], [4, 0], [0, -4], [0, 4]])
     b(bx, 1, bz, "minecraft:oak_slab");
-  _buildMedievalHouse(b, v, cmd, -19, -19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, 19, -19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, -21, 2, 8, 10, DOAK, DLOG);
-  _buildMedievalHouse(b, v, cmd, 21, 2, 8, 10, DOAK, DLOG);
-  _buildMedievalHouse(b, v, cmd, -19, 19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, 19, 19, 10, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, -12, -15, 7, 6, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, 12, -15, 7, 6, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, -19, -19, 10, 8, OAK, LOG, 0);
+  _buildMedievalHouse(b, v, cmd, 19, -19, 10, 8, OAK, LOG, 1);
+  _buildMedievalHouse(b, v, cmd, -21, 2, 8, 10, DOAK, DLOG, 2);
+  _buildMedievalHouse(b, v, cmd, 21, 2, 8, 10, DOAK, DLOG, 3);
+  _buildMedievalHouse(b, v, cmd, -19, 19, 10, 8, OAK, LOG, 4);
+  _buildMedievalHouse(b, v, cmd, 19, 19, 10, 8, OAK, LOG, 5);
+  _buildMedievalHouse(b, v, cmd, -12, -15, 7, 6, OAK, LOG, 2);
+  _buildMedievalHouse(b, v, cmd, 12, -15, 7, 6, OAK, LOG, 3);
   v(-27, 0, -17, -24, 0, -13, "minecraft:farmland");
   v(-27, 1, -17, -24, 1, -13, "minecraft:wheat");
   rng(-28, -18, -23, -12, 1, 1, FENC);
@@ -7666,6 +7713,68 @@ function _buildKingdom(b, v, rng, cmd) {
     b(tx, 18, tz, FENC);
     b(tx, 19, tz, RWOL);
   }
+  v(10, 0, 3, 13, 0, 7, OAK);
+  b(10, 1, 3, FENC);
+  b(13, 1, 3, FENC);
+  b(10, 1, 7, FENC);
+  b(13, 1, 7, FENC);
+  for (let sx = 10; sx <= 13; sx++) b(sx, 2, 3, OAK);
+  b(11, 1, 5, "minecraft:chest");
+  b(12, 1, 5, "minecraft:barrel");
+  b(11, 1, 4, "minecraft:crafting_table");
+  b(12, 1, 6, LNTN);
+  v(-13, 0, 3, -10, 0, 7, OAK);
+  b(-10, 1, 3, FENC);
+  b(-13, 1, 3, FENC);
+  b(-10, 1, 7, FENC);
+  b(-13, 1, 7, FENC);
+  for (let sx = -13; sx <= -10; sx++) b(sx, 2, 3, OAK);
+  b(-11, 1, 5, "minecraft:chest");
+  b(-12, 1, 5, "minecraft:barrel");
+  b(-11, 1, 4, "minecraft:crafting_table");
+  b(-12, 1, 6, LNTN);
+  rng(-26, 21, -20, 26, 1, 1, FENC);
+  cmd(-26, 1, 23, "minecraft:oak_fence_gate", '"direction"=0,"in_wall_bit"=false,"open_bit"=false');
+  cmd(-23, 1, 22, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(-23, 2, 22, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(-22, 1, 22, "minecraft:hay_block", '"pillar_axis"="y"');
+  b(-24, 1, 25, WATR);
+  b(-21, 1, 24, "minecraft:composter");
+  b(-25, 1, 24, "minecraft:dandelion");
+  b(-21, 1, 22, "minecraft:poppy");
+  b(-3, 1, 28, FENC);
+  b(-3, 2, 28, FENC);
+  b(-3, 3, 28, FENC);
+  b(3, 1, 28, FENC);
+  b(3, 2, 28, FENC);
+  b(3, 3, 28, FENC);
+  for (let nx = -2; nx <= 2; nx++) b(nx, 3, 28, OAK);
+  b(-3, 4, 28, LNTN);
+  b(3, 4, 28, LNTN);
+  b(-4, 1, -16, "minecraft:barrel");
+  b(4, 1, -16, "minecraft:barrel");
+  b(-4, 1, 8, "minecraft:barrel");
+  b(4, 1, 8, "minecraft:barrel");
+  b(-29, 1, -8, "minecraft:barrel");
+  b(-29, 1, 8, "minecraft:barrel");
+  b(29, 1, -8, "minecraft:barrel");
+  b(29, 1, 8, "minecraft:barrel");
+  cmd(-23, 1, -11, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(24, 1, -11, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(-23, 1, 17, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(24, 1, 17, "minecraft:hay_block", '"pillar_axis"="y"');
+  b(-7, 1, -7, "minecraft:poppy");
+  b(7, 1, -7, "minecraft:dandelion");
+  b(-7, 1, 7, "minecraft:blue_orchid");
+  b(7, 1, 7, "minecraft:allium");
+  b(-23, 1, -18, "minecraft:poppy");
+  b(24, 1, -18, "minecraft:dandelion");
+  b(-23, 1, -12, "minecraft:azure_bluet");
+  b(24, 1, -12, "minecraft:oxeye_daisy");
+  b(-28, 1, 11, "minecraft:blue_orchid");
+  b(28, 1, 11, "minecraft:poppy");
+  b(-2, 1, -13, "minecraft:dandelion");
+  b(2, 1, -13, "minecraft:azure_bluet");
   for (const [tx, tz] of [
     [-38, -22],
     [-40, -6],
@@ -7765,11 +7874,11 @@ function _buildVillage(b, v, rng, cmd) {
     b(3, 1, fz, FENC);
     b(9, 1, fz, FENC);
   }
-  _buildMedievalHouse(b, v, cmd, -11, -11, 8, 7, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, 11, -11, 8, 7, SOAK, SLOG);
-  _buildMedievalHouse(b, v, cmd, -12, 2, 7, 8, OAK, LOG);
-  _buildMedievalHouse(b, v, cmd, 12, 2, 7, 8, SOAK, SLOG);
-  _buildMedievalHouse(b, v, cmd, 0, 11, 8, 7, OAK, LOG);
+  _buildMedievalHouse(b, v, cmd, -11, -11, 8, 7, OAK, LOG, 0);
+  _buildMedievalHouse(b, v, cmd, 11, -11, 8, 7, SOAK, SLOG, 1);
+  _buildMedievalHouse(b, v, cmd, -12, 2, 7, 8, OAK, LOG, 2);
+  _buildMedievalHouse(b, v, cmd, 12, 2, 7, 8, SOAK, SLOG, 3);
+  _buildMedievalHouse(b, v, cmd, 0, 11, 8, 7, OAK, LOG, 4);
   for (const [tx, tz] of [
     [-15, -14],
     [15, -14],
@@ -7796,6 +7905,44 @@ function _buildVillage(b, v, rng, cmd) {
     v(tx - 2, h - 1, tz - 2, tx + 2, h + 2, tz + 2, OLAV);
     b(tx, h + 3, tz, OLAV);
   }
+  v(4, 1, -3, 5, 1, 3, "minecraft:wheat");
+  v(6, 1, -3, 6, 1, 3, "minecraft:carrots");
+  v(7, 1, -3, 8, 1, 3, "minecraft:potatoes");
+  cmd(9, 1, -5, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(9, 2, -5, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(10, 1, -5, "minecraft:hay_block", '"pillar_axis"="y"');
+  rng(13, 11, 17, 17, 1, 1, FENC);
+  cmd(13, 1, 14, "minecraft:oak_fence_gate", '"direction"=0,"in_wall_bit"=false,"open_bit"=false');
+  cmd(15, 1, 12, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(15, 2, 12, "minecraft:hay_block", '"pillar_axis"="y"');
+  cmd(16, 1, 12, "minecraft:hay_block", '"pillar_axis"="y"');
+  b(14, 1, 16, WATR);
+  b(16, 1, 16, "minecraft:composter");
+  b(15, 1, 14, "minecraft:dandelion");
+  b(14, 1, 13, "minecraft:poppy");
+  b(-3, 1, 16, FENC);
+  b(-3, 2, 16, FENC);
+  b(-3, 3, 16, FENC);
+  b(3, 1, 16, FENC);
+  b(3, 2, 16, FENC);
+  b(3, 3, 16, FENC);
+  for (let nx = -2; nx <= 2; nx++) b(nx, 3, 16, "minecraft:oak_planks");
+  b(-3, 4, 16, LNTN);
+  b(3, 4, 16, LNTN);
+  b(3, 1, 0, "minecraft:barrel");
+  b(-3, 1, 0, "minecraft:barrel");
+  b(-16, 1, -8, "minecraft:poppy");
+  b(-16, 1, 8, "minecraft:dandelion");
+  b(16, 1, -8, "minecraft:blue_orchid");
+  b(16, 1, 8, "minecraft:poppy");
+  b(-8, 1, -14, "minecraft:dandelion");
+  b(8, 1, -14, "minecraft:azure_bluet");
+  b(-8, 1, 12, "minecraft:allium");
+  b(8, 1, 12, "minecraft:oxeye_daisy");
+  b(-14, 1, 0, "minecraft:azure_bluet");
+  b(14, 1, 0, "minecraft:allium");
+  b(0, 1, -14, "minecraft:poppy");
+  b(0, 1, 14, "minecraft:dandelion");
 }
 registerCommands();
 async function showClaimVillageForm(player, block) {
