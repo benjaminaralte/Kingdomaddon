@@ -22,9 +22,6 @@
         "value": 30,
         "max": 30
       },
-      "minecraft:attack": {
-        "damage": 5
-      },
       "minecraft:movement": {
         "value": 0.25
       },
@@ -43,9 +40,15 @@
       "minecraft:behavior.float": {
         "priority": 0
       },
-      "minecraft:behavior.melee_attack": {
+      "minecraft:behavior.ranged_attack": {
         "priority": 3,
-        "speed_multiplier": 1.2
+        "speed_multiplier": 1.2,
+        "attack_interval_min": 0.8,
+        "attack_interval_max": 1.5,
+        "attack_radius": 18.0
+      },
+      "minecraft:shooter": {
+        "def": "minecraft:arrow"
       },
       "minecraft:behavior.defend_village_target": {
         "priority": 1,
