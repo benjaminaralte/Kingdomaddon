@@ -4905,7 +4905,16 @@ function removeGuardPole(village, poleId) {
 }
 function fillUnderstaffedPoles(village) {
   let changed = false;
-  for (const pole of village.guardPoles) {
+  const PRIORITY = {
+    gate: 0,
+    watchtower: 1,
+    road: 2,
+    village: 3
+  };
+  const orderedPoles = [...village.guardPoles].sort(
+    (a, b) => PRIORITY[a.type] - PRIORITY[b.type]
+  );
+  for (const pole of orderedPoles) {
     if (pole.assignedGuards >= pole.requestedGuards) continue;
     const needed = pole.requestedGuards - pole.assignedGuards;
     const free = availableTroops(village, pole.troopType);
@@ -4921,6 +4930,58 @@ function fillUnderstaffedPoles(village) {
     );
   }
   if (changed) saveVillage(village);
+}
+function setupKingdomWallGuards(village, center) {
+  const posts = [
+    { dx: 0, dz: -27, type: "watchtower" },
+    // north wall centre
+    { dx: 27, dz: 0, type: "watchtower" },
+    // east wall centre
+    { dx: -27, dz: 0, type: "watchtower" },
+    // west wall centre
+    { dx: -27, dz: -27, type: "watchtower" },
+    // NW corner
+    { dx: 27, dz: -27, type: "watchtower" },
+    // NE corner
+    { dx: -27, dz: 27, type: "watchtower" },
+    // SW corner
+    { dx: -4, dz: 27, type: "gate" },
+    // south gate left tower
+    { dx: 4, dz: 27, type: "gate" }
+    // south gate right tower
+  ];
+  let assigned = 0;
+  for (const { dx, dz, type } of posts) {
+    if (village.guardPoles.length >= 32) break;
+    const location = { x: center.x + dx, y: center.y, z: center.z + dz };
+    const toAssign = Math.min(MAX_GUARDS_PER_POLE, availableTroops(village, "spearmen"));
+    const pole = {
+      id: generateId(),
+      location,
+      type,
+      assignedGuards: toAssign,
+      requestedGuards: MAX_GUARDS_PER_POLE,
+      troopType: "spearmen",
+      entityIds: []
+    };
+    village.guardPoles.push(pole);
+    if (toAssign > 0) {
+      spawnPoleGuards(village, pole);
+      assigned += toAssign;
+    }
+  }
+  saveVillage(village);
+  if (assigned > 0) {
+    notifyPlayer(
+      village.owner,
+      `\xA7a\u2694 ${assigned} spearmen deployed to kingdom wall posts (${posts.length} posts). Train more to fill remaining slots.`
+    );
+  } else {
+    notifyPlayer(
+      village.owner,
+      `\xA7e\u2694 Kingdom wall posts established (${posts.length} stations). Train spearmen \u2014 they will be assigned with priority when ready.`
+    );
+  }
 }
 function spawnPoleGuards(village, pole) {
   const dim = world15.getDimension(village.location.dimension);
@@ -7951,7 +8012,21 @@ async function showClaimVillageForm(player, block) {
   if (response.canceled) return;
   const [kingdomName, _villageName] = response.formValues;
   if (!kingdomName) return;
-  claimVillage(player, block, kingdomName);
+  const claimed = claimVillage(player, block, kingdomName);
+  if (!claimed) return;
+  try {
+    const lastRaw = world20.getDynamicProperty("kc_lastSettlement");
+    if (lastRaw) {
+      const last = JSON.parse(lastRaw);
+      if (last.type === "city") {
+        const village = findVillageAt2(block.location);
+        if (village) {
+          setupKingdomWallGuards(village, { x: last.x, y: last.y, z: last.z });
+        }
+      }
+    }
+  } catch {
+  }
 }
 async function showTownHallMenu(player, block) {
   const village = findVillageAt2(block.location);

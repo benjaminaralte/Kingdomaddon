@@ -124,7 +124,16 @@ export function assignGuardsToPole(
 export function fillUnderstaffedPoles(village: VillageData): void {
   let changed = false;
 
-  for (const pole of village.guardPoles) {
+  // Wall/gate poles get first pick of troops (highest priority → lowest):
+  // gate > watchtower > road > village
+  const PRIORITY: Record<GuardPoleType, number> = {
+    gate: 0, watchtower: 1, road: 2, village: 3,
+  };
+  const orderedPoles = [...village.guardPoles].sort(
+    (a, b) => PRIORITY[a.type] - PRIORITY[b.type]
+  );
+
+  for (const pole of orderedPoles) {
     if (pole.assignedGuards >= pole.requestedGuards) continue;
 
     const needed = pole.requestedGuards - pole.assignedGuards;
@@ -144,6 +153,70 @@ export function fillUnderstaffedPoles(village: VillageData): void {
   }
 
   if (changed) saveVillage(village);
+}
+
+/**
+ * Auto-registers spearmen-only wall-patrol guard poles for a spawned kingdom.
+ * Called once when a city settlement is claimed. Poles are placed at 8 strategic
+ * positions around the outer wall. They are filled immediately if spearmen are
+ * available, otherwise they remain as unfilled requests — fillUnderstaffedPoles
+ * will staff them (with gate/watchtower priority) whenever spearmen are trained.
+ */
+export function setupKingdomWallGuards(
+  village: VillageData,
+  center: { x: number; y: number; z: number }
+): void {
+  // 8 patrol posts: 4 wall midpoints + 2 corner flanks + 2 gate positions
+  const posts: Array<{ dx: number; dz: number; type: GuardPoleType }> = [
+    { dx:   0, dz: -27, type: "watchtower" }, // north wall centre
+    { dx:  27, dz:   0, type: "watchtower" }, // east wall centre
+    { dx: -27, dz:   0, type: "watchtower" }, // west wall centre
+    { dx: -27, dz: -27, type: "watchtower" }, // NW corner
+    { dx:  27, dz: -27, type: "watchtower" }, // NE corner
+    { dx: -27, dz:  27, type: "watchtower" }, // SW corner
+    { dx:  -4, dz:  27, type: "gate" },        // south gate left tower
+    { dx:   4, dz:  27, type: "gate" },        // south gate right tower
+  ];
+
+  let assigned = 0;
+
+  for (const { dx, dz, type } of posts) {
+    if (village.guardPoles.length >= 32) break;
+
+    const location = { x: center.x + dx, y: center.y, z: center.z + dz };
+    const toAssign = Math.min(MAX_GUARDS_PER_POLE, availableTroops(village, "spearmen"));
+
+    const pole: GuardPoleData = {
+      id: generateId(),
+      location,
+      type,
+      assignedGuards: toAssign,
+      requestedGuards: MAX_GUARDS_PER_POLE,
+      troopType: "spearmen",
+      entityIds: [],
+    };
+
+    village.guardPoles.push(pole);
+
+    if (toAssign > 0) {
+      spawnPoleGuards(village, pole);
+      assigned += toAssign;
+    }
+  }
+
+  saveVillage(village);
+
+  if (assigned > 0) {
+    notifyPlayer(
+      village.owner,
+      `§a⚔ ${assigned} spearmen deployed to kingdom wall posts (${posts.length} posts). Train more to fill remaining slots.`
+    );
+  } else {
+    notifyPlayer(
+      village.owner,
+      `§e⚔ Kingdom wall posts established (${posts.length} stations). Train spearmen — they will be assigned with priority when ready.`
+    );
+  }
 }
 
 function spawnPoleGuards(village: VillageData, pole: GuardPoleData): void {

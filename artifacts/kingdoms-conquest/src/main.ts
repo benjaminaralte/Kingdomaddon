@@ -61,6 +61,7 @@ import {
   enforceGuardPositions,
   registerGuardPole,
   removeGuardPole,
+  setupKingdomWallGuards,
 } from "./systems/guards.js";
 import {
   declareWar,
@@ -1738,7 +1739,24 @@ async function showClaimVillageForm(
   const [kingdomName, _villageName] = response.formValues as [string, string];
   if (!kingdomName) return;
 
-  claimVillage(player, block, kingdomName);
+  const claimed = claimVillage(player, block, kingdomName);
+  if (!claimed) return;
+
+  // If the player spawned a kingdom (city) settlement, auto-register spearmen
+  // wall patrol posts at the 8 strategic wall positions. These are spearmen-only
+  // and take priority over manually placed guard poles when troops are assigned.
+  try {
+    const lastRaw = world.getDynamicProperty("kc_lastSettlement") as string | undefined;
+    if (lastRaw) {
+      const last = JSON.parse(lastRaw) as { x: number; y: number; z: number; type: string };
+      if (last.type === "city") {
+        const village = findVillageAt(block.location);
+        if (village) {
+          setupKingdomWallGuards(village, { x: last.x, y: last.y, z: last.z });
+        }
+      }
+    }
+  } catch { /* skip if property missing or parse error */ }
 }
 
 async function showTownHallMenu(
