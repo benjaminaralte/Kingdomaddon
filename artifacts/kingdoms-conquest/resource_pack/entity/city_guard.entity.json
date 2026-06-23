@@ -28,7 +28,9 @@
         "move": "animation.mercenary_templar_footmanmove",
         "move_target": "animation.mercenary_templar_footmanmove_target",
         "target": "animation.mercenary_templar_footmanstay_target",
-        "bow_greeting": "animation.kingdoms.bow_greeting",
+        "bow_greeting_in": "animation.kingdoms.bow_greeting_in",
+        "bow_greeting_hold": "animation.kingdoms.bow_greeting_hold",
+        "bow_greeting_out": "animation.kingdoms.bow_greeting_out",
         "bow_check": "controller.animation.kingdoms.bow",
         "movement_ctrl": "controller.animation.got_troop2"
       },

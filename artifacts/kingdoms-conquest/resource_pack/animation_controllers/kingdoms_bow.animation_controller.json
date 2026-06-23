@@ -6,13 +6,27 @@
       "states": {
         "standing": {
           "transitions": [
-            { "bowing": "query.distance_from_camera < 4.0" }
+            { "bow_in": "query.distance_from_camera < 4.0" }
           ]
         },
-        "bowing": {
-          "animations": ["bow_greeting"],
+        "bow_in": {
+          "animations": ["bow_greeting_in"],
           "transitions": [
-            { "standing": "query.distance_from_camera >= 4.0" }
+            { "standing": "query.distance_from_camera >= 4.0" },
+            { "bow_hold": "query.all_animations_finished" }
+          ]
+        },
+        "bow_hold": {
+          "animations": ["bow_greeting_hold"],
+          "transitions": [
+            { "bow_out": "query.distance_from_camera >= 4.0" }
+          ]
+        },
+        "bow_out": {
+          "animations": ["bow_greeting_out"],
+          "transitions": [
+            { "bow_in": "query.distance_from_camera < 4.0" },
+            { "standing": "query.all_animations_finished" }
           ]
         }
       }

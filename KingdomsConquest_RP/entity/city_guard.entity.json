@@ -8,29 +8,34 @@
         "default": "skeleton"
       },
       "textures": {
-        "var0": "textures/entity/pn_roman",
-        "var1": "textures/entity/pn_roman"
+        "var0": "textures/entity/pn_templar_swordman",
+        "var1": "textures/entity/pn_templar_swordman"
       },
       "geometry": {
-        "default": "geometry.mercenary_roman_spear"
+        "default": "geometry.templar_footman"
       },
       "scripts": {
         "animate": [
           "movement_ctrl",
-          "setup"
+          "setup",
+          "bow_check"
         ]
       },
       "animations": {
-        "attack": "animation.roman_spearman.attack",
-        "bobing": "animation.roman_spearman.idle",
+        "attack": "animation.mercenary_templar_footman.attack",
+        "bobing": "animation.mercenary_templar_footmanidle",
         "setup": "controller.animation.pn_roman.setup",
-        "move": "animation.roman_spearman.move",
-        "move_target": "animation.roman_spearman.move_target",
-        "target": "animation.roman_spearman.stay_target",
+        "move": "animation.mercenary_templar_footmanmove",
+        "move_target": "animation.mercenary_templar_footmanmove_target",
+        "target": "animation.mercenary_templar_footmanstay_target",
+        "bow_greeting_in": "animation.kingdoms.bow_greeting_in",
+        "bow_greeting_hold": "animation.kingdoms.bow_greeting_hold",
+        "bow_greeting_out": "animation.kingdoms.bow_greeting_out",
+        "bow_check": "controller.animation.kingdoms.bow",
         "movement_ctrl": "controller.animation.got_troop2"
       },
       "render_controllers": [
-        "controller.render.mercenary_pn.sword"
+        "controller.render.mercenary_pn.templar"
       ],
       "spawn_egg": {
         "texture": "city_guard_spawn_egg",

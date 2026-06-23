@@ -1,12 +1,36 @@
 {
   "format_version": "1.8.0",
   "animations": {
-    "animation.kingdoms.bow_greeting": {
+    "animation.kingdoms.bow_greeting_in": {
+      "loop": false,
+      "animation_length": 0.4,
+      "bones": {
+        "head": {
+          "rotation": {
+            "0.0": [0, 0, 0],
+            "0.4": [55, 0, 0]
+          }
+        }
+      }
+    },
+    "animation.kingdoms.bow_greeting_hold": {
       "loop": true,
       "blend_weight": 1.0,
       "bones": {
         "head": {
           "rotation": [55, 0, 0]
+        }
+      }
+    },
+    "animation.kingdoms.bow_greeting_out": {
+      "loop": false,
+      "animation_length": 0.4,
+      "bones": {
+        "head": {
+          "rotation": {
+            "0.0": [55, 0, 0],
+            "0.4": [0, 0, 0]
+          }
         }
       }
     }
