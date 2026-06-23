@@ -11,7 +11,7 @@ const RECRUIT_COSTS: Record<TroopType, number> = {
   cityGuards:      8,
   spearmen:        12,
   archers:         12,
-  cavalry:         20,
+  mountedArcher:         20,
   heavyKnight:     35,
   samurai:         60,
   mercenaryLancer: 50,
@@ -52,7 +52,7 @@ export function recruitTroop(village: VillageData, type: TroopType, count: numbe
     village.troops.cityGuards -
     village.troops.spearmen -
     village.troops.archers -
-    village.troops.cavalry -
+    village.troops.mountedArcher -
     (village.troops.heavyKnight      ?? 0) -
     (village.troops.samurai          ?? 0) -
     (village.troops.mercenaryLancer  ?? 0) -
@@ -99,7 +99,7 @@ export function tickWages(village: VillageData): void {
     village.troops.cityGuards  * TROOP_WAGES.cityGuards +
     village.troops.spearmen    * TROOP_WAGES.spearmen +
     village.troops.archers     * TROOP_WAGES.archers +
-    village.troops.cavalry     * TROOP_WAGES.cavalry +
+    village.troops.mountedArcher     * TROOP_WAGES.mountedArcher +
     hk                         * TROOP_WAGES.heavyKnight +
     sa                         * TROOP_WAGES.samurai +
     ml                         * TROOP_WAGES.mercenaryLancer +
@@ -145,7 +145,7 @@ export function tickWages(village: VillageData): void {
 
 function handleDesertion(village: VillageData): void {
   const deserters: Partial<Record<TroopType, number>> = {};
-  const keys: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
+  const keys: TroopType[] = ["cityGuards", "spearmen", "archers", "mountedArcher", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
 
   let totalDeserters = 0;
   for (const key of keys) {
@@ -191,7 +191,7 @@ export function getTotalTroops(village: VillageData): number {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +
@@ -204,7 +204,7 @@ export function getMilitaryStrength(village: VillageData): number {
     village.troops.cityGuards              * 1 +
     village.troops.spearmen                * 2 +
     village.troops.archers                 * 2 +
-    village.troops.cavalry                 * 3 +
+    village.troops.mountedArcher                 * 3 +
     (village.troops.heavyKnight      ?? 0) * 5 +
     (village.troops.samurai          ?? 0) * 7 +
     (village.troops.mercenaryLancer  ?? 0) * 6 +

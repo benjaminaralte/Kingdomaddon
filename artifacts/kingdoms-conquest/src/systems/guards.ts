@@ -21,7 +21,7 @@ const GUARD_ENTITY_MAP: Record<TroopType, string> = {
   cityGuards:      "kingdoms:city_guard",
   spearmen:        "kingdoms:spearman",
   archers:         "kingdoms:archer",
-  cavalry:         "kingdoms:cavalry",
+  mountedArcher:         "kingdoms:cavalry",
   heavyKnight:     "kingdoms:heavy_knight",
   samurai:         "kingdoms:samurai",
   mercenaryLancer: "kingdoms:mercenary_lancer",
@@ -29,7 +29,7 @@ const GUARD_ENTITY_MAP: Record<TroopType, string> = {
 };
 
 function getBestAvailableTroopType(village: VillageData): TroopType {
-  const types: TroopType[] = ["samurai", "legionary", "mercenaryLancer", "heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
+  const types: TroopType[] = ["samurai", "legionary", "mercenaryLancer", "heavyKnight", "mountedArcher", "spearmen", "archers", "cityGuards"];
   for (const t of types) {
     if (village.troops[t] > 0) return t;
   }

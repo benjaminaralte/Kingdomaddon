@@ -102,12 +102,12 @@ export function transferEmeralds(
 }
 
 export function getTreasuryReport(village: VillageData): string {
-  const wages = { cityGuards: 2, spearmen: 3, archers: 3, cavalry: 5, heavyKnight: 8, samurai: 12, mercenaryLancer: 10, legionary: 10 };
+  const wages = { cityGuards: 2, spearmen: 3, archers: 3, mountedArcher: 5, heavyKnight: 8, samurai: 12, mercenaryLancer: 10, legionary: 10 };
   const dailyWages =
     (village.troops.cityGuards          * wages.cityGuards      +
      village.troops.spearmen            * wages.spearmen        +
      village.troops.archers             * wages.archers         +
-     village.troops.cavalry             * wages.cavalry         +
+     village.troops.mountedArcher             * wages.mountedArcher         +
      (village.troops.heavyKnight      ?? 0) * wages.heavyKnight     +
      (village.troops.samurai          ?? 0) * wages.samurai         +
      (village.troops.mercenaryLancer  ?? 0) * wages.mercenaryLancer +

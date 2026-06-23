@@ -13,7 +13,7 @@ export const TRAINING_COSTS: Record<TroopType, TrainingCost> = {
   cityGuards:      { emeralds: 2,  iron: 4,  gold: 0, diamonds: 0 },
   spearmen:        { emeralds: 3,  iron: 6,  gold: 0, diamonds: 0 },
   archers:         { emeralds: 3,  iron: 5,  gold: 2, diamonds: 0 },
-  cavalry:         { emeralds: 6,  iron: 8,  gold: 3, diamonds: 0 },
+  mountedArcher:         { emeralds: 6,  iron: 8,  gold: 3, diamonds: 0 },
   heavyKnight:     { emeralds: 10, iron: 12, gold: 5, diamonds: 2 },
   samurai:         { emeralds: 20, iron: 15, gold: 8, diamonds: 5 },
   mercenaryLancer: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
@@ -24,7 +24,7 @@ export const TRAINING_TICKS: Record<TroopType, number> = {
   cityGuards:      1200,
   spearmen:        1800,
   archers:         1600,
-  cavalry:         2400,
+  mountedArcher:         2400,
   heavyKnight:     6000,
   samurai:         9000,
   mercenaryLancer: 8000,
@@ -35,7 +35,7 @@ export const TROOP_LABELS: Record<TroopType, string> = {
   cityGuards:      "City Guard",
   spearmen:        "Spearman",
   archers:         "Archer",
-  cavalry:         "Cavalry",
+  mountedArcher:         "Mounted Archer",
   heavyKnight:     "Heavy Knight",
   samurai:         "Samurai",
   mercenaryLancer: "Mercenary Lancer",
@@ -70,7 +70,7 @@ export function queueTraining(
   troopType: TroopType,
   count: number,
   currentTick: number,
-  playerVillageCount = 0
+  _playerVillageCount = 0
 ): boolean {
   if (village.trainingQueue.length >= MAX_QUEUE_SIZE) {
     notifyPlayer(village.owner, `§cTraining queue is full (max ${MAX_QUEUE_SIZE} jobs).`);

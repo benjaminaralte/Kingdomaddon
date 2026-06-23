@@ -288,7 +288,7 @@ const TROOP_TYPE_TO_TOKEN: Record<TroopType, string> = {
   cityGuards:      "kingdoms:guard_token",
   spearmen:        "kingdoms:spearman_token",
   archers:         "kingdoms:archer_token",
-  cavalry:         "kingdoms:cavalry_token",
+  mountedArcher:         "kingdoms:cavalry_token",
   heavyKnight:     "kingdoms:heavy_knight_token",
   samurai:         "kingdoms:samurai_token",
   mercenaryLancer: "kingdoms:mercenary_lancer_token",
@@ -373,7 +373,7 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
       });
       return;
     }
-    registerTradeStation(tsVillage, block.location);
+    registerTradeStation(tsVillage!, block.location);
   }
 
   if (typeId === CUSTOM_BLOCKS.MATERIAL_STORAGE) {
@@ -396,7 +396,7 @@ world.afterEvents.playerPlaceBlock.subscribe((event) => {
       });
       return;
     }
-    registerMaterialStorage(stVillage, block.location);
+    registerMaterialStorage(stVillage!, block.location);
   }
 
   if (typeId === CUSTOM_BLOCKS.GRANARY) {
@@ -713,7 +713,7 @@ world.afterEvents.playerBreakBlock.subscribe((event) => {
         }
       }
       // Clear garrison
-      village.troops = { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 };
+      village.troops = { cityGuards: 0, spearmen: 0, archers: 0, mountedArcher: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0 };
       saveVillage(village);
       if (droppedAny) {
         notifyPlayer(player.name, `§eTroop tokens dropped from §b${village.name}§e Barracks!`);
@@ -1883,7 +1883,7 @@ async function showBarracksMenu(
   const ml = t.mercenaryLancer ?? 0;
   const lg = t.legionary ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry +
+  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.mountedArcher +
     (carried.heavyKnight ?? 0) + (carried.samurai ?? 0) + (carried.mercenaryLancer ?? 0) + (carried.legionary ?? 0);
 
   const tick = getCurrentTick();
@@ -1905,19 +1905,19 @@ async function showBarracksMenu(
     .body(
       `§7── Stationed ──\n` +
       `City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n` +
-      `Archers: ${t.archers}  Cavalry: ${t.cavalry}\n` +
+      `Archers: ${t.archers}  Mounted Archer: ${t.mountedArcher}\n` +
       `${hkLine}\n` +
       `${eliteLine}\n\n` +
       `§7── Carried in Inventory ──\n` +
       `Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}\n` +
-      `Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}\n` +
+      `Archers: ${carried.archers}  Mounted Archer: ${carried.mountedArcher}  HK: ${carried.heavyKnight ?? 0}\n` +
       `Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}\n\n` +
       `§7── Training Queue (${queueCount}/10) ──\n` +
       `${queueSummary}\n\n` +
       `Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
     )
     .button(`🪖 Train Troops (queue: ${queueCount}/10)\n§7Select troop type and quantity`)
-    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg} stationed)`)
+    .button(`⚔ Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.mountedArcher + hk + sm + ml + lg} stationed)`)
     .button(carriedTotal > 0 ? `🏹 Return Troops to Barracks (${carriedTotal} carried)` : "🏹 Return Troops (none carried)")
     .button(`⬆ Upgrade Barracks (${village.barracksLevel * 15} emeralds)`)
     .button("📯 Tactics Horn\n§7Take a formation command horn");
@@ -1964,7 +1964,7 @@ async function showPickUpTroopsForm(
   const sm2 = t.samurai ?? 0;
   const ml2 = t.mercenaryLancer ?? 0;
   const lg2 = t.legionary ?? 0;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm2 + ml2 + lg2;
+  const total = t.cityGuards + t.spearmen + t.archers + t.mountedArcher + hk + sm2 + ml2 + lg2;
 
   if (total === 0) {
     notifyPlayer(player.name, `§cNo troops stationed in §b${village.name}§c to pick up.`);
@@ -1976,7 +1976,7 @@ async function showPickUpTroopsForm(
     { key: "cityGuards",       label: "City Guards",      count: t.cityGuards },
     { key: "spearmen",         label: "Spearmen",          count: t.spearmen  },
     { key: "archers",          label: "Archers",           count: t.archers   },
-    { key: "cavalry",          label: "Cavalry",           count: t.cavalry   },
+    { key: "mountedArcher",          label: "Mounted Archer",           count: t.mountedArcher   },
     { key: "heavyKnight",      label: "Heavy Knights",     count: hk          },
     { key: "samurai",          label: "Samurai",           count: sm2         },
     { key: "mercenaryLancer",  label: "Mercenary Lancers", count: ml2         },
@@ -1993,7 +1993,7 @@ async function showPickUpTroopsForm(
 
   const values = response.formValues as number[];
   const pickup: TroopPickup = {
-    cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0,
+    cityGuards: 0, spearmen: 0, archers: 0, mountedArcher: 0,
     heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0,
   };
   entries.forEach((e, i) => { pickup[e.key] = values[i] ?? 0; });
@@ -2009,7 +2009,7 @@ async function showReturnTroopsForm(
   const smCarried = carried.samurai ?? 0;
   const mlCarried = carried.mercenaryLancer ?? 0;
   const lgCarried = carried.legionary ?? 0;
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry +
+  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.mountedArcher +
     hkCarried + smCarried + mlCarried + lgCarried;
 
   if (total === 0) {
@@ -2025,7 +2025,7 @@ async function showReturnTroopsForm(
       `  Guards: ${carried.cityGuards}\n` +
       `  Spearmen: ${carried.spearmen}\n` +
       `  Archers: ${carried.archers}\n` +
-      `  Cavalry: ${carried.cavalry}\n` +
+      `  Mounted Archer: ${carried.mountedArcher}\n` +
       `  Heavy Knights: ${hkCarried}\n` +
       `  Samurai: ${smCarried}\n` +
       `  Mercenary Lancers: ${mlCarried}\n` +
@@ -2063,7 +2063,7 @@ async function showTrainTroopsForm(
   const queueCount = village.trainingQueue?.length ?? 0;
 
   const troopTypes: TroopType[] = [
-    "cityGuards", "spearmen", "archers", "cavalry", "heavyKnight",
+    "cityGuards", "spearmen", "archers", "mountedArcher", "heavyKnight",
     "samurai", "mercenaryLancer", "legionary",
   ];
 
@@ -2095,7 +2095,7 @@ async function showTrainTroopsForm(
     .button(`City Guard\n§7${makeCostLine("cityGuards")}`)
     .button(`Spearman\n§7${makeCostLine("spearmen")}`)
     .button(`Archer\n§7${makeCostLine("archers")}`)
-    .button(`Cavalry\n§7${makeCostLine("cavalry")}`)
+    .button(`Mounted Archer\n§7${makeCostLine("mountedArcher")}`)
     .button(hkAvailable
       ? `Heavy Knight\n§7${makeCostLine("heavyKnight")}`
       : `§7Heavy Knight (🔒 Barracks Lv3 needed)\n§7${makeCostLine("heavyKnight")}`)
@@ -2570,7 +2570,7 @@ async function showReinforcementsMenu(
     const sa = t.samurai ?? 0;
     const ml = t.mercenaryLancer ?? 0;
     const le = t.legionary ?? 0;
-    return `${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sa + ml + le} troops`;
+    return `${t.cityGuards + t.spearmen + t.archers + t.mountedArcher + hk + sa + ml + le} troops`;
   };
 
   const form = new ActionFormData()
@@ -2678,7 +2678,7 @@ async function showSendAmountsForm(
     { key: "cityGuards",      label: "City Guards" },
     { key: "spearmen",        label: "Spearmen" },
     { key: "archers",         label: "Archers" },
-    { key: "cavalry",         label: "Cavalry" },
+    { key: "mountedArcher",         label: "Mounted Archer" },
     { key: "heavyKnight",     label: "Heavy Knights" },
     { key: "samurai",         label: "Samurai" },
     { key: "mercenaryLancer", label: "Mercenary Lancers" },
@@ -3006,12 +3006,12 @@ async function showDispatchMilitaryMenu(
   const form = new ActionFormData()
     .title(`${from.name} — Dispatch Reinforcements`)
     .body(
-      `§7Select destination village.\n\n§bAvailable Troops:\n§f  Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n  Archers: ${t.archers}  Cavalry: ${t.cavalry}`
+      `§7Select destination village.\n\n§bAvailable Troops:\n§f  Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}\n  Archers: ${t.archers}  Mounted Archer: ${t.mountedArcher}`
     );
 
   for (const v of connected) {
     const vt = v.troops;
-    const total = vt.cityGuards + vt.spearmen + vt.archers + vt.cavalry;
+    const total = vt.cityGuards + vt.spearmen + vt.archers + vt.mountedArcher;
     form.button(`🚉 ${v.name} (${total} troops)`);
   }
   form.button("Cancel");
@@ -3043,7 +3043,7 @@ async function showMilitaryAmountsForm(
     .slider("City Guards", 0, Math.max(t.cityGuards, 1), 1, 0)
     .slider("Spearmen", 0, Math.max(t.spearmen, 1), 1, 0)
     .slider("Archers", 0, Math.max(t.archers, 1), 1, 0)
-    .slider("Cavalry", 0, Math.max(t.cavalry, 1), 1, 0)
+    .slider("Mounted Archer", 0, Math.max(t.mountedArcher, 1), 1, 0)
     .slider("Heavy Knights", 0, Math.max(hk, 1), 1, 0)
     .slider("Samurai", 0, Math.max(sa, 1), 1, 0)
     .slider("Lancers", 0, Math.max(ml, 1), 1, 0)
@@ -3052,9 +3052,9 @@ async function showMilitaryAmountsForm(
   const response = await form.show(player);
   if (response.canceled) return;
 
-  const [guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues as number[];
+  const [guards, spearmen, archers, mountedArcher, heavyKnight, samurai, mercenaryLancer, legionary] = response.formValues as number[];
 
-  if (guards === 0 && spearmen === 0 && archers === 0 && cavalry === 0 &&
+  if (guards === 0 && spearmen === 0 && archers === 0 && mountedArcher === 0 &&
       heavyKnight === 0 && samurai === 0 && mercenaryLancer === 0 && legionary === 0) {
     notifyPlayer(player.name, "§cNo troops selected.");
     return;
@@ -3062,7 +3062,7 @@ async function showMilitaryAmountsForm(
 
   sendRailShipment(fromId, toId, {
     food: 0, emeralds: 0, iron: 0, gold: 0, coal: 0, wood: 0, stone: 0, diamonds: 0,
-    troops: { cityGuards: guards, spearmen, archers, cavalry, heavyKnight, samurai, mercenaryLancer, legionary },
+    troops: { cityGuards: guards, spearmen, archers, mountedArcher, heavyKnight, samurai, mercenaryLancer, legionary },
   });
 }
 

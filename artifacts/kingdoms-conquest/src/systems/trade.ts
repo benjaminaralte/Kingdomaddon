@@ -122,7 +122,7 @@ export function sendRailShipment(
   if ((troops.cityGuards      ?? 0) > from.troops.cityGuards)              { notifyPlayer(from.owner, `§cNot enough City Guards.`);       return false; }
   if ((troops.spearmen        ?? 0) > from.troops.spearmen)                { notifyPlayer(from.owner, `§cNot enough Spearmen.`);          return false; }
   if ((troops.archers         ?? 0) > from.troops.archers)                 { notifyPlayer(from.owner, `§cNot enough Archers.`);           return false; }
-  if ((troops.cavalry         ?? 0) > from.troops.cavalry)                 { notifyPlayer(from.owner, `§cNot enough Cavalry.`);           return false; }
+  if ((troops.mountedArcher         ?? 0) > from.troops.mountedArcher)                 { notifyPlayer(from.owner, `§cNot enough Mounted Archer.`);           return false; }
   if ((troops.heavyKnight     ?? 0) > (from.troops.heavyKnight     ?? 0))  { notifyPlayer(from.owner, `§cNot enough Heavy Knights.`);     return false; }
   if ((troops.samurai         ?? 0) > (from.troops.samurai         ?? 0))  { notifyPlayer(from.owner, `§cNot enough Samurai.`);           return false; }
   if ((troops.mercenaryLancer ?? 0) > (from.troops.mercenaryLancer ?? 0))  { notifyPlayer(from.owner, `§cNot enough Mercenary Lancers.`); return false; }
@@ -140,7 +140,7 @@ export function sendRailShipment(
   from.troops.cityGuards       -= (troops.cityGuards      ?? 0);
   from.troops.spearmen         -= (troops.spearmen        ?? 0);
   from.troops.archers          -= (troops.archers         ?? 0);
-  from.troops.cavalry          -= (troops.cavalry         ?? 0);
+  from.troops.mountedArcher          -= (troops.mountedArcher         ?? 0);
   from.troops.heavyKnight       = (from.troops.heavyKnight      ?? 0) - (troops.heavyKnight      ?? 0);
   from.troops.samurai           = (from.troops.samurai          ?? 0) - (troops.samurai          ?? 0);
   from.troops.mercenaryLancer   = (from.troops.mercenaryLancer  ?? 0) - (troops.mercenaryLancer  ?? 0);
@@ -170,7 +170,7 @@ export function sendRailShipment(
     from.troops.cityGuards      += (troops.cityGuards      ?? 0);
     from.troops.spearmen        += (troops.spearmen        ?? 0);
     from.troops.archers         += (troops.archers         ?? 0);
-    from.troops.cavalry         += (troops.cavalry         ?? 0);
+    from.troops.mountedArcher         += (troops.mountedArcher         ?? 0);
     from.troops.heavyKnight      = (from.troops.heavyKnight      ?? 0) + (troops.heavyKnight      ?? 0);
     from.troops.samurai          = (from.troops.samurai          ?? 0) + (troops.samurai          ?? 0);
     from.troops.mercenaryLancer  = (from.troops.mercenaryLancer  ?? 0) + (troops.mercenaryLancer  ?? 0);

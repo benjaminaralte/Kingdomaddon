@@ -18,14 +18,14 @@ const TROOP_ENTITY_MAP: Record<TroopType, string> = {
   cityGuards:      "kingdoms:city_guard",
   spearmen:        "kingdoms:spearman",
   archers:         "kingdoms:archer",
-  cavalry:         "kingdoms:cavalry",
+  mountedArcher:         "kingdoms:cavalry",
   heavyKnight:     "kingdoms:heavy_knight",
   samurai:         "kingdoms:samurai",
   mercenaryLancer: "kingdoms:mercenary_lancer",
   legionary:       "kingdoms:legionary",
 };
 
-const TROOP_PRIORITY: TroopType[] = ["samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
+const TROOP_PRIORITY: TroopType[] = ["samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "mountedArcher", "cityGuards"];
 
 export function tickAutoDefense(currentTick: number): void {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
@@ -111,7 +111,7 @@ function dispatchTroops(village: VillageData, threatCount: number): void {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +

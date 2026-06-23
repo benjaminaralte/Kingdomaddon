@@ -1,4 +1,4 @@
-import { world } from "@minecraft/server";
+
 import type { VillageData, ResourceStorage } from "../types/index.js";
 import { EMPTY_RESOURCE_STORAGE, RESOURCE_LABELS } from "../types/index.js";
 import { getVillage, saveVillage, getAllVillages } from "../storage/index.js";

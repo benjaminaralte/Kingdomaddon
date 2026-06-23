@@ -12,7 +12,7 @@ export type TroopType =
   | "cityGuards"
   | "spearmen"
   | "archers"
-  | "cavalry"
+  | "mountedArcher"
   | "heavyKnight"
   | "samurai"
   | "mercenaryLancer"
@@ -22,7 +22,7 @@ export interface TroopData {
   cityGuards: number;
   spearmen: number;
   archers: number;
-  cavalry: number;
+  mountedArcher: number;
   heavyKnight: number;
   samurai: number;
   mercenaryLancer: number;
@@ -229,7 +229,7 @@ export const TROOP_WAGES: Record<TroopType, number> = {
   cityGuards:      2,
   spearmen:        3,
   archers:         3,
-  cavalry:         5,
+  mountedArcher:         5,
   heavyKnight:     8,
   samurai:         12,
   mercenaryLancer: 10,

@@ -225,7 +225,7 @@ export function consumeSoldierFoodFromGranary(village: VillageData): void {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +
@@ -281,7 +281,7 @@ export function consumeSoldierFoodFromGranary(village: VillageData): void {
       // Second consecutive missed feeding — troops desert as typed bandits
       const deserters: Partial<Record<string, number>> = {};
       const troopKeys: Array<keyof typeof village.troops> = [
-        "cityGuards", "spearmen", "archers", "cavalry",
+        "cityGuards", "spearmen", "archers", "mountedArcher",
         "heavyKnight", "samurai", "mercenaryLancer", "legionary",
       ];
 

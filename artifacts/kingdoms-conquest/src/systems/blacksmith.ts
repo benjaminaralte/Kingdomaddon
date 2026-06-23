@@ -144,7 +144,7 @@ export function upgradeWeapons(player: Player, villageId: string): boolean {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +
@@ -195,7 +195,7 @@ export function upgradeArmor(player: Player, villageId: string): boolean {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +
@@ -291,7 +291,7 @@ export function getBlacksmithSummary(village: VillageData): string {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +

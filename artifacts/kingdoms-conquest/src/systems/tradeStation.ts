@@ -49,7 +49,7 @@ export function getTradeStationSummary(village: VillageData): string {
     ``,
     `§7── Barracks ──`,
     `  City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}`,
-    `  Archers: ${t.archers}  Cavalry: ${t.cavalry}`,
+    `  Archers: ${t.archers}  Mounted Archer: ${t.mountedArcher}`,
     ``,
     `§7Active Rail Shipments: §f${activeCarts}`,
   ].join("\n");
@@ -69,7 +69,7 @@ export function getCargoSummary(cargo: import("../types/index.js").TradeCartCarg
   if ((troops.cityGuards ?? 0) > 0) parts.push(`${troops.cityGuards} Guards`);
   if ((troops.spearmen ?? 0) > 0) parts.push(`${troops.spearmen} Spearmen`);
   if ((troops.archers ?? 0) > 0) parts.push(`${troops.archers} Archers`);
-  if ((troops.cavalry ?? 0) > 0) parts.push(`${troops.cavalry} Cavalry`);
+  if ((troops.mountedArcher ?? 0) > 0) parts.push(`${troops.mountedArcher} Mounted Archer`);
   return parts.join(", ") || "Empty";
 }
 

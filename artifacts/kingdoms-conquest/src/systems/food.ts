@@ -35,7 +35,7 @@ export function getFoodConsumption(village: VillageData): number {
     village.troops.cityGuards               +
     village.troops.spearmen                 +
     village.troops.archers                  +
-    village.troops.cavalry                  +
+    village.troops.mountedArcher                  +
     (village.troops.heavyKnight      ?? 0)  +
     (village.troops.samurai          ?? 0)  +
     (village.troops.mercenaryLancer  ?? 0)  +

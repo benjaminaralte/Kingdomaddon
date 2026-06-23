@@ -1,10 +1,10 @@
 /**
  * chargeAttack.ts
  *
- * Charge mechanic for mounted units (Cavalry & Mercenary Lancer).
+ * Charge mechanic for mounted units (Mounted Archer & Mercenary Lancer).
  *
  * How it works:
- *  - Every VELOCITY_CHECK_INTERVAL ticks, all live cavalry / lancer entities
+ *  - Every VELOCITY_CHECK_INTERVAL ticks, all live mountedArcher / lancer entities
  *    have their horizontal velocity sampled.
  *  - If speed exceeds GALLOP_THRESHOLD (blocks/tick), the entity is flagged
  *    kc:charge_ready = true and a charge-expiry tick is recorded.
@@ -179,7 +179,7 @@ export function registerChargeSystem(): void {
 
     // ── Visual & audio feedback ──────────────────────────────────────────
     const chargeLabel =
-      typeId === "kingdoms:mercenary_lancer" ? "§6⚔ Lancer Charge!" : "§e⚡ Cavalry Charge!";
+      typeId === "kingdoms:mercenary_lancer" ? "§6⚔ Lancer Charge!" : "§e⚡ Mounted Archer Charge!";
     const { x, y, z } = victim.location;
     try { victim.dimension.spawnParticle("minecraft:large_explosion", { x, y, z }); } catch { }
     try {

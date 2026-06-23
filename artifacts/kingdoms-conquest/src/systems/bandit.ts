@@ -181,7 +181,7 @@ const TROOP_ENTITY_IDS: Record<string, string> = {
   cityGuards:      "kingdoms:city_guard",
   spearmen:        "kingdoms:spearman",
   archers:         "kingdoms:archer",
-  cavalry:         "kingdoms:cavalry",
+  mountedArcher:         "kingdoms:cavalry",
   heavyKnight:     "kingdoms:heavy_knight",
   samurai:         "kingdoms:samurai",
   mercenaryLancer: "kingdoms:mercenary_lancer",
@@ -345,7 +345,7 @@ function getTotalVillageDefense(village: VillageData): number {
     village.troops.cityGuards              * 1 +
     village.troops.spearmen                * 2 +
     village.troops.archers                 * 2 +
-    village.troops.cavalry                 * 3 +
+    village.troops.mountedArcher                 * 3 +
     (village.troops.heavyKnight      ?? 0) * 5 +
     (village.troops.samurai          ?? 0) * 7 +
     (village.troops.mercenaryLancer  ?? 0) * 6 +

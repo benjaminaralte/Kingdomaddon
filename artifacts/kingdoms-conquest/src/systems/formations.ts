@@ -28,10 +28,10 @@ const LINE_FORWARD_DIST      = 5;    // blocks ahead of player for line formatio
 const PERIMETER_RADIUS       = 6;    // blocks for perimeter ring
 const BODYGUARD_RADIUS       = 3;    // blocks for tight bodyguard ring
 const VANGUARD_FORWARD       = 4;    // blocks ahead for vanguard
-const FLANK_LATERAL          = 8;    // blocks left/right for cavalry flanks
+const FLANK_LATERAL          = 8;    // blocks left/right for mountedArcher flanks
 const ARC_BACK_DIST          = 8;    // blocks behind for archer arc
 const ARC_SPACING            = 3;    // spacing for archer arc
-const ESCORT_LATERAL         = 3;    // blocks to side for cavalry escort
+const ESCORT_LATERAL         = 3;    // blocks to side for mountedArcher escort
 const SCATTER_RADIUS         = 10;   // radius for scatter formation
 const RALLY_RADIUS           = 4;    // radius for rally
 
@@ -366,7 +366,7 @@ async function showMainMenu(player: Player): Promise<void> {
     .title("⚔ Tactical Command")
     .body("§7Choose a unit type to issue orders to your nearby troops.\n§8Range: 48 blocks · Only your deployed soldiers respond.")
     .button("🗡 Spearmen Tactics")
-    .button("🐴 Cavalry / Lancer Tactics")
+    .button("🐴 Mounted Archer / Lancer Tactics")
     .button("🏹 Archer Tactics")
     .button("🛡 Heavy Infantry Tactics")
     .button("🔔 Rally All Troops")
@@ -377,7 +377,7 @@ async function showMainMenu(player: Player): Promise<void> {
 
   switch (resp.selection) {
     case 0: await showSpearmenMenu(player); break;
-    case 1: await showCavalryMenu(player);  break;
+    case 1: await showMountedArcherMenu(player);  break;
     case 2: await showArcherMenu(player);   break;
     case 3: await showHeavyMenu(player);    break;
     case 4: {
@@ -403,7 +403,7 @@ async function showSpearmenMenu(player: Player): Promise<void> {
       "§f▶ Line + Attack §7— Line up ahead of you, then charge enemies.\n" +
       "§f▶ Line + Hold §7— Hold a defensive line. Re-enforced every second.\n" +
       "§f▶ Perimeter §7— Ring of pikes around you. Ideal vs. surrounded attacks.\n" +
-      "§8Counter-charge: Spearmen deal §c+6 damage §8back to charging cavalry!"
+      "§8Counter-charge: Spearmen deal §c+6 damage §8back to charging mountedArcher!"
     )
     .button("⚔ Line Formation — Attack")
     .button("🛡 Line Formation — Hold")
@@ -421,14 +421,14 @@ async function showSpearmenMenu(player: Player): Promise<void> {
   }
 }
 
-async function showCavalryMenu(player: Player): Promise<void> {
+async function showMountedArcherMenu(player: Player): Promise<void> {
   const form = new ActionFormData()
-    .title("🐴 Cavalry / Lancer Tactics")
+    .title("🐴 Mounted Archer / Lancer Tactics")
     .body(
       "§eMounted units are fast and devastating on the charge.\n\n" +
       "§f▶ Charge Flanks §7— Split left & right, then unleash AI. Best for open battles.\n" +
       "§f▶ Escort §7— Ride alongside you. Re-enforced. Great for moving through enemy territory.\n" +
-      "§8Charge bonus: §6+5 dmg §8(Cavalry) / §6+8 dmg §8(Lancer) + knockback on first hit after gallop."
+      "§8Charge bonus: §6+5 dmg §8(Mounted Archer) / §6+8 dmg §8(Lancer) + knockback on first hit after gallop."
     )
     .button("⚡ Charge Flanks")
     .button("🐎 Escort Formation")
@@ -438,8 +438,8 @@ async function showCavalryMenu(player: Player): Promise<void> {
   if (resp.canceled) return;
 
   switch (resp.selection) {
-    case 0: issueOrder(player, "cavalry_flanks",  "§aCavalry splitting to flanks!"); break;
-    case 1: issueOrder(player, "cavalry_escort",  "§aCavalry moving to escort position!"); break;
+    case 0: issueOrder(player, "cavalry_flanks",  "§aMounted Archer splitting to flanks!"); break;
+    case 1: issueOrder(player, "cavalry_escort",  "§aMounted Archer moving to escort position!"); break;
     case 2: await showMainMenu(player); break;
   }
 }

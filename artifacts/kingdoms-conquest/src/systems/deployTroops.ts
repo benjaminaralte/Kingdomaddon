@@ -7,7 +7,7 @@ export const TROOP_TOKEN_MAP: Record<string, { troopType: TroopType; entityId: s
   "kingdoms:guard_token":               { troopType: "cityGuards",      entityId: "kingdoms:city_guard",        label: "City Guard"       },
   "kingdoms:spearman_token":            { troopType: "spearmen",         entityId: "kingdoms:spearman",          label: "Spearman"         },
   "kingdoms:archer_token":              { troopType: "archers",          entityId: "kingdoms:archer",            label: "Archer"           },
-  "kingdoms:cavalry_token":             { troopType: "cavalry",          entityId: "kingdoms:cavalry",           label: "Cavalry"          },
+  "kingdoms:cavalry_token":             { troopType: "mountedArcher",          entityId: "kingdoms:cavalry",           label: "Mounted Archer"          },
   "kingdoms:heavy_knight_token":        { troopType: "heavyKnight",      entityId: "kingdoms:heavy_knight",      label: "Heavy Knight"     },
   "kingdoms:samurai_token":             { troopType: "samurai",          entityId: "kingdoms:samurai",           label: "Samurai"          },
   "kingdoms:mercenary_lancer_token":    { troopType: "mercenaryLancer",  entityId: "kingdoms:mercenary_lancer",  label: "Mercenary Lancer" },
@@ -40,7 +40,7 @@ export interface TroopPickup {
   cityGuards: number;
   spearmen: number;
   archers: number;
-  cavalry: number;
+  mountedArcher: number;
   heavyKnight: number;
   samurai: number;
   mercenaryLancer: number;
@@ -53,7 +53,7 @@ export function pickupTroops(
   pickup: TroopPickup
 ): boolean {
   const total =
-    pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry +
+    pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.mountedArcher +
     pickup.heavyKnight + pickup.samurai + pickup.mercenaryLancer + pickup.legionary;
 
   if (total <= 0) {
@@ -64,7 +64,7 @@ export function pickupTroops(
   if (pickup.cityGuards     > village.troops.cityGuards)                             { notifyPlayer(player.name, `§cNot enough City Guards (have ${village.troops.cityGuards}).`);           return false; }
   if (pickup.spearmen       > village.troops.spearmen)                               { notifyPlayer(player.name, `§cNot enough Spearmen (have ${village.troops.spearmen}).`);                 return false; }
   if (pickup.archers        > village.troops.archers)                                { notifyPlayer(player.name, `§cNot enough Archers (have ${village.troops.archers}).`);                   return false; }
-  if (pickup.cavalry        > village.troops.cavalry)                                { notifyPlayer(player.name, `§cNot enough Cavalry (have ${village.troops.cavalry}).`);                   return false; }
+  if (pickup.mountedArcher        > village.troops.mountedArcher)                                { notifyPlayer(player.name, `§cNot enough Mounted Archer (have ${village.troops.mountedArcher}).`);                   return false; }
   if (pickup.heavyKnight    > (village.troops.heavyKnight ?? 0))                     { notifyPlayer(player.name, `§cNot enough Heavy Knights (have ${village.troops.heavyKnight ?? 0}).`);   return false; }
   if (pickup.samurai        > (village.troops.samurai ?? 0))                         { notifyPlayer(player.name, `§cNot enough Samurai (have ${village.troops.samurai ?? 0}).`);             return false; }
   if (pickup.mercenaryLancer > (village.troops.mercenaryLancer ?? 0))                { notifyPlayer(player.name, `§cNot enough Mercenary Lancers (have ${village.troops.mercenaryLancer ?? 0}).`); return false; }
@@ -81,7 +81,7 @@ export function pickupTroops(
     { itemId: "kingdoms:guard_token",            count: pickup.cityGuards      },
     { itemId: "kingdoms:spearman_token",         count: pickup.spearmen        },
     { itemId: "kingdoms:archer_token",           count: pickup.archers         },
-    { itemId: "kingdoms:cavalry_token",          count: pickup.cavalry         },
+    { itemId: "kingdoms:cavalry_token",          count: pickup.mountedArcher         },
     { itemId: "kingdoms:heavy_knight_token",     count: pickup.heavyKnight     },
     { itemId: "kingdoms:samurai_token",          count: pickup.samurai         },
     { itemId: "kingdoms:mercenary_lancer_token", count: pickup.mercenaryLancer },
@@ -104,7 +104,7 @@ export function pickupTroops(
   village.troops.cityGuards       -= pickup.cityGuards;
   village.troops.spearmen         -= pickup.spearmen;
   village.troops.archers          -= pickup.archers;
-  village.troops.cavalry          -= pickup.cavalry;
+  village.troops.mountedArcher          -= pickup.mountedArcher;
   village.troops.heavyKnight       = (village.troops.heavyKnight ?? 0) - pickup.heavyKnight;
   village.troops.samurai           = (village.troops.samurai ?? 0) - pickup.samurai;
   village.troops.mercenaryLancer   = (village.troops.mercenaryLancer ?? 0) - pickup.mercenaryLancer;
@@ -307,7 +307,7 @@ export function garrisonDeployedSoldiers(
     "kingdoms:city_guard":        "cityGuards",
     "kingdoms:spearman":          "spearmen",
     "kingdoms:archer":            "archers",
-    "kingdoms:cavalry":           "cavalry",
+    "kingdoms:cavalry":           "mountedArcher",
     "kingdoms:heavy_knight":      "heavyKnight",
     "kingdoms:samurai":           "samurai",
     "kingdoms:mercenary_lancer":  "mercenaryLancer",
@@ -337,7 +337,7 @@ export function garrisonDeployedSoldiers(
 export function countTroopTokens(player: Player): Record<TroopType, number> {
   const inv = player.getComponent(EntityInventoryComponent.componentId) as EntityInventoryComponent | undefined;
   const result: Record<TroopType, number> = {
-    cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0,
+    cityGuards: 0, spearmen: 0, archers: 0, mountedArcher: 0, heavyKnight: 0,
     samurai: 0, mercenaryLancer: 0, legionary: 0,
   };
   if (!inv?.container) return result;

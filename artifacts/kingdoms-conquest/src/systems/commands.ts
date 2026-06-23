@@ -14,7 +14,7 @@ import { getActiveBorderIntrusions, isSiegeEligible } from "./border.js";
 import { toggleAlerts, getPlayerSettings } from "./playerSettings.js";
 import type { TroopType } from "../types/index.js";
 
-const TROOP_TYPES: TroopType[] = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
+const TROOP_TYPES: TroopType[] = ["cityGuards", "spearmen", "archers", "mountedArcher", "heavyKnight", "samurai", "mercenaryLancer", "legionary"];
 
 export function registerCommands(): void {
   system.afterEvents.scriptEventReceive.subscribe(
@@ -145,7 +145,7 @@ function showHelp(player: Player): void {
     "§e/scriptevent kc:intel <kingdomName>§r — scout an enemy kingdom",
     "§e/scriptevent kc:alerts§r — toggle incoming-attack alerts on/off",
     "§e/scriptevent kc:collect <id>§r — collect NPC-harvested crops to your inventory",
-    "§7Troop types: cityGuards, spearmen, archers, cavalry",
+    "§7Troop types: cityGuards, spearmen, archers, mountedArcher",
   ];
   for (const line of lines) notifyPlayer(player.name, line);
 }
@@ -271,7 +271,7 @@ function cmdSetWorkers(player: Player, args: string[]): void {
     - village.troops.cityGuards
     - village.troops.spearmen
     - village.troops.archers
-    - village.troops.cavalry
+    - village.troops.mountedArcher
     - (village.troops.heavyKnight     ?? 0)
     - (village.troops.samurai         ?? 0)
     - (village.troops.mercenaryLancer ?? 0)
@@ -364,7 +364,7 @@ function showMap(player: Player): void {
   notifyPlayer(player.name, `§b═══ ${kingdom?.name ?? "No Kingdom"} — Strategic Map ═══`);
 
   for (const v of myVillages) {
-    const troops = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.cavalry;
+    const troops = v.troops.cityGuards + v.troops.spearmen + v.troops.archers + v.troops.mountedArcher;
     const training = (v.trainingQueue?.length ?? 0);
     const siegeFlag = isSiegeActive(v.id) ? " §c⚔ UNDER SIEGE§r" : "";
     const trainingTag = training > 0 ? ` §e🪖+${training}§r` : "";
@@ -635,14 +635,14 @@ function tutorialRecruit(player: Player): void {
   s("§f  Buttons you'll see:");
   s("§f  • §aRecruit City Guard§f (5💎) — sturdy, cheap defenders");
   s("§f  • §aRecruit Spearman§f (8💎) — medium infantry");
-  s("§f  • §aRecruit Archer§f (8💎) — ranged, good vs cavalry");
-  s("§f  • §aRecruit Cavalry§f (12💎) — fast, high damage");
+  s("§f  • §aRecruit Archer§f (8💎) — ranged, good vs mountedArcher");
+  s("§f  • §aRecruit Mounted Archer§f (12💎) — fast, high damage");
   s("§f  Troops are paid from the village §btreasury§f (emeralds).");
   s("§e Method 2 — Command Line");
   s("§f  /scriptevent kc:recruit <villageId> cityGuards 5");
   s("§f  /scriptevent kc:recruit <villageId> spearmen 3");
   s("§f  /scriptevent kc:recruit <villageId> archers 3");
-  s("§f  /scriptevent kc:recruit <villageId> cavalry 2");
+  s("§f  /scriptevent kc:recruit <villageId> mountedArcher 2");
   s("§e Picking Up Troops (Deploy to Battle)");
   s("§f  • Open Barracks → tap §b⚔ Pick Up Troops§f.");
   s("§f  • Use sliders to choose how many of each type to carry.");
