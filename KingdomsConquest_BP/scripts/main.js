@@ -1765,6 +1765,7 @@ function spawnMountedUnit(dim, entityId, offset) {
   const tag = `kc_wh_${_horseCounter++}`;
   const horse = dim.spawnEntity("kingdoms:war_horse", offset);
   horse.addTag(tag);
+  horse.addTag("kc_mounting");
   const rider = dim.spawnEntity(entityId, offset);
   system2.runTimeout(() => {
     try {
@@ -1779,8 +1780,51 @@ function spawnMountedUnit(dim, entityId, offset) {
       horse.removeTag(tag);
     } catch {
     }
+    try {
+      horse.removeTag("kc_mounting");
+    } catch {
+    }
   }, 20);
   return rider;
+}
+function cleanupOrphanedHorses() {
+  const dims = ["overworld", "nether", "the_end"];
+  for (const dimId of dims) {
+    let dim;
+    try {
+      dim = world20.getDimension(dimId);
+    } catch {
+      continue;
+    }
+    let horses;
+    try {
+      horses = dim.getEntities({ type: "kingdoms:war_horse" });
+    } catch {
+      continue;
+    }
+    if (horses.length === 0) continue;
+    const mountedHorseIds = /* @__PURE__ */ new Set();
+    for (const riderId of ["kingdoms:cavalry", "kingdoms:mercenary_lancer"]) {
+      try {
+        for (const rider of dim.getEntities({ type: riderId })) {
+          try {
+            const vehicle = rider.getVehicle?.();
+            if (vehicle) mountedHorseIds.add(vehicle.id);
+          } catch {
+          }
+        }
+      } catch {
+      }
+    }
+    for (const horse of horses) {
+      try {
+        if (!mountedHorseIds.has(horse.id) && !horse.hasTag("kc_mounting")) {
+          horse.remove();
+        }
+      } catch {
+      }
+    }
+  }
 }
 function pickupTroops(player, village, pickup) {
   const total = pickup.cityGuards + pickup.spearmen + pickup.archers + pickup.cavalry + pickup.heavyKnight + pickup.samurai + pickup.mercenaryLancer + pickup.legionary;
@@ -7202,6 +7246,9 @@ system6.runInterval(() => {
 system6.runInterval(() => {
   enforceGuardPositions();
 }, 600);
+system6.runInterval(() => {
+  cleanupOrphanedHorses();
+}, 400);
 system6.runInterval(() => {
   for (const village of getAllVillages()) {
     updateHousingCapacity(village.id);
