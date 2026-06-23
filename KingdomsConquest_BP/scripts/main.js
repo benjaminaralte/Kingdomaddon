@@ -1768,6 +1768,10 @@ function spawnMountedUnit(dim, entityId, offset) {
   const rider = dim.spawnEntity(entityId, offset);
   system2.runTimeout(() => {
     try {
+      horse.runCommandAsync(`replaceitem entity @s slot.saddle 0 minecraft:saddle`);
+    } catch {
+    }
+    try {
       rider.runCommandAsync(`ride @s start_riding @e[tag=${tag},c=1]`);
     } catch {
     }
@@ -1775,7 +1779,7 @@ function spawnMountedUnit(dim, entityId, offset) {
       horse.removeTag(tag);
     } catch {
     }
-  }, 10);
+  }, 20);
   return rider;
 }
 function pickupTroops(player, village, pickup) {
@@ -2035,6 +2039,11 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
         if (entity.getDynamicProperty("kc:owner") === attackerName) {
           village.troops[troopType] = (village.troops[troopType] ?? 0) + 1;
           total++;
+          try {
+            const mount = entity.getVehicle?.();
+            if (mount) mount.remove();
+          } catch {
+          }
           try {
             entity.remove();
           } catch {

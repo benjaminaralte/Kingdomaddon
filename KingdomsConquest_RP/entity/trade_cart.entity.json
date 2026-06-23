@@ -10,13 +10,12 @@
       "animations": {
         "walk": "animation.llama.walk",
         "idle": "animation.llama.idle",
-        "chest": "animation.llama.chest",
-        "move": "controller.animation.llama.general"
+        "move": "controller.animation.kingdoms.villager.move"
       },
       "scripts": {
         "animate": [ "move" ]
       },
-      "render_controllers": [ "controller.render.llama" ]
+      "render_controllers": [ "controller.render.kingdoms.trade_cart" ]
     }
   }
 }

@@ -1,0 +1,54 @@
+[Geometry][error]-models/blocks/painting_horizontal.json | Required child minecraft:geometry not found
+
+[Geometry][error]-models/blocks/painting_horizontal.json | geometry file didn't validate
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_none' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_white' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_orange' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_magenta' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_light_blue' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_yellow' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_lime' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_pink' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_gray' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_silver' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_cyan' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_purple' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_blue' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_brown' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_green' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_red' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_black' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.creamy' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.white' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.brown' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.gray' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-kingdoms:trade_cart | kingdoms:trade_cart | controller.render.llama | Textures | friendly name 'texture.decor_wandering_trader' not found in entity friendly name list (material.default:texture.default:geometry.default) - check your spelling?
+
+[Molang][error]-friendly name 'texture.decor_wandering_trader' not found in entity friendly name list (texture.default:material.default:geometry.default) - check your spelling?
+
+[Animation][error]-Error: can't find animation move
+
+[Animation][error]-Error: can't find animation target
+

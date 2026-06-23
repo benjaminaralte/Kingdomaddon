@@ -3,14 +3,14 @@
   "minecraft:entity": {
     "description": {
       "identifier": "kingdoms:war_horse",
-      "runtime_identifier": "minecraft:skeleton_horse",
+      "runtime_identifier": "minecraft:horse",
       "is_spawnable": false,
       "is_summonable": true,
       "is_experimental": false
     },
     "components": {
       "minecraft:type_family": { "family": ["horse", "mob"] },
-      "minecraft:variant": { "value": 3 },
+      "minecraft:variant": { "value": 2 },
       "minecraft:mark_variant": { "value": 0 },
       "minecraft:collision_box": { "width": 1.4, "height": 1.6 },
       "minecraft:health": { "value": 30, "max": 30 },
@@ -23,6 +23,15 @@
       "minecraft:jump.static": {},
       "minecraft:physics": {},
       "minecraft:nameable": {},
+      "minecraft:equippable": {
+        "slots": [
+          {
+            "slot": 0,
+            "item": "minecraft:saddle",
+            "lock_type": "lock_in_slot"
+          }
+        ]
+      },
       "minecraft:rideable": {
         "seat_count": 1,
         "crouching_skip_interact": false,
