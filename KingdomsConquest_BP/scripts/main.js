@@ -7259,10 +7259,10 @@ world20.afterEvents.itemUse.subscribe((event) => {
 async function showVillageSpawnerMenu(player) {
   const lastRaw = world20.getDynamicProperty("kc_lastSettlement");
   const hasLast = !!lastRaw;
-  const form = new ActionFormData3().title("Village Spawner").body("Choose what to spawn near you.\n\xA77A settlement will appear ~50-80 blocks away.").button("\u{1F3D9} Spawn City\n\xA77Large walled kingdom").button("\u{1F3D8} Spawn Village\n\xA77Small walled village").button(hasLast ? "\u{1F4CD} Teleport to Last Settlement\n\xA77Return to previously spawned site" : "\u{1F4CD} No Settlement Yet\n\xA77Spawn one first");
+  const form = new ActionFormData3().title("Village Spawner").body("Choose what to spawn near you.\n\xA77A settlement will appear ~80 blocks away.").button("\u{1F3D9} Spawn Kingdom City\n\xA77Large walled kingdom").button(hasLast ? "\u{1F4CD} Teleport to Last Settlement\n\xA77Return to previously spawned site" : "\u{1F4CD} No Settlement Yet\n\xA77Spawn one first");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  if (response.selection === 2) {
+  if (response.selection === 1) {
     if (!lastRaw) {
       notifyPlayer(player.name, "\xA7cNo settlement has been spawned yet.");
       return;
@@ -7276,11 +7276,11 @@ async function showVillageSpawnerMenu(player) {
     }
     return;
   }
-  const type = response.selection === 0 ? "city" : "village";
+  const type = "city";
   const dim = player.dimension;
   const loc = player.location;
   const angle = Math.random() * Math.PI * 2;
-  const dist = type === "city" ? 80 : 50;
+  const dist = 80;
   const anchor = {
     x: Math.round(loc.x + Math.cos(angle) * dist),
     y: Math.round(loc.y),
