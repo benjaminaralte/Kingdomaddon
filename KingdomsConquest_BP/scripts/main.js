@@ -6524,6 +6524,24 @@ function dismissAllFormations(player) {
   for (const e of all) clearFormationTag(e);
   return all.length;
 }
+function recallAllTroops(player) {
+  const all = findOwnedTroops(player, FORMATION_TARGETS["all_rally"]);
+  if (all.length === 0) return 0;
+  const loc = player.location;
+  const count = all.length;
+  all.forEach((troop, i) => {
+    const angle = (i / count) * Math.PI * 2;
+    const r = count > 1 ? 2.0 : 0;
+    const tx = loc.x + Math.cos(angle) * r;
+    const tz = loc.z + Math.sin(angle) * r;
+    try {
+      clearFormationTag(troop);
+      troop.setDynamicProperty("kc:f_target", `${tx},${loc.y},${tz}`);
+      troop.setDynamicProperty(PROP_F_OWNER, player.name);
+    } catch {}
+  });
+  return count;
+}
 function tickFormations(currentTick) {
   if (currentTick % HOLD_TICK_INTERVAL !== 0) return;
   for (const player of world19.getPlayers()) {
@@ -6605,7 +6623,7 @@ async function showMainMenu(player) {
   const _troopLine = _total === 0
     ? "\xA7cNo troops deployed within range."
     : `\xA7f\u2694 \xA7a${_counts.spear}\xA78  \xA7f\u{1F434} \xA7a${_counts.cav}\xA78  \xA7f\u{1F3F9} \xA7a${_counts.arch}\xA78  \xA7f\u{1F6E1} \xA7a${_counts.heavy}\n\xA77Total: \xA7f${_total}\xA77 troops within 48 blocks`;
-  const form = new ActionFormData2().title("\u2694 Tactical Command").body(`${_troopLine}\n\n\xA77Choose a unit type to issue orders.\n\xA78Only your deployed soldiers respond. Troops walk to position.`).button(`\u{1F5E1} Spearmen \xA77& Guards\n\xA77${_counts.spear} nearby`).button(`\u{1F434} Cavalry \xA77/ Lancer\n\xA77${_counts.cav} nearby`).button(`\u{1F3F9} Archer Tactics\n\xA77${_counts.arch} nearby`).button(`\u{1F6E1} Heavy Infantry\n\xA77${_counts.heavy} nearby`).button("\u{1F514} Rally All Troops").button("\u{1F6E1} Standing Guard\n\xA77All troops \u2014 front line + ring, follow your movement").button("\u2716 Dismiss All Formations");
+  const form = new ActionFormData2().title("\u2694 Tactical Command").body(`${_troopLine}\n\n\xA77Choose a unit type to issue orders.\n\xA78Only your deployed soldiers respond. Troops walk to position.`).button(`\u{1F5E1} Spearmen \xA77& Guards\n\xA77${_counts.spear} nearby`).button(`\u{1F434} Cavalry \xA77/ Lancer\n\xA77${_counts.cav} nearby`).button(`\u{1F3F9} Archer Tactics\n\xA77${_counts.arch} nearby`).button(`\u{1F6E1} Heavy Infantry\n\xA77${_counts.heavy} nearby`).button("\u{1F514} Rally All Troops").button("\u{1F6E1} Standing Guard\n\xA77All troops \u2014 front line + ring, follow your movement").button("\u{1F4E3} Recall All Troops\n\xA77Walk all troops to you, then idle").button("\u2716 Dismiss All Formations");
   const resp = await form.show(player);
   if (resp.canceled) return;
   switch (resp.selection) {
@@ -6634,6 +6652,12 @@ async function showMainMenu(player) {
       break;
     }
     case 6: {
+      const n = recallAllTroops(player);
+      if (n === 0) notifyPlayer(player.name, "\xA7eNo deployed troops nearby to recall.");
+      else notifyPlayer(player.name, `\xA7a\u{1F4E3} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} recalled \u2014 walking to your position!`);
+      break;
+    }
+    case 7: {
       const n = dismissAllFormations(player);
       if (n === 0) notifyPlayer(player.name, "\xA7eNo troops in formation nearby.");
       else notifyPlayer(player.name, `\xA7e\u2716 Formations dismissed. \xA7f${n}\xA7e troop${n > 1 ? "s" : ""} released.`);
