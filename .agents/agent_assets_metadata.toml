@@ -119,3 +119,9 @@ id = "x_CYg6eNNg6YJNBiRxC3g"
 uri = "file://KingdomsConquest_v1.9.2.zip"
 type = "unspecified"
 title = "Kingdoms & Conquest v1.9.2 (.mcaddon)"
+
+[[outputs]]
+id = "jScWz_gkktFaJJJhJVVhA"
+uri = "file://builds/KingdomsConquest_v1.9.3.zip"
+type = "unspecified"
+title = "Kingdoms & Conquest v1.9.3.mcaddon"
