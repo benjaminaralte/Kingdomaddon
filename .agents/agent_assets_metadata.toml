@@ -113,3 +113,9 @@ id = "3wq_emQbkbfBMWA_ekaRo"
 uri = "file://KingdomsConquest_v2.4.0.zip"
 type = "unspecified"
 title = "KingdomsConquest v2.4.0 — Shield Soldier + Shield Wall"
+
+[[outputs]]
+id = "x_CYg6eNNg6YJNBiRxC3g"
+uri = "file://KingdomsConquest_v1.9.2.zip"
+type = "unspecified"
+title = "Kingdoms & Conquest v1.9.2 (.mcaddon)"
