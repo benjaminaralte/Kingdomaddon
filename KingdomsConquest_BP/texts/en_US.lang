@@ -51,6 +51,8 @@ item.kingdoms:guard_token.name=City Guard
 item.kingdoms:spearman_token.name=Spearman
 item.kingdoms:archer_token.name=Archer
 item.kingdoms:cavalry_token.name=Cavalry
+item.kingdoms:shield_soldier_token.name=Shield Soldier
+entity.kingdoms:shield_soldier.name=Shield Soldier
 
 entity.kingdoms:merchant.name=Travelling Merchant
 entity.kingdoms:trade_cart.name=Trade Cart
