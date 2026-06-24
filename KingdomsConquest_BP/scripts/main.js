@@ -8499,43 +8499,29 @@ async function showBarracksMenu(player, block) {
     return;
   }
   const t = village.troops;
-  const hk = t.heavyKnight ?? 0;
-  const sm = t.samurai ?? 0;
-  const ml = t.mercenaryLancer ?? 0;
-  const lg = t.legionary ?? 0;
   const cle = t.cavalryLancerElite ?? 0;
-  const ss = t.shieldSoldiers ?? 0;
   const carried = countTroopTokens(player);
-  const carriedTotal = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + (carried.heavyKnight ?? 0) + (carried.samurai ?? 0) + (carried.mercenaryLancer ?? 0) + (carried.legionary ?? 0) + (carried.cavalryLancerElite ?? 0) + (carried.shieldSoldiers ?? 0);
+  const cleCarried = carried.cavalryLancerElite ?? 0;
+  const carriedTotal = cleCarried;
   const tick = getCurrentTick();
   const queueSummary = getTrainingQueueSummary(village, tick);
   const queueCount = village.trainingQueue?.length ?? 0;
   const rs = village.resourceStorage;
-  const hkLocked = village.barracksLevel < 3;
-  const ssLocked = village.barracksLevel < 2;
   const castleBuilt = village.hasCastle ?? false;
-  const hkLine = hkLocked ? `\xA77Heavy Knights: \xA7c${hk} \xA77(\u{1F512} needs Barracks Lv3)` : `\xA7aHeavy Knights: ${hk}`;
-  const ssLine = ssLocked ? `\xA77Shield Soldiers: \xA7c${ss} \xA77(\u{1F512} needs Barracks Lv2)` : `\xA7aShield Soldiers: ${ss}`;
-  const eliteLine = castleBuilt ? `\xA76Samurai: ${sm}  Lancer: ${ml}  Legionary: ${lg}  CLE: ${cle}` : `\xA77Elite Troops: \xA7c\u{1F512} needs Castle`;
+  const cleLine = castleBuilt ? `\xA76Cavalry Lancer Elite: ${cle}` : `\xA77Cavalry Lancer Elite: \xA7c\u{1F512} needs Castle`;
   const form = new ActionFormData3().title(`${village.name} \u2014 Barracks Lv${village.barracksLevel}`).body(
     `\xA77\u2500\u2500 Stationed \u2500\u2500
-City Guards: ${t.cityGuards}  Spearmen: ${t.spearmen}
-Archers: ${t.archers}  Cavalry: ${t.cavalry}
-${ssLine}
-${hkLine}
-${eliteLine}
+${cleLine}
 
 \xA77\u2500\u2500 Carried in Inventory \u2500\u2500
-Guards: ${carried.cityGuards}  Spearmen: ${carried.spearmen}
-Archers: ${carried.archers}  Cavalry: ${carried.cavalry}  HK: ${carried.heavyKnight ?? 0}
-Shield: ${carried.shieldSoldiers ?? 0}  Samurai: ${carried.samurai ?? 0}  Lancer: ${carried.mercenaryLancer ?? 0}  Legionary: ${carried.legionary ?? 0}  CLE: ${carried.cavalryLancerElite ?? 0}
+CLE: ${cleCarried}
 
 \xA77\u2500\u2500 Training Queue (${queueCount}/10) \u2500\u2500
 ${queueSummary}
 
 Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
   ).button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)
-\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg + cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
+\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -9907,26 +9893,14 @@ function triggerFormationHorn(player) {
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
-  const hk = t.heavyKnight ?? 0;
-  const sm2 = t.samurai ?? 0;
-  const ml2 = t.mercenaryLancer ?? 0;
-  const lg2 = t.legionary ?? 0;
   const cle2 = t.cavalryLancerElite ?? 0;
-  const total = t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm2 + ml2 + lg2 + cle2;
+  const total = cle2;
   if (total === 0) {
     notifyPlayer(player.name, `\xA7cNo troops stationed in \xA7b${village.name}\xA7c to pick up.`);
     return;
   }
   const entries = [
-    { key: "cityGuards", label: "City Guards", count: t.cityGuards },
-    { key: "spearmen", label: "Spearmen", count: t.spearmen },
-    { key: "archers", label: "Archers", count: t.archers },
-    { key: "cavalry", label: "Cavalry", count: t.cavalry },
-    { key: "heavyKnight", label: "Heavy Knights", count: hk },
-    { key: "samurai", label: "Samurai", count: sm2 },
-    { key: "mercenaryLancer", label: "Mercenary Lancers", count: ml2 },
-    { key: "legionary", label: "Legionaries", count: lg2 },
-    { key: "cavalryLancerElite", label: "Cavalry Lancer Elite", count: t.cavalryLancerElite ?? 0 }
+    { key: "cavalryLancerElite", label: "Cavalry Lancer Elite", count: cle2 }
   ].filter((e) => e.count > 0);
   const form = new ModalFormData().title(`\u2694 Pick Up Troops \u2014 ${village.name}`);
   for (const e of entries) {
@@ -9953,12 +9927,8 @@ async function showPickUpTroopsForm(player, village) {
 }
 async function showReturnTroopsForm(player, village) {
   const carried = countTroopTokens(player);
-  const hkCarried = carried.heavyKnight ?? 0;
-  const smCarried = carried.samurai ?? 0;
-  const mlCarried = carried.mercenaryLancer ?? 0;
-  const lgCarried = carried.legionary ?? 0;
   const cleCarried = carried.cavalryLancerElite ?? 0;
-  const total = carried.cityGuards + carried.spearmen + carried.archers + carried.cavalry + hkCarried + smCarried + mlCarried + lgCarried + cleCarried;
+  const total = cleCarried;
   if (total === 0) {
     notifyPlayer(player.name, "\xA7cYou are not carrying any troops.");
     return;
@@ -9967,14 +9937,6 @@ async function showReturnTroopsForm(player, village) {
     `\xA77Return all carried troops to this barracks.
 
 \xA7fCarrying:
-  Guards: ${carried.cityGuards}
-  Spearmen: ${carried.spearmen}
-  Archers: ${carried.archers}
-  Cavalry: ${carried.cavalry}
-  Heavy Knights: ${hkCarried}
-  Samurai: ${smCarried}
-  Mercenary Lancers: ${mlCarried}
-  Legionaries: ${lgCarried}
   Cavalry Lancer Elite: ${cleCarried}
 
 \xA7aTotal: ${total} troops`
@@ -9999,15 +9961,6 @@ async function showTrainTroopsForm(player, village) {
   const tick = getCurrentTick();
   const queueCount = village.trainingQueue?.length ?? 0;
   const troopTypes = [
-    "cityGuards",
-    "spearmen",
-    "archers",
-    "cavalry",
-    "shieldSoldiers",
-    "heavyKnight",
-    "samurai",
-    "mercenaryLancer",
-    "legionary",
     "cavalryLancerElite"
   ];
   const makeCostLine = (type) => {
@@ -10020,10 +9973,8 @@ async function showTrainTroopsForm(player, village) {
   };
   const rs = village.resourceStorage;
   const queueSummary = getTrainingQueueSummary(village, tick);
-  const hkAvailable = village.barracksLevel >= 3;
   const castleAvailable = village.hasCastle ?? false;
   const playerVillages = getAllVillages().filter((v) => v.owner === player.name);
-  const eliteAvailable = castleAvailable;
   const eliteLockMsg = !castleAvailable ? "\u{1F512} needs Castle" : "";
   const form = new ActionFormData3().title(`Train Troops \u2014 ${village.name}`).body(
     `\xA77\u2500\u2500 Resources \u2500\u2500
@@ -10033,25 +9984,11 @@ Treasury: \xA7f${village.treasury}\u{1F48E}  \xA77Iron: \xA7f${rs.iron}  \xA77Go
 ${queueSummary}
 
 \xA77Select a troop type to queue training:`
-  ).button(`City Guard
-\xA77${makeCostLine("cityGuards")}`).button(`Spearman
-\xA77${makeCostLine("spearmen")}`).button(`Archer
-\xA77${makeCostLine("archers")}`).button(`Cavalry
-\xA77${makeCostLine("cavalry")}`).button(village.barracksLevel >= 2 ? `\u{1F6E1} Shield Soldier
-\xA77${makeCostLine("shieldSoldiers")}` : `\xA77Shield Soldier (\u{1F512} Barracks Lv2 needed)
-\xA77${makeCostLine("shieldSoldiers")}`).button(hkAvailable ? `Heavy Knight
-\xA77${makeCostLine("heavyKnight")}` : `\xA77Heavy Knight (\u{1F512} Barracks Lv3 needed)
-\xA77${makeCostLine("heavyKnight")}`).button(eliteAvailable ? `\u2B50 Samurai
-\xA77${makeCostLine("samurai")}` : `\xA77Samurai (${eliteLockMsg})
-\xA77${makeCostLine("samurai")}`).button(eliteAvailable ? `\u2B50 Mercenary Lancer
-\xA77${makeCostLine("mercenaryLancer")}` : `\xA77Mercenary Lancer (${eliteLockMsg})
-\xA77${makeCostLine("mercenaryLancer")}`).button(eliteAvailable ? `\u2B50 Legionary
-\xA77${makeCostLine("legionary")}` : `\xA77Legionary (${eliteLockMsg})
-\xA77${makeCostLine("legionary")}`).button(eliteAvailable ? `\u2B50 Cavalry Lancer Elite
+  ).button(castleAvailable ? `\u2B50 Cavalry Lancer Elite
 \xA77${makeCostLine("cavalryLancerElite")}` : `\xA77Cavalry Lancer Elite (${eliteLockMsg})
 \xA77${makeCostLine("cavalryLancerElite")}`).button("Back");
   const response = await form.show(player);
-  if (response.canceled || response.selection === 10) return;
+  if (response.canceled || response.selection === 1) return;
   const selectedType = troopTypes[response.selection];
   const countForm = new ModalFormData().title(`Train ${TROOP_LABELS[selectedType]}`).slider(`How many to train? (cost x N)`, 1, 20, 1, 1);
   const countResponse = await countForm.show(player);
