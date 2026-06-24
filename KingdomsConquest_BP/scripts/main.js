@@ -7709,10 +7709,16 @@ world20.afterEvents.itemUse.subscribe((event) => {
 async function showVillageSpawnerMenu(player) {
   const lastRaw = world20.getDynamicProperty("kc_lastSettlement");
   const hasLast = !!lastRaw;
-  const form = new ActionFormData3().title("Village Spawner").body("Choose what to spawn near you.\n\xA77A settlement will appear ~80 blocks away.").button("\u{1F3D9} Spawn Kingdom City\n\xA77Large walled kingdom").button(hasLast ? "\u{1F4CD} Teleport to Last Settlement\n\xA77Return to previously spawned site" : "\u{1F4CD} No Settlement Yet\n\xA77Spawn one first");
+  const form = new ActionFormData3()
+    .title("Village Spawner")
+    .body("Choose a village type to spawn near you.\n\xA77A settlement will appear ~80 blocks away.")
+    .button("\u{1F33E} Farmers Village\n\xA77Rustic farmland settlement")
+    .button("\u{1F333} Transformed Plains Village\n\xA77Woodland village on the plains")
+    .button("\u{1F3DD} Peninsula Village\n\xA77Coastal fishing settlement")
+    .button(hasLast ? "\u{1F4CD} Teleport to Last Settlement\n\xA77Return to previously spawned site" : "\u{1F4CD} No Settlement Yet\n\xA77Spawn one first");
   const response = await form.show(player);
   if (response.canceled || response.selection === void 0) return;
-  if (response.selection === 1) {
+  if (response.selection === 3) {
     if (!lastRaw) {
       notifyPlayer(player.name, "\xA7cNo settlement has been spawned yet.");
       return;
@@ -7726,7 +7732,8 @@ async function showVillageSpawnerMenu(player) {
     }
     return;
   }
-  const type = "city";
+  const typeMap = ["farmers", "plains", "peninsula"];
+  const type = typeMap[response.selection];
   const dim = player.dimension;
   const loc = player.location;
   const angle = Math.random() * Math.PI * 2;
@@ -7884,17 +7891,18 @@ function spawnNpcVillage(dim, anchor, type) {
     const st = states ? ` [${states}]` : "";
     cmds.push(`setblock ${BX + x} ${BY + y} ${BZ + z} ${blockId}${st}`);
   };
-  if (type === "city") {
-    _buildKingdom(b, v, rng, cmd);
+  if (type === "plains") {
+    _buildTransformedPlains(b);
+  } else if (type === "peninsula") {
+    _buildPeninsulaVillage(b);
   } else {
-    const _villagePreset = Math.random() < 0.5 ? _buildFarmersVillage : _buildTransformedPlains;
-    _villagePreset(b);
+    _buildFarmersVillage(b);
   }
   try {
     world20.setDynamicProperty("kc_lastSettlement", JSON.stringify({ x: BX, y: BY, z: BZ, type }));
   } catch {
   }
-  const villagerCount = type === "city" ? 10 : 4;
+  const villagerCount = 5;
   let cursor = 0;
   const BATCH = 700;
   const handle = system6.runInterval(() => {
@@ -7923,35 +7931,15 @@ function spawnNpcVillage(dim, anchor, type) {
         } catch {
         }
       }
-      if (type === "city") {
-        const kingdomGuards = [
-          { type: "kingdoms:castle_guard", x: BX - 2, y: BY + 1, z: BZ + 27, name: "\xA7cGate Guard" },
-          { type: "kingdoms:castle_guard", x: BX + 2, y: BY + 1, z: BZ + 27, name: "\xA7cGate Guard" },
-          { type: "kingdoms:patrol_soldier", x: BX + 28, y: BY + 1, z: BZ + 28, name: "\xA76Tower Patrol" },
-          { type: "kingdoms:patrol_soldier", x: BX - 28, y: BY + 1, z: BZ + 28, name: "\xA76Tower Patrol" },
-          { type: "kingdoms:patrol_soldier", x: BX + 28, y: BY + 1, z: BZ - 28, name: "\xA76Tower Patrol" },
-          { type: "kingdoms:patrol_soldier", x: BX - 28, y: BY + 1, z: BZ - 28, name: "\xA76Tower Patrol" },
-          { type: "kingdoms:castle_guard", x: BX - 2, y: BY + 1, z: BZ - 20, name: "\xA7cKeep Guard" },
-          { type: "kingdoms:castle_guard", x: BX + 2, y: BY + 1, z: BZ - 20, name: "\xA7cKeep Guard" }
-        ];
-        for (const g of kingdomGuards) {
-          try {
-            const guard = dim.spawnEntity(g.type, { x: g.x, y: g.y, z: g.z });
-            guard.nameTag = g.name;
-          } catch {
-          }
-        }
-      } else {
-        const villageGuardSpots = [
-          { x: BX - 1, y: BY + 1, z: BZ + 22 },
-          { x: BX + 1, y: BY + 1, z: BZ + 22 }
-        ];
-        for (const spot of villageGuardSpots) {
-          try {
-            const guard = dim.spawnEntity("kingdoms:patrol_soldier", spot);
-            guard.nameTag = "\xA76Village Guard";
-          } catch {
-          }
+      const villageGuardSpots = [
+        { x: BX - 1, y: BY + 1, z: BZ + 22 },
+        { x: BX + 1, y: BY + 1, z: BZ + 22 }
+      ];
+      for (const spot of villageGuardSpots) {
+        try {
+          const guard = dim.spawnEntity("kingdoms:patrol_soldier", spot);
+          guard.nameTag = "\xA76Village Guard";
+        } catch {
         }
       }
     }
@@ -8567,6 +8555,139 @@ Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diam
       giveTacticsHorn(player);
       break;
   }
+}
+function _buildPeninsulaVillage(b) {
+  const fill = (x1,y1,z1,x2,y2,z2,id) => {
+    for (let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++)
+    for (let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++)
+    for (let z=Math.min(z1,z2);z<=Math.max(z1,z2);z++) b(x,y,z,id);
+  };
+  const SND = "minecraft:sand";
+  const GRV = "minecraft:gravel";
+  const SPR = "minecraft:spruce_planks";
+  const SLOG = "minecraft:spruce_log";
+  const OAK = "minecraft:oak_planks";
+  const OLOG = "minecraft:oak_log";
+  const OLAV = "minecraft:oak_leaves";
+  const WATR = "minecraft:water";
+  const BREL = "minecraft:barrel";
+  const CHST = "minecraft:chest";
+  const LAMP = "minecraft:lantern";
+  const FENC = "minecraft:spruce_fence";
+  const FIRE = "minecraft:campfire";
+  const COB = "minecraft:cobblestone";
+  const COBB = "minecraft:cobblestone_wall";
+  const GLASS = "minecraft:glass_pane";
+  const SLAB = "minecraft:spruce_slab";
+  const AIR = "minecraft:air";
+  // Sand foundation
+  fill(-22, 1, -22, 22, 8, 22, AIR);
+  fill(-22, 0, -22, 22, 0, 22, SND);
+  fill(-22, -1, -22, 22, -1, 22, GRV);
+  // Gravel paths
+  fill(-1, 0, -20, 1, 0, 20, GRV);
+  fill(-20, 0, -1, 20, 0, 1, GRV);
+  // Coastal water channel (positive-Z side)
+  fill(-10, 0, 14, 10, 0, 22, WATR);
+  fill(-10, -1, 14, 10, -1, 22, GRV);
+  // Main dock pier (extending south into water)
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = 12; dz <= 22; dz++) {
+      b(dx, 1, dz, SPR);
+    }
+  }
+  // Dock posts & lanterns
+  for (let dz = 14; dz <= 22; dz += 4) {
+    b(-4, 1, dz, SLOG); b(-4, 2, dz, LAMP);
+    b(4, 1, dz, SLOG);  b(4, 2, dz, LAMP);
+  }
+  // Dock railings
+  for (let dz = 13; dz <= 22; dz++) {
+    b(-3, 2, dz, FENC);
+    b(3, 2, dz, FENC);
+  }
+  // Dock end supplies
+  b(-2, 2, 21, BREL); b(2, 2, 21, BREL);
+  b(0, 2, 22, LAMP);
+  // Side pier (east)
+  for (let dz = 14; dz <= 20; dz++) b(5, 1, dz, OAK);
+  for (let dz = 14; dz <= 20; dz++) b(6, 1, dz, OAK);
+  b(5, 2, 19, BREL); b(6, 2, 19, CHST);
+  b(5, 2, 20, FENC); b(6, 2, 20, FENC);
+  // Central fishery building (7 wide, 5 deep, spruce)
+  fill(-3, 0, -2, 3, 0, 2, COB);
+  for (let y = 1; y <= 4; y++) {
+    for (let x = -3; x <= 3; x++) { b(x, y, -2, SPR); b(x, y, 2, SPR); }
+    for (let z = -1; z <= 1; z++) { b(-3, y, z, SPR); b(3, y, z, SPR); }
+  }
+  // Windows
+  b(-2, 2, -2, GLASS); b(0, 2, -2, GLASS); b(2, 2, -2, GLASS);
+  b(-2, 2, 2, GLASS);  b(0, 2, 2, GLASS);  b(2, 2, 2, GLASS);
+  // Door (south face toward dock)
+  b(0, 1, 2, AIR); b(0, 2, 2, AIR);
+  // Roof
+  fill(-3, 5, -2, 3, 5, 2, SLAB);
+  // Interior
+  b(-2, 1, -1, BREL); b(-2, 1, 1, BREL);
+  b(2, 1, -1, CHST);  b(2, 1, 1, CHST);
+  b(0, 1, 0, FIRE);   b(0, 2, 0, LAMP);
+  // Northwest fisherman's hut
+  fill(-18, 0, -18, -11, 0, -11, COB);
+  for (let y = 1; y <= 3; y++) {
+    for (let x = -18; x <= -11; x++) { b(x, y, -18, SPR); b(x, y, -11, SPR); }
+    for (let z = -17; z <= -12; z++) { b(-18, y, z, SPR); b(-11, y, z, SPR); }
+  }
+  b(-15, 2, -18, GLASS); b(-15, 3, -18, GLASS);
+  b(-13, 2, -18, GLASS); b(-13, 3, -18, GLASS);
+  b(-14, 1, -11, AIR);   b(-14, 2, -11, AIR);
+  fill(-18, 4, -18, -11, 4, -11, SLAB);
+  b(-14, 5, -14, SLOG); b(-14, 6, -14, LAMP);
+  b(-17, 1, -17, BREL); b(-12, 1, -12, CHST); b(-14, 1, -14, FIRE);
+  // Northeast fisherman's hut
+  fill(11, 0, -18, 18, 0, -11, COB);
+  for (let y = 1; y <= 3; y++) {
+    for (let x = 11; x <= 18; x++) { b(x, y, -18, SPR); b(x, y, -11, SPR); }
+    for (let z = -17; z <= -12; z++) { b(11, y, z, SPR); b(18, y, z, SPR); }
+  }
+  b(14, 2, -18, GLASS); b(14, 3, -18, GLASS);
+  b(16, 2, -18, GLASS); b(16, 3, -18, GLASS);
+  b(14, 1, -11, AIR);   b(14, 2, -11, AIR);
+  fill(11, 4, -18, 18, 4, -11, SLAB);
+  b(14, 5, -14, SLOG); b(14, 6, -14, LAMP);
+  b(12, 1, -17, BREL); b(17, 1, -12, CHST); b(14, 1, -14, FIRE);
+  // Fish drying racks between huts and dock
+  for (const [rx, rz] of [[-8, 5], [8, 5], [-8, 8], [8, 8]]) {
+    b(rx, 1, rz, SLOG); b(rx, 2, rz, SLOG); b(rx, 3, rz, SLOG);
+  }
+  b(-8, 3, 6, FENC); b(-8, 3, 7, FENC);
+  b(8, 3, 6, FENC);  b(8, 3, 7, FENC);
+  // Lantern posts along gravel paths
+  for (let pz = -18; pz <= 10; pz += 5) {
+    b(-3, 1, pz, SLOG); b(-3, 2, pz, LAMP);
+    b(3, 1, pz, SLOG);  b(3, 2, pz, LAMP);
+  }
+  for (let px = -18; px <= -4; px += 5) {
+    b(px, 1, -3, SLOG); b(px, 2, -3, LAMP);
+    b(px, 1, 3, SLOG);  b(px, 2, 3, LAMP);
+  }
+  for (let px = 4; px <= 18; px += 5) {
+    b(px, 1, -3, SLOG); b(px, 2, -3, LAMP);
+    b(px, 1, 3, SLOG);  b(px, 2, 3, LAMP);
+  }
+  // Decorative oak trees
+  for (const [tx, tz] of [[-9, -7], [9, -7], [-15, 3], [15, 3]]) {
+    const h = 5 + Math.abs(tx + tz) % 2;
+    for (let y = 1; y <= h; y++) b(tx, y, tz, OLOG);
+    fill(tx-2, h-1, tz-2, tx+2, h+1, tz+2, OLAV);
+    b(tx, h+2, tz, OLAV);
+  }
+  // Central well
+  fill(-1, 0, -1, 1, 0, 1, COB);
+  b(0, 0, 0, WATR);
+  b(-1, 1, -1, COBB); b(-1, 1, 1, COBB);
+  b(1, 1, -1, COBB);  b(1, 1, 1, COBB);
+  b(-1, 2, 0, OAK);   b(1, 2, 0, OAK);
+  b(0, 3, 0, LAMP);
 }
 function _buildFarmersVillage(b) {
     const PAL = ["minecraft:barrel","minecraft:beehive","minecraft:beetroots","minecraft:bell","minecraft:birch_log","minecraft:birch_stairs","minecraft:birch_wall_sign","minecraft:bricks","minecraft:brown_bed","minecraft:brown_carpet","minecraft:campfire","minecraft:carrots","minecraft:chain","minecraft:chest","minecraft:cobblestone","minecraft:cobblestone_slab","minecraft:cobblestone_wall","minecraft:composter","minecraft:crafting_table","minecraft:dark_oak_fence","minecraft:dark_oak_planks","minecraft:dark_oak_slab","minecraft:dark_oak_stairs","minecraft:dark_oak_trapdoor","minecraft:dirt","minecraft:farmland","minecraft:furnace","minecraft:glass_pane","minecraft:grass","minecraft:grass_path","minecraft:gray_bed","minecraft:green_bed","minecraft:hay_block","minecraft:jungle_trapdoor","minecraft:ladder","minecraft:lantern","minecraft:light_gray_bed","minecraft:mossy_cobblestone","minecraft:oak_leaves","minecraft:oak_log","minecraft:oak_planks","minecraft:oak_slab","minecraft:oak_stairs","minecraft:orange_tulip","minecraft:oxeye_daisy","minecraft:pink_tulip","minecraft:potatoes","minecraft:red_bed","minecraft:red_flower","minecraft:red_tulip","minecraft:scaffolding","minecraft:spruce_door","minecraft:spruce_fence","minecraft:spruce_planks","minecraft:spruce_slab","minecraft:spruce_stairs","minecraft:spruce_trapdoor","minecraft:stone_brick_slab","minecraft:stone_brick_stairs","minecraft:stone_stairs","minecraft:stonebrick","minecraft:water","minecraft:wheat","minecraft:white_tulip","minecraft:yellow_flower"];
