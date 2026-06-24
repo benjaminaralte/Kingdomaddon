@@ -4768,7 +4768,7 @@ var TROOP_ENTITY_MAP = {
   cavalryLancerElite: "kingdoms:cavalry_lancer_elite",
   shieldSoldiers: "kingdoms:shield_soldier"
 };
-var TROOP_PRIORITY = ["cavalryLancerElite", "samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
+var TROOP_PRIORITY = ["cavalryLancerElite", "samurai", "mercenaryLancer", "legionary", "heavyKnight", "shieldSoldiers", "spearmen", "archers", "cavalry", "cityGuards"];
 function tickAutoDefense(currentTick) {
   if (currentTick % THREAT_SCAN_INTERVAL !== 0) return;
   for (const village of getAllVillages()) {
@@ -4842,7 +4842,7 @@ function countAutoDispatched(village) {
   return count;
 }
 function dispatchTroops(village, threatCount) {
-  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0);
+  const totalBarracks = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.shieldSoldiers ?? 0);
   if (totalBarracks <= 0) return;
   const alreadyOut = countAutoDispatched(village);
   const needed = Math.min(threatCount * 2, totalBarracks) - alreadyOut;
