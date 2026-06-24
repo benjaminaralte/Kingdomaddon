@@ -3,13 +3,26 @@
   "minecraft:block": {
     "description": {
       "identifier": "kingdoms:house",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:destructible_by_mining": { "seconds_to_destroy": 2.5 },
-      "minecraft:destructible_by_explosion": { "explosion_resistance": 10 },
-      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
-      "minecraft:material_instances": { "*": { "texture": "oak_planks", "render_method": "opaque" } },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 2.5
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 10
+      },
+      "minecraft:geometry": {
+        "identifier": "minecraft:geometry.full_block"
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "kingdoms_house",
+          "render_method": "opaque"
+        }
+      },
       "minecraft:map_color": "#8B6914",
       "minecraft:display_name": "House"
     }

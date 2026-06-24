@@ -1632,6 +1632,48 @@
     },
     "kingdoms_waypoint": {
       "textures": "textures/blocks/waypoint"
+    },
+    "kingdoms_armory": {
+      "textures": "textures/blocks/armory"
+    },
+    "kingdoms_banner_hall": {
+      "textures": "textures/blocks/banner_hall"
+    },
+    "kingdoms_barn": {
+      "textures": "textures/blocks/barn"
+    },
+    "kingdoms_farm_plot": {
+      "textures": "textures/blocks/farm_plot"
+    },
+    "kingdoms_fence_enclosure": {
+      "textures": "textures/blocks/fence_enclosure"
+    },
+    "kingdoms_greenhouse": {
+      "textures": "textures/blocks/greenhouse"
+    },
+    "kingdoms_house": {
+      "textures": "textures/blocks/house"
+    },
+    "kingdoms_king_castle": {
+      "textures": "textures/blocks/king_castle"
+    },
+    "kingdoms_stone_gate": {
+      "textures": "textures/blocks/stone_gate"
+    },
+    "kingdoms_storage": {
+      "textures": "textures/blocks/storage"
+    },
+    "kingdoms_tower": {
+      "textures": "textures/blocks/tower"
+    },
+    "kingdoms_wall_long": {
+      "textures": "textures/blocks/wall_long"
+    },
+    "kingdoms_wall_short": {
+      "textures": "textures/blocks/wall_short"
+    },
+    "kingdoms_wall_tall": {
+      "textures": "textures/blocks/wall_tall"
     }
   }
 }
