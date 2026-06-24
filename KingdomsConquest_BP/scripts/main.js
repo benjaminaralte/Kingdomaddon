@@ -6255,34 +6255,36 @@ var HOLD_MODES = /* @__PURE__ */ new Set([
   "standing_guard"
 ]);
 var FORMATION_TARGETS = {
-  spear_line_attack: ["kingdoms:spearman"],
-  spear_line_hold: ["kingdoms:spearman"],
-  spear_perimeter: ["kingdoms:spearman"],
-  cavalry_flanks: ["kingdoms:cavalry", "kingdoms:mercenary_lancer"],
-  cavalry_escort: ["kingdoms:cavalry", "kingdoms:mercenary_lancer"],
+  spear_line_attack: ["kingdoms:spearman", "kingdoms:city_guard"],
+  spear_line_hold: ["kingdoms:spearman", "kingdoms:city_guard"],
+  spear_perimeter: ["kingdoms:spearman", "kingdoms:city_guard"],
+  cavalry_flanks: ["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"],
+  cavalry_escort: ["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"],
   archer_arc: ["kingdoms:archer"],
   archer_scatter: ["kingdoms:archer"],
   heavy_vanguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
   heavy_bodyguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
   all_rally: [
     "kingdoms:spearman",
+    "kingdoms:city_guard",
     "kingdoms:cavalry",
     "kingdoms:mercenary_lancer",
+    "kingdoms:cavalry_lancer_elite",
     "kingdoms:archer",
     "kingdoms:heavy_knight",
     "kingdoms:samurai",
-    "kingdoms:legionary",
-    "kingdoms:city_guard"
+    "kingdoms:legionary"
   ],
   standing_guard: [
     "kingdoms:spearman",
+    "kingdoms:city_guard",
     "kingdoms:cavalry",
     "kingdoms:mercenary_lancer",
+    "kingdoms:cavalry_lancer_elite",
     "kingdoms:archer",
     "kingdoms:heavy_knight",
     "kingdoms:samurai",
-    "kingdoms:legionary",
-    "kingdoms:city_guard"
+    "kingdoms:legionary"
   ]
 };
 var PROP_F_MODE = "kc:formation_mode";
@@ -6618,8 +6620,8 @@ async function showMainMenu(player) {
   }
 }
 async function showSpearmenMenu(player) {
-  const form = new ActionFormData2().title("\u{1F5E1} Spearmen Tactics").body(
-    "\xA7eSpearmen excel in defensive lines and perimeter control.\n\n\xA7f\u25B6 Line + Attack \xA77\u2014 Line up ahead of you, then charge enemies.\n\xA7f\u25B6 Line + Hold \xA77\u2014 Hold a defensive line. Re-enforced every second.\n\xA7f\u25B6 Perimeter \xA77\u2014 Ring of pikes around you. Ideal vs. surrounded attacks.\n\xA78Counter-charge: Spearmen deal \xA7c+6 damage \xA78back to charging cavalry!"
+  const form = new ActionFormData2().title("\u{1F5E1} Spearmen & Guards Tactics").body(
+    "\xA7eControls: \xA7fSpearmen \xA77+ \xA7fCity Guards\xA77 (all sword & spear infantry).\n\n\xA7f\u25B6 Line + Attack \xA77\u2014 Line up ahead of you, then charge enemies.\n\xA7f\u25B6 Line + Hold \xA77\u2014 Hold a defensive line. Walks to maintain position.\n\xA7f\u25B6 Perimeter \xA77\u2014 Ring around you. Ideal vs. surrounded attacks.\n\xA78Counter-charge: Spearmen deal \xA7c+6 damage \xA78back to charging cavalry!"
   ).button("\u2694 Line Formation \u2014 Attack").button("\u{1F6E1} Line Formation \u2014 Hold").button("\u{1F504} Perimeter Defense").button("\u2190 Back");
   const resp = await form.show(player);
   if (resp.canceled) return;
@@ -6640,7 +6642,7 @@ async function showSpearmenMenu(player) {
 }
 async function showCavalryMenu(player) {
   const form = new ActionFormData2().title("\u{1F434} Cavalry / Lancer Tactics").body(
-    "\xA7eMounted units are fast and devastating on the charge.\n\n\xA7f\u25B6 Charge Flanks \xA77\u2014 Split left & right, then unleash AI. Best for open battles.\n\xA7f\u25B6 Escort \xA77\u2014 Ride alongside you. Re-enforced. Great for moving through enemy territory.\n\xA78Charge bonus: \xA76+5 dmg \xA78(Cavalry) / \xA76+8 dmg \xA78(Lancer) + knockback on first hit after gallop."
+    "\xA7eControls: \xA7fCavalry \xA77+ \xA7fMercenary Lancer \xA77+ \xA7fCavalry Lancer Elite\xA77.\n\n\xA7f\u25B6 Charge Flanks \xA77\u2014 Split left & right, then unleash AI. Best for open battles.\n\xA7f\u25B6 Escort \xA77\u2014 Ride alongside you. Walks to maintain position.\n\xA78Charge bonus: \xA76+5 dmg \xA78(Cavalry) / \xA76+8 dmg \xA78(Lancer / CLE) + knockback."
   ).button("\u26A1 Charge Flanks").button("\u{1F40E} Escort Formation").button("\u2190 Back");
   const resp = await form.show(player);
   if (resp.canceled) return;
@@ -6676,7 +6678,7 @@ async function showArcherMenu(player) {
 }
 async function showHeavyMenu(player) {
   const form = new ActionFormData2().title("\u{1F6E1} Heavy Infantry Tactics").body(
-    "\xA7eHeavy Knights, Samurai & Legionaries are elite front-line fighters.\n\n\xA7f\u25B6 Vanguard \xA77\u2014 Form a wall just ahead of you. Re-enforced. Ideal for sieges.\n\xA7f\u25B6 Bodyguard \xA77\u2014 Tight ring around you. Re-enforced. Maximum personal protection."
+    "\xA7eControls: \xA7fHeavy Knight \xA77+ \xA7fSamurai \xA77+ \xA7fLegionary\xA77 (elite sword fighters).\n\n\xA7f\u25B6 Vanguard \xA77\u2014 Wall just ahead of you. Walks to hold position. Ideal for sieges.\n\xA7f\u25B6 Bodyguard \xA77\u2014 Tight ring around you. Walks to maintain. Maximum personal protection."
   ).button("\u2694 Vanguard Line").button("\u{1F6E1} Bodyguard Ring").button("\u2190 Back");
   const resp = await form.show(player);
   if (resp.canceled) return;

@@ -95,3 +95,9 @@ id = "kdI6Jy0Dj4Wxxn7Gl9A0x"
 uri = "file://KingdomsConquest_v2.3.0.zip"
 type = "unspecified"
 title = "KingdomsConquest v2.3.0 — Standing Guard + Walk Formations"
+
+[[outputs]]
+id = "qhfvwl3XpRDmU0RVAiJvb"
+uri = "file://KingdomsConquest_v2.3.1.zip"
+type = "unspecified"
+title = "KingdomsConquest v2.3.1 — Formation Targeting Fixed"
