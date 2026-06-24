@@ -3,13 +3,26 @@
   "minecraft:block": {
     "description": {
       "identifier": "kingdoms:trade_pole",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:destructible_by_mining": { "seconds_to_destroy": 1.0 },
-      "minecraft:destructible_by_explosion": { "explosion_resistance": 4 },
-      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
-      "minecraft:material_instances": { "*": { "texture": "gold_block", "render_method": "opaque" } },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 1
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 4
+      },
+      "minecraft:geometry": {
+        "identifier": "minecraft:geometry.full_block"
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "kingdoms_trade_pole",
+          "render_method": "opaque"
+        }
+      },
       "minecraft:light_emission": 4,
       "minecraft:map_color": "#F0C800",
       "minecraft:display_name": "Trade Pole"

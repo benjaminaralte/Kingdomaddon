@@ -3,13 +3,26 @@
   "minecraft:block": {
     "description": {
       "identifier": "kingdoms:guard_pole_road",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:destructible_by_mining": { "seconds_to_destroy": 1.5 },
-      "minecraft:destructible_by_explosion": { "explosion_resistance": 5 },
-      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
-      "minecraft:material_instances": { "*": { "texture": "spruce_log_top", "render_method": "opaque" } },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 1.5
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 5
+      },
+      "minecraft:geometry": {
+        "identifier": "minecraft:geometry.full_block"
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "kingdoms_guard_pole_road",
+          "render_method": "opaque"
+        }
+      },
       "minecraft:map_color": "#4A3020",
       "minecraft:display_name": "Road Guard Pole"
     }

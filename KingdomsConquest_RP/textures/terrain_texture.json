@@ -1590,6 +1590,48 @@
           "path": "textures/blocks/weapon_stand/ff_stand_sword_wood"
         }
       ]
+    },
+    "kingdoms_barracks": {
+      "textures": "textures/blocks/barracks"
+    },
+    "kingdoms_blacksmith": {
+      "textures": "textures/blocks/blacksmith"
+    },
+    "kingdoms_granary": {
+      "textures": "textures/blocks/granary"
+    },
+    "kingdoms_market": {
+      "textures": "textures/blocks/market"
+    },
+    "kingdoms_town_hall": {
+      "textures": "textures/blocks/town_hall"
+    },
+    "kingdoms_trade_pole": {
+      "textures": "textures/blocks/trade_pole"
+    },
+    "kingdoms_trade_station": {
+      "textures": "textures/blocks/trade_station"
+    },
+    "kingdoms_treasury": {
+      "textures": "textures/blocks/treasury"
+    },
+    "kingdoms_castle": {
+      "textures": "textures/blocks/castle"
+    },
+    "kingdoms_guard_pole_gate": {
+      "textures": "textures/blocks/guard_pole_gate"
+    },
+    "kingdoms_guard_pole_road": {
+      "textures": "textures/blocks/guard_pole_road"
+    },
+    "kingdoms_guard_pole_village": {
+      "textures": "textures/blocks/guard_pole_village"
+    },
+    "kingdoms_guard_pole_watchtower": {
+      "textures": "textures/blocks/guard_pole_watchtower"
+    },
+    "kingdoms_waypoint": {
+      "textures": "textures/blocks/waypoint"
     }
   }
 }

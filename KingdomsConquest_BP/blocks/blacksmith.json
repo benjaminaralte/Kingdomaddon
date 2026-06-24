@@ -3,13 +3,26 @@
   "minecraft:block": {
     "description": {
       "identifier": "kingdoms:blacksmith",
-      "menu_category": { "category": "construction" }
+      "menu_category": {
+        "category": "construction"
+      }
     },
     "components": {
-      "minecraft:destructible_by_mining": { "seconds_to_destroy": 3.0 },
-      "minecraft:destructible_by_explosion": { "explosion_resistance": 12 },
-      "minecraft:geometry": { "identifier": "minecraft:geometry.full_block" },
-      "minecraft:material_instances": { "*": { "texture": "anvil_top_damaged_0", "render_method": "opaque" } },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 3
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 12
+      },
+      "minecraft:geometry": {
+        "identifier": "minecraft:geometry.full_block"
+      },
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "kingdoms_blacksmith",
+          "render_method": "opaque"
+        }
+      },
       "minecraft:light_emission": 8,
       "minecraft:map_color": "#404040",
       "minecraft:display_name": "Blacksmith"
