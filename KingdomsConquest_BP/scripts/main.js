@@ -6244,12 +6244,15 @@ var ARC_SPACING = 3;
 var ESCORT_LATERAL = 3;
 var SCATTER_RADIUS = 10;
 var RALLY_RADIUS = 4;
+var STANDING_GUARD_FRONT_DIST = 3;
+var STANDING_GUARD_RING_RADIUS = 2.5;
 var HOLD_MODES = /* @__PURE__ */ new Set([
   "spear_line_hold",
   "spear_perimeter",
   "cavalry_escort",
   "heavy_vanguard",
-  "heavy_bodyguard"
+  "heavy_bodyguard",
+  "standing_guard"
 ]);
 var FORMATION_TARGETS = {
   spear_line_attack: ["kingdoms:spearman"],
@@ -6262,6 +6265,16 @@ var FORMATION_TARGETS = {
   heavy_vanguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
   heavy_bodyguard: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"],
   all_rally: [
+    "kingdoms:spearman",
+    "kingdoms:cavalry",
+    "kingdoms:mercenary_lancer",
+    "kingdoms:archer",
+    "kingdoms:heavy_knight",
+    "kingdoms:samurai",
+    "kingdoms:legionary",
+    "kingdoms:city_guard"
+  ],
+  standing_guard: [
     "kingdoms:spearman",
     "kingdoms:cavalry",
     "kingdoms:mercenary_lancer",
@@ -6387,6 +6400,27 @@ function computePositions(mode, base, viewDir, count) {
           x: base.x + Math.cos(angle) * r,
           y: base.y,
           z: base.z + Math.sin(angle) * r
+        });
+      }
+      break;
+    }
+    case "standing_guard": {
+      const frontCount = Math.min(count, Math.ceil(count / 2));
+      const ringCount = count - frontCount;
+      for (let i = 0; i < frontCount; i++) {
+        const offset = (i - (frontCount - 1) / 2) * 2;
+        positions.push({
+          x: base.x + fwd.x * STANDING_GUARD_FRONT_DIST + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * STANDING_GUARD_FRONT_DIST + rgt.z * offset
+        });
+      }
+      for (let i = 0; i < ringCount; i++) {
+        const angle = (i / Math.max(1, ringCount)) * Math.PI * 2;
+        positions.push({
+          x: base.x + Math.cos(angle) * STANDING_GUARD_RING_RADIUS,
+          y: base.y,
+          z: base.z + Math.sin(angle) * STANDING_GUARD_RING_RADIUS
         });
       }
       break;
@@ -6526,7 +6560,8 @@ function tickFormations(currentTick) {
             const pos = positions[idx] ?? positions[i];
             if (!pos) return;
             try {
-              troop.teleport(pos, { dimension: dim });
+              troop.setDynamicProperty("kc:f_target", `${pos.x},${pos.y},${pos.z}`);
+              troop.setDynamicProperty(PROP_F_OWNER, player.name);
             } catch {
             }
           });
@@ -6546,7 +6581,7 @@ function openTacticsMenu(player) {
   void showMainMenu(player);
 }
 async function showMainMenu(player) {
-  const form = new ActionFormData2().title("\u2694 Tactical Command").body("\xA77Choose a unit type to issue orders to your nearby troops.\n\xA78Range: 48 blocks \xB7 Only your deployed soldiers respond.").button("\u{1F5E1} Spearmen Tactics").button("\u{1F434} Cavalry / Lancer Tactics").button("\u{1F3F9} Archer Tactics").button("\u{1F6E1} Heavy Infantry Tactics").button("\u{1F514} Rally All Troops").button("\u2716 Dismiss All Formations");
+  const form = new ActionFormData2().title("\u2694 Tactical Command").body("\xA77Choose a unit type to issue orders to your nearby troops.\n\xA78Range: 48 blocks \xB7 Only your deployed soldiers respond.\n\xA78All formations: troops \xA7fwalk\xA78 to position, never teleport.").button("\u{1F5E1} Spearmen Tactics").button("\u{1F434} Cavalry / Lancer Tactics").button("\u{1F3F9} Archer Tactics").button("\u{1F6E1} Heavy Infantry Tactics").button("\u{1F514} Rally All Troops").button("\u{1F6E1} Standing Guard\n\xA77All troops \u2014 front line + ring, follow your movement").button("\u2716 Dismiss All Formations");
   const resp = await form.show(player);
   if (resp.canceled) return;
   switch (resp.selection) {
@@ -6565,10 +6600,16 @@ async function showMainMenu(player) {
     case 4: {
       const n = applyFormation(player, "all_rally");
       if (n === 0) notifyPlayer(player.name, "\xA7eNo deployed troops nearby to rally.");
-      else notifyPlayer(player.name, `\xA7a\u{1F514} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} rallied to your position!`);
+      else notifyPlayer(player.name, `\xA7a\u{1F514} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} rallying to your position!`);
       break;
     }
     case 5: {
+      const n = applyFormation(player, "standing_guard");
+      if (n === 0) notifyPlayer(player.name, "\xA7eNo deployed troops nearby.");
+      else notifyPlayer(player.name, `\xA7a\u{1F6E1} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} forming Standing Guard \u2014 front line + ring!`);
+      break;
+    }
+    case 6: {
       const n = dismissAllFormations(player);
       if (n === 0) notifyPlayer(player.name, "\xA7eNo troops in formation nearby.");
       else notifyPlayer(player.name, `\xA7e\u2716 Formations dismissed. \xA7f${n}\xA7e troop${n > 1 ? "s" : ""} released.`);
@@ -8321,7 +8362,7 @@ ${queueSummary}
 
 Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
   ).button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)
-\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg + cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn").button("\u{1F3BA} Formation Horn\n\xA77Rally troops with a battle signal");
+\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg + cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8339,9 +8380,6 @@ Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diam
       break;
     case 4:
       giveTacticsHorn(player);
-      break;
-    case 5:
-      giveFormationHorn(player);
       break;
   }
 }

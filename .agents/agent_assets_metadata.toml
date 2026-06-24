@@ -89,3 +89,9 @@ id = "aT_ihAP1q_luFHxtnD55_"
 uri = "file://KingdomsConquest_v2.2.0.zip"
 type = "unspecified"
 title = "KingdomsConquest v2.2.0 — Builder + All Icons Fixed"
+
+[[outputs]]
+id = "kdI6Jy0Dj4Wxxn7Gl9A0x"
+uri = "file://KingdomsConquest_v2.3.0.zip"
+type = "unspecified"
+title = "KingdomsConquest v2.3.0 — Standing Guard + Walk Formations"
