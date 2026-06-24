@@ -10631,32 +10631,129 @@ async function showResourceStorageMenu(player, villageId) {
   ensureResourceStorage(village);
   const rs = village.resourceStorage;
   const resourceKeys = Object.keys(RESOURCE_LABELS);
-  const storageLines = resourceKeys.map((k) => `  ${RESOURCE_LABELS[k]}: ${rs[k]}`).join("\n");
-  const form = new ActionFormData3().title(`${village.name} \u2014 Resource Storage`).body(`\xA77Railway deliveries are stored here.
-
-\xA7b\u2500\u2500 Storage \u2500\u2500
-\xA7f${storageLines}
-
-\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA77  Food: \xA7a${village.foodStorage}\u{1F33E}`);
-  const depositOptions = [];
-  for (const k of resourceKeys) {
-    if (rs[k] > 0) {
-      depositOptions.push({ key: k, label: RESOURCE_LABELS[k], amount: rs[k] });
-      form.button(`Withdraw ${RESOURCE_LABELS[k]} (${rs[k]})`);
+  const storageLines = resourceKeys.map((k) => `  ${RESOURCE_LABELS[k]}: \xA7f${rs[k] ?? 0}`).join("\n");
+  const inv = player.getComponent(EntityInventoryComponent.componentId);
+  const container = inv?.container;
+  const invCounts = {};
+  if (container) {
+    for (let i = 0; i < container.size; i++) {
+      const slot = container.getItem(i);
+      if (!slot) continue;
+      for (const [key, itemId] of Object.entries(RESOURCE_DROP_MAP)) {
+        if (slot.typeId === itemId) invCounts[key] = (invCounts[key] ?? 0) + slot.amount;
+      }
     }
   }
-  form.button("Close");
+  const invLines = resourceKeys.map((k) => `  ${RESOURCE_LABELS[k]}: \xA7f${invCounts[k] ?? 0}`).join("\n");
+  const form = new ActionFormData3()
+    .title(`${village.name} \u2014 Material Storage`)
+    .body(
+      `\xA7b\u2500\u2500 Stored \u2500\u2500\n\xA7r${storageLines}\n\n\xA7b\u2500\u2500 In Your Inventory \u2500\u2500\n\xA7r${invLines}`
+    )
+    .button("\u{1F4E5} Deposit from Inventory")
+    .button("\u{1F4E4} Withdraw Resources")
+    .button("Close");
   const response = await form.show(player);
-  if (response.canceled || response.selection === void 0) return;
-  if (response.selection >= depositOptions.length) return;
-  const opt = depositOptions[response.selection];
-  const itemId = RESOURCE_DROP_MAP[opt.key];
-  if (itemId) {
-    dropItemsAtLocation(player.dimension, player.location, itemId, opt.amount);
-    notifyPlayer(player.name, `\xA7aWithdrew \xA7f${opt.amount}x ${opt.label}\xA7a from \xA7b${village.name}\xA7a's resource storage.`);
+  if (response.canceled || response.selection === void 0 || response.selection === 2) return;
+  if (response.selection === 0) {
+    await showDepositResourcesMenu(player, villageId);
+  } else {
+    await showWithdrawResourcesMenu(player, villageId);
   }
-  rs[opt.key] = 0;
+}
+async function showDepositResourcesMenu(player, villageId) {
+  const village = getVillage(villageId);
+  if (!village) return;
+  ensureResourceStorage(village);
+  const inv = player.getComponent(EntityInventoryComponent.componentId);
+  const container = inv?.container;
+  if (!container) {
+    notifyPlayer(player.name, "\xA7cCould not read inventory.");
+    return;
+  }
+  const invCounts = {};
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (!slot) continue;
+    for (const [key, itemId] of Object.entries(RESOURCE_DROP_MAP)) {
+      if (slot.typeId === itemId) invCounts[key] = (invCounts[key] ?? 0) + slot.amount;
+    }
+  }
+  const depositable = Object.keys(RESOURCE_LABELS).filter((k) => (invCounts[k] ?? 0) > 0);
+  if (depositable.length === 0) {
+    notifyPlayer(player.name, "\xA7eYou have no depositable resources in your inventory (iron, gold, coal, wood, cobblestone, diamonds).");
+    return;
+  }
+  const form = new ModalFormData().title(`\u{1F4E5} Deposit \u2014 ${village.name}`);
+  for (const k of depositable) {
+    form.slider(`${RESOURCE_LABELS[k]} (have: ${invCounts[k]})`, 0, invCounts[k], 1, 0);
+  }
+  const response = await form.show(player);
+  if (response.canceled || !response.formValues) return;
+  const rs = village.resourceStorage;
+  let totalDeposited = 0;
+  for (let i = 0; i < depositable.length; i++) {
+    const key = depositable[i];
+    const amount = response.formValues[i];
+    if (amount <= 0) continue;
+    const itemId = RESOURCE_DROP_MAP[key];
+    let remaining = amount;
+    for (let s = 0; s < container.size && remaining > 0; s++) {
+      const slot = container.getItem(s);
+      if (!slot || slot.typeId !== itemId) continue;
+      const take = Math.min(slot.amount, remaining);
+      remaining -= take;
+      if (take >= slot.amount) {
+        container.setItem(s, void 0);
+      } else {
+        slot.amount -= take;
+        container.setItem(s, slot);
+      }
+    }
+    const actualDeposited = amount - remaining;
+    rs[key] = (rs[key] ?? 0) + actualDeposited;
+    totalDeposited += actualDeposited;
+  }
+  if (totalDeposited === 0) {
+    notifyPlayer(player.name, "\xA7eNo resources selected to deposit.");
+    return;
+  }
   saveVillage(village);
+  notifyPlayer(player.name, `\xA7a\u{1F4E5} Deposited ${totalDeposited} resource(s) into \xA7b${village.name}\xA7a's storage.`);
+}
+async function showWithdrawResourcesMenu(player, villageId) {
+  const village = getVillage(villageId);
+  if (!village) return;
+  ensureResourceStorage(village);
+  const rs = village.resourceStorage;
+  const resourceKeys = Object.keys(RESOURCE_LABELS);
+  const withdrawable = resourceKeys.filter((k) => (rs[k] ?? 0) > 0);
+  if (withdrawable.length === 0) {
+    notifyPlayer(player.name, "\xA7eThe storage is empty — nothing to withdraw.");
+    return;
+  }
+  const form = new ModalFormData().title(`\u{1F4E4} Withdraw \u2014 ${village.name}`);
+  for (const k of withdrawable) {
+    form.slider(`${RESOURCE_LABELS[k]} (stored: ${rs[k]})`, 0, rs[k], 1, 0);
+  }
+  const response = await form.show(player);
+  if (response.canceled || !response.formValues) return;
+  let totalWithdrawn = 0;
+  for (let i = 0; i < withdrawable.length; i++) {
+    const key = withdrawable[i];
+    const amount = Math.min(response.formValues[i], rs[key] ?? 0);
+    if (amount <= 0) continue;
+    const itemId = RESOURCE_DROP_MAP[key];
+    if (itemId) dropItemsAtLocation(player.dimension, player.location, itemId, amount);
+    rs[key] = Math.max(0, (rs[key] ?? 0) - amount);
+    totalWithdrawn += amount;
+  }
+  if (totalWithdrawn === 0) {
+    notifyPlayer(player.name, "\xA7eNo resources selected to withdraw.");
+    return;
+  }
+  saveVillage(village);
+  notifyPlayer(player.name, `\xA7a\u{1F4E4} Withdrew ${totalWithdrawn} resource(s) from \xA7b${village.name}\xA7a's storage.`);
 }
 async function showActiveShipmentsMenu(player, villageId) {
   const village = getVillage(villageId);
