@@ -6583,7 +6583,29 @@ function openTacticsMenu(player) {
   void showMainMenu(player);
 }
 async function showMainMenu(player) {
-  const form = new ActionFormData2().title("\u2694 Tactical Command").body("\xA77Choose a unit type to issue orders to your nearby troops.\n\xA78Range: 48 blocks \xB7 Only your deployed soldiers respond.\n\xA78All formations: troops \xA7fwalk\xA78 to position, never teleport.").button("\u{1F5E1} Spearmen Tactics").button("\u{1F434} Cavalry / Lancer Tactics").button("\u{1F3F9} Archer Tactics").button("\u{1F6E1} Heavy Infantry Tactics").button("\u{1F514} Rally All Troops").button("\u{1F6E1} Standing Guard\n\xA77All troops \u2014 front line + ring, follow your movement").button("\u2716 Dismiss All Formations");
+  const _dim = player.dimension;
+  const _loc = player.location;
+  const _typeGroups = [
+    { types: ["kingdoms:spearman", "kingdoms:city_guard"], key: "spear" },
+    { types: ["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"], key: "cav" },
+    { types: ["kingdoms:archer"], key: "arch" },
+    { types: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"], key: "heavy" }
+  ];
+  const _counts = { spear: 0, cav: 0, arch: 0, heavy: 0 };
+  for (const { types, key } of _typeGroups) {
+    for (const t of types) {
+      try {
+        for (const e of _dim.getEntities({ type: t, location: _loc, maxDistance: SEARCH_RADIUS })) {
+          if (e.getDynamicProperty("kc:owner") === player.name) _counts[key]++;
+        }
+      } catch {}
+    }
+  }
+  const _total = _counts.spear + _counts.cav + _counts.arch + _counts.heavy;
+  const _troopLine = _total === 0
+    ? "\xA7cNo troops deployed within range."
+    : `\xA7f\u2694 \xA7a${_counts.spear}\xA78  \xA7f\u{1F434} \xA7a${_counts.cav}\xA78  \xA7f\u{1F3F9} \xA7a${_counts.arch}\xA78  \xA7f\u{1F6E1} \xA7a${_counts.heavy}\n\xA77Total: \xA7f${_total}\xA77 troops within 48 blocks`;
+  const form = new ActionFormData2().title("\u2694 Tactical Command").body(`${_troopLine}\n\n\xA77Choose a unit type to issue orders.\n\xA78Only your deployed soldiers respond. Troops walk to position.`).button(`\u{1F5E1} Spearmen \xA77& Guards\n\xA77${_counts.spear} nearby`).button(`\u{1F434} Cavalry \xA77/ Lancer\n\xA77${_counts.cav} nearby`).button(`\u{1F3F9} Archer Tactics\n\xA77${_counts.arch} nearby`).button(`\u{1F6E1} Heavy Infantry\n\xA77${_counts.heavy} nearby`).button("\u{1F514} Rally All Troops").button("\u{1F6E1} Standing Guard\n\xA77All troops \u2014 front line + ring, follow your movement").button("\u2716 Dismiss All Formations");
   const resp = await form.show(player);
   if (resp.canceled) return;
   switch (resp.selection) {
