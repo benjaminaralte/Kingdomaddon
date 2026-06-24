@@ -4620,7 +4620,7 @@ var TRAINING_COSTS = {
   mercenaryLancer: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
   legionary: { emeralds: 18, iron: 12, gold: 6, diamonds: 4 },
   cavalryLancerElite: { emeralds: 25, iron: 15, gold: 10, diamonds: 8 },
-  shieldSoldiers: { emeralds: 8, iron: 10, gold: 2, diamonds: 1 }
+  shieldSoldiers: { emeralds: 5, iron: 8, gold: 1, diamonds: 0 }
 };
 var TRAINING_TICKS = {
   cityGuards: 1200,
