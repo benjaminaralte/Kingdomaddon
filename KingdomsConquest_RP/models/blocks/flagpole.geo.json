@@ -1,0 +1,52 @@
+{
+	"format_version": "1.16.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.flagpole",
+				"texture_width": 64,
+				"texture_height": 64,
+				"visible_bounds_width": 6,
+				"visible_bounds_height": 10,
+				"visible_bounds_offset": [0, 4, 0]
+			},
+			"bones": [
+				{
+					"name": "root",
+					"pivot": [0, 0, 0]
+				},
+				{
+					"name": "root_item",
+					"parent": "root",
+					"pivot": [0, 0, 0],
+					"binding": "q.item_slot_to_bone_name(c.item_slot)"
+				},
+				{
+					"name": "Standard2",
+					"parent": "root_item",
+					"pivot": [0, 0, 0],
+					"binding": "q.item_slot_to_bone_name(c.item_slot)"
+				},
+				{
+					"name": "Stick2",
+					"parent": "Standard2",
+					"pivot": [0, 0, 0],
+					"cubes": [
+						{
+							"origin": [-0.5, 0, -0.5],
+							"size": [1, 16, 1],
+							"uv": {
+								"north": {"uv": [3, 35], "uv_size": [1, 16]},
+								"east": {"uv": [2, 35], "uv_size": [1, 16]},
+								"south": {"uv": [2, 35], "uv_size": [1, 16]},
+								"west": {"uv": [3, 35], "uv_size": [1, 16]},
+								"up": {"uv": [4, 37], "uv_size": [1, 1]},
+								"down": {"uv": [4, 39], "uv_size": [1, -1]}
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

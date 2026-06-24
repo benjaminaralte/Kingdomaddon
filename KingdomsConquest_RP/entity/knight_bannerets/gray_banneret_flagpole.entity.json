@@ -1,0 +1,45 @@
+{
+	"format_version": "1.10.0",
+	"minecraft:client_entity": {
+		"description": {
+			"identifier": "dcfb:gray_banneret_flagpole",
+			"min_engine_version": "1.8.0",
+			"materials": {
+				"default": "entity_alphatest"
+			},
+			"textures": {
+				"default": "textures/entity/knight_bannerets/gray_banneret"
+			},
+			"animations": {
+				"default_pose": "animation.knight_banneret_flagpole.default_pose",
+				"no_pose": "animation.knight_banneret_flagpole.no_pose",
+				"solemn_pose": "animation.knight_banneret_flagpole.solemn_pose",
+				"athena_pose": "animation.knight_banneret_flagpole.athena_pose",
+				"brandish_pose": "animation.knight_banneret_flagpole.brandish_pose",
+				"honor_pose": "animation.knight_banneret_flagpole.honor_pose",
+				"entertain_pose": "animation.knight_banneret_flagpole.entertain_pose",
+				"salute_pose": "animation.knight_banneret_flagpole.salute_pose",
+				"riposte_pose": "animation.knight_banneret_flagpole.riposte_pose",
+				"zombie_pose": "animation.knight_banneret_flagpole.zombie_pose",
+				"cancan_a_pose": "animation.knight_banneret_flagpole.cancan_a_pose",
+				"cancan_b_pose": "animation.knight_banneret_flagpole.cancan_b_pose",
+				"hero_pose": "animation.knight_banneret_flagpole.hero_pose",
+				"wiggle": "animation.knight_banneret_flagpole.wiggle",
+				"controller.pose": "controller.animation.armor_stand.pose",
+				"controller.wiggling": "controller.animation.armor_stand.wiggle"
+			},
+			"scripts": {
+				"initialize": ["variable.armor_stand.pose_index = 0;", "variable.armor_stand.hurt_time = 0;"],
+				"animate": ["controller.pose", "controller.wiggling"]
+			},
+			"geometry": {
+				"default": "geometry.knight_banneret_flagpole"
+			},
+			"render_controllers": ["controller.render.armor_stand"],
+			"enable_attachables": true,
+			"spawn_egg": {
+				"texture": "gray_banneret_flagpole"
+			}
+		}
+	}
+}

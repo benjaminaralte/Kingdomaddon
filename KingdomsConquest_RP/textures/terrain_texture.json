@@ -4,6 +4,94 @@
   "padding": 8,
   "num_mip_levels": 4,
   "texture_data": {
+    "banner_table": {
+      "textures": "textures/blocks/banner_table"
+    },
+    "flagpole_block": {
+      "textures": [
+        "textures/blocks/flagpole_block"
+      ]
+    },
+    "black_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/black_swallow_tail_guidon_flag"
+      ]
+    },
+    "blue_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/blue_swallow_tail_guidon_flag"
+      ]
+    },
+    "brown_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/brown_swallow_tail_guidon_flag"
+      ]
+    },
+    "cyan_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/cyan_swallow_tail_guidon_flag"
+      ]
+    },
+    "dark_green_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/dark_green_swallow_tail_guidon_flag"
+      ]
+    },
+    "gray_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/gray_swallow_tail_guidon_flag"
+      ]
+    },
+    "green_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/green_swallow_tail_guidon_flag"
+      ]
+    },
+    "light_blue_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/light_blue_swallow_tail_guidon_flag"
+      ]
+    },
+    "light_gray_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/light_gray_swallow_tail_guidon_flag"
+      ]
+    },
+    "magenta_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/magenta_swallow_tail_guidon_flag"
+      ]
+    },
+    "orange_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/orange_swallow_tail_guidon_flag"
+      ]
+    },
+    "pink_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/pink_swallow_tail_guidon_flag"
+      ]
+    },
+    "purple_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/purple_swallow_tail_guidon_flag"
+      ]
+    },
+    "red_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/red_swallow_tail_guidon_flag"
+      ]
+    },
+    "white_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/white_swallow_tail_guidon_flag"
+      ]
+    },
+    "yellow_swallow_tail_guidon_flag": {
+      "textures": [
+        "textures/blocks/guidon_blocks/swallow_tail_guidon/yellow_swallow_tail_guidon_flag"
+      ]
+    },
     "book_open": {
       "textures": [
         "textures/block/book_open"

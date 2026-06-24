@@ -4,6 +4,9 @@
     1,
     0
   ],
+  "dcfb:banner_table": {
+    "sound": "wood"
+  },
   "faye:book": {
     "sound": "block"
   },

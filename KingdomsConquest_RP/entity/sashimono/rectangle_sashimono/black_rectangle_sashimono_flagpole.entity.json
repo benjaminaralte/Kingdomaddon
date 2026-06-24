@@ -1,0 +1,45 @@
+{
+	"format_version": "1.10.0",
+	"minecraft:client_entity": {
+		"description": {
+			"identifier": "dcfb:black_rectangle_sashimono_flagpole",
+			"min_engine_version": "1.8.0",
+			"materials": {
+				"default": "entity_alphatest"
+			},
+			"textures": {
+				"default": "textures/entity/sashimono/rectangle_sashimono/black_rectangle_sashimono"
+			},
+			"animations": {
+				"default_pose": "animation.rectangle_sashimono.default_pose",
+				"no_pose": "animation.rectangle_sashimono.no_pose",
+				"solemn_pose": "animation.rectangle_sashimono.solemn_pose",
+				"athena_pose": "animation.rectangle_sashimono.athena_pose",
+				"brandish_pose": "animation.rectangle_sashimono.brandish_pose",
+				"honor_pose": "animation.rectangle_sashimono.honor_pose",
+				"entertain_pose": "animation.rectangle_sashimono.entertain_pose",
+				"salute_pose": "animation.rectangle_sashimono.salute_pose",
+				"riposte_pose": "animation.rectangle_sashimono.riposte_pose",
+				"zombie_pose": "animation.rectangle_sashimono.zombie_pose",
+				"cancan_a_pose": "animation.rectangle_sashimono.cancan_a_pose",
+				"cancan_b_pose": "animation.rectangle_sashimono.cancan_b_pose",
+				"hero_pose": "animation.rectangle_sashimono.hero_pose",
+				"wiggle": "animation.rectangle_sashimono.wiggle",
+				"controller.pose": "controller.animation.armor_stand.pose",
+				"controller.wiggling": "controller.animation.armor_stand.wiggle"
+			},
+			"scripts": {
+				"initialize": ["variable.armor_stand.pose_index = 0;", "variable.armor_stand.hurt_time = 0;"],
+				"animate": ["controller.pose", "controller.wiggling"]
+			},
+			"geometry": {
+				"default": "geometry.rectangle_sashimono"
+			},
+			"render_controllers": ["controller.render.armor_stand"],
+			"enable_attachables": true,
+			"spawn_egg": {
+				"texture": "black_rectangle_sashimono_flagpole"
+			}
+		}
+	}
+}

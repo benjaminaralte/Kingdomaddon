@@ -2,6 +2,878 @@
   "resource_pack_name": "vanilla",
   "texture_name": "atlas.items",
   "texture_data": {
+    "flagpole_stick": {
+      "textures": [
+        "textures/items/flagpole_stick"
+      ]
+    },
+    "banner_table": {
+      "textures": "textures/items/banner_table.png"
+    },
+    "black_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/black_square_sashimono_flagpole.png"
+    },
+    "blue_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/blue_square_sashimono_flagpole.png"
+    },
+    "brown_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/brown_square_sashimono_flagpole.png"
+    },
+    "cyan_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/cyan_square_sashimono_flagpole.png"
+    },
+    "dark_green_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/dark_green_square_sashimono_flagpole.png"
+    },
+    "gray_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/gray_square_sashimono_flagpole.png"
+    },
+    "green_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/green_square_sashimono_flagpole.png"
+    },
+    "light_blue_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/light_blue_square_sashimono_flagpole.png"
+    },
+    "light_gray_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/light_gray_square_sashimono_flagpole.png"
+    },
+    "magenta_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/magenta_square_sashimono_flagpole.png"
+    },
+    "orange_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/orange_square_sashimono_flagpole.png"
+    },
+    "pink_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/pink_square_sashimono_flagpole.png"
+    },
+    "purple_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/purple_square_sashimono_flagpole.png"
+    },
+    "red_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/red_square_sashimono_flagpole.png"
+    },
+    "white_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/white_square_sashimono_flagpole.png"
+    },
+    "yellow_square_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/square_sashimono/yellow_square_sashimono_flagpole.png"
+    },
+    "black_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/black_rectangle_sashimono_flagpole.png"
+    },
+    "blue_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/blue_rectangle_sashimono_flagpole.png"
+    },
+    "brown_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/brown_rectangle_sashimono_flagpole.png"
+    },
+    "cyan_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/cyan_rectangle_sashimono_flagpole.png"
+    },
+    "dark_green_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/dark_green_rectangle_sashimono_flagpole.png"
+    },
+    "gray_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/gray_rectangle_sashimono_flagpole.png"
+    },
+    "green_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/green_rectangle_sashimono_flagpole.png"
+    },
+    "light_blue_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/light_blue_rectangle_sashimono_flagpole.png"
+    },
+    "light_gray_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/light_gray_rectangle_sashimono_flagpole.png"
+    },
+    "magenta_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/magenta_rectangle_sashimono_flagpole.png"
+    },
+    "orange_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/orange_rectangle_sashimono_flagpole.png"
+    },
+    "pink_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/pink_rectangle_sashimono_flagpole.png"
+    },
+    "purple_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/purple_rectangle_sashimono_flagpole.png"
+    },
+    "red_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/red_rectangle_sashimono_flagpole.png"
+    },
+    "white_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/white_rectangle_sashimono_flagpole.png"
+    },
+    "yellow_rectangle_sashimono_flagpole": {
+      "textures": "textures/items/flagpoles/sashimono/rectangle_sashimono/yellow_rectangle_sashimono_flagpole.png"
+    },
+    "black_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/black_square_sashimono.png"
+    },
+    "blue_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/blue_square_sashimono.png"
+    },
+    "brown_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/brown_square_sashimono.png"
+    },
+    "cyan_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/cyan_square_sashimono.png"
+    },
+    "dark_green_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/dark_green_square_sashimono.png"
+    },
+    "gray_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/gray_square_sashimono.png"
+    },
+    "green_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/green_square_sashimono.png"
+    },
+    "light_blue_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/light_blue_square_sashimono.png"
+    },
+    "light_gray_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/light_gray_square_sashimono.png"
+    },
+    "magenta_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/magenta_square_sashimono.png"
+    },
+    "orange_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/orange_square_sashimono.png"
+    },
+    "pink_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/pink_square_sashimono.png"
+    },
+    "purple_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/purple_square_sashimono.png"
+    },
+    "red_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/red_square_sashimono.png"
+    },
+    "white_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/white_square_sashimono.png"
+    },
+    "yellow_square_sashimono": {
+      "textures": "textures/items/equipments/sashimono/square_sashimono/yellow_square_sashimono.png"
+    },
+    "black_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/black_rectangle_sashimono.png"
+    },
+    "blue_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/blue_rectangle_sashimono.png"
+    },
+    "brown_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/brown_rectangle_sashimono.png"
+    },
+    "cyan_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/cyan_rectangle_sashimono.png"
+    },
+    "dark_green_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/dark_green_rectangle_sashimono.png"
+    },
+    "gray_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/gray_rectangle_sashimono.png"
+    },
+    "green_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/green_rectangle_sashimono.png"
+    },
+    "light_blue_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/light_blue_rectangle_sashimono.png"
+    },
+    "light_gray_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/light_gray_rectangle_sashimono.png"
+    },
+    "magenta_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/magenta_rectangle_sashimono.png"
+    },
+    "orange_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/orange_rectangle_sashimono.png"
+    },
+    "pink_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/pink_rectangle_sashimono.png"
+    },
+    "purple_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/purple_rectangle_sashimono.png"
+    },
+    "red_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/red_rectangle_sashimono.png"
+    },
+    "white_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/white_rectangle_sashimono.png"
+    },
+    "yellow_rectangle_sashimono": {
+      "textures": "textures/items/equipments/sashimono/rectangle_sashimono/yellow_rectangle_sashimono.png"
+    },
+    "black_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/black_gonfalon.png"
+    },
+    "blue_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/blue_gonfalon.png"
+    },
+    "brown_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/brown_gonfalon.png"
+    },
+    "cyan_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/cyan_gonfalon.png"
+    },
+    "dark_green_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/dark_green_gonfalon.png"
+    },
+    "gray_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/gray_gonfalon.png"
+    },
+    "green_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/green_gonfalon.png"
+    },
+    "light_blue_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/light_blue_gonfalon.png"
+    },
+    "light_gray_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/light_gray_gonfalon.png"
+    },
+    "magenta_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/magenta_gonfalon.png"
+    },
+    "orange_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/orange_gonfalon.png"
+    },
+    "pink_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/pink_gonfalon.png"
+    },
+    "purple_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/purple_gonfalon.png"
+    },
+    "red_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/red_gonfalon.png"
+    },
+    "white_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/white_gonfalon.png"
+    },
+    "yellow_gonfalon": {
+      "textures": "textures/items/equipments/gonfalons/yellow_gonfalon.png"
+    },
+    "black_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/black_gonfalon_flagpole.png"
+    },
+    "blue_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/blue_gonfalon_flagpole.png"
+    },
+    "brown_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/brown_gonfalon_flagpole.png"
+    },
+    "cyan_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/cyan_gonfalon_flagpole.png"
+    },
+    "dark_green_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/dark_green_gonfalon_flagpole.png"
+    },
+    "gray_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/gray_gonfalon_flagpole.png"
+    },
+    "green_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/green_gonfalon_flagpole.png"
+    },
+    "light_blue_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/light_blue_gonfalon_flagpole.png"
+    },
+    "light_gray_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/light_gray_gonfalon_flagpole.png"
+    },
+    "magenta_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/magenta_gonfalon_flagpole.png"
+    },
+    "orange_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/orange_gonfalon_flagpole.png"
+    },
+    "pink_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/pink_gonfalon_flagpole.png"
+    },
+    "purple_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/purple_gonfalon_flagpole.png"
+    },
+    "red_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/red_gonfalon_flagpole.png"
+    },
+    "white_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/white_gonfalon_flagpole.png"
+    },
+    "yellow_gonfalon_flagpole": {
+      "textures": "textures/items/flagpoles/gonfalons/yellow_gonfalon_flagpole.png"
+    },
+    "black_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/black_swallow_tail_guidon.png"
+    },
+    "blue_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/blue_swallow_tail_guidon.png"
+    },
+    "brown_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/brown_swallow_tail_guidon.png"
+    },
+    "cyan_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/cyan_swallow_tail_guidon.png"
+    },
+    "dark_green_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/dark_green_swallow_tail_guidon.png"
+    },
+    "gray_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/gray_swallow_tail_guidon.png"
+    },
+    "green_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/green_swallow_tail_guidon.png"
+    },
+    "light_blue_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/light_blue_swallow_tail_guidon.png"
+    },
+    "light_gray_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/light_gray_swallow_tail_guidon.png"
+    },
+    "magenta_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/magenta_swallow_tail_guidon.png"
+    },
+    "orange_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/orange_swallow_tail_guidon.png"
+    },
+    "pink_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/pink_swallow_tail_guidon.png"
+    },
+    "purple_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/purple_swallow_tail_guidon.png"
+    },
+    "red_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/red_swallow_tail_guidon.png"
+    },
+    "white_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/white_swallow_tail_guidon.png"
+    },
+    "yellow_swallow_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/swallow_tail_guidon/yellow_swallow_tail_guidon.png"
+    },
+    "black_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/black_swallow_tail_guidon_flagpole.png"
+    },
+    "blue_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/blue_swallow_tail_guidon_flagpole.png"
+    },
+    "brown_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/brown_swallow_tail_guidon_flagpole.png"
+    },
+    "cyan_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/cyan_swallow_tail_guidon_flagpole.png"
+    },
+    "dark_green_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/dark_green_swallow_tail_guidon_flagpole.png"
+    },
+    "gray_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/gray_swallow_tail_guidon_flagpole.png"
+    },
+    "green_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/green_swallow_tail_guidon_flagpole.png"
+    },
+    "light_blue_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/light_blue_swallow_tail_guidon_flagpole.png"
+    },
+    "light_gray_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/light_gray_swallow_tail_guidon_flagpole.png"
+    },
+    "magenta_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/magenta_swallow_tail_guidon_flagpole.png"
+    },
+    "orange_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/orange_swallow_tail_guidon_flagpole.png"
+    },
+    "pink_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/pink_swallow_tail_guidon_flagpole.png"
+    },
+    "purple_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/purple_swallow_tail_guidon_flagpole.png"
+    },
+    "red_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/red_swallow_tail_guidon_flagpole.png"
+    },
+    "white_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/white_swallow_tail_guidon_flagpole.png"
+    },
+    "yellow_swallow_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/swallow_tail_guidon/yellow_swallow_tail_guidon_flagpole.png"
+    },
+    "black_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/black_pear_tail_guidon.png"
+    },
+    "blue_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/blue_pear_tail_guidon.png"
+    },
+    "brown_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/brown_pear_tail_guidon.png"
+    },
+    "cyan_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/cyan_pear_tail_guidon.png"
+    },
+    "dark_green_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/dark_green_pear_tail_guidon.png"
+    },
+    "gray_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/gray_pear_tail_guidon.png"
+    },
+    "green_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/green_pear_tail_guidon.png"
+    },
+    "light_blue_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/light_blue_pear_tail_guidon.png"
+    },
+    "light_gray_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/light_gray_pear_tail_guidon.png"
+    },
+    "magenta_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/magenta_pear_tail_guidon.png"
+    },
+    "orange_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/orange_pear_tail_guidon.png"
+    },
+    "pink_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/pink_pear_tail_guidon.png"
+    },
+    "purple_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/purple_pear_tail_guidon.png"
+    },
+    "red_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/red_pear_tail_guidon.png"
+    },
+    "white_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/white_pear_tail_guidon.png"
+    },
+    "yellow_pear_tail_guidon": {
+      "textures": "textures/items/equipments/guidons/pear_tail_guidon/yellow_pear_tail_guidon.png"
+    },
+    "black_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/black_pear_tail_guidon_flagpole.png"
+    },
+    "blue_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/blue_pear_tail_guidon_flagpole.png"
+    },
+    "brown_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/brown_pear_tail_guidon_flagpole.png"
+    },
+    "cyan_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/cyan_pear_tail_guidon_flagpole.png"
+    },
+    "dark_green_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/dark_green_pear_tail_guidon_flagpole.png"
+    },
+    "gray_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/gray_pear_tail_guidon_flagpole.png"
+    },
+    "green_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/green_pear_tail_guidon_flagpole.png"
+    },
+    "light_blue_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/light_blue_pear_tail_guidon_flagpole.png"
+    },
+    "light_gray_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/light_gray_pear_tail_guidon_flagpole.png"
+    },
+    "magenta_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/magenta_pear_tail_guidon_flagpole.png"
+    },
+    "orange_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/orange_pear_tail_guidon_flagpole.png"
+    },
+    "pink_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/pink_pear_tail_guidon_flagpole.png"
+    },
+    "purple_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/purple_pear_tail_guidon_flagpole.png"
+    },
+    "red_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/red_pear_tail_guidon_flagpole.png"
+    },
+    "white_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/white_pear_tail_guidon_flagpole.png"
+    },
+    "yellow_pear_tail_guidon_flagpole": {
+      "textures": "textures/items/flagpoles/guidons/pear_tail_guidon/yellow_pear_tail_guidon_flagpole.png"
+    },
+    "black_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/black_banneret.png"
+    },
+    "blue_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/blue_banneret.png"
+    },
+    "brown_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/brown_banneret.png"
+    },
+    "cyan_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/cyan_banneret.png"
+    },
+    "dark_green_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/dark_green_banneret.png"
+    },
+    "gray_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/gray_banneret.png"
+    },
+    "green_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/green_banneret.png"
+    },
+    "light_blue_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/light_blue_banneret.png"
+    },
+    "light_gray_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/light_gray_banneret.png"
+    },
+    "magenta_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/magenta_banneret.png"
+    },
+    "orange_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/orange_banneret.png"
+    },
+    "pink_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/pink_banneret.png"
+    },
+    "purple_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/purple_banneret.png"
+    },
+    "red_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/red_banneret.png"
+    },
+    "white_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/white_banneret.png"
+    },
+    "yellow_banneret": {
+      "textures": "textures/items/equipments/knight_bannerets/yellow_banneret.png"
+    },
+    "black_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/black_banneret_flagpole.png"
+    },
+    "blue_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/blue_banneret_flagpole.png"
+    },
+    "brown_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/brown_banneret_flagpole.png"
+    },
+    "cyan_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/cyan_banneret_flagpole.png"
+    },
+    "dark_green_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/dark_green_banneret_flagpole.png"
+    },
+    "gray_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/gray_banneret_flagpole.png"
+    },
+    "green_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/green_banneret_flagpole.png"
+    },
+    "light_blue_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/light_blue_banneret_flagpole.png"
+    },
+    "light_gray_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/light_gray_banneret_flagpole.png"
+    },
+    "magenta_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/magenta_banneret_flagpole.png"
+    },
+    "orange_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/orange_banneret_flagpole.png"
+    },
+    "pink_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/pink_banneret_flagpole.png"
+    },
+    "purple_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/purple_banneret_flagpole.png"
+    },
+    "red_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/red_banneret_flagpole.png"
+    },
+    "white_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/white_banneret_flagpole.png"
+    },
+    "yellow_banneret_flagpole": {
+      "textures": "textures/items/flagpoles/knight_bannerets/yellow_banneret_flagpole.png"
+    },
+    "black_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/black_pear_tail_standard.png"
+    },
+    "blue_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/blue_pear_tail_standard.png"
+    },
+    "brown_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/brown_pear_tail_standard.png"
+    },
+    "cyan_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/cyan_pear_tail_standard.png"
+    },
+    "dark_green_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/dark_green_pear_tail_standard.png"
+    },
+    "gray_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/gray_pear_tail_standard.png"
+    },
+    "green_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/green_pear_tail_standard.png"
+    },
+    "light_blue_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/light_blue_pear_tail_standard.png"
+    },
+    "light_gray_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/light_gray_pear_tail_standard.png"
+    },
+    "magenta_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/magenta_pear_tail_standard.png"
+    },
+    "orange_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/orange_pear_tail_standard.png"
+    },
+    "pink_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/pink_pear_tail_standard.png"
+    },
+    "purple_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/purple_pear_tail_standard.png"
+    },
+    "red_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/red_pear_tail_standard.png"
+    },
+    "white_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/white_pear_tail_standard.png"
+    },
+    "yellow_pear_tail_standard": {
+      "textures": "textures/items/equipments/standards/pear_tail/yellow_pear_tail_standard.png"
+    },
+    "black_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/black_pear_tail_standard_flagpole.png"
+    },
+    "blue_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/blue_pear_tail_standard_flagpole.png"
+    },
+    "brown_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/brown_pear_tail_standard_flagpole.png"
+    },
+    "cyan_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/cyan_pear_tail_standard_flagpole.png"
+    },
+    "dark_green_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/dark_green_pear_tail_standard_flagpole.png"
+    },
+    "gray_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/gray_pear_tail_standard_flagpole.png"
+    },
+    "green_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/green_pear_tail_standard_flagpole.png"
+    },
+    "light_blue_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/light_blue_pear_tail_standard_flagpole.png"
+    },
+    "light_gray_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/light_gray_pear_tail_standard_flagpole.png"
+    },
+    "magenta_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/magenta_pear_tail_standard_flagpole.png"
+    },
+    "orange_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/orange_pear_tail_standard_flagpole.png"
+    },
+    "pink_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/pink_pear_tail_standard_flagpole.png"
+    },
+    "purple_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/purple_pear_tail_standard_flagpole.png"
+    },
+    "red_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/red_pear_tail_standard_flagpole.png"
+    },
+    "white_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/white_pear_tail_standard_flagpole.png"
+    },
+    "yellow_pear_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pear_tail/yellow_pear_tail_standard_flagpole.png"
+    },
+    "black_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/black_pennon_tail_standard.png"
+    },
+    "blue_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/blue_pennon_tail_standard.png"
+    },
+    "brown_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/brown_pennon_tail_standard.png"
+    },
+    "cyan_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/cyan_pennon_tail_standard.png"
+    },
+    "dark_green_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/dark_green_pennon_tail_standard.png"
+    },
+    "gray_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/gray_pennon_tail_standard.png"
+    },
+    "green_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/green_pennon_tail_standard.png"
+    },
+    "light_blue_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/light_blue_pennon_tail_standard.png"
+    },
+    "light_gray_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/light_gray_pennon_tail_standard.png"
+    },
+    "magenta_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/magenta_pennon_tail_standard.png"
+    },
+    "orange_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/orange_pennon_tail_standard.png"
+    },
+    "pink_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/pink_pennon_tail_standard.png"
+    },
+    "purple_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/purple_pennon_tail_standard.png"
+    },
+    "red_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/red_pennon_tail_standard.png"
+    },
+    "white_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/white_pennon_tail_standard.png"
+    },
+    "yellow_pennon_tail_standard": {
+      "textures": "textures/items/equipments/standards/pennon_tail/yellow_pennon_tail_standard.png"
+    },
+    "black_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/black_pennon_tail_standard_flagpole.png"
+    },
+    "blue_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/blue_pennon_tail_standard_flagpole.png"
+    },
+    "brown_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/brown_pennon_tail_standard_flagpole.png"
+    },
+    "cyan_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/cyan_pennon_tail_standard_flagpole.png"
+    },
+    "dark_green_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/dark_green_pennon_tail_standard_flagpole.png"
+    },
+    "gray_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/gray_pennon_tail_standard_flagpole.png"
+    },
+    "green_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/green_pennon_tail_standard_flagpole.png"
+    },
+    "light_blue_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/light_blue_pennon_tail_standard_flagpole.png"
+    },
+    "light_gray_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/light_gray_pennon_tail_standard_flagpole.png"
+    },
+    "magenta_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/magenta_pennon_tail_standard_flagpole.png"
+    },
+    "orange_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/orange_pennon_tail_standard_flagpole.png"
+    },
+    "pink_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/pink_pennon_tail_standard_flagpole.png"
+    },
+    "purple_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/purple_pennon_tail_standard_flagpole.png"
+    },
+    "red_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/red_pennon_tail_standard_flagpole.png"
+    },
+    "white_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/white_pennon_tail_standard_flagpole.png"
+    },
+    "yellow_pennon_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/pennon_tail/yellow_pennon_tail_standard_flagpole.png"
+    },
+    "black_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/black_rounded_tail_standard.png"
+    },
+    "blue_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/blue_rounded_tail_standard.png"
+    },
+    "brown_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/brown_rounded_tail_standard.png"
+    },
+    "cyan_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/cyan_rounded_tail_standard.png"
+    },
+    "dark_green_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/dark_green_rounded_tail_standard.png"
+    },
+    "gray_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/gray_rounded_tail_standard.png"
+    },
+    "green_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/green_rounded_tail_standard.png"
+    },
+    "light_blue_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/light_blue_rounded_tail_standard.png"
+    },
+    "light_gray_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/light_gray_rounded_tail_standard.png"
+    },
+    "magenta_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/magenta_rounded_tail_standard.png"
+    },
+    "orange_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/orange_rounded_tail_standard.png"
+    },
+    "pink_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/pink_rounded_tail_standard.png"
+    },
+    "purple_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/purple_rounded_tail_standard.png"
+    },
+    "red_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/red_rounded_tail_standard.png"
+    },
+    "white_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/white_rounded_tail_standard.png"
+    },
+    "yellow_rounded_tail_standard": {
+      "textures": "textures/items/equipments/standards/rounded_tail/yellow_rounded_tail_standard.png"
+    },
+    "black_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/black_rounded_tail_standard_flagpole.png"
+    },
+    "blue_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/blue_rounded_tail_standard_flagpole.png"
+    },
+    "brown_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/brown_rounded_tail_standard_flagpole.png"
+    },
+    "cyan_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/cyan_rounded_tail_standard_flagpole.png"
+    },
+    "dark_green_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/dark_green_rounded_tail_standard_flagpole.png"
+    },
+    "gray_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/gray_rounded_tail_standard_flagpole.png"
+    },
+    "green_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/green_rounded_tail_standard_flagpole.png"
+    },
+    "light_blue_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/light_blue_rounded_tail_standard_flagpole.png"
+    },
+    "light_gray_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/light_gray_rounded_tail_standard_flagpole.png"
+    },
+    "magenta_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/magenta_rounded_tail_standard_flagpole.png"
+    },
+    "orange_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/orange_rounded_tail_standard_flagpole.png"
+    },
+    "pink_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/pink_rounded_tail_standard_flagpole.png"
+    },
+    "purple_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/purple_rounded_tail_standard_flagpole.png"
+    },
+    "red_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/red_rounded_tail_standard_flagpole.png"
+    },
+    "white_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/white_rounded_tail_standard_flagpole.png"
+    },
+    "yellow_rounded_tail_standard_flagpole": {
+      "textures": "textures/items/flagpoles/standards/rounded_tail/yellow_rounded_tail_standard_flagpole.png"
+    },
     "book2": {
       "textures": "textures/items/book2.png"
     },

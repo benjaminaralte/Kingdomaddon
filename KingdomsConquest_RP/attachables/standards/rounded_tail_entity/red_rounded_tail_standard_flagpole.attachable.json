@@ -1,0 +1,34 @@
+{
+	"format_version": "1.10.0",
+	"minecraft:attachable": {
+		"description": {
+			"identifier": "dcfb:red_rounded_tail_standard_flagpole_spawn_egg",
+			"render_controllers": ["controller.render.item_default"],
+			"materials": {
+				"default": "entity_alphatest",
+				"enchanted": "entity_alphatest_glint"
+			},
+			"textures": {
+				"default": "textures/entity/standards/rounded_tail/red_rounded_tail_standard",
+				"enchanted": "textures/misc/enchanted_item_glint"
+			},
+			"geometry": {
+				"default": "geometry.standard_flagpole"
+			},
+			"animations": {
+				"first_person_hold": "animation.standard_flagpole.first_person_hold",
+				"third_person_hold": "animation.standard_flagpole.third_person_hold"
+			},
+			"scripts": {
+				"animate": [
+					{
+						"first_person_hold": "c.is_first_person"
+					},
+					{
+						"third_person_hold": "!c.is_first_person"
+					}
+				]
+			}
+		}
+	}
+}

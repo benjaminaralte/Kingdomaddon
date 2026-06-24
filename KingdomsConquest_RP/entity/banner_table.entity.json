@@ -1,0 +1,21 @@
+{
+	"format_version": "1.10.0",
+	"minecraft:client_entity": {
+		"description": {
+			"identifier": "dcfb:banner_table",
+			"materials": {
+				"default": "entity_alphatest"
+			},
+			"textures": {
+				"default": "textures/entity/banner_table"
+			},
+			"geometry": {
+				"default": "geometry.banner_table"
+			},
+			"render_controllers": ["controller.render.default"],
+			"spawn_egg": {
+				"texture": "banner_table_spawn_egg"
+			}
+		}
+	}
+}
