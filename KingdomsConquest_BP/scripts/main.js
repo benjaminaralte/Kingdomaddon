@@ -6706,8 +6706,8 @@ async function showCavalryMenu(player) {
 }
 async function showArcherMenu(player) {
   const form = new ActionFormData2().title("\u{1F3F9} Archer Tactics").body(
-    "\xA7eArchers deal sustained ranged damage from a distance.\n\n\xA7f\u25B6 Ranged Arc \xA77\u2014 Arched line behind you, firing over your front line.\n\xA7f\u25B6 Scatter & Cover \xA77\u2014 Spread wide around the battlefield."
-  ).button("\u{1F3F9} Ranged Arc").button("\u{1F310} Scatter & Cover").button("\u2190 Back");
+    "\xA7eArchers deal sustained ranged damage from a distance.\n\n\xA7f\u25B6 Ranged Arc \xA77\u2014 Arched line behind you, firing over your front line.\n\xA7f\u25B6 Scatter & Cover \xA77\u2014 Spread wide around the battlefield.\n\xA7f\u25B6 Sky Fire \xA77\u2014 \xA76Mortar volley\xA77. Archers fire arrows in a high arc calculated to rain down on the target 60 blocks ahead of you. Ideal for castle raids."
+  ).button("\u{1F3F9} Ranged Arc").button("\u{1F310} Scatter & Cover").button("\u{1F324} Sky Fire \u2014 Mortar Volley\n\xA77High-arc arrows rain down on target ahead").button("\u2190 Back");
   const resp = await form.show(player);
   if (resp.canceled) return;
   switch (resp.selection) {
@@ -6718,6 +6718,13 @@ async function showArcherMenu(player) {
       issueOrder(player, "archer_scatter", "\xA7aArchers scattering to cover positions!");
       break;
     case 2:
+      system5.run(() => {
+        const n = skyFireArchers(player);
+        if (n === 0) notifyPlayer(player.name, "\xA7eNo archers deployed within range.");
+        else notifyPlayer(player.name, `\xA7a\u{1F324} \xA7f${n}\xA7a archer${n > 1 ? "s" : ""} firing Sky Fire volley \u2014 arrows incoming!`);
+      });
+      break;
+    case 3:
       await showMainMenu(player);
       break;
   }
@@ -6739,6 +6746,45 @@ async function showHeavyMenu(player) {
       await showMainMenu(player);
       break;
   }
+}
+function skyFireArchers(player) {
+  const archers = findOwnedTroops(player, ["kingdoms:archer"]);
+  if (archers.length === 0) return 0;
+  const dir = player.getViewDirection();
+  const loc = player.location;
+  const RANGE = 60;
+  const horizMag = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+  const hx = horizMag > 0.01 ? dir.x / horizMag : 1;
+  const hz = horizMag > 0.01 ? dir.z / horizMag : 0;
+  const target = { x: loc.x + hx * RANGE, y: loc.y, z: loc.z + hz * RANGE };
+  const dim = player.dimension;
+  const GRAVITY = 0.05;
+  const ANGLE = 65 * Math.PI / 180;
+  const sinTwoAlpha = Math.sin(2 * ANGLE);
+  const cosAlpha = Math.cos(ANGLE);
+  const sinAlpha = Math.sin(ANGLE);
+  archers.forEach((archer, i) => {
+    system5.runTimeout(() => {
+      try {
+        const al = archer.location;
+        const spawnPos = { x: al.x, y: al.y + 1.6, z: al.z };
+        const dx = target.x - spawnPos.x;
+        const dz = target.z - spawnPos.z;
+        const D = Math.sqrt(dx * dx + dz * dz);
+        if (D < 3) return;
+        const speed = Math.sqrt(D * GRAVITY / sinTwoAlpha);
+        const vh = speed * cosAlpha;
+        const vv = speed * sinAlpha;
+        const vx = (dx / D) * vh;
+        const vz = (dz / D) * vh;
+        const arrow = dim.spawnEntity("minecraft:arrow", spawnPos);
+        system5.runTimeout(() => {
+          try { arrow.applyImpulse({ x: vx, y: vv, z: vz }); } catch {}
+        }, 1);
+      } catch {}
+    }, i * 2);
+  });
+  return archers.length;
 }
 function issueOrder(player, mode, successMsg) {
   system5.run(() => {

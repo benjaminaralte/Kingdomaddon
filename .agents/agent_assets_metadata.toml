@@ -101,3 +101,9 @@ id = "qhfvwl3XpRDmU0RVAiJvb"
 uri = "file://KingdomsConquest_v2.3.1.zip"
 type = "unspecified"
 title = "KingdomsConquest v2.3.1 — Recall Command Added"
+
+[[outputs]]
+id = "9VMvGInbU-ahwF1JZZGnL"
+uri = "file://KingdomsConquest_v2.3.2.zip"
+type = "unspecified"
+title = "KingdomsConquest v2.3.2 — Sky Fire Tactic"
