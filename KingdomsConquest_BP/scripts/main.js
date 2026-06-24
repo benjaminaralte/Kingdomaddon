@@ -476,7 +476,7 @@ function getKingdomStrength(kingdomId) {
   for (const vid of kingdom.villageIds) {
     const village = getVillage(vid);
     if (village) {
-      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6 + (village.troops.cavalryLancerElite ?? 0) * 8;
+      total += village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6 + (village.troops.cavalryLancerElite ?? 0) * 8 + (village.troops.shieldSoldiers ?? 0) * 3;
     }
   }
   return total;
@@ -789,7 +789,7 @@ function raidNearbyTargets(camp) {
   }
 }
 function getTotalVillageDefense(village) {
-  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6 + (village.troops.cavalryLancerElite ?? 0) * 8;
+  return village.troops.cityGuards * 1 + village.troops.spearmen * 2 + village.troops.archers * 2 + village.troops.cavalry * 3 + (village.troops.heavyKnight ?? 0) * 5 + (village.troops.samurai ?? 0) * 7 + (village.troops.mercenaryLancer ?? 0) * 6 + (village.troops.legionary ?? 0) * 6 + (village.troops.cavalryLancerElite ?? 0) * 8 + (village.troops.shieldSoldiers ?? 0) * 3;
 }
 function disbandBanditCamp(campId) {
   const camp = getBanditCamp(campId);
@@ -1046,7 +1046,7 @@ function consumeSoldierFoodFromGranary(village) {
   const currentDay = getCurrentDay();
   const daysSinceFeed = daysSince(village.lastSoldierFeedDay ?? 0);
   if (daysSinceFeed < 3) return;
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0);
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0) + (village.troops.shieldSoldiers ?? 0);
   if (soldiers === 0) {
     village.lastSoldierFeedDay = currentDay;
     village.missedSoldierFeedDays = 0;
@@ -1390,7 +1390,7 @@ function claimVillage(player, townHallBlock, kingdomName) {
     barracksLevel: 1,
     prosperity: 50,
     tradeCartCount: 0,
-    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0, cavalryLancerElite: 0 },
+    troops: { cityGuards: 0, spearmen: 0, archers: 0, cavalry: 0, heavyKnight: 0, samurai: 0, mercenaryLancer: 0, legionary: 0, cavalryLancerElite: 0, shieldSoldiers: 0 },
     missedWages: 0,
     lastDayProcessed: getCurrentDay(),
     lastWageDay: getCurrentDay(),
@@ -1494,7 +1494,8 @@ var RECRUIT_COSTS = {
   samurai: 42,
   mercenaryLancer: 36,
   legionary: 36,
-  cavalryLancerElite: 55
+  cavalryLancerElite: 55,
+  shieldSoldiers: 12
 };
 function recruitTroop(village, type, count = 1) {
   if (type === "heavyKnight" && village.barracksLevel < 3) {
@@ -1517,7 +1518,7 @@ function recruitTroop(village, type, count = 1) {
   }
   const costEach = RECRUIT_COSTS[type];
   const totalCost = costEach * count;
-  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0) - (village.troops.cavalryLancerElite ?? 0) - village.workers.farmers - village.workers.workers;
+  const availableWorkers = village.population - village.troops.cityGuards - village.troops.spearmen - village.troops.archers - village.troops.cavalry - (village.troops.heavyKnight ?? 0) - (village.troops.samurai ?? 0) - (village.troops.mercenaryLancer ?? 0) - (village.troops.legionary ?? 0) - (village.troops.cavalryLancerElite ?? 0) - (village.troops.shieldSoldiers ?? 0) - village.workers.farmers - village.workers.workers;
   if (availableWorkers < count) {
     notifyPlayer(village.owner, `\xA7cNot enough available workers to recruit ${count} ${type}.`);
     return false;
@@ -1548,7 +1549,8 @@ function tickWages(village) {
   const ml = village.troops.mercenaryLancer ?? 0;
   const le = village.troops.legionary ?? 0;
   const cle = village.troops.cavalryLancerElite ?? 0;
-  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight + sa * TROOP_WAGES.samurai + ml * TROOP_WAGES.mercenaryLancer + le * TROOP_WAGES.legionary + cle * TROOP_WAGES.cavalryLancerElite;
+  const ss = village.troops.shieldSoldiers ?? 0;
+  const totalWages = village.troops.cityGuards * TROOP_WAGES.cityGuards + village.troops.spearmen * TROOP_WAGES.spearmen + village.troops.archers * TROOP_WAGES.archers + village.troops.cavalry * TROOP_WAGES.cavalry + hk * TROOP_WAGES.heavyKnight + sa * TROOP_WAGES.samurai + ml * TROOP_WAGES.mercenaryLancer + le * TROOP_WAGES.legionary + cle * TROOP_WAGES.cavalryLancerElite + ss * TROOP_WAGES.shieldSoldiers;
   if (totalWages === 0) {
     village.lastWageDay = currentDay;
     saveVillage(village);
@@ -1585,7 +1587,7 @@ function tickWages(village) {
 }
 function handleDesertion(village) {
   const deserters = {};
-  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary", "cavalryLancerElite"];
+  const keys = ["cityGuards", "spearmen", "archers", "cavalry", "heavyKnight", "samurai", "mercenaryLancer", "legionary", "cavalryLancerElite", "shieldSoldiers"];
   let totalDeserters = 0;
   for (const key of keys) {
     if (village.troops[key] > 0) {
@@ -1764,7 +1766,8 @@ var TROOP_TOKEN_MAP = {
   "kingdoms:samurai_token": { troopType: "samurai", entityId: "kingdoms:samurai", label: "Samurai" },
   "kingdoms:mercenary_lancer_token": { troopType: "mercenaryLancer", entityId: "kingdoms:mercenary_lancer", label: "Mercenary Lancer" },
   "kingdoms:legionary_token": { troopType: "legionary", entityId: "kingdoms:legionary", label: "Legionary" },
-  "kingdoms:cavalry_lancer_elite_token": { troopType: "cavalryLancerElite", entityId: "kingdoms:cavalry_lancer_elite", label: "Cavalry Lancer Elite" }
+  "kingdoms:cavalry_lancer_elite_token": { troopType: "cavalryLancerElite", entityId: "kingdoms:cavalry_lancer_elite", label: "Cavalry Lancer Elite" },
+  "kingdoms:shield_soldier_token": { troopType: "shieldSoldiers", entityId: "kingdoms:shield_soldier", label: "Shield Soldier" }
 };
 var MOUNTED_ENTITIES = /* @__PURE__ */ new Set(["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"]);
 var _horseCounter = 0;
@@ -1885,7 +1888,8 @@ function pickupTroops(player, village, pickup) {
     { itemId: "kingdoms:heavy_knight_token", count: pickup.heavyKnight },
     { itemId: "kingdoms:samurai_token", count: pickup.samurai },
     { itemId: "kingdoms:mercenary_lancer_token", count: pickup.mercenaryLancer },
-    { itemId: "kingdoms:legionary_token", count: pickup.legionary }
+    { itemId: "kingdoms:legionary_token", count: pickup.legionary },
+    { itemId: "kingdoms:shield_soldier_token", count: pickup.shieldSoldiers }
   ].filter((t) => t.count > 0);
   let slotsNeeded = 0;
   for (const { count } of toGive) slotsNeeded += Math.ceil(count / 64);
@@ -1905,6 +1909,7 @@ function pickupTroops(player, village, pickup) {
   village.troops.samurai = (village.troops.samurai ?? 0) - pickup.samurai;
   village.troops.mercenaryLancer = (village.troops.mercenaryLancer ?? 0) - pickup.mercenaryLancer;
   village.troops.legionary = (village.troops.legionary ?? 0) - pickup.legionary;
+  village.troops.shieldSoldiers = (village.troops.shieldSoldiers ?? 0) - pickup.shieldSoldiers;
   saveVillage(village);
   for (const { itemId, count } of toGive) {
     let remaining = count;
@@ -2080,7 +2085,8 @@ function garrisonDeployedSoldiers(attackerName, village, dimension) {
     "kingdoms:heavy_knight": "heavyKnight",
     "kingdoms:samurai": "samurai",
     "kingdoms:mercenary_lancer": "mercenaryLancer",
-    "kingdoms:legionary": "legionary"
+    "kingdoms:legionary": "legionary",
+    "kingdoms:shield_soldier": "shieldSoldiers"
   };
   const loc = village.townHallLocation;
   let total = 0;
@@ -2790,7 +2796,7 @@ function getBlacksmithSummary(village) {
   const nextAT = ARMOR_TIERS[village.blacksmith.armorTier + 1];
   const wCost = WEAPON_UPGRADE_COSTS[village.blacksmith.weaponTier];
   const aCost = ARMOR_UPGRADE_COSTS[village.blacksmith.armorTier];
-  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0);
+  const soldiers = village.troops.cityGuards + village.troops.spearmen + village.troops.archers + village.troops.cavalry + (village.troops.heavyKnight ?? 0) + (village.troops.samurai ?? 0) + (village.troops.mercenaryLancer ?? 0) + (village.troops.legionary ?? 0) + (village.troops.cavalryLancerElite ?? 0) + (village.troops.shieldSoldiers ?? 0);
   const rs = village.resourceStorage;
   return [
     `\xA7b${village.name} Blacksmith\xA7r`,
@@ -4751,7 +4757,8 @@ var TROOP_ENTITY_MAP = {
   samurai: "kingdoms:samurai",
   mercenaryLancer: "kingdoms:mercenary_lancer",
   legionary: "kingdoms:legionary",
-  cavalryLancerElite: "kingdoms:cavalry_lancer_elite"
+  cavalryLancerElite: "kingdoms:cavalry_lancer_elite",
+  shieldSoldiers: "kingdoms:shield_soldier"
 };
 var TROOP_PRIORITY = ["cavalryLancerElite", "samurai", "mercenaryLancer", "legionary", "heavyKnight", "spearmen", "archers", "cavalry", "cityGuards"];
 function tickAutoDefense(currentTick) {
@@ -4913,7 +4920,8 @@ var GUARD_ENTITY_MAP = {
   heavyKnight: "kingdoms:heavy_knight",
   samurai: "kingdoms:samurai",
   mercenaryLancer: "kingdoms:mercenary_lancer",
-  legionary: "kingdoms:legionary"
+  legionary: "kingdoms:legionary",
+  shieldSoldiers: "kingdoms:shield_soldier"
 };
 function getBestAvailableTroopType(village) {
   const types = ["samurai", "legionary", "mercenaryLancer", "heavyKnight", "cavalry", "spearmen", "archers", "cityGuards"];
@@ -6249,15 +6257,17 @@ var STANDING_GUARD_RING_RADIUS = 2.5;
 var HOLD_MODES = /* @__PURE__ */ new Set([
   "spear_line_hold",
   "spear_perimeter",
+  "shield_wall",
   "cavalry_escort",
   "heavy_vanguard",
   "heavy_bodyguard",
   "standing_guard"
 ]);
 var FORMATION_TARGETS = {
-  spear_line_attack: ["kingdoms:spearman", "kingdoms:city_guard"],
-  spear_line_hold: ["kingdoms:spearman", "kingdoms:city_guard"],
-  spear_perimeter: ["kingdoms:spearman", "kingdoms:city_guard"],
+  spear_line_attack: ["kingdoms:spearman", "kingdoms:city_guard", "kingdoms:shield_soldier"],
+  spear_line_hold: ["kingdoms:spearman", "kingdoms:city_guard", "kingdoms:shield_soldier"],
+  spear_perimeter: ["kingdoms:spearman", "kingdoms:city_guard", "kingdoms:shield_soldier"],
+  shield_wall: ["kingdoms:shield_soldier"],
   cavalry_flanks: ["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"],
   cavalry_escort: ["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"],
   archer_arc: ["kingdoms:archer"],
@@ -6267,6 +6277,7 @@ var FORMATION_TARGETS = {
   all_rally: [
     "kingdoms:spearman",
     "kingdoms:city_guard",
+    "kingdoms:shield_soldier",
     "kingdoms:cavalry",
     "kingdoms:mercenary_lancer",
     "kingdoms:cavalry_lancer_elite",
@@ -6278,6 +6289,7 @@ var FORMATION_TARGETS = {
   standing_guard: [
     "kingdoms:spearman",
     "kingdoms:city_guard",
+    "kingdoms:shield_soldier",
     "kingdoms:cavalry",
     "kingdoms:mercenary_lancer",
     "kingdoms:cavalry_lancer_elite",
@@ -6321,6 +6333,27 @@ function computePositions(mode, base, viewDir, count) {
           x: base.x + Math.cos(angle) * PERIMETER_RADIUS,
           y: base.y,
           z: base.z + Math.sin(angle) * PERIMETER_RADIUS
+        });
+      }
+      break;
+    }
+    case "shield_wall": {
+      const frontCount = Math.ceil(count / 2);
+      const backCount = count - frontCount;
+      for (let i = 0; i < frontCount; i++) {
+        const offset = (i - (frontCount - 1) / 2) * 1.0;
+        positions.push({
+          x: base.x + fwd.x * 3 + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * 3 + rgt.z * offset
+        });
+      }
+      for (let i = 0; i < backCount; i++) {
+        const offset = (i - (backCount - 1) / 2) * 1.0;
+        positions.push({
+          x: base.x + fwd.x * 1.5 + rgt.x * offset,
+          y: base.y,
+          z: base.z + fwd.z * 1.5 + rgt.z * offset
         });
       }
       break;
@@ -6604,7 +6637,7 @@ async function showMainMenu(player) {
   const _dim = player.dimension;
   const _loc = player.location;
   const _typeGroups = [
-    { types: ["kingdoms:spearman", "kingdoms:city_guard"], key: "spear" },
+    { types: ["kingdoms:spearman", "kingdoms:city_guard", "kingdoms:shield_soldier"], key: "spear" },
     { types: ["kingdoms:cavalry", "kingdoms:mercenary_lancer", "kingdoms:cavalry_lancer_elite"], key: "cav" },
     { types: ["kingdoms:archer"], key: "arch" },
     { types: ["kingdoms:heavy_knight", "kingdoms:samurai", "kingdoms:legionary"], key: "heavy" }
@@ -6667,8 +6700,8 @@ async function showMainMenu(player) {
 }
 async function showSpearmenMenu(player) {
   const form = new ActionFormData2().title("\u{1F5E1} Spearmen & Guards Tactics").body(
-    "\xA7eControls: \xA7fSpearmen \xA77+ \xA7fCity Guards\xA77 (all sword & spear infantry).\n\n\xA7f\u25B6 Line + Attack \xA77\u2014 Line up ahead of you, then charge enemies.\n\xA7f\u25B6 Line + Hold \xA77\u2014 Hold a defensive line. Walks to maintain position.\n\xA7f\u25B6 Perimeter \xA77\u2014 Ring around you. Ideal vs. surrounded attacks.\n\xA78Counter-charge: Spearmen deal \xA7c+6 damage \xA78back to charging cavalry!"
-  ).button("\u2694 Line Formation \u2014 Attack").button("\u{1F6E1} Line Formation \u2014 Hold").button("\u{1F504} Perimeter Defense").button("\u2190 Back");
+    "\xA7eControls: \xA7fSpearmen \xA77+ \xA7fCity Guards \xA77+ \xA7fShield Soldiers\xA77.\n\n\xA7f\u25B6 Line + Attack \xA77\u2014 Line ahead, then charge enemies.\n\xA7f\u25B6 Line + Hold \xA77\u2014 Hold a defensive line. Walks to maintain position.\n\xA7f\u25B6 Perimeter \xA77\u2014 Ring around you. Ideal vs. surrounded attacks.\n\xA7f\u25B6 Shield Wall \xA77\u2014 \xA76Shield Soldiers only\xA77. Dense 2-row wall, 40%% less damage taken, immovable.\n\xA78Counter-charge: Spearmen deal \xA7c+6 damage \xA78back to charging cavalry!"
+  ).button("\u2694 Line Formation \u2014 Attack").button("\u{1F6E1} Line Formation \u2014 Hold").button("\u{1F504} Perimeter Defense").button("\u{1F6E1} Shield Wall\n\xA77Shield Soldiers only \u2014 dense wall, holds ground").button("\u2190 Back");
   const resp = await form.show(player);
   if (resp.canceled) return;
   switch (resp.selection) {
@@ -6682,6 +6715,9 @@ async function showSpearmenMenu(player) {
       issueOrder(player, "spear_perimeter", "\xA7aSpearmen forming perimeter!");
       break;
     case 3:
+      issueOrder(player, "shield_wall", "\xA7a\u{1F6E1} Shield Wall locked! Soldiers holding ground!");
+      break;
+    case 4:
       await showMainMenu(player);
       break;
   }

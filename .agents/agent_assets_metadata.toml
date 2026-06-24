@@ -107,3 +107,9 @@ id = "9VMvGInbU-ahwF1JZZGnL"
 uri = "file://KingdomsConquest_v2.3.2.zip"
 type = "unspecified"
 title = "KingdomsConquest v2.3.2 — Sky Fire Tactic"
+
+[[outputs]]
+id = "3wq_emQbkbfBMWA_ekaRo"
+uri = "file://KingdomsConquest_v2.4.0.zip"
+type = "unspecified"
+title = "KingdomsConquest v2.4.0 — Shield Soldier + Shield Wall"

@@ -134,6 +134,15 @@
     "kingdoms_guard_token": {
       "textures": "textures/items/guard_token_tex"
     },
+    "kingdoms_shield_soldier_token": {
+      "textures": "textures/items/shield_soldier_token_tex"
+    },
+    "kingdoms_golden_shield": {
+      "textures": "textures/items/shield_soldier_token_tex"
+    },
+    "shield_soldier_spawn_egg": {
+      "textures": "textures/items/shield_soldier_spawn_egg"
+    },
     "kingdoms_heavy_knight_sword": {
       "textures": "textures/items/heavy_knight_sword_tex"
     },
