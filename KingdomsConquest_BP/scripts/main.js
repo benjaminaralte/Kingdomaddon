@@ -2029,6 +2029,18 @@ var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
   const dim = player.dimension;
   const loc = player.location;
+  const enemyVillageNearby = getAllVillages().find((v) => {
+    if (!v.owner || v.owner === player.name) return false;
+    if (v.location.dimension !== dim.id) return false;
+    const center = v.townHallLocation ?? v.location;
+    const dx = center.x - loc.x;
+    const dz = center.z - loc.z;
+    return Math.sqrt(dx * dx + dz * dz) < ENEMY_DEPLOY_EXCLUSION_RADIUS;
+  });
+  if (enemyVillageNearby) {
+    notifyPlayer(player.name, `\xA7c\u26D4 You cannot recall troops inside or near \xA7b${enemyVillageNearby.name}\xA7c! Move at least \xA7f${ENEMY_DEPLOY_EXCLUSION_RADIUS} blocks\xA7c away from enemy territory.`);
+    return false;
+  }
   const found = {};
   const toRemove = [];
   for (const entityType of Object.keys(ENTITY_TO_TOKEN)) {
