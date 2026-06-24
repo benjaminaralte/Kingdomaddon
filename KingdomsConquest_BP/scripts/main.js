@@ -7082,6 +7082,9 @@ world20.afterEvents.itemStartUseOn.subscribe((event) => {
     case CUSTOM_BLOCKS.MATERIAL_STORAGE:
       void showMaterialStorageMenu(player, block);
       break;
+    case CUSTOM_BLOCKS.CASTLE:
+      void showCastleShopMenu(player, block);
+      break;
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt2(block.location);
       if (wpVillage && wpVillage.waypointLocation) {
@@ -7277,6 +7280,9 @@ world20.afterEvents.playerInteractWithEntity.subscribe((event) => {
     case CUSTOM_BLOCKS.MATERIAL_STORAGE:
       void showMaterialStorageMenu(player, block);
       break;
+    case CUSTOM_BLOCKS.CASTLE:
+      void showCastleShopMenu(player, block);
+      break;
     case "kingdoms:waypoint": {
       const wpVillage = findVillageAt2(blockLoc);
       if (wpVillage && wpVillage.waypointLocation) {
@@ -7291,6 +7297,18 @@ world20.afterEvents.playerInteractWithEntity.subscribe((event) => {
       break;
     }
   }
+});
+world20.afterEvents.entityDie.subscribe((event) => {
+  const entity = event.deadEntity;
+  if (!entity || entity.typeId !== "kingdoms:builder") return;
+  let villageId;
+  try { villageId = entity.getDynamicProperty("kc:village_id"); } catch (_e) { return; }
+  if (!villageId) return;
+  const village = getVillage(villageId);
+  if (!village) return;
+  village.builders = Math.max(0, (village.builders ?? 1) - 1);
+  saveVillage(village);
+  notifyPlayer(village.owner, `\xA7c\u{1F477} A Builder in \xA7b${village.name}\xA7c was killed! Builders: \xA7f${village.builders}/2\xA7c. Rehire from your Castle Shop.`);
 });
 world20.afterEvents.playerJoin.subscribe((event) => {
   const playerName = event.playerName;
@@ -8181,13 +8199,17 @@ var TOWN_HALL_SHOP_ITEMS = [
   { label: "\u{1F6A9} Banner Hall", desc: "Decorative flag display with 4 flagpoles & banner crafting table.", itemId: "kingdoms:banner_hall_item", cost: 40 }
 ];
 async function showTownHallShop(player, village) {
-  const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(`\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA7r
-\xA77Purchase buildings & items for your village.
-`);
+  const builderBonus = Math.min(2, village.builders ?? 0);
+  const discountMult = 1 - builderBonus * 0.1;
+  const discountNote = builderBonus > 0 ? `\xA7a\u{1F477} ${builderBonus} Builder(s): -${builderBonus * 10}% off!\xA7r\n` : "";
+  const form = new ActionFormData3().title(`\u{1F3EA} Town Hall Shop \u2014 ${village.name}`).body(`\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA7r\n${discountNote}\xA77Purchase buildings & items for your village.\n`);
   for (const item of TOWN_HALL_SHOP_ITEMS) {
-    const affordable = village.treasury >= item.cost ? "\xA7a" : "\xA7c";
-    form.button(`${item.label}
-${affordable}${item.cost}\u{1F48E}\xA77 \u2014 ${item.desc}`);
+    const discountedCost = Math.floor(item.cost * discountMult);
+    const affordable = village.treasury >= discountedCost ? "\xA7a" : "\xA7c";
+    const priceStr = builderBonus > 0
+      ? `${affordable}${discountedCost}\u{1F48E}\xA77 (\xA7m${item.cost}\xA77) \u2014 ${item.desc}`
+      : `${affordable}${discountedCost}\u{1F48E}\xA77 \u2014 ${item.desc}`;
+    form.button(`${item.label}\n${priceStr}`);
   }
   form.button("\xA77\u2190 Back");
   const response = await form.show(player);
@@ -8196,8 +8218,10 @@ ${affordable}${item.cost}\u{1F48E}\xA77 \u2014 ${item.desc}`);
   const selected = TOWN_HALL_SHOP_ITEMS[response.selection];
   const fresh = getVillage(village.id);
   if (!fresh) return;
-  if (fresh.treasury < selected.cost) {
-    notifyPlayer(player.name, `\xA7cNot enough treasury funds. Need \xA7f${selected.cost}\u{1F48E}\xA7c, have \xA7f${fresh.treasury}\u{1F48E}\xA7c.`);
+  const freshBuilderBonus = Math.min(2, fresh.builders ?? 0);
+  const finalCost = Math.floor(selected.cost * (1 - freshBuilderBonus * 0.1));
+  if (fresh.treasury < finalCost) {
+    notifyPlayer(player.name, `\xA7cNot enough treasury funds. Need \xA7f${finalCost}\u{1F48E}\xA7c, have \xA7f${fresh.treasury}\u{1F48E}\xA7c.`);
     return;
   }
   const inv = player.getComponent(EntityInventoryComponent8.componentId);
@@ -8207,9 +8231,56 @@ ${affordable}${item.cost}\u{1F48E}\xA77 \u2014 ${item.desc}`);
     notifyPlayer(player.name, "\xA7cYour inventory is full. Make room first.");
     return;
   }
-  fresh.treasury -= selected.cost;
+  fresh.treasury -= finalCost;
   saveVillage(fresh);
-  notifyPlayer(player.name, `\xA7aPurchased \xA7f${selected.label}\xA7a for \xA76${selected.cost}\u{1F48E}\xA7a! Place it inside your village territory.`);
+  notifyPlayer(player.name, `\xA7aPurchased \xA7f${selected.label}\xA7a for \xA76${finalCost}\u{1F48E}\xA7a! Place it inside your village territory.`);
+}
+async function showCastleShopMenu(player, block) {
+  const village = findVillageAt2(block.location);
+  if (!village || village.owner !== player.name) {
+    notifyPlayer(player.name, "\xA7cYou don't own this village.");
+    return;
+  }
+  if (!village.hasCastle) {
+    notifyPlayer(player.name, "\xA7cYou need a built Castle to access this shop.");
+    return;
+  }
+  const builders = village.builders ?? 0;
+  const maxBuilders = 2;
+  const builderCost = 50;
+  const discountPct = builders * 10;
+  const hireAvail = builders < maxBuilders && village.treasury >= builderCost;
+  const form = new ActionFormData3().title(`\u{1F3F0} Castle Shop \u2014 ${village.name}`).body(
+    `\xA77Treasury: \xA76${village.treasury}\u{1F48E}\xA7r\n\xA77Builders Hired: \xA7f${builders}/${maxBuilders}\n\xA77Structure Cost Discount: \xA7a${discountPct}%\n\n\xA77Builders are NPCs stationed at your Castle.\n\xA77Each Builder reduces Town Hall structure costs by \xA7a10%\xA77.\n\xA77If a Builder is killed you can hire another here,\n\xA77as long as your Castle still stands.`
+  ).button(
+    builders >= maxBuilders
+      ? `\xA77\u{1F477} Hire Builder (MAX REACHED)\n\xA77Already at capacity`
+      : `\u{1F477} Hire Builder (${builders}/${maxBuilders})\n${village.treasury >= builderCost ? "\xA7a" : "\xA7c"}${builderCost}\u{1F48E}\xA77 \u2014 Reduces structure costs by 10%`
+  ).button("\xA77\u2190 Back");
+  const response = await form.show(player);
+  if (response.canceled || response.selection == null || response.selection === 1) return;
+  if (response.selection === 0) {
+    if (builders >= maxBuilders) {
+      notifyPlayer(player.name, "\xA7cAlready at max Builders (2/2). Dismiss one first.");
+      return;
+    }
+    const fresh = getVillage(village.id);
+    if (!fresh) return;
+    if (fresh.treasury < builderCost) {
+      notifyPlayer(player.name, `\xA7cNot enough treasury. Need \xA7f${builderCost}\u{1F48E}\xA7c, have \xA7f${fresh.treasury}\u{1F48E}\xA7c.`);
+      return;
+    }
+    fresh.treasury -= builderCost;
+    fresh.builders = (fresh.builders ?? 0) + 1;
+    saveVillage(fresh);
+    try {
+      const spawnLoc = { x: block.location.x + 1, y: block.location.y + 1, z: block.location.z + 1 };
+      const builderEntity = player.dimension.spawnEntity("kingdoms:builder", spawnLoc);
+      builderEntity.setDynamicProperty("kc:village_id", fresh.id);
+      builderEntity.nameTag = "\u{1F477} Builder";
+    } catch (_e) {}
+    notifyPlayer(player.name, `\xA7a\u{1F477} Builder hired! (\xA7f${fresh.builders}/${maxBuilders}\xA7a stationed)\xA7a Structure costs now \xA7a${fresh.builders * 10}% cheaper\xA7a in Town Hall Shop.`);
+  }
 }
 async function showBarracksMenu(player, block) {
   const village = findVillageAt2(block.location);

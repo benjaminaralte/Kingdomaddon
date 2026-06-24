@@ -83,3 +83,9 @@ id = "ywH0mcnSzCvTMMGNKezK8"
 uri = "file://KingdomsConquest_v2.1.0.zip"
 type = "unspecified"
 title = "KingdomsConquest v2.1.0 — Download & rename to .mcaddon"
+
+[[outputs]]
+id = "aT_ihAP1q_luFHxtnD55_"
+uri = "file://KingdomsConquest_v2.2.0.zip"
+type = "unspecified"
+title = "KingdomsConquest v2.2.0 — Builder + All Icons Fixed"
