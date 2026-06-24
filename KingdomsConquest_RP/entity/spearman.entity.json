@@ -30,7 +30,7 @@
         "movement_ctrl": "controller.animation.got_troop2"
       },
       "render_controllers": [
-        "controller.render.mercenary_pn.sword"
+        "controller.render.mercenary_pn.templar"
       ],
       "spawn_egg": {
         "texture": "spearman_spawn_egg",
