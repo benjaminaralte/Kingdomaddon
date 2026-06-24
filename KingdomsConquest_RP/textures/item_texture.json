@@ -85,6 +85,9 @@
     },
     "kingdoms_banner_hall": {
       "textures": "textures/items/granary_tex"
+    },
+    "kingdoms_formation_horn": {
+      "textures": "textures/items/formation_horn_tex"
     }
   }
 }

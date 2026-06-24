@@ -7446,6 +7446,12 @@ world20.afterEvents.itemUse.subscribe((event) => {
     openTacticsMenu(player);
     return;
   }
+  if (itemId === "kingdoms:formation_horn") {
+    system6.run(() => {
+      triggerFormationHorn(player);
+    });
+    return;
+  }
   if (TROOP_TOKEN_MAP[itemId]) {
     system6.run(() => {
       releaseTroops(player);
@@ -8244,7 +8250,7 @@ ${queueSummary}
 
 Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diamonds: ${rs.diamonds}`
   ).button(`\u{1FA96} Train Troops (queue: ${queueCount}/10)
-\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg + cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn");
+\xA77Select troop type and quantity`).button(`\u2694 Pick Up Troops (${t.cityGuards + t.spearmen + t.archers + t.cavalry + hk + sm + ml + lg + cle} stationed)`).button(carriedTotal > 0 ? `\u{1F3F9} Return Troops to Barracks (${carriedTotal} carried)` : "\u{1F3F9} Return Troops (none carried)").button(`\u2B06 Upgrade Barracks (${village.barracksLevel * 15} emeralds)`).button("\u{1F4EF} Tactics Horn\n\xA77Take a formation command horn").button("\u{1F3BA} Formation Horn\n\xA77Rally troops with a battle signal");
   const response = await form.show(player);
   if (response.canceled) return;
   switch (response.selection) {
@@ -8262,6 +8268,9 @@ Treasury: ${village.treasury} emeralds  Iron: ${rs.iron}  Gold: ${rs.gold}  Diam
       break;
     case 4:
       giveTacticsHorn(player);
+      break;
+    case 5:
+      giveFormationHorn(player);
       break;
   }
 }
@@ -9417,6 +9426,69 @@ function giveTacticsHorn(player) {
     }
   }
   notifyPlayer(player.name, "\xA7cInventory full \u2014 make room and try again.");
+}
+function giveFormationHorn(player) {
+  const inv = player.getComponent(EntityInventoryComponent8.componentId);
+  if (!inv?.container) return;
+  const container = inv.container;
+  for (let i = 0; i < container.size; i++) {
+    const slot = container.getItem(i);
+    if (slot?.typeId === "kingdoms:formation_horn") {
+      notifyPlayer(player.name, "\xA7eYou already have a Formation Horn.");
+      return;
+    }
+  }
+  for (let i = 0; i < container.size; i++) {
+    if (!container.getItem(i)) {
+      container.setItem(i, new ItemStack6("kingdoms:formation_horn", 1));
+      notifyPlayer(player.name, "\xA7a\u{1F3BA} Formation Horn added to your inventory. Right-click to signal your troops!");
+      return;
+    }
+  }
+  notifyPlayer(player.name, "\xA7cInventory full \u2014 make room and try again.");
+}
+var HORN_SEARCH_RADIUS = 48;
+var HORN_PULSE_PARTICLE = "minecraft:critical_hit_emitter";
+function triggerFormationHorn(player) {
+  const dim = player.dimension;
+  const loc = player.location;
+  const allTypes = [...new Set(Object.values(FORMATION_TARGETS).flat())];
+  const respondingTroops = [];
+  for (const entityType of allTypes) {
+    try {
+      const entities = dim.getEntities({ type: entityType, location: loc, maxDistance: HORN_SEARCH_RADIUS });
+      for (const e of entities) {
+        if (e.getDynamicProperty("kc:owner") === player.name) {
+          respondingTroops.push(e);
+        }
+      }
+    } catch {}
+  }
+  if (respondingTroops.length === 0) {
+    notifyPlayer(player.name, `\xA7eNo deployed troops in range to signal (${HORN_SEARCH_RADIUS} blocks).`);
+    return;
+  }
+  try {
+    player.playSound("raid.horn", { volume: 1.2, pitch: 0.9 });
+  } catch {}
+  for (const troop of respondingTroops) {
+    try {
+      const tLoc = troop.location;
+      dim.spawnParticle(HORN_PULSE_PARTICLE, { x: tLoc.x, y: tLoc.y + 1.5, z: tLoc.z });
+      dim.spawnParticle(HORN_PULSE_PARTICLE, { x: tLoc.x + 0.4, y: tLoc.y + 0.8, z: tLoc.z });
+      dim.spawnParticle(HORN_PULSE_PARTICLE, { x: tLoc.x - 0.4, y: tLoc.y + 0.8, z: tLoc.z });
+    } catch {}
+  }
+  notifyPlayer(
+    player.name,
+    `\xA76\u{1F3BA} \xA7eFormation Horn sounded! \xA7f${respondingTroops.length}\xA7e troop${respondingTroops.length > 1 ? "s" : ""} acknowledged \u2014 rallying in 2 seconds\u2026`
+  );
+  system6.runTimeout(() => {
+    const n = applyFormation(player, "all_rally");
+    if (n > 0) {
+      notifyPlayer(player.name, `\xA7a\u{1F514} \xA7f${n}\xA7a troop${n > 1 ? "s" : ""} are marching to rally point!`);
+    }
+  }, 40);
 }
 async function showPickUpTroopsForm(player, village) {
   const t = village.troops;
