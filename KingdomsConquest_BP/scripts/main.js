@@ -6550,7 +6550,7 @@ function applyFormation(player, mode) {
   });
   return troops.length;
 }
-var FORMATION_MOVE_STEP = 0.45;
+var FORMATION_MOVE_STEP = 0.8;
 var FORMATION_ARRIVE_THRESHOLD = 1.2;
 function tickFormationMovement() {
   for (const player of world19.getPlayers()) {
@@ -6571,15 +6571,33 @@ function tickFormationMovement() {
           const ex = e.location.x, ey = e.location.y, ez = e.location.z;
           const dx = tx - ex, dz = tz - ez;
           const dist = Math.sqrt(dx * dx + dz * dz);
+          const faceTarget = { x: tx, y: ey, z: tz };
           if (dist < FORMATION_ARRIVE_THRESHOLD) {
-            try { e.teleport({ x: tx, y: ty, z: tz }, { dimension: dim }); } catch {}
+            try { e.teleport({ x: tx, y: ty, z: tz }, { dimension: dim, facingLocation: faceTarget }); } catch {}
             try { e.setDynamicProperty("kc:f_target", ""); } catch {}
             continue;
           }
           const step = Math.min(FORMATION_MOVE_STEP, dist);
           const nx = ex + (dx / dist) * step;
           const nz = ez + (dz / dist) * step;
-          try { e.teleport({ x: nx, y: ty, z: nz }, { dimension: dim }); } catch {}
+          let moved = false;
+          try {
+            moved = e.tryTeleport({ x: nx, y: ey, z: nz }, {
+              dimension: dim, facingLocation: faceTarget,
+              checkForBlocks: true, keepVelocity: false
+            });
+          } catch { moved = false; }
+          if (!moved) {
+            try {
+              moved = e.tryTeleport({ x: nx, y: ey + 1, z: nz }, {
+                dimension: dim, facingLocation: faceTarget,
+                checkForBlocks: true, keepVelocity: false
+              });
+            } catch { moved = false; }
+          }
+          if (!moved) {
+            try { e.teleport({ x: nx, y: ey, z: nz }, { dimension: dim, facingLocation: faceTarget }); } catch {}
+          }
         }
       } catch {}
     }

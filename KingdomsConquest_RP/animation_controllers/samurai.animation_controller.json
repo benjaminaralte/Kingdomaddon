@@ -18,9 +18,6 @@
                             "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0"
                         },
                         {
-                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
-                        },
-                        {
                             "attacking": "query.has_target && variable.attack_time > 0.0"
                         }
                     ]
@@ -34,9 +31,6 @@
                     "transitions": [
                         {
                             "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 && !query.has_target"
-                        },
-                        {
-                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
                         },
                         {
                             "walking_target": "query.ground_speed >= 0.05 && query.has_target && variable.attack_time <= 0.0"
@@ -55,9 +49,6 @@
                     "transitions": [
                         {
                             "root": "!(query.is_moving) && query.is_on_ground && query.ground_speed <= 0.05 && !query.has_target"
-                        },
-                        {
-                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
                         },
                         {
                             "walking": "query.ground_speed >= 0.05 && !query.has_target && variable.attack_time <= 0.0"
@@ -103,9 +94,6 @@
                         },
                         {
                             "walking_target": "query.ground_speed >= 0.05 && query.has_target && variable.attack_time <= 0.0"
-                        },
-                        {
-                            "targeting": "query.ground_speed <= 0.05 && query.has_target && variable.attack_time <= 0.0"
                         }
                     ]
                 }
