@@ -1,0 +1,41 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:shield_soldier",
+      "min_engine_version": "1.16.0",
+      "materials": {
+        "default": "skeleton"
+      },
+      "textures": {
+        "var0": "textures/entity/shield_soldier",
+        "var1": "textures/entity/shield_soldier"
+      },
+      "geometry": {
+        "default": "geometry.templar_bodyguard"
+      },
+      "scripts": {
+        "animate": [
+          "movement_ctrl",
+          "setup"
+        ]
+      },
+      "animations": {
+        "attack": "animation.templar.sword_attack",
+        "bobing": "animation.templar.sword_idle",
+        "setup": "controller.animation.pn_roman.setup",
+        "move": "animation.templar.sword_move",
+        "move_target": "animation.templar.sword_move_target",
+        "target": "animation.templar.sword_stay_target",
+        "movement_ctrl": "controller.animation.got_troop2"
+      },
+      "render_controllers": [
+        "controller.render.mercenary_pn.templar"
+      ],
+      "spawn_egg": {
+        "texture": "shield_soldier_spawn_egg",
+        "texture_index": 0
+      }
+    }
+  }
+}

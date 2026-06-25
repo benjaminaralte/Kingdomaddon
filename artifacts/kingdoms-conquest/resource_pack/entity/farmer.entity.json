@@ -1,0 +1,21 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "kingdoms:farmer",
+      "min_engine_version": "1.16.0",
+      "materials": { "default": "entity_alphatest" },
+      "textures": { "default": "textures/entity/farmer" },
+      "geometry": { "default": "geometry.humanoid" },
+      "animations": {
+        "walk": "animation.humanoid.walk",
+        "idle": "animation.humanoid.base_pose",
+        "move": "controller.animation.kingdoms.villager.move"
+      },
+      "scripts": {
+        "animate": [ "move" ]
+      },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}

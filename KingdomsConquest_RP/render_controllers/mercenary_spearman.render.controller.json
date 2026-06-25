@@ -34,7 +34,7 @@
 					"sword": "query.has_target || variable.attack_time > 0.0"
 				},
 				{
-					"sarung_pedang": "query.has_target || variable.attack_time > 0.0"
+					"sword_handle": "query.has_target || variable.attack_time > 0.0"
 				}
 			]
 		}
