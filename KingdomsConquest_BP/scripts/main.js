@@ -2023,7 +2023,8 @@ var ENTITY_TO_TOKEN = {
   "kingdoms:samurai": "kingdoms:samurai_token",
   "kingdoms:mercenary_lancer": "kingdoms:mercenary_lancer_token",
   "kingdoms:legionary": "kingdoms:legionary_token",
-  "kingdoms:cavalry_lancer_elite": "kingdoms:cavalry_lancer_elite_token"
+  "kingdoms:cavalry_lancer_elite": "kingdoms:cavalry_lancer_elite_token",
+  "kingdoms:shield_soldier": "kingdoms:shield_soldier_token"
 };
 var RECALL_RADIUS = 48;
 function recallNearbyTroops(player) {
@@ -2151,7 +2152,8 @@ function countTroopTokens(player) {
     samurai: 0,
     mercenaryLancer: 0,
     legionary: 0,
-    cavalryLancerElite: 0
+    cavalryLancerElite: 0,
+    shieldSoldiers: 0
   };
   if (!inv?.container) return result;
   const container = inv.container;

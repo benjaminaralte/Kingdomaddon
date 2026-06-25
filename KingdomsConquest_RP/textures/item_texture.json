@@ -1015,6 +1015,30 @@
     "shield_soldier_spawn_egg": {
       "textures": "textures/items/shield_soldier_spawn_egg"
     },
+    "archer_spawn_egg": {
+      "textures": "textures/items/archer_spawn_egg"
+    },
+    "spearman_spawn_egg": {
+      "textures": "textures/items/spearman_spawn_egg"
+    },
+    "cavalry_spawn_egg": {
+      "textures": "textures/items/cavalry_spawn_egg"
+    },
+    "heavy_knight_spawn_egg": {
+      "textures": "textures/items/heavy_knight_spawn_egg"
+    },
+    "city_guard_spawn_egg": {
+      "textures": "textures/items/city_guard_spawn_egg"
+    },
+    "patrol_soldier_spawn_egg": {
+      "textures": "textures/items/patrol_soldier_spawn_egg"
+    },
+    "castle_guard_spawn_egg": {
+      "textures": "textures/items/castle_guard_spawn_egg"
+    },
+    "bandit_spawn_egg": {
+      "textures": "textures/items/bandit_spawn_egg"
+    },
     "kingdoms_heavy_knight_sword": {
       "textures": "textures/items/heavy_knight_sword_tex"
     },
