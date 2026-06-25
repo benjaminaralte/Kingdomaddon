@@ -91,19 +91,23 @@ export function tickWages(village: VillageData): void {
 
   if (daysSinceWage < WAGE_INTERVAL_DAYS) return;
 
-  const hk = village.troops.heavyKnight     ?? 0;
-  const sa = village.troops.samurai         ?? 0;
-  const ml = village.troops.mercenaryLancer ?? 0;
-  const le = village.troops.legionary       ?? 0;
+  const hk  = village.troops.heavyKnight        ?? 0;
+  const ss  = village.troops.shieldSoldier      ?? 0;
+  const sa  = village.troops.samurai            ?? 0;
+  const ml  = village.troops.mercenaryLancer    ?? 0;
+  const le  = village.troops.legionary          ?? 0;
+  const cle = village.troops.cavalryLancerElite ?? 0;
   const totalWages =
-    village.troops.cityGuards  * TROOP_WAGES.cityGuards +
-    village.troops.spearmen    * TROOP_WAGES.spearmen +
-    village.troops.archers     * TROOP_WAGES.archers +
-    village.troops.mountedArcher     * TROOP_WAGES.mountedArcher +
-    hk                         * TROOP_WAGES.heavyKnight +
-    sa                         * TROOP_WAGES.samurai +
-    ml                         * TROOP_WAGES.mercenaryLancer +
-    le                         * TROOP_WAGES.legionary;
+    village.troops.cityGuards    * TROOP_WAGES.cityGuards +
+    village.troops.spearmen      * TROOP_WAGES.spearmen +
+    village.troops.archers       * TROOP_WAGES.archers +
+    village.troops.mountedArcher * TROOP_WAGES.mountedArcher +
+    hk                           * TROOP_WAGES.heavyKnight +
+    ss                           * TROOP_WAGES.shieldSoldier +
+    sa                           * TROOP_WAGES.samurai +
+    ml                           * TROOP_WAGES.mercenaryLancer +
+    le                           * TROOP_WAGES.legionary +
+    cle                          * TROOP_WAGES.cavalryLancerElite;
 
   if (totalWages === 0) {
     village.lastWageDay = currentDay;

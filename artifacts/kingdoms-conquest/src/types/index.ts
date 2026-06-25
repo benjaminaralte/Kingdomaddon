@@ -14,9 +14,11 @@ export type TroopType =
   | "archers"
   | "mountedArcher"
   | "heavyKnight"
+  | "shieldSoldier"
   | "samurai"
   | "mercenaryLancer"
-  | "legionary";
+  | "legionary"
+  | "cavalryLancerElite";
 
 export interface TroopData {
   cityGuards: number;
@@ -24,9 +26,11 @@ export interface TroopData {
   archers: number;
   mountedArcher: number;
   heavyKnight: number;
+  shieldSoldier: number;
   samurai: number;
   mercenaryLancer: number;
   legionary: number;
+  cavalryLancerElite: number;
 }
 
 export interface WorkerAssignments {
@@ -226,14 +230,16 @@ export const WEAPON_TIERS = ["wood", "stone", "iron", "gold", "diamond", "nether
 export const ARMOR_TIERS = ["leather", "iron", "gold", "diamond", "netherite"] as const;
 
 export const TROOP_WAGES: Record<TroopType, number> = {
-  cityGuards:      2,
-  spearmen:        3,
-  archers:         3,
-  mountedArcher:         5,
-  heavyKnight:     8,
-  samurai:         12,
-  mercenaryLancer: 10,
-  legionary:       10,
+  cityGuards:          2,
+  spearmen:            3,
+  archers:             3,
+  mountedArcher:       5,
+  heavyKnight:         8,
+  shieldSoldier:       6,
+  samurai:             12,
+  mercenaryLancer:     10,
+  legionary:           10,
+  cavalryLancerElite:  14,
 };
 
 export const EMPTY_RESOURCE_STORAGE: ResourceStorage = {
